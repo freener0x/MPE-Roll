@@ -22,9 +22,11 @@ namespace
         int users = 0;
     };
 
-    std::map<juce::String, ModuleUse>& moduleTable()
+    // Keyed by the loaded library itself, not its path: a symlink, or the same path spelled with
+    // different case, reaches the same library, which must be initialised only once.
+    std::map<void*, ModuleUse>& moduleTable()
     {
-        static auto* table = new std::map<juce::String, ModuleUse>();
+        static auto* table = new std::map<void*, ModuleUse>();
         return *table;
     }
 
@@ -60,29 +62,36 @@ std::shared_ptr<ClapModule> ClapModule::load (const juce::File& file, juce::Stri
 {
     const std::lock_guard lock (moduleMutex());
     auto& table = moduleTable();
-    const auto key = file.getFullPathName();
+    std::unique_ptr<ClapModule> opened (new ClapModule (file));
+
+    if (! opened->library.open (binaryInside (file).getFullPathName()))
+    {
+        error = file.getFileName() + " couldn't be loaded.";
+        return {};
+    }
+
+    auto* const key = opened->library.getNativeHandle();
     ClapModule* module = nullptr;
 
     if (auto found = table.find (key); found != table.end())
     {
+        // Already loaded: `opened` only lets go of the extra reference it took.
         module = found->second.module;
         ++found->second.users;
     }
     else
     {
-        std::unique_ptr<ClapModule> created (new ClapModule (file));
-
-        if (! created->open (error))
+        if (! opened->initialise (error))
             return {};
 
-        module = created.release();
+        module = opened.release();
         table[key] = { module, 1 };
     }
 
     return std::shared_ptr<ClapModule> (module, [key] (ClapModule* m) { release (key, m); });
 }
 
-void ClapModule::release (const juce::String& key, ClapModule* module)
+void ClapModule::release (void* key, ClapModule* module)
 {
     const std::lock_guard lock (moduleMutex());
     auto& table = moduleTable();
@@ -94,14 +103,8 @@ void ClapModule::release (const juce::String& key, ClapModule* module)
     }
 }
 
-bool ClapModule::open (juce::String& error)
+bool ClapModule::initialise (juce::String& error)
 {
-    if (! library.open (binaryInside (file).getFullPathName()))
-    {
-        error = file.getFileName() + " couldn't be loaded.";
-        return false;
-    }
-
     entry = static_cast<const clap_plugin_entry_t*> (library.getFunction ("clap_entry"));
 
     if (entry == nullptr || entry->init == nullptr || entry->get_factory == nullptr)

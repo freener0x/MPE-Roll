@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <optional>
 
 namespace mperoll
 {
@@ -596,6 +597,13 @@ juce::AudioProcessorEditor* MpeRollProcessor::createEditor()
 
 void MpeRollProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    // The synth and its slots belong to the message thread. A host saving from another thread
+    // locks it first, so the synth can't be swapped mid-save (JUCE's VST3 host does the same).
+    std::optional<juce::MessageManagerLock> messageLock;
+
+    if (! juce::MessageManager::existsAndIsCurrentThread())
+        messageLock.emplace();
+
     std::shared_ptr<const EngineSnapshot> snapshot;
 
     {

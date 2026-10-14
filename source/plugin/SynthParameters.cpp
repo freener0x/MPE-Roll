@@ -1,6 +1,7 @@
 #include "SynthParameters.h"
 
 #include <map>
+#include <optional>
 
 namespace mperoll
 {
@@ -14,6 +15,20 @@ namespace
 
         return juce::String (p.getParameterIndex());
     }
+
+    /** The message thread, or a lock on it. */
+    struct MessageThreadAccess
+    {
+        MessageThreadAccess()
+        {
+            if (! juce::MessageManager::existsAndIsCurrentThread())
+                lock.emplace();
+        }
+
+        bool granted() const    { return ! lock.has_value() || lock->lockWasGained(); }
+
+        std::optional<juce::MessageManagerLock> lock;
+    };
 
     // Which synth a set of slots belongs to. Leaves out the file path, so moving the plugin, or
     // opening the project on another computer, keeps the slots.
@@ -59,19 +74,30 @@ juce::String SynthParameterProxy::getLabel() const
     return result;
 }
 
+// Text conversion can need the message thread: JUCE's VST3 host locks it, and CLAP only allows
+// it there. A host asking from another thread therefore locks the message thread first, so the
+// synth can't be swapped meanwhile and nothing waits on us while we wait for it.
 juce::String SynthParameterProxy::getText (float value, int maximumStringLength) const
 {
     juce::String result = juce::String (value, 3);
-    bank.synth.withParameter (bank.getHostedIndex (slot), [&] (juce::AudioProcessorParameter& p)
-                              { result = p.getText (value, maximumStringLength); });
+    const MessageThreadAccess access;
+
+    if (access.granted())
+        bank.synth.withParameter (bank.getHostedIndex (slot), [&] (juce::AudioProcessorParameter& p)
+                                  { result = p.getText (value, maximumStringLength); });
+
     return result;
 }
 
 float SynthParameterProxy::getValueForText (const juce::String& text) const
 {
     float result = text.getFloatValue();
-    bank.synth.withParameter (bank.getHostedIndex (slot), [&] (juce::AudioProcessorParameter& p)
-                              { result = p.getValueForText (text); });
+    const MessageThreadAccess access;
+
+    if (access.granted())
+        bank.synth.withParameter (bank.getHostedIndex (slot), [&] (juce::AudioProcessorParameter& p)
+                                  { result = p.getValueForText (text); });
+
     return result;
 }
 

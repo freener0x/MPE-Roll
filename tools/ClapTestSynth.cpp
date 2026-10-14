@@ -3,15 +3,22 @@
 //
 // It takes its pitch only from CLAP tuning note expressions and ignores MIDI, so a note that
 // glides in a render proves MPE Roll turned its MPE into note expressions.
+//
+// A few exported test hooks let the harness act as the synth's user: turn a knob in its "window"
+// (reported from process(), like a real CLAP GUI edit) and rebuild its parameters (which gives them
+// new cookies). The synth counts any value that arrives with an out-of-date cookie.
 
 #include <clap/clap.h>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
+#include <vector>
 
 namespace
 {
@@ -19,6 +26,9 @@ namespace
 constexpr clap_id gainId = 1;
 constexpr clap_id toneId = 2;
 constexpr double twoPi = 6.283185307179586;
+
+// The cookies handed out for gain and tone; a rebuild switches to the other pair.
+int cookieTargets[2][2] {};
 
 struct Voice
 {
@@ -50,7 +60,44 @@ struct TestSynth
     std::array<Voice, 16> voices {};
     std::atomic<double> gain { 1.0 }, tone { 0.5 };
 
+    std::atomic<int> cookieGeneration { 0 }, staleCookies { 0 };
+    std::atomic<bool> knobTurnPending { false };
+    std::atomic<double> knobTurnValue { 0.0 };
+
     static TestSynth& of (const clap_plugin_t* p)       { return *static_cast<TestSynth*> (p->plugin_data); }
+
+    void* cookieFor (clap_id id) const noexcept
+    {
+        return &cookieTargets[cookieGeneration.load() % 2][id == gainId ? 0 : 1];
+    }
+
+    /** As if the user turned the tone knob in the synth's window: a gesture, reported from process(). */
+    void reportKnobTurn (const clap_output_events_t* out, uint32_t time)
+    {
+        if (! knobTurnPending.exchange (false) || out == nullptr)
+            return;
+
+        tone = knobTurnValue.load();
+
+        clap_event_param_gesture_t begin {};
+        begin.header = { sizeof (begin), time, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_PARAM_GESTURE_BEGIN, 0 };
+        begin.param_id = toneId;
+        out->try_push (out, &begin.header);
+
+        clap_event_param_value_t value {};
+        value.header = { sizeof (value), time, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_PARAM_VALUE, 0 };
+        value.param_id = toneId;
+        value.note_id = -1;
+        value.port_index = -1;
+        value.channel = -1;
+        value.key = -1;
+        value.value = tone.load();
+        out->try_push (out, &value.header);
+
+        auto end = begin;
+        end.header.type = CLAP_EVENT_PARAM_GESTURE_END;
+        out->try_push (out, &end.header);
+    }
 
     void handleEvent (const clap_event_header_t& header, const clap_output_events_t* out)
     {
@@ -122,6 +169,9 @@ struct TestSynth
             case CLAP_EVENT_PARAM_VALUE:
             {
                 const auto& e = reinterpret_cast<const clap_event_param_value_t&> (header);
+
+                if (e.cookie != nullptr && e.cookie != cookieFor (e.param_id))
+                    ++staleCookies;
 
                 if (e.param_id == gainId)       gain = e.value;
                 else if (e.param_id == toneId)  tone = e.value;
@@ -213,13 +263,14 @@ const clap_plugin_note_ports_t notePorts
 const clap_plugin_params_t params
 {
     [] (const clap_plugin_t*) -> uint32_t { return 2; },
-    [] (const clap_plugin_t*, uint32_t index, clap_param_info_t* info)
+    [] (const clap_plugin_t* p, uint32_t index, clap_param_info_t* info)
     {
         if (index > 1)
             return false;
 
         *info = {};
         info->id = index == 0 ? gainId : toneId;
+        info->cookie = TestSynth::of (p).cookieFor (info->id);
         info->flags = CLAP_PARAM_IS_AUTOMATABLE;
         std::snprintf (info->name, sizeof (info->name), "%s", index == 0 ? "Gain" : "Tone");
         info->min_value = 0.0;
@@ -255,6 +306,8 @@ const clap_plugin_params_t params
     {
         for (uint32_t i = 0; i < in->size (in); ++i)
             TestSynth::of (p).handleEvent (*in->get (in, i), out);
+
+        TestSynth::of (p).reportKnobTurn (out, 0);
     }
 };
 
@@ -279,16 +332,41 @@ const clap_plugin_state_t state
 };
 
 //==============================================================================
+// Live instances, newest last: the test hooks act on the newest.
+std::mutex liveLock;
+std::vector<TestSynth*> live;
+
+TestSynth* newestInstance()
+{
+    const std::lock_guard lock (liveLock);
+    return live.empty() ? nullptr : live.back();
+}
+
 const clap_plugin_t* createPlugin (const clap_host_t* host)
 {
     auto* instance = new TestSynth();
     instance->host = host;
 
+    {
+        const std::lock_guard lock (liveLock);
+        live.push_back (instance);
+    }
+
     auto& p = instance->plugin;
     p.desc = &descriptor;
     p.plugin_data = instance;
     p.init = [] (const clap_plugin_t*) { return true; };
-    p.destroy = [] (const clap_plugin_t* plugin) { delete &TestSynth::of (plugin); };
+    p.destroy = [] (const clap_plugin_t* plugin)
+    {
+        auto* synth = &TestSynth::of (plugin);
+
+        {
+            const std::lock_guard lock (liveLock);
+            live.erase (std::remove (live.begin(), live.end(), synth), live.end());
+        }
+
+        delete synth;
+    };
     p.activate = [] (const clap_plugin_t* plugin, double rate, uint32_t, uint32_t)
     {
         TestSynth::of (plugin).sampleRate = rate;
@@ -335,6 +413,7 @@ const clap_plugin_t* createPlugin (const clap_host_t* host)
         }
 
         synth.render (left, right, rendered, frames);
+        synth.reportKnobTurn (process->out_events, 0);
         return CLAP_PROCESS_CONTINUE;
     };
     p.get_extension = [] (const clap_plugin_t*, const char* id) -> const void*
@@ -367,6 +446,47 @@ const clap_plugin_factory_t factory
 };
 
 } // namespace
+
+//==============================================================================
+// Test hooks, acting on the newest instance still alive.
+
+/** Any thread: the next process() (or flush) reports the tone knob turned to this value. */
+extern "C" CLAP_EXPORT bool mperoll_test_synth_turn_tone_knob (double value)
+{
+    auto* synth = newestInstance();
+
+    if (synth == nullptr)
+        return false;
+
+    synth->knobTurnValue = value;
+    synth->knobTurnPending = true;
+    return true;
+}
+
+/** Main thread, while deactivated: new parameter objects (so new cookies), then rescan(ALL). */
+extern "C" CLAP_EXPORT bool mperoll_test_synth_rebuild_parameters()
+{
+    auto* synth = newestInstance();
+
+    if (synth == nullptr)
+        return false;
+
+    const auto* hostParams = static_cast<const clap_host_params_t*> (synth->host->get_extension (synth->host, CLAP_EXT_PARAMS));
+
+    if (hostParams == nullptr)
+        return false;
+
+    ++synth->cookieGeneration;
+    hostParams->rescan (synth->host, CLAP_PARAM_RESCAN_ALL);
+    return true;
+}
+
+/** How many values arrived with a cookie that wasn't the current one. */
+extern "C" CLAP_EXPORT int mperoll_test_synth_stale_cookies()
+{
+    auto* synth = newestInstance();
+    return synth != nullptr ? synth->staleCookies.load() : -1;
+}
 
 extern "C" CLAP_EXPORT const clap_plugin_entry_t clap_entry
 {

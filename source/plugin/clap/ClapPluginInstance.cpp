@@ -11,6 +11,8 @@
 
 #include <juce_gui_extra/juce_gui_extra.h>
 
+#include <algorithm>
+#include <array>
 #include <atomic>
 #include <cstring>
 #include <limits>
@@ -132,7 +134,7 @@ public:
     clap_host_t host {};
     const clap_plugin_t* plugin = nullptr;
     std::atomic<ClapPluginInstance*> owner { nullptr };
-    std::atomic<bool> callbackRequestedEarly { false };
+    std::atomic<bool> callbackRequested { false };     // request_callback, possibly before the instance exists
 
     static ClapHostContext& of (const clap_host_t* h)      { return *static_cast<ClapHostContext*> (h->host_data); }
 
@@ -145,6 +147,7 @@ public:
     bool registerFd (int fd, clap_posix_fd_flags_t flags);
     bool modifyFd (int fd, clap_posix_fd_flags_t flags);
     bool unregisterFd (int fd);
+    void fdReady (int fd, clap_posix_fd_flags_t happened);
 
 private:
     struct PluginTimer final : public juce::Timer
@@ -162,7 +165,7 @@ private:
     std::map<int, clap_posix_fd_flags_t> fds;
 
     void timerFired (clap_id id);
-    void fdReady (int fd);
+    void unregisterAllFds();
 
     JUCE_DECLARE_NON_COPYABLE (ClapHostContext)
 };
@@ -172,15 +175,22 @@ class ClapParameter final : public juce::HostedAudioProcessorParameter
 {
 public:
     ClapParameter (ClapPluginInstance& o, const clap_param_info_t& info, double plainValue)
-        : owner (o), id (info.id), cookie (info.cookie)
+        : owner (o), id (info.id)
     {
         updateInfo (info, true);
         value = toNormalised (plainValue);
     }
 
     clap_id getClapId() const noexcept          { return id; }
-    void* getCookie() const noexcept            { return cookie; }
+    void* getCookie() const noexcept            { return cookie.load(); }
     bool isBypass() const noexcept              { return (flags.load() & CLAP_PARAM_IS_BYPASS) != 0; }
+
+    /** A rescan(ALL) can take a parameter away. Nothing is sent to it while it's gone. */
+    bool isGone() const noexcept                { return gone.load(); }
+    void setGone (bool isNowGone) noexcept      { gone = isNowGone; }
+
+    /** A rescan(ALL) invalidates the cookie; until the plugin gives a new one, none is sent. */
+    void forgetCookie() noexcept                { cookie = nullptr; }
 
     double toPlain (float normalised) const noexcept
     {
@@ -195,17 +205,22 @@ public:
         return hi > lo ? (float) juce::jlimit (0.0, 1.0, (plain - lo) / (hi - lo)) : 0.0f;
     }
 
-    /** Message thread. The range only changes while the plugin is inactive. */
+    /** Message thread. The range (and the cookie) only change while the plugin is inactive. */
     void updateInfo (const clap_param_info_t& info, bool rangeMayChange)
     {
         {
             const juce::SpinLock::ScopedLockType lock (nameLock);
-            name = juce::String::fromUTF8 (info.name);
+            name = displayNameOf (info);
         }
 
         flags = info.flags;
 
-        if (rangeMayChange && std::isfinite (info.min_value) && std::isfinite (info.max_value))
+        if (! rangeMayChange)
+            return;
+
+        cookie = info.cookie;
+
+        if (std::isfinite (info.min_value) && std::isfinite (info.max_value))
         {
             minValue = info.min_value;
             maxValue = juce::jmax (info.min_value, info.max_value);
@@ -213,12 +228,11 @@ public:
         }
     }
 
-    /** A value the plugin reports: shown to the host, not sent back. */
-    void setValueFromPlugin (double plain)
+    /** A value the plugin reports. Returns true if it changed; telling the host is up to the caller. */
+    bool setValueFromPlugin (double plain) noexcept
     {
         const auto normalised = toNormalised (plain);
-        value = normalised;
-        sendValueChangedMessageToListeners (normalised);
+        return ! juce::exactlyEqual (value.exchange (normalised), normalised);
     }
 
     /** Audio thread (or message thread while inactive): the host's latest value, if it changed. */
@@ -232,6 +246,10 @@ public:
     }
 
     void markPending() noexcept                 { pending = true; }
+
+    /** A change to show the host without it counting as an edit (see ClapPluginInstance). */
+    void markForReport() noexcept               { reportPending = true; }
+    bool takeReport() noexcept                  { return reportPending.exchange (false); }
 
     //==============================================================================
     float getValue() const override             { return value.load(); }
@@ -271,10 +289,10 @@ public:
 private:
     ClapPluginInstance& owner;
     const clap_id id;
-    void* const cookie;
+    std::atomic<void*> cookie { nullptr };
 
     std::atomic<float> value { 0.0f };
-    std::atomic<bool> pending { false };
+    std::atomic<bool> pending { false }, reportPending { false }, gone { false };
     std::atomic<uint32_t> flags { 0 };
     std::atomic<double> minValue { 0.0 }, maxValue { 1.0 }, defaultValue { 0.0 };
 
@@ -282,6 +300,22 @@ private:
     juce::String name;
 
     bool isStepped() const noexcept             { return (flags.load() & CLAP_PARAM_IS_STEPPED) != 0; }
+
+    /** CLAP names needn't be unique ("Cutoff" in every filter): MPE Roll lists every parameter in
+        one flat list in FL, so the innermost module goes in front ("Filter 2: Cutoff").
+    */
+    static juce::String displayNameOf (const clap_param_info_t& info)
+    {
+        const auto name = juce::String::fromUTF8 (info.name, (int) strnlen (info.name, sizeof (info.name))).trim();
+        const auto module = juce::String::fromUTF8 (info.module, (int) strnlen (info.module, sizeof (info.module)))
+                                .trimCharactersAtEnd ("/");
+        const auto group = module.fromLastOccurrenceOf ("/", false, false).trim();
+
+        if (group.isEmpty() || name.containsIgnoreCase (group))
+            return name;
+
+        return group + ": " + name;
+    }
 };
 
 //==============================================================================
@@ -321,10 +355,12 @@ public:
         rescanNotePorts();
         buildParameters();
 
+        // request_callback sets the flag before it looks for the owner, so between this and that,
+        // a request made while we were being built is never missed.
         hostContext->owner = this;
 
-        if (hostContext->callbackRequestedEarly.exchange (false))
-            requestCallback();
+        if (hostContext->callbackRequested.load())
+            triggerAsyncUpdate();
     }
 
     ~ClapPluginInstance() override
@@ -395,6 +431,10 @@ public:
     {
         const juce::SpinLock::ScopedLockType lock (processLock);
         deactivateLocked();
+
+        // Values the host set that no audio block carried yet.
+        if (parametersPending.load() && params != nullptr && params->flush != nullptr && onMessageThread())
+            flushLocked();
     }
 
     void processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override
@@ -410,6 +450,7 @@ public:
 
         const AudioThreadScope audioThread;
         lastProcessTime = juce::Time::getMillisecondCounter();
+        flushRequested = false;     // process() gives the plugin the chance a flush would
 
         if (restartPending.load())
         {
@@ -443,6 +484,8 @@ public:
         translator.setOutputSettings (mpeSettings);
         translator.setDialects (takesNoteEvents.load(), takesMidi.load());
 
+        reportValueChanges();
+
         audioEvents.clear();
         collectParameterChanges (audioEvents);
         translator.translate (midi, audioEvents, numSamples);
@@ -469,6 +512,9 @@ public:
 
         if (status == CLAP_PROCESS_ERROR)
             buffer.clear();
+
+        if (editsPending.exchange (false))
+            triggerAsyncUpdate();
     }
 
     using AudioPluginInstance::processBlock;
@@ -476,20 +522,33 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override
     {
+        destData.reset();
+
         if (state == nullptr)
             return;
 
-        juce::MemoryOutputStream out (destData, false);
-        clap_ostream_t stream {};
-        stream.ctx = &out;
-        stream.write = [] (const clap_ostream_t* s, const void* data, uint64_t size) -> int64_t
-        {
-            auto* target = static_cast<juce::MemoryOutputStream*> (s->ctx);
-            return target->write (data, (size_t) size) ? (int64_t) size : -1;
-        };
+        // So the state holds every value the host has set.
+        if (parametersPending.load())
+            flushParametersNow();
 
-        if (! state->save (plugin, &stream))
-            destData.reset();
+        juce::MemoryBlock saved;
+        bool ok = false;
+
+        {
+            juce::MemoryOutputStream out (saved, false);    // has to be gone before `saved` is used
+            clap_ostream_t stream {};
+            stream.ctx = &out;
+            stream.write = [] (const clap_ostream_t* s, const void* data, uint64_t size) -> int64_t
+            {
+                auto* target = static_cast<juce::MemoryOutputStream*> (s->ctx);
+                return target->write (data, (size_t) size) ? (int64_t) size : -1;
+            };
+
+            ok = state->save (plugin, &stream);
+        }
+
+        if (ok)
+            destData.swapWith (saved);
     }
 
     void setStateInformation (const void* data, int sizeInBytes) override
@@ -534,12 +593,6 @@ public:
     const clap_plugin_t* getClapPlugin() const noexcept         { return plugin; }
     const clap_plugin_gui_t* getGui() const noexcept            { return gui; }
 
-    void requestCallback()
-    {
-        callbackRequested = true;
-        triggerAsyncUpdate();
-    }
-
     void requestRestart()
     {
         restartPending = true;
@@ -561,8 +614,10 @@ public:
     {
         parametersPending = true;
 
-        if (! active.load())
-            requestParameterFlush();
+        // An active plugin gets the change with the next audio block. Otherwise, or if audio has
+        // stopped, the message thread passes it on.
+        if (! active.load() || audioHasStalled())
+            triggerAsyncUpdate();
     }
 
     void rescanParameters (clap_param_rescan_flags flags)
@@ -572,16 +627,35 @@ public:
 
         if ((flags & (CLAP_PARAM_RESCAN_INFO | CLAP_PARAM_RESCAN_TEXT | CLAP_PARAM_RESCAN_ALL)) != 0)
         {
+            const auto rescanAll = (flags & CLAP_PARAM_RESCAN_ALL) != 0;
+            const auto inactive = ! active.load();
+
+            // A rescan(ALL), which the plugin may only ask for while inactive, means it may have
+            // rebuilt its parameters: the old cookies are invalid, and any it no longer lists are
+            // gone. (JUCE's parameter list can't grow, so new ones show up when the synth is reloaded.)
+            if (rescanAll)
+            {
+                for (auto* p : clapParameters)
+                {
+                    p->forgetCookie();
+                    p->setGone (true);
+                }
+            }
+
             const auto count = params->count (plugin);
-            const auto rangeMayChange = ! active.load();
 
             for (uint32_t i = 0; i < count; ++i)
             {
                 clap_param_info_t info {};
 
                 if (params->get_info (plugin, i, &info))
+                {
                     if (auto* p = findParameter (info.id))
-                        p->updateInfo (info, rangeMayChange);
+                    {
+                        p->updateInfo (info, inactive);
+                        p->setGone (false);
+                    }
+                }
             }
 
             updateHostDisplay (ChangeDetails().withParameterInfoChanged (true));
@@ -617,11 +691,20 @@ public:
         updateHostDisplay (ChangeDetails().withNonParameterStateChanged (true));
     }
 
-    // GUI requests (the editor is only touched on the message thread).
+    // GUI requests. They may come from any thread; the editor is only touched on the message thread.
     bool requestResize (uint32_t width, uint32_t height);
     void resizeHintsChanged();
     void guiClosed (bool wasDestroyed);
-    void editorOpened (ClapEditor* e)           { editor = e; }
+
+    void editorOpened (ClapEditor* e)
+    {
+        editor = e;
+        hintsChanged = false;
+        guiClosedPending = false;
+        guiDestroyed = false;
+        resizeRequested = false;
+    }
+
     void editorClosing (ClapEditor* e)          { if (editor == e) editor = nullptr; }
 
 private:
@@ -678,11 +761,28 @@ private:
     clap_output_events_t outputEvents {};
 
     // Requests handled on the message thread.
-    std::atomic<bool> callbackRequested { false }, restartPending { false }, flushRequested { false };
-    std::atomic<bool> resizeRequested { false };
+    std::atomic<bool> restartPending { false }, flushRequested { false };
+    std::atomic<bool> resizeRequested { false }, hintsChanged { false }, guiClosedPending { false }, guiDestroyed { false };
     std::atomic<uint32_t> requestedWidth { 0 }, requestedHeight { 0 };
 
-    ClapEditor* editor = nullptr;
+    ClapEditor* editor = nullptr;                   // message thread
+
+    // Edits made in the plugin's own window reach us in process(), on the audio thread. They're
+    // passed to the host from the message thread, which is where hosts take them as user edits
+    // (JUCE's VST3 wrapper drops gestures from any other thread).
+    struct PluginEdit
+    {
+        enum class Kind : uint8_t { value, gestureBegin, gestureEnd };
+
+        ClapParameter* parameter = nullptr;
+        Kind kind = Kind::value;
+        float value = 0.0f;
+    };
+
+    static constexpr int editCapacity = 1024;
+    juce::AbstractFifo editFifo { editCapacity };
+    std::array<PluginEdit, (size_t) editCapacity> edits {};
+    std::atomic<bool> editsPending { false }, reportsPending { false };
 
     template <typename Extension>
     const Extension* extension (const char* id) const
@@ -724,6 +824,10 @@ private:
         }
     }
 
+    /** After a state load or a rescan(VALUES). CLAP says such changes aren't to be recorded as
+        automation, so the host hears of them from the audio thread (see reportValueChanges), where
+        hosts take them as changes rather than edits.
+    */
     void refreshParameterValues()
     {
         if (params == nullptr)
@@ -733,9 +837,23 @@ private:
         {
             double value = 0.0;
 
-            if (params->get_value (plugin, p->getClapId(), &value))
-                p->setValueFromPlugin (value);
+            if (! p->isGone() && params->get_value (plugin, p->getClapId(), &value) && p->setValueFromPlugin (value))
+            {
+                p->markForReport();
+                reportsPending = true;
+            }
         }
+    }
+
+    /** Audio thread. */
+    void reportValueChanges()
+    {
+        if (! reportsPending.exchange (false))
+            return;
+
+        for (auto* p : clapParameters)
+            if (p->takeReport())
+                p->sendValueChangedMessageToListeners (p->getValue());
     }
 
     void collectParameterChanges (ClapEventList& list)
@@ -747,7 +865,7 @@ private:
         {
             double plain = 0.0;
 
-            if (! p->takePending (plain))
+            if (! p->takePending (plain) || p->isGone())
                 continue;
 
             clap_event_param_value_t event {};
@@ -778,23 +896,60 @@ private:
         {
             const auto& e = reinterpret_cast<const clap_event_param_value_t&> (event);
 
+            // Only the parameter itself: per-note or per-key values aren't anything the host shows.
+            if (e.note_id != -1 || e.port_index != -1 || e.channel != -1 || e.key != -1)
+                return true;
+
             if (auto* p = findParameter (e.param_id))
-                p->setValueFromPlugin (e.value);
+            {
+                if (! p->setValueFromPlugin (e.value))
+                    return true;
+
+                if ((event.flags & CLAP_EVENT_DONT_RECORD) != 0 && ! onMessageThread())
+                    p->sendValueChangedMessageToListeners (p->getValue());     // a change, not an edit
+                else
+                    passEditOn ({ p, PluginEdit::Kind::value, p->getValue() });
+            }
         }
         else if (event.type == CLAP_EVENT_PARAM_GESTURE_BEGIN || event.type == CLAP_EVENT_PARAM_GESTURE_END)
         {
             const auto& e = reinterpret_cast<const clap_event_param_gesture_t&> (event);
 
             if (auto* p = findParameter (e.param_id))
-            {
-                if (event.type == CLAP_EVENT_PARAM_GESTURE_BEGIN)
-                    p->beginChangeGesture();
-                else
-                    p->endChangeGesture();
-            }
+                passEditOn ({ p, event.type == CLAP_EVENT_PARAM_GESTURE_BEGIN ? PluginEdit::Kind::gestureBegin
+                                                                              : PluginEdit::Kind::gestureEnd, 0.0f });
         }
 
         return true;
+    }
+
+    void passEditOn (const PluginEdit& edit)
+    {
+        if (onMessageThread())
+        {
+            deliver (edit);
+            return;
+        }
+
+        // A full queue loses the notification only; the value itself is already set.
+        editFifo.write (1).forEach ([&] (int index) { edits[(size_t) index] = edit; });
+        editsPending = true;
+    }
+
+    /** Message thread. */
+    void deliverPluginEdits()
+    {
+        editFifo.read (editFifo.getNumReady()).forEach ([this] (int index) { deliver (edits[(size_t) index]); });
+    }
+
+    static void deliver (const PluginEdit& edit)
+    {
+        switch (edit.kind)
+        {
+            case PluginEdit::Kind::value:           edit.parameter->sendValueChangedMessageToListeners (edit.value); break;
+            case PluginEdit::Kind::gestureBegin:    edit.parameter->beginChangeGesture(); break;
+            case PluginEdit::Kind::gestureEnd:      edit.parameter->endChangeGesture(); break;
+        }
     }
 
     //==============================================================================
@@ -818,17 +973,19 @@ private:
     void deactivateLocked()
     {
         // CLAP wants stop_processing on the audio thread; when the host is shutting the plugin
-        // down there may not be one any more, so it happens here.
+        // down there may not be one any more. Holding processLock, this thread is the only one
+        // that can process, so it stands in as the audio thread, which the CLAP spec allows.
         if (processing)
         {
+            const AudioThreadScope audioThread;
             plugin->stop_processing (plugin);
             processing = false;
         }
 
         if (active.load())
         {
+            active = false;     // first: a rescan the plugin makes inside deactivate() is then an inactive one
             plugin->deactivate (plugin);
-            active = false;
         }
 
         translatorNeedsReset = true;
@@ -960,20 +1117,23 @@ private:
     //==============================================================================
     void handleAsyncUpdate() override
     {
-        if (callbackRequested.exchange (false))
+        if (hostContext->callbackRequested.exchange (false))
             plugin->on_main_thread (plugin);
+
+        deliverPluginEdits();
 
         if (restartPending.load())
             restart();
 
-        if (flushRequested.exchange (false) || parametersPending.load())
-            flushParametersOnMessageThread();
+        // While the audio thread is running it passes these on; keep checking in case it stops.
+        if ((flushRequested.load() || parametersPending.load()) && ! flushParametersNow())
+            startTimer (100);
 
-        if (resizeRequested.exchange (false))
-            requestResize (requestedWidth.load(), requestedHeight.load());
-
+        handleGuiRequests();
         hostContext->clearRetiredTimers();
     }
+
+    void handleGuiRequests();
 
     void timerCallback() override
     {
@@ -989,13 +1149,14 @@ private:
             if (processing)
             {
                 // The audio thread stops processing at its next block. Only if audio has stalled
-                // do we stop it from here instead.
-                if (juce::Time::getMillisecondCounter() - lastProcessTime.load() < 500)
+                // do we stop it from here instead, standing in for the audio thread.
+                if (! audioHasStalled())
                 {
                     startTimer (20);
                     return;
                 }
 
+                const AudioThreadScope audioThread;
                 plugin->stop_processing (plugin);
                 processing = false;
             }
@@ -1006,8 +1167,8 @@ private:
 
             if (wasActive)
             {
-                plugin->deactivate (plugin);
                 active = false;
+                plugin->deactivate (plugin);
             }
 
             restartPending = false;
@@ -1020,14 +1181,52 @@ private:
         updateHostDisplay (ChangeDetails().withLatencyChanged (true));
     }
 
-    void flushParametersOnMessageThread()
+    bool audioHasStalled() const noexcept
     {
-        const juce::SpinLock::ScopedLockType lock (processLock);
+        return juce::Time::getMillisecondCounter() - lastProcessTime.load() >= 500;
+    }
 
-        // While active, changes go to the plugin with the next audio block instead.
-        if (active.load() || params == nullptr || params->flush == nullptr)
-            return;
+    /** Message thread: gives the plugin the host's pending values (and the flush it may have asked
+        for) right now. Returns false if that's left to the audio thread's next block.
+    */
+    bool flushParametersNow()
+    {
+        if (params == nullptr || params->flush == nullptr)
+        {
+            flushRequested = false;
+            return true;
+        }
 
+        if (! active.load())
+        {
+            const juce::SpinLock::ScopedLockType lock (processLock);
+
+            if (! active.load())
+            {
+                flushLocked();
+                return true;
+            }
+        }
+
+        // Active: process() will do it, unless audio has stopped (FL can stop calling an idle
+        // plugin). Then flush here, standing in for the audio thread, as CLAP allows.
+        if (! audioHasStalled())
+            return false;
+
+        const juce::SpinLock::ScopedTryLockType lock (processLock);
+
+        if (! lock.isLocked())
+            return false;
+
+        const AudioThreadScope audioThread;
+        flushLocked();
+        return true;
+    }
+
+    /** With processLock held: the plugin is inactive, or this thread stands in for the audio thread. */
+    void flushLocked()
+    {
+        flushRequested = false;
         mainThreadEvents.clear();
         collectParameterChanges (mainThreadEvents);
         params->flush (plugin, mainThreadEvents.getInputEvents(), &outputEvents);
@@ -1039,11 +1238,16 @@ private:
 //==============================================================================
 void ClapParameter::setValue (float newValue)
 {
+    // The host can't change a read-only parameter, and one the plugin took away is no more.
+    if ((flags.load() & CLAP_PARAM_IS_READONLY) != 0 || gone.load())
+        return;
+
     value = juce::jlimit (0.0f, 1.0f, newValue);
     pending = true;
     owner.parameterChangedByHost();
 }
 
+// value_to_text and text_to_value may only be called on the main thread. Elsewhere, the number.
 juce::String ClapParameter::getText (float normalised, int maximumStringLength) const
 {
     const auto* plugin = owner.getClapPlugin();
@@ -1051,9 +1255,9 @@ juce::String ClapParameter::getText (float normalised, int maximumStringLength) 
     const auto plain = toPlain (normalised);
     char text[256] = {};
 
-    if (params != nullptr && params->value_to_text != nullptr
+    if (params != nullptr && params->value_to_text != nullptr && onMessageThread()
         && params->value_to_text (plugin, id, plain, text, (uint32_t) sizeof (text)))
-        return juce::String::fromUTF8 (text).substring (0, maximumStringLength);
+        return juce::String::fromUTF8 (text, (int) strnlen (text, sizeof (text))).substring (0, maximumStringLength);
 
     return juce::String (plain, isStepped() ? 0 : 3).substring (0, maximumStringLength);
 }
@@ -1064,7 +1268,7 @@ float ClapParameter::getValueForText (const juce::String& text) const
     const auto* params = static_cast<const clap_plugin_params_t*> (plugin->get_extension (plugin, CLAP_EXT_PARAMS));
     double plain = text.getDoubleValue();
 
-    if (params != nullptr && params->text_to_value != nullptr)
+    if (params != nullptr && params->text_to_value != nullptr && onMessageThread())
         params->text_to_value (plugin, id, text.toRawUTF8(), &plain);
 
     return toNormalised (plain);
@@ -1109,13 +1313,7 @@ public:
 
         if (floating)
         {
-            gui->suggest_title (plugin, owner.getName().toRawUTF8());
-            gui->show (plugin);
-
-            showButton.setButtonText ("Show " + owner.getName());
-            showButton.onClick = [this] { if (created) gui->show (plugin); };
-            addAndMakeVisible (showButton);
-            showMessage (owner.getName() + " opened its window separately.");
+            openedFloating();
             return;
         }
 
@@ -1178,9 +1376,20 @@ public:
         if (! attached || inPluginResize || ! gui->can_resize (plugin))
             return;
 
+        // The user resized the window: ask the plugin for the nearest size it supports, and end up
+        // at whatever size it actually takes.
         auto width = toPhysical (getWidth()), height = toPhysical (getHeight());
-        gui->adjust_size (plugin, &width, &height);
-        gui->set_size (plugin, width, height);
+        const auto requestsBefore = pluginResizeRequests;
+        const auto accepted = gui->adjust_size (plugin, &width, &height) && gui->set_size (plugin, width, height);
+
+        if (pluginResizeRequests != requestsBefore)
+            return;     // it asked for a size of its own while we were setting it, and has that now
+
+        if (! accepted && ! (gui->get_size (plugin, &width, &height) && width > 0 && height > 0))
+        {
+            updateEmbeddedBounds();
+            return;
+        }
 
         if (toLogical (width) != getWidth() || toLogical (height) != getHeight())
         {
@@ -1191,35 +1400,49 @@ public:
         updateEmbeddedBounds();
     }
 
-    void pluginRequestedResize (uint32_t width, uint32_t height)
+    /** Returns whether the new size was taken. */
+    bool pluginRequestedResize (uint32_t width, uint32_t height)
     {
-        if (floating || ! created)
-            return;
+        if (floating || ! created || placementFailed || width == 0 || height == 0)
+            return false;
 
+        ++pluginResizeRequests;
         const juce::ScopedValueSetter<bool> guard (inPluginResize, true);
         setSize (toLogical (width), toLogical (height));
         embedded.setBounds (getLocalBounds());
         updateEmbeddedBounds();
+        return true;
     }
 
     void pluginResizeHintsChanged()
     {
-        if (created && ! floating)
-            setResizable (gui->can_resize (plugin), false);
+        if (! created || floating)
+            return;
+
+        // The window around us read this when it opened, so it's told too.
+        const auto resizable = gui->can_resize (plugin);
+        setResizable (resizable, false);
+
+        if (auto* window = findParentComponentOfClass<juce::ResizableWindow>())
+            window->setResizable (resizable, false);
     }
 
     void pluginClosedWindow (bool wasDestroyed)
     {
-        if (! floating || ! created)
+        // Not destroyed: the user closed a floating window, and Show brings it back.
+        if (! created || ! wasDestroyed)
             return;
 
-        if (wasDestroyed)
-        {
-            gui->destroy (plugin);
-            created = false;
-            showButton.setVisible (false);
-            showMessage ("Close this window and open the synth again to bring its window back.");
-        }
+       #if JUCE_LINUX || JUCE_BSD
+        if (attached)
+            embedded.removeClient();
+       #endif
+
+        gui->destroy (plugin);
+        created = attached = false;
+        embedded.setVisible (false);
+        showButton.setVisible (false);
+        showMessage ("Close this window and open the synth again to bring its window back.");
     }
 
 private:
@@ -1227,7 +1450,8 @@ private:
     const clap_plugin_t* plugin;
     const clap_plugin_gui_t* gui;
 
-    bool created = false, floating = false, attached = false, inPluginResize = false;
+    bool created = false, floating = false, attached = false, placementFailed = false, inPluginResize = false;
+    int pluginResizeRequests = 0;
     float scale = 1.0f;
     juce::String message;
     juce::TextButton showButton;
@@ -1275,6 +1499,59 @@ private:
         message = text;
         setSize (440, 140);
         repaint();
+    }
+
+    void openedFloating()
+    {
+        gui->suggest_title (plugin, instance.getName().toRawUTF8());
+        makeTransient();
+        gui->show (plugin);
+
+        showButton.setButtonText ("Show " + instance.getName());
+        showButton.onClick = [this] { if (created) gui->show (plugin); };
+        addAndMakeVisible (showButton);
+        showMessage (instance.getName() + " opened its window separately.");
+
+        // Again once the window around us has been set up.
+        juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<ClapEditor> (this)]
+        {
+            if (safe != nullptr)
+                safe->makeTransient();
+        });
+    }
+
+    /** A floating plugin window stays above the window this editor is in. */
+    void makeTransient()
+    {
+        if (! floating || ! created)
+            return;
+
+        auto* top = getTopLevelComponent();
+
+        if (top == nullptr || top == this)
+            return;
+
+        // An always-on-top placeholder would cover the plugin's own window.
+        if (top->isAlwaysOnTop())
+            top->setAlwaysOnTop (false);
+
+        auto* peer = top->getPeer();
+
+        if (peer == nullptr)
+            return;
+
+        clap_window_t window {};
+        window.api = nativeWindowApi();
+
+       #if JUCE_WINDOWS
+        window.win32 = peer->getNativeHandle();
+       #elif JUCE_MAC
+        window.cocoa = peer->getNativeHandle();
+       #else
+        window.x11 = (clap_xwnd) (juce::pointer_sized_uint) peer->getNativeHandle();
+       #endif
+
+        gui->set_transient (plugin, &window);
     }
 
     int toLogical (uint32_t physical) const noexcept    { return juce::jmax (10, juce::roundToInt ((float) physical / scale)); }
@@ -1342,6 +1619,20 @@ private:
         if (! attached)
         {
             embedded.setVisible (false);
+
+            // It can't go in here; it may be able to open a window of its own.
+            const auto* api = nativeWindowApi();
+            gui->destroy (plugin);
+            created = false;
+
+            if (gui->is_api_supported (plugin, api, true) && gui->create (plugin, api, true))
+            {
+                created = floating = true;
+                openedFloating();
+                return;
+            }
+
+            placementFailed = true;
             showMessage (instance.getName() + "'s window couldn't be placed here.");
             return;
         }
@@ -1351,7 +1642,7 @@ private:
     }
 
     void componentMovedOrResized (bool, bool) override          {}
-    void componentPeerChanged() override                        { attach(); }
+    void componentPeerChanged() override                        { attach(); makeTransient(); }
     void componentVisibilityChanged() override                  { attach(); }
     using ComponentMovementWatcher::componentMovedOrResized;
     using ComponentMovementWatcher::componentVisibilityChanged;
@@ -1376,23 +1667,41 @@ bool ClapPluginInstance::requestResize (uint32_t width, uint32_t height)
         return true;
     }
 
-    if (editor == nullptr)
-        return false;
-
-    editor->pluginRequestedResize (width, height);
-    return true;
+    return editor != nullptr && editor->pluginRequestedResize (width, height);
 }
 
+// These two may come from any thread, and closed() often from inside the plugin's own window
+// code, so they're always handled afterwards, on the message thread.
 void ClapPluginInstance::resizeHintsChanged()
 {
-    if (editor != nullptr)
-        editor->pluginResizeHintsChanged();
+    hintsChanged = true;
+    triggerAsyncUpdate();
 }
 
 void ClapPluginInstance::guiClosed (bool wasDestroyed)
 {
-    if (editor != nullptr)
-        editor->pluginClosedWindow (wasDestroyed);
+    if (wasDestroyed)
+        guiDestroyed = true;
+
+    guiClosedPending = true;
+    triggerAsyncUpdate();
+}
+
+void ClapPluginInstance::handleGuiRequests()
+{
+    if (resizeRequested.exchange (false) && editor != nullptr)
+        editor->pluginRequestedResize (requestedWidth.load(), requestedHeight.load());
+
+    if (hintsChanged.exchange (false) && editor != nullptr)
+        editor->pluginResizeHintsChanged();
+
+    if (guiClosedPending.exchange (false))
+    {
+        const auto destroyed = guiDestroyed.exchange (false);
+
+        if (editor != nullptr)
+            editor->pluginClosedWindow (destroyed);
+    }
 }
 
 //==============================================================================
@@ -1555,10 +1864,12 @@ ClapHostContext::ClapHostContext()
 
     host.request_callback = [] (const clap_host_t* h)
     {
-        if (auto* o = hostcallbacks::ownerOf (h))
-            o->requestCallback();
-        else
-            of (h).callbackRequestedEarly = true;
+        // The flag first: an instance being constructed right now checks it after setting owner.
+        auto& context = of (h);
+        context.callbackRequested = true;
+
+        if (auto* o = context.owner.load())
+            o->requestHousekeeping();
     };
 }
 
@@ -1566,11 +1877,7 @@ ClapHostContext::~ClapHostContext()
 {
     timers.clear();
     retiredTimers.clear();
-
-   #if JUCE_LINUX || JUCE_BSD
-    for (const auto& entry : fds)
-        juce::LinuxEventLoop::unregisterFdCallback (entry.first);
-   #endif
+    unregisterAllFds();
 }
 
 bool ClapHostContext::registerTimer (uint32_t periodMs, clap_id* id)
@@ -1612,24 +1919,106 @@ void ClapHostContext::timerFired (clap_id id)
 }
 
 #if JUCE_LINUX || JUCE_BSD
-static short pollEventsFor (clap_posix_fd_flags_t flags)
+/** JUCE's event loop holds one callback per file descriptor for the whole process, but plugins can
+    share a descriptor between their instances (one X connection, say). So every descriptor is
+    registered with JUCE once, and each event goes to every context that asked for it. Main thread.
+*/
+namespace fdtable
 {
-    short events = 0;
+    using Users = std::vector<std::pair<ClapHostContext*, clap_posix_fd_flags_t>>;
 
-    if ((flags & CLAP_POSIX_FD_READ) != 0)   events |= POLLIN;
-    if ((flags & CLAP_POSIX_FD_WRITE) != 0)  events |= POLLOUT;
-    if ((flags & CLAP_POSIX_FD_ERROR) != 0)  events |= POLLERR;
+    std::map<int, Users>& table()
+    {
+        static std::map<int, Users> fds;
+        return fds;
+    }
 
-    return events;
+    short pollEventsFor (clap_posix_fd_flags_t flags)
+    {
+        short events = 0;
+
+        if ((flags & CLAP_POSIX_FD_READ) != 0)   events |= POLLIN;
+        if ((flags & CLAP_POSIX_FD_WRITE) != 0)  events |= POLLOUT;
+        if ((flags & CLAP_POSIX_FD_ERROR) != 0)  events |= POLLERR;
+
+        return events;
+    }
+
+    void dispatch (int fd);
+
+    /** (Re)registers fd with JUCE for everything its users want, or unregisters it if none are left. */
+    void update (int fd)
+    {
+        auto& fds = table();
+        juce::LinuxEventLoop::unregisterFdCallback (fd);
+        const auto found = fds.find (fd);
+
+        if (found == fds.end())
+            return;
+
+        if (found->second.empty())
+        {
+            fds.erase (found);
+            return;
+        }
+
+        clap_posix_fd_flags_t wanted = 0;
+
+        for (const auto& user : found->second)
+            wanted |= user.second;
+
+        // The callback only carries the number: it looks the users up when it runs, so a
+        // context that has gone in the meantime is never called.
+        juce::LinuxEventLoop::registerFdCallback (fd, [] (int readyFd) { dispatch (readyFd); }, pollEventsFor (wanted));
+    }
+
+    void dispatch (int fd)
+    {
+        const auto found = table().find (fd);
+
+        if (found == table().end())
+            return;
+
+        // What actually happened: on_fd is to be told that, not what was asked for.
+        pollfd query { fd, pollEventsFor (CLAP_POSIX_FD_READ | CLAP_POSIX_FD_WRITE | CLAP_POSIX_FD_ERROR), 0 };
+
+        if (::poll (&query, 1, 0) <= 0)
+            return;
+
+        clap_posix_fd_flags_t happened = 0;
+
+        if ((query.revents & POLLIN) != 0)                              happened |= CLAP_POSIX_FD_READ;
+        if ((query.revents & POLLOUT) != 0)                             happened |= CLAP_POSIX_FD_WRITE;
+        if ((query.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0)      happened |= CLAP_POSIX_FD_ERROR;
+
+        // A plugin may unregister (or a context go away) from inside on_fd: work from a copy, and
+        // check each user is still there before calling it.
+        const auto users = found->second;
+
+        for (const auto& [context, wanted] : users)
+        {
+            const auto now = table().find (fd);
+
+            if (now == table().end())
+                return;
+
+            const auto stillThere = std::any_of (now->second.begin(), now->second.end(),
+                                                 [c = context] (const auto& u) { return u.first == c; });
+
+            if (stillThere && (happened & wanted) != 0)
+                context->fdReady (fd, happened & wanted);
+        }
+    }
 }
 
 bool ClapHostContext::registerFd (int fd, clap_posix_fd_flags_t flags)
 {
-    if (fds.count (fd) > 0)
+    if (fd < 0 || fds.count (fd) > 0)
         return false;
 
     fds[fd] = flags;
-    juce::LinuxEventLoop::registerFdCallback (fd, [this] (int readyFd) { fdReady (readyFd); }, pollEventsFor (flags));
+    fdtable::table()[fd].emplace_back (this, flags);
+    fdtable::update (fd);
     return true;
 }
 
@@ -1638,36 +2027,47 @@ bool ClapHostContext::modifyFd (int fd, clap_posix_fd_flags_t flags)
     if (fds.count (fd) == 0)
         return false;
 
-    juce::LinuxEventLoop::unregisterFdCallback (fd);
-    fds.erase (fd);
-    return registerFd (fd, flags);
+    fds[fd] = flags;
+
+    for (auto& user : fdtable::table()[fd])
+        if (user.first == this)
+            user.second = flags;
+
+    fdtable::update (fd);
+    return true;
 }
 
 bool ClapHostContext::unregisterFd (int fd)
 {
-    if (fds.count (fd) == 0)
+    if (fds.erase (fd) == 0)
         return false;
 
-    juce::LinuxEventLoop::unregisterFdCallback (fd);
-    fds.erase (fd);
+    auto& users = fdtable::table()[fd];
+    users.erase (std::remove_if (users.begin(), users.end(), [this] (const auto& u) { return u.first == this; }), users.end());
+    fdtable::update (fd);
     return true;
 }
 
-void ClapHostContext::fdReady (int fd)
+void ClapHostContext::unregisterAllFds()
 {
-    const auto found = fds.find (fd);
+    while (! fds.empty())
+        unregisterFd (fds.begin()->first);
+}
 
-    if (plugin == nullptr || found == fds.end())
+void ClapHostContext::fdReady (int fd, clap_posix_fd_flags_t happened)
+{
+    if (plugin == nullptr)
         return;
 
     if (const auto* support = static_cast<const clap_plugin_posix_fd_support_t*> (plugin->get_extension (plugin, CLAP_EXT_POSIX_FD_SUPPORT)))
-        support->on_fd (plugin, fd, found->second);
+        support->on_fd (plugin, fd, happened);
 }
 #else
 bool ClapHostContext::registerFd (int, clap_posix_fd_flags_t)  { return false; }
 bool ClapHostContext::modifyFd (int, clap_posix_fd_flags_t)    { return false; }
 bool ClapHostContext::unregisterFd (int)                       { return false; }
-void ClapHostContext::fdReady (int)                            {}
+void ClapHostContext::unregisterAllFds()                       {}
+void ClapHostContext::fdReady (int, clap_posix_fd_flags_t)     {}
 #endif
 
 //==============================================================================

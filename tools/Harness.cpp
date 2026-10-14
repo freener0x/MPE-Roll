@@ -17,6 +17,7 @@
 
 #include <cstdio>
 #include <map>
+#include <thread>
 
 namespace
 {
@@ -490,11 +491,83 @@ bool loadSynth (MpeRollProcessor& processor, const juce::File& file)
 struct ValueRecorder : juce::AudioProcessorParameter::Listener
 {
     float last = -1.0f;
-    int gestures = 0;
+    int gestures = 0, offMessageThread = 0;
 
-    void parameterValueChanged (int, float v) override  { last = v; }
-    void parameterGestureChanged (int, bool) override    { ++gestures; }
+    void parameterValueChanged (int, float v) override  { last = v; note(); }
+    void parameterGestureChanged (int, bool) override    { ++gestures; note(); }
+
+    void note()
+    {
+        if (! juce::MessageManager::existsAndIsCurrentThread())
+            ++offMessageThread;
+    }
 };
+
+/** Checks only the CLAP test synth can help with: its exported hooks act as its user. */
+void clapSynthChecks (Check& check, MpeRollProcessor& processor, FakePlayHead& playHead, const juce::File& synthFile)
+{
+    juce::DynamicLibrary hooks;
+
+    if (! hooks.open (synthFile.getFullPathName()))
+    {
+        std::printf ("  (the CLAP test synth's hooks aren't reachable here: skipped)\n");
+        return;
+    }
+
+    using TurnKnob = bool (*) (double);
+    using Rebuild = bool (*)();
+    using StaleCookies = int (*)();
+    auto turnKnob = (TurnKnob) hooks.getFunction ("mperoll_test_synth_turn_tone_knob");
+    auto rebuild = (Rebuild) hooks.getFunction ("mperoll_test_synth_rebuild_parameters");
+    auto staleCookies = (StaleCookies) hooks.getFunction ("mperoll_test_synth_stale_cookies");
+
+    if (turnKnob == nullptr || rebuild == nullptr || staleCookies == nullptr)
+    {
+        std::printf ("  (the CLAP test synth has no hooks: skipped)\n");
+        return;
+    }
+
+    auto& params = processor.getParameters();
+
+    // One block on another thread, as a host's audio thread would run it.
+    auto processOnAudioThread = [&]
+    {
+        std::thread audioThread ([&]
+        {
+            juce::AudioBuffer<float> audio (2, 512);
+            juce::MidiBuffer midi;
+            processor.processBlock (audio, midi);
+        });
+
+        audioThread.join();
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+    };
+
+    std::printf ("Edits in a CLAP synth's own window reach the host as edits\n");
+    {
+        ValueRecorder recorder;
+        params[1]->addListener (&recorder);
+        turnKnob (0.25);
+        processOnAudioThread();
+        params[1]->removeListener (&recorder);
+
+        check (std::abs (recorder.last - 0.25f) < 1.0e-4f, "the new value reaches the slot");
+        check (recorder.gestures == 2, "with its gesture");
+        check (recorder.offMessageThread == 0, "on the message thread, where hosts record edits");
+    }
+
+    std::printf ("A CLAP synth that rebuilds its parameters gets current cookies\n");
+    {
+        playHead.playing = false;
+        processor.releaseResources();
+        check (rebuild(), "the synth rebuilt its parameters while inactive");
+        processor.prepareToPlay (48000.0, 512);
+
+        params[1]->setValue (0.6f);
+        processOnAudioThread();
+        check (staleCookies() == 0, "no value was sent with an out-of-date cookie");
+    }
+}
 
 int parameterTest (const juce::File& synthFile)
 {
@@ -617,6 +690,22 @@ int parameterTest (const juce::File& synthFile)
                        && params[2]->getName (64).contains ("unused"),
                    "slots saved for a different synth start afresh");
         }
+    }
+
+    if (synthFile.hasFileExtension ("clap"))
+        clapSynthChecks (check, processor, playHead, synthFile);
+
+    std::printf ("A block longer than the host announced still plays\n");
+    {
+        params[0]->setValue (1.0f);
+        playHead.playing = true;
+        playHead.ppq = 0.0;
+
+        juce::AudioBuffer<float> audio (2, 2048);     // prepared for 512
+        juce::MidiBuffer midi;
+        processor.processBlock (audio, midi);
+        check (audio.getMagnitude (0, 0, 512) > 1.0e-3f && audio.getMagnitude (0, 1536, 512) > 1.0e-3f,
+               "the synth sounds all the way through it");
     }
 
     processor.releaseResources();

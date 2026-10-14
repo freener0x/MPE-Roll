@@ -11,8 +11,9 @@ namespace mperoll
 
 /** A loaded .clap file.
 
-    Every user of the same file shares one module. clap_entry's init() runs when the first one
-    loads it and deinit() when the last one lets go, never at the same time as each other.
+    Every user of the same library (whatever path reached it) shares one module. clap_entry's
+    init() runs when the first one loads it and deinit() when the last one lets go, never at the
+    same time as each other.
 */
 class ClapModule
 {
@@ -37,8 +38,8 @@ public:
 
 private:
     explicit ClapModule (const juce::File& f) : file (f) {}
-    bool open (juce::String& error);
-    static void release (const juce::String& key, ClapModule*);
+    bool initialise (juce::String& error);
+    static void release (void* key, ClapModule*);
 
     juce::File file;
     juce::DynamicLibrary library;

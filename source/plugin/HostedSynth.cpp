@@ -373,6 +373,7 @@ void HostedSynth::prepare (double newSampleRate, int maximumBlockSize)
     }
 
     scratch.setSize (juce::jmax (channels, 8), blockSize);
+    midiPiece.ensureSize (1 << 14);
 }
 
 void HostedSynth::release()
@@ -398,15 +399,13 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
     auto& plugin = *instance;
     const auto outputs = plugin.getTotalNumOutputChannels();
     const auto needed = juce::jmax (plugin.getTotalNumInputChannels(), outputs);
+    const auto pieceSize = scratch.getNumSamples();
 
-    if (needed > scratch.getNumChannels() || numSamples > scratch.getNumSamples() || plugin.isSuspended())
+    if (needed > scratch.getNumChannels() || pieceSize <= 0 || plugin.isSuspended())
     {
         buffer.clear();
         return;
     }
-
-    juce::AudioBuffer<float> view (scratch.getArrayOfWritePointers(), needed, numSamples);
-    view.clear();
 
    #if MPEROLL_HOST_CLAP
     if (clapControls != nullptr)
@@ -414,14 +413,32 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
    #endif
 
     plugin.setPlayHead (playHead);
-    plugin.processBlock (view, midi);
 
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    // Hosts may send a longer block than prepare() said. The synth gets it in pieces it was
+    // prepared for, so the block (and its note-offs) isn't lost.
+    for (int start = 0; start < numSamples; start += pieceSize)
     {
-        if (outputs > 0)
-            buffer.copyFrom (ch, 0, view, juce::jmin (ch, outputs - 1), 0, numSamples);
-        else
-            buffer.clear (ch, 0, numSamples);
+        const auto length = juce::jmin (pieceSize, numSamples - start);
+        auto* pieceMidi = &midi;
+
+        if (length < numSamples)
+        {
+            midiPiece.clear();
+            midiPiece.addEvents (midi, start, length, -start);
+            pieceMidi = &midiPiece;
+        }
+
+        juce::AudioBuffer<float> view (scratch.getArrayOfWritePointers(), needed, length);
+        view.clear();
+        plugin.processBlock (view, *pieceMidi);
+
+        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        {
+            if (outputs > 0)
+                buffer.copyFrom (ch, start, view, juce::jmin (ch, outputs - 1), 0, length);
+            else
+                buffer.clear (ch, start, length);
+        }
     }
 }
 

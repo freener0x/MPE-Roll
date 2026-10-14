@@ -56,7 +56,9 @@ public:
     void prepare (double sampleRate, int maximumBlockSize);
     void release();
 
-    /** Renders the synth into the buffer. The MIDI buffer may be modified by the plugin. */
+    /** Renders the synth into the buffer. The MIDI buffer may be modified by the plugin. A block
+        longer than prepare() was told is played in pieces.
+    */
     void process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, juce::AudioPlayHead* playHead);
 
     /** Audio thread, before process(): the MPE layout the MIDI is in. A CLAP synth uses it to turn
@@ -188,6 +190,7 @@ private:
     std::unique_ptr<EditorWindow> editorWindow;
 
     juce::AudioBuffer<float> scratch;
+    juce::MidiBuffer midiPiece;                         // audio thread: a long block's MIDI, one piece at a time
     double sampleRate = 44100.0;
     int blockSize = 512;
     bool prepared = false;
