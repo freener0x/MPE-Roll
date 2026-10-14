@@ -194,6 +194,27 @@ public:
             expect (enc.isPlaying (1));
         }
 
+        beginTest ("MPE+ sends a CC87 prefix just before timbre, pressure and bend");
+        {
+            OutputSettings s;
+            s.mpePlus = true;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+            enc.prepareNote (out, 0, 1, 60);
+            enc.setTimbre (out, 0, 1, 0.5f);
+            enc.setPressure (out, 0, 1, 0.5f);
+            enc.setPitch (out, 0, 1, 0.5f * 48.0f / 8191.0f);   // half a bend step above centre
+            const auto m = collect (out);
+
+            expect (m[0].message.isControllerOfType (87) && m[0].message.getControllerValue() == 64);
+            expect (m[1].message.isControllerOfType (74) && m[1].message.getControllerValue() == 63);
+            expect (m[2].message.isControllerOfType (87) && m[2].message.getControllerValue() == 64);
+            expect (m[3].message.isChannelPressure() && m[3].message.getChannelPressureValue() == 63);
+            expect (m[4].message.isControllerOfType (87) && m[4].message.getControllerValue() == 64);
+            expect (m[5].message.isPitchWheel() && m[5].message.getPitchWheelValue() == 8192);
+        }
+
         beginTest ("Alternative pressure targets");
         {
             OutputSettings s;

@@ -9,15 +9,18 @@ namespace
     constexpr int defaultReleaseVelocity = 64;
     constexpr float specMemberBendRange = 48.0f;
     constexpr float specMasterBendRange = 2.0f;
+    constexpr float mpePlusFullScale = 16256.0f;    // 0x3f80: MPE+ keeps 127 as the top MSB
 }
 
 void MpeDecoder::ChannelState::reset (float range) noexcept
 {
-    pitchBend = 8192;
+    pitchBend = 8192.0;
     bendRange = range;
-    pressure = -1;
+    pressure = -1.0f;
+    timbre = -1.0f;
     timbreMsb = -1;
     timbreLsb = 0;
+    hiResPrefix = -1;
     controllers.fill (-1);
     rpnMsb = rpnLsb = 127;
     nrpnSelected = false;
@@ -78,19 +81,22 @@ float MpeDecoder::defaultBendRange (int channel) const noexcept
 
 float MpeDecoder::timbreValue (const ChannelState& st) const noexcept
 {
-    if (st.timbreMsb < 0)
-        return 0.5f;
-
-    if (settings.timbreLsbController >= 0)
-        return (float) ((st.timbreMsb << 7) | st.timbreLsb) / 16383.0f;
-
-    return (float) st.timbreMsb / 127.0f;
+    return st.timbre >= 0.0f ? st.timbre : 0.5f;
 }
 
 float MpeDecoder::channelPitch (int channel) const noexcept
 {
     const auto& st = channels[(size_t) channel];
-    return MpeEncoder::pitchBendToSemitones (st.pitchBend, st.bendRange);
+    const auto offset = st.pitchBend - 8192.0;
+    return (float) (offset >= 0.0 ? offset / 8191.0 * st.bendRange : offset / 8192.0 * st.bendRange);
+}
+
+int MpeDecoder::takeHiResPrefix (ChannelState& st) const noexcept
+{
+    // MPE+: a CC87 sent just before a timbre, pressure or bend message carries 7 extra low bits.
+    const auto prefix = settings.mpePlus && st.hiResPrefix >= 0 ? st.hiResPrefix : 0;
+    st.hiResPrefix = -1;
+    return prefix;
 }
 
 template <typename Fn>
@@ -134,7 +140,7 @@ void MpeDecoder::process (const juce::MidiMessage& message, Listener& listener)
     }
     else if (message.isPitchWheel())
     {
-        st.pitchBend = message.getPitchWheelValue();
+        st.pitchBend = message.getPitchWheelValue() + takeHiResPrefix (st) / 128.0;
         const auto semitones = channelPitch (channel);
 
         if (isZoneWide (channel))
@@ -145,8 +151,10 @@ void MpeDecoder::process (const juce::MidiMessage& message, Listener& listener)
     }
     else if (message.isChannelPressure())
     {
-        st.pressure = message.getChannelPressureValue();
-        const auto value = (float) st.pressure / 127.0f;
+        const auto msb = message.getChannelPressureValue();
+        st.pressure = settings.mpePlus ? juce::jmin (1.0f, (float) ((msb << 7) | takeHiResPrefix (st)) / mpePlusFullScale)
+                                       : (float) msb / 127.0f;
+        const auto value = st.pressure;
 
         if (isZoneWide (channel))
             emit (listener, Event::Type::zonePressure, 0, 0, channel, value);
@@ -219,10 +227,10 @@ void MpeDecoder::handleNoteOn (int channel, int key, int velocity, Listener& lis
     {
         emit (listener, Event::Type::notePitch, id, key, channel, channelPitch (channel));
 
-        if (st.pressure >= 0)
-            emit (listener, Event::Type::notePressure, id, key, channel, (float) st.pressure / 127.0f);
+        if (st.pressure >= 0.0f)
+            emit (listener, Event::Type::notePressure, id, key, channel, st.pressure);
 
-        if (st.timbreMsb >= 0)
+        if (st.timbre >= 0.0f)
             emit (listener, Event::Type::noteTimbre, id, key, channel, timbreValue (st));
 
         for (int cc = 0; cc < 128; ++cc)
@@ -284,6 +292,12 @@ void MpeDecoder::handleController (int channel, int controller, int value, Liste
                                   { emit (listener, Event::Type::noteTimbre, n.id, n.key, channel, timbre); });
     };
 
+    if (settings.mpePlus && controller == 87)
+    {
+        st.hiResPrefix = value;
+        return;
+    }
+
     switch (controller)
     {
         case 101:   st.rpnMsb = value; st.nrpnSelected = false; return;
@@ -324,8 +338,8 @@ void MpeDecoder::handleController (int channel, int controller, int value, Liste
 
         case 121:
         {
-            st.pitchBend = 8192;
-            st.pressure = -1;
+            st.pitchBend = 8192.0;
+            st.pressure = -1.0f;
 
             if (zoneWide)
             {
@@ -366,6 +380,14 @@ void MpeDecoder::handleController (int channel, int controller, int value, Liste
     {
         st.timbreMsb = value;
         st.timbreLsb = 0;
+
+        if (settings.mpePlus)
+            st.timbre = juce::jmin (1.0f, (float) ((value << 7) | takeHiResPrefix (st)) / mpePlusFullScale);
+        else if (settings.timbreLsbController >= 0)
+            st.timbre = (float) (value << 7) / 16383.0f;
+        else
+            st.timbre = (float) value / 127.0f;
+
         emitTimbre();
         return;
     }
@@ -375,7 +397,10 @@ void MpeDecoder::handleController (int channel, int controller, int value, Liste
         st.timbreLsb = value;
 
         if (st.timbreMsb >= 0)
+        {
+            st.timbre = (float) ((st.timbreMsb << 7) | st.timbreLsb) / 16383.0f;
             emitTimbre();
+        }
 
         return;
     }

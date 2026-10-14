@@ -8,7 +8,10 @@ namespace mperoll
 namespace
 {
     constexpr int pitchBendCentre = 8192;
+    constexpr int centreKey = pitchBendCentre << 7;
     constexpr int velocityPrefixController = 88;
+    constexpr int mpePlusPrefixController = 87;
+    constexpr float mpePlusFullScale = 16256.0f;    // 0x3f80: MPE+ keeps 127 as the top MSB
     constexpr float defaultLift = 0.5f;
 }
 
@@ -31,6 +34,12 @@ MpeEncoder::MpeEncoder()
 
 void MpeEncoder::setSettings (const OutputSettings& newSettings)
 {
+    // The deduplication caches are in a format that depends on these, so start over when they change.
+    if (newSettings.mpePlus != settings.mpePlus || newSettings.timbreController != settings.timbreController
+        || newSettings.timbreLsbController != settings.timbreLsbController)
+        for (auto& c : channels)
+            c.clearValues();
+
     settings = newSettings;
     settings.zones = settings.zones.normalised();
     settings.singleChannel = juce::jlimit (1, 16, settings.singleChannel);
@@ -45,6 +54,15 @@ int MpeEncoder::semitonesToPitchBend (float semitones, float range) noexcept
     const auto normalised = juce::jlimit (-1.0f, 1.0f, semitones / range);
     const auto scaled = normalised >= 0.0f ? normalised * 8191.0f : normalised * 8192.0f;
     return juce::jlimit (0, 16383, pitchBendCentre + (int) std::lround (scaled));
+}
+
+double MpeEncoder::semitonesToPitchBendFine (float semitones, float range) noexcept
+{
+    if (range <= 0.0f)
+        return pitchBendCentre;
+
+    const auto normalised = juce::jlimit (-1.0, 1.0, (double) semitones / range);
+    return juce::jlimit (0.0, 16383.0, pitchBendCentre + (normalised >= 0.0 ? normalised * 8191.0 : normalised * 8192.0));
 }
 
 float MpeEncoder::pitchBendToSemitones (int value, float range) noexcept
@@ -448,11 +466,11 @@ void MpeEncoder::resetControllers (juce::MidiBuffer& out, int samplePos)
     {
         auto& st = channels[(size_t) ch];
 
-        if (st.pitchBend >= 0 && st.pitchBend != pitchBendCentre)
+        if (st.pitchBend >= 0 && st.pitchBend != centreKey)
             sendPitchBend (out, samplePos, ch, pitchBendCentre, true);
 
         if (st.pressure > 0)
-            sendChannelPressure (out, samplePos, ch, 0, true);
+            sendChannelPressure (out, samplePos, ch, 0.0f, true);
 
         for (auto pedal : { 64, 66, 67, 68, 69 })
             if (st.controllers[(size_t) pedal] > 0)
@@ -472,11 +490,11 @@ void MpeEncoder::resetZoneControllers (juce::MidiBuffer& out, int samplePos)
     {
         auto& st = channels[(size_t) ch];
 
-        if (! isSingleChannelMode() && st.pitchBend >= 0 && st.pitchBend != pitchBendCentre)
+        if (! isSingleChannelMode() && st.pitchBend >= 0 && st.pitchBend != centreKey)
             sendPitchBend (out, samplePos, ch, pitchBendCentre, true);
 
         if (st.pressure > 0)
-            sendChannelPressure (out, samplePos, ch, 0, true);
+            sendChannelPressure (out, samplePos, ch, 0.0f, true);
 
         for (auto pedal : { 64, 66, 67, 68, 69 })
             if (st.controllers[(size_t) pedal] > 0)
@@ -502,7 +520,7 @@ void MpeEncoder::setPitch (juce::MidiBuffer& out, int samplePos, Handle handle, 
         return;
     }
 
-    sendPitchBend (out, samplePos, v->channel, semitonesToPitchBend (semitones, settings.memberBendRange), ! v->started);
+    sendPitchBend (out, samplePos, v->channel, semitonesToPitchBendFine (semitones, settings.memberBendRange), ! v->started);
     channels[(size_t) v->channel].pitchTouched = true;
 }
 
@@ -533,7 +551,7 @@ void MpeEncoder::setTimbre (juce::MidiBuffer& out, int samplePos, Handle handle,
 
 void MpeEncoder::setController (juce::MidiBuffer& out, int samplePos, Handle handle, int controller, float value)
 {
-    if (isReservedController (controller))
+    if (isReservedController (controller) || (settings.mpePlus && controller == mpePlusPrefixController))
         return;
 
     auto* v = findVoice (handle);
@@ -554,14 +572,13 @@ void MpeEncoder::setZonePitch (juce::MidiBuffer& out, int samplePos, float semit
         return;
     }
 
-    const auto value = semitonesToPitchBend (semitones, settings.masterBendRange);
+    const auto value = semitonesToPitchBendFine (semitones, settings.masterBendRange);
     forEachZoneMaster ([&] (int ch) { sendPitchBend (out, samplePos, ch, value, false); });
 }
 
 void MpeEncoder::setZonePressure (juce::MidiBuffer& out, int samplePos, float value)
 {
-    const auto v7 = toSevenBit (value);
-    forEachZoneMaster ([&] (int ch) { sendChannelPressure (out, samplePos, ch, v7, false); });
+    forEachZoneMaster ([&] (int ch) { sendChannelPressure (out, samplePos, ch, value, false); });
 }
 
 void MpeEncoder::setZoneTimbre (juce::MidiBuffer& out, int samplePos, float value)
@@ -584,29 +601,66 @@ void MpeEncoder::sendSingleChannelPitch (juce::MidiBuffer& out, int samplePos, b
     const auto* lead = leadVoice();
     const auto semitones = zonePitch + (lead != nullptr ? lead->pitch : 0.0f);
     sendPitchBend (out, samplePos, settings.singleChannel,
-                   semitonesToPitchBend (semitones, settings.masterBendRange), force);
+                   semitonesToPitchBendFine (semitones, settings.masterBendRange), force);
 }
 
-void MpeEncoder::sendPitchBend (juce::MidiBuffer& out, int samplePos, int channel, int value, bool force)
+void MpeEncoder::sendPitchBend (juce::MidiBuffer& out, int samplePos, int channel, double value, bool force)
 {
     auto& st = channels[(size_t) channel];
+    value = juce::jlimit (0.0, 16383.0, value);
 
-    if (! force && st.pitchBend == value)
+    // With MPE+, a CC87 just before the bend carries 7 more bits of resolution.
+    auto msb = settings.mpePlus ? (int) std::floor (value) : (int) std::lround (value);
+    auto lsb = settings.mpePlus ? (int) std::lround ((value - msb) * 128.0) : 0;
+
+    if (lsb >= 128)
+    {
+        ++msb;
+        lsb = 0;
+    }
+
+    if (msb >= 16383)
+    {
+        msb = 16383;
+        lsb = 0;
+    }
+
+    const auto key = (msb << 7) | lsb;
+
+    if (! force && st.pitchBend == key)
         return;
 
-    out.addEvent (juce::MidiMessage::pitchWheel (channel, value), samplePos);
-    st.pitchBend = value;
+    if (lsb > 0)
+        out.addEvent (juce::MidiMessage::controllerEvent (channel, mpePlusPrefixController, lsb), samplePos);
+
+    out.addEvent (juce::MidiMessage::pitchWheel (channel, msb), samplePos);
+    st.pitchBend = key;
 }
 
-void MpeEncoder::sendChannelPressure (juce::MidiBuffer& out, int samplePos, int channel, int value, bool force)
+void MpeEncoder::sendChannelPressure (juce::MidiBuffer& out, int samplePos, int channel, float value, bool force)
 {
     auto& st = channels[(size_t) channel];
+    value = juce::jlimit (0.0f, 1.0f, value);
 
-    if (! force && st.pressure == value)
+    int msb = toSevenBit (value), lsb = 0;
+
+    if (settings.mpePlus)
+    {
+        const auto fine = (int) std::lround (value * mpePlusFullScale);
+        msb = fine >> 7;
+        lsb = fine & 127;
+    }
+
+    const auto key = (msb << 7) | lsb;
+
+    if (! force && st.pressure == key)
         return;
 
-    out.addEvent (juce::MidiMessage::channelPressureChange (channel, value), samplePos);
-    st.pressure = value;
+    if (lsb > 0)
+        out.addEvent (juce::MidiMessage::controllerEvent (channel, mpePlusPrefixController, lsb), samplePos);
+
+    out.addEvent (juce::MidiMessage::channelPressureChange (channel, msb), samplePos);
+    st.pressure = key;
 }
 
 void MpeEncoder::sendPolyPressure (juce::MidiBuffer& out, int samplePos, int channel, int key, int value, bool force)
@@ -635,6 +689,23 @@ void MpeEncoder::sendTimbre (juce::MidiBuffer& out, int samplePos, int channel, 
 {
     auto& st = channels[(size_t) channel];
     const auto useLsb = settings.timbreLsbController >= 0 && settings.timbreLsbController != settings.timbreController;
+
+    if (settings.mpePlus && ! useLsb)
+    {
+        const auto fine = (int) std::lround (juce::jlimit (0.0f, 1.0f, value) * mpePlusFullScale);
+
+        if (! force && st.timbre == fine)
+            return;
+
+        if ((fine & 127) > 0)
+            out.addEvent (juce::MidiMessage::controllerEvent (channel, mpePlusPrefixController, fine & 127), samplePos);
+
+        out.addEvent (juce::MidiMessage::controllerEvent (channel, settings.timbreController, fine >> 7), samplePos);
+        st.controllers[(size_t) settings.timbreController] = (int8_t) (fine >> 7);
+        st.timbre = fine;
+        return;
+    }
+
     const auto v14 = useLsb ? toFourteenBit (value) : (toSevenBit (value) << 7);
 
     if (! force && st.timbre == v14)
@@ -665,7 +736,7 @@ void MpeEncoder::sendNotePressure (juce::MidiBuffer& out, int samplePos, const V
     switch (settings.pressureTarget)
     {
         case OutputSettings::PressureTarget::channelPressure:
-            sendChannelPressure (out, samplePos, v.channel, v7, force);
+            sendChannelPressure (out, samplePos, v.channel, value, force);
             break;
 
         case OutputSettings::PressureTarget::polyAftertouch:

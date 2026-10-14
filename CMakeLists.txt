@@ -33,7 +33,8 @@ set(MPEROLL_CORE_SOURCES
     source/core/ClipBuilder.cpp
     source/core/ClipPlayer.cpp
     source/core/MidiFileIO.cpp
-    source/core/FlScriptExporter.cpp)
+    source/core/FlScriptExporter.cpp
+    source/core/ControllerPresets.cpp)
 
 set(MPEROLL_PLUGIN_SOURCES
     source/plugin/PluginProcessor.cpp

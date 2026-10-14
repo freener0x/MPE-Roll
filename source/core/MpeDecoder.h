@@ -72,11 +72,13 @@ public:
 private:
     struct ChannelState
     {
-        int pitchBend = 8192;
+        double pitchBend = 8192.0;      // 14-bit, plus a fraction with MPE+
         float bendRange = 2.0f;
-        int pressure = -1;
+        float pressure = -1.0f;         // 0..1, negative until the first message
+        float timbre = -1.0f;           // 0..1, negative until the first message
         int timbreMsb = -1;
         int timbreLsb = 0;
+        int hiResPrefix = -1;           // MPE+ CC87 waiting for its message
         std::array<int8_t, 128> controllers;
         int rpnMsb = 127, rpnLsb = 127;
         bool nrpnSelected = false;
@@ -104,6 +106,7 @@ private:
     float defaultBendRange (int channel) const noexcept;
     float timbreValue (const ChannelState&) const noexcept;
     float channelPitch (int channel) const noexcept;
+    int takeHiResPrefix (ChannelState&) const noexcept;
 
     void handleNoteOn (int channel, int key, int velocity, Listener&);
     void handleNoteOff (int channel, int key, int velocity, Listener&);

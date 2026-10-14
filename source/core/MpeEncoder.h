@@ -68,6 +68,7 @@ public:
     int getNumActiveVoices() const noexcept                 { return numActive; }
 
     static int semitonesToPitchBend (float semitones, float range) noexcept;
+    static double semitonesToPitchBendFine (float semitones, float range) noexcept;
     static float pitchBendToSemitones (int value, float range) noexcept;
     static int toSevenBit (float value) noexcept;
     static int toFourteenBit (float value) noexcept;
@@ -89,8 +90,8 @@ private:
     {
         int numVoices = 0;
         uint64_t lastUsed = 0;
-        int pitchBend = -1;
-        int pressure = -1;
+        int pitchBend = -1;     // last sent, (14-bit << 7) | MPE+ low bits
+        int pressure = -1;      // last sent, (7-bit << 7) | MPE+ low bits
         int timbre = -1;
         std::array<int8_t, 128> controllers;
         std::array<int8_t, 128> polyPressure;
@@ -122,8 +123,8 @@ private:
     const Voice* leadVoice() const noexcept;
 
     void sendSingleChannelPitch (juce::MidiBuffer&, int samplePos, bool force);
-    void sendPitchBend (juce::MidiBuffer&, int samplePos, int channel, int value, bool force);
-    void sendChannelPressure (juce::MidiBuffer&, int samplePos, int channel, int value, bool force);
+    void sendPitchBend (juce::MidiBuffer&, int samplePos, int channel, double value, bool force);
+    void sendChannelPressure (juce::MidiBuffer&, int samplePos, int channel, float value, bool force);
     void sendPolyPressure (juce::MidiBuffer&, int samplePos, int channel, int key, int value, bool force);
     void sendController (juce::MidiBuffer&, int samplePos, int channel, int controller, int value, bool force);
     void sendTimbre (juce::MidiBuffer&, int samplePos, int channel, float value, bool force);

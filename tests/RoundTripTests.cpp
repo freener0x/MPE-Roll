@@ -131,6 +131,23 @@ public:
             compareClips (original, imported.clip, 1.0f / 16383.0f + 1.0e-5f);
         }
 
+        beginTest ("Haken MPE+ high resolution survives the round trip");
+        {
+            const auto original = makeExpressiveClip();
+
+            OutputSettings out;
+            out.mpePlus = true;
+            out.memberBendRange = 96.0f;
+            InputSettings in;
+            in.mpePlus = true;
+
+            juce::MemoryOutputStream stream;
+            expect (MidiFileIO::writeClip (original, out, {}, stream));
+            juce::MemoryInputStream input (stream.getData(), stream.getDataSize(), false);
+            const auto imported = MidiFileIO::importClip (input, in);
+            compareClips (original, imported.clip, 1.0f / 127.0f);
+        }
+
         beginTest ("Plain (non-MPE) MIDI files import as notes with zone-wide expression");
         {
             juce::MidiMessageSequence seq;

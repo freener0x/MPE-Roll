@@ -57,6 +57,7 @@ struct OutputSettings
 
     int timbreController = 74;          // the MPE "third dimension"
     int timbreLsbController = -1;       // optional LSB controller for 14-bit timbre (-1 = off)
+    bool mpePlus = false;               // Haken MPE+: CC87 before timbre, pressure and bend adds 7 more bits
 
     bool highResVelocity = false;       // send CC88 high resolution velocity prefixes
     bool sendConfiguration = true;      // send MCM + pitch bend sensitivity RPNs when playback starts
@@ -81,6 +82,8 @@ struct InputSettings
     float conventionalBendRange = 2.0f;         // channels outside any zone
     int timbreController = 74;
     int timbreLsbController = -1;
+    bool mpePlus = false;                       // read Haken MPE+ CC87 high-resolution prefixes
+    int presetIndex = 0;                        // the controller preset these came from (see ControllerPresets)
 
     bool operator== (const InputSettings&) const = default;
 };

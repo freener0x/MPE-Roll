@@ -1,5 +1,6 @@
 #include "SettingsPanel.h"
 #include "MpeLookAndFeel.h"
+#include "core/ControllerPresets.h"
 
 namespace mperoll
 {
@@ -55,6 +56,28 @@ namespace
     private:
         std::function<bool()> getter;
         std::function<void (bool)> setter;
+    };
+
+    /** A read-only line of explanatory text that can change. */
+    class InfoProp : public juce::PropertyComponent
+    {
+    public:
+        InfoProp (const juce::String& name, std::function<juce::String()> textFn)
+            : PropertyComponent (name, 44), text (std::move (textFn))
+        {
+            label.setColour (juce::Label::textColourId, Theme::textDim);
+            label.setFont (juce::FontOptions (12.5f));
+            label.setJustificationType (juce::Justification::centredLeft);
+            label.setMinimumHorizontalScale (1.0f);
+            addAndMakeVisible (label);
+            refresh();
+        }
+
+        void refresh() override     { label.setText (text(), juce::dontSendNotification); }
+
+    private:
+        std::function<juce::String()> text;
+        juce::Label label;
     };
 
     class ActionProp : public juce::ButtonPropertyComponent
@@ -117,6 +140,9 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     output.add (new NumberProp ("Default timbre", 0, 127, 1,
         [settings] { return std::round (settings().output.defaultTimbre * 127.0); },
         [this] (double v) { edit ([v] (EngineSettings& e) { e.output.defaultTimbre = (float) (v / 127.0); }); }));
+    output.add (new BoolProp ("MPE+ high resolution (CC87)",
+        [settings] { return settings().output.mpePlus; },
+        [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.mpePlus = b; }); }));
     output.add (new BoolProp ("14-bit velocity (CC88)",
         [settings] { return settings().output.highResVelocity; },
         [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.highResVelocity = b; }); }));
@@ -134,6 +160,30 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
 
     // Input from controllers, MIDI files and FL.
     Comps input;
+    juce::StringArray presetNames;
+
+    for (const auto& preset : controllerPresets())
+        presetNames.add (preset.name);
+
+    presetNames.add ("Custom");
+
+    input.add (new ChoiceProp ("Controller", presetNames,
+        [settings]
+        {
+            const auto index = findControllerPreset (settings().input);
+            return index >= 0 ? index : (int) controllerPresets().size();
+        },
+        [this] (int i)
+        {
+            if (juce::isPositiveAndBelow (i, (int) controllerPresets().size()))
+                edit ([i] (EngineSettings& e) { e.input = controllerPresets()[(size_t) i].input; });
+        }));
+    input.add (new InfoProp ("Setup", [settings]
+    {
+        const auto index = findControllerPreset (settings().input);
+        return index >= 0 ? controllerPresets()[(size_t) index].setupTip
+                          : juce::String ("Custom settings. Pick a controller above to start from its defaults.");
+    }));
     input.add (new ChoiceProp ("Input is", { "MPE", "Plain MIDI" },
         [settings] { return (int) settings().input.mode; },
         [this] (int i) { edit ([i] (EngineSettings& e) { e.input.mode = (InputSettings::Mode) i; }); }));
@@ -158,6 +208,12 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     input.add (new NumberProp ("Timbre LSB controller (-1 off)", -1, 119, 1,
         [settings] { return (double) settings().input.timbreLsbController; },
         [this] (double v) { edit ([v] (EngineSettings& e) { e.input.timbreLsbController = (int) v; }); }));
+    input.add (new BoolProp ("MPE+ high resolution (CC87)",
+        [settings] { return settings().input.mpePlus; },
+        [this] (bool b) { edit ([b] (EngineSettings& e) { e.input.mpePlus = b; }); }));
+    input.add (new NumberProp ("Plain MIDI bend range", 1, 96, 1,
+        [settings] { return (double) settings().input.conventionalBendRange; },
+        [this] (double v) { edit ([v] (EngineSettings& e) { e.input.conventionalBendRange = (float) v; }); }));
     panel.addSection ("Input from controller / FL", input);
 
     // Playback.

@@ -66,6 +66,7 @@ std::unique_ptr<juce::XmlElement> EngineSettings::toXml() const
     out->setAttribute ("pressureController", output.pressureController);
     out->setAttribute ("timbreController", output.timbreController);
     out->setAttribute ("timbreLsbController", output.timbreLsbController);
+    out->setAttribute ("mpePlus", output.mpePlus);
     out->setAttribute ("highResVelocity", output.highResVelocity);
     out->setAttribute ("sendConfiguration", output.sendConfiguration);
     out->setAttribute ("overflow", (int) output.overflow);
@@ -82,6 +83,8 @@ std::unique_ptr<juce::XmlElement> EngineSettings::toXml() const
     in->setAttribute ("conventionalBendRange", input.conventionalBendRange);
     in->setAttribute ("timbreController", input.timbreController);
     in->setAttribute ("timbreLsbController", input.timbreLsbController);
+    in->setAttribute ("mpePlus", input.mpePlus);
+    in->setAttribute ("presetIndex", input.presetIndex);
 
     auto* play = xml->createNewChildElement ("Playback");
     play->setAttribute ("mode", (int) playback.mode);
@@ -114,6 +117,7 @@ EngineSettings EngineSettings::fromXml (const juce::XmlElement* xml)
         o.pressureController = juce::jlimit (0, 127, out->getIntAttribute ("pressureController", o.pressureController));
         o.timbreController = juce::jlimit (0, 127, out->getIntAttribute ("timbreController", o.timbreController));
         o.timbreLsbController = juce::jlimit (-1, 127, out->getIntAttribute ("timbreLsbController", o.timbreLsbController));
+        o.mpePlus = out->getBoolAttribute ("mpePlus", o.mpePlus);
         o.highResVelocity = out->getBoolAttribute ("highResVelocity", o.highResVelocity);
         o.sendConfiguration = out->getBoolAttribute ("sendConfiguration", o.sendConfiguration);
         o.overflow = enumFromInt (out->getIntAttribute ("overflow"), o.overflow, 2);
@@ -134,6 +138,8 @@ EngineSettings EngineSettings::fromXml (const juce::XmlElement* xml)
         i.conventionalBendRange = juce::jlimit (1.0f, 96.0f, (float) in->getDoubleAttribute ("conventionalBendRange", i.conventionalBendRange));
         i.timbreController = juce::jlimit (0, 127, in->getIntAttribute ("timbreController", i.timbreController));
         i.timbreLsbController = juce::jlimit (-1, 127, in->getIntAttribute ("timbreLsbController", i.timbreLsbController));
+        i.mpePlus = in->getBoolAttribute ("mpePlus", i.mpePlus);
+        i.presetIndex = in->getIntAttribute ("presetIndex", i.presetIndex);
     }
 
     if (auto* play = xml->getChildByName ("Playback"))

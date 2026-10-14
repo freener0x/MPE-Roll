@@ -1,4 +1,5 @@
 #include "TestHelpers.h"
+#include "core/ControllerPresets.h"
 #include "core/MpeDecoder.h"
 
 namespace mperoll
@@ -147,6 +148,54 @@ public:
 
             d.process (juce::MidiMessage::aftertouchChange (1, 64, 64), log);
             expectEquals (log.last (Type::notePressure)->key, 64);
+        }
+
+        beginTest ("MPE+ prefixes add resolution to timbre, pressure and bend");
+        {
+            InputSettings s;
+            s.mpePlus = true;
+            MpeDecoder d;
+            d.setSettings (s);
+            EventLog log;
+            d.process (juce::MidiMessage::noteOn (2, 60, (juce::uint8) 100), log);
+
+            d.process (juce::MidiMessage::controllerEvent (2, 87, 64), log);
+            d.process (juce::MidiMessage::controllerEvent (2, 74, 63), log);
+            expectWithinAbsoluteError (log.last (Type::noteTimbre)->value, 0.5f, 1.0e-6f);
+
+            d.process (juce::MidiMessage::controllerEvent (2, 87, 64), log);
+            d.process (juce::MidiMessage::channelPressureChange (2, 63), log);
+            expectWithinAbsoluteError (log.last (Type::notePressure)->value, 0.5f, 1.0e-6f);
+
+            d.process (juce::MidiMessage::controllerEvent (2, 87, 64), log);
+            d.process (juce::MidiMessage::pitchWheel (2, 8192), log);
+            expectWithinAbsoluteError (log.last (Type::notePitch)->value, 0.5f * 48.0f / 8191.0f, 1.0e-6f);
+
+            // Without a prefix the plain 7-bit value applies, and CC87 never shows up as a lane.
+            d.process (juce::MidiMessage::controllerEvent (2, 74, 127), log);
+            expectWithinAbsoluteError (log.last (Type::noteTimbre)->value, 1.0f, 1.0e-6f);
+            expectEquals (log.count (Type::noteController), 0);
+        }
+
+        beginTest ("Controller presets are recognised until they're customised");
+        {
+            const auto& presets = controllerPresets();
+            expect (presets.size() >= 8);
+
+            for (size_t i = 0; i < presets.size(); ++i)
+            {
+                expectEquals (findControllerPreset (presets[i].input), (int) i, presets[i].name);
+
+                auto changed = presets[i].input;
+                changed.memberBendRange = 12.0f;
+                expectEquals (findControllerPreset (changed), -1);
+
+                MpeDecoder d;
+                d.setSettings (presets[i].input);
+                EventLog log;
+                d.process (juce::MidiMessage::noteOn (2, 60, (juce::uint8) 100), log);
+                expectEquals (log.count (Type::noteStart), 1, presets[i].name);
+            }
         }
 
         beginTest ("14-bit timbre combines MSB and LSB");
