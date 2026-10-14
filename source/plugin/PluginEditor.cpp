@@ -71,7 +71,7 @@ private:
 //==============================================================================
 MpeRollEditor::MpeRollEditor (MpeRollProcessor& p)
     : AudioProcessorEditor (p),
-      processor (p),
+      rollProcessor (p),
       document (p.getDocument()),
       ruler (p.getDocument(), view),
       keys (p, view),
@@ -102,12 +102,12 @@ MpeRollEditor::MpeRollEditor (MpeRollProcessor& p)
     view.addListener (this);
     document.addChangeListener (this);
     document.getUndoManager().addChangeListener (this);
-    processor.onStatusChanged = [safe = juce::Component::SafePointer<MpeRollEditor> (this)]
+    rollProcessor.onStatusChanged = [safe = juce::Component::SafePointer<MpeRollEditor> (this)]
     {
         if (safe != nullptr)
         {
-            if (safe->processor.getStatusMessage().isNotEmpty())
-                safe->setStatus (safe->processor.getStatusMessage());
+            if (safe->rollProcessor.getStatusMessage().isNotEmpty())
+                safe->setStatus (safe->rollProcessor.getStatusMessage());
 
             safe->refreshToolbar();
         }
@@ -127,7 +127,7 @@ MpeRollEditor::MpeRollEditor (MpeRollProcessor& p)
 MpeRollEditor::~MpeRollEditor()
 {
     stopTimer();
-    processor.onStatusChanged = nullptr;
+    rollProcessor.onStatusChanged = nullptr;
     toolbar.midiButton.removeMouseListener (midiDragListener.get());
     document.getUndoManager().removeChangeListener (this);
     document.removeChangeListener (this);
@@ -176,7 +176,7 @@ bool MpeRollEditor::keyPressed (const juce::KeyPress& key)
 //==============================================================================
 void MpeRollEditor::wireToolbar()
 {
-    auto& synth = processor.getSynth();
+    auto& synth = rollProcessor.getSynth();
 
     toolbar.synthButton.onClick = [this] { showSynthMenu(); };
     toolbar.showSynthButton.onClick = [&synth] { synth.showEditor(); };
@@ -218,7 +218,7 @@ void MpeRollEditor::wireToolbar()
                        + " in FL's piano roll plays clip 1, the next key clip 2, and so on.");
     };
 
-    toolbar.recordButton.onClick = [this] { processor.setRecordArmed (toolbar.recordButton.getToggleState()); };
+    toolbar.recordButton.onClick = [this] { rollProcessor.setRecordArmed (toolbar.recordButton.getToggleState()); };
     toolbar.settingsButton.onClick = [this] { showSettings(); };
 
     toolbar.editToolButton.onClick = [this] { view.tool = ViewState::Tool::edit; view.changed(); };
@@ -250,7 +250,7 @@ void MpeRollEditor::wireToolbar()
 void MpeRollEditor::refreshToolbar()
 {
     const juce::ScopedValueSetter<bool> svs (updatingToolbar, true);
-    auto& synth = processor.getSynth();
+    auto& synth = rollProcessor.getSynth();
     const auto& clip = document.getEditClip();
     const auto& settings = document.getSettings();
 
@@ -280,7 +280,7 @@ void MpeRollEditor::refreshToolbar()
     toolbar.glideToolButton.setToggleState (view.tool == ViewState::Tool::glide, juce::dontSendNotification);
     toolbar.undoButton.setEnabled (document.getUndoManager().canUndo());
     toolbar.redoButton.setEnabled (document.getUndoManager().canRedo());
-    toolbar.recordButton.setToggleState (processor.isRecordArmed(), juce::dontSendNotification);
+    toolbar.recordButton.setToggleState (rollProcessor.isRecordArmed(), juce::dontSendNotification);
 
     const bool showTransient = transientStatus.isNotEmpty()
                             && juce::Time::getMillisecondCounter() - transientStatusTime < 6000;
@@ -327,7 +327,7 @@ void MpeRollEditor::setStatus (const juce::String& message)
 //==============================================================================
 void MpeRollEditor::timerCallback()
 {
-    const auto transport = processor.getTransport();
+    const auto transport = rollProcessor.getTransport();
     const bool visible = transport.playing && transport.slot == document.getEditSlot();
     grid.setPlayhead (transport.clipBeat, visible);
     ruler.setPlayhead (transport.clipBeat, visible);
@@ -344,11 +344,11 @@ void MpeRollEditor::timerCallback()
         }
     }
 
-    if (processor.getRecordingSlot() >= 0)
+    if (rollProcessor.getRecordingSlot() >= 0)
         grid.refreshRecording();
 
-    if (toolbar.recordButton.getToggleState() != processor.isRecordArmed())
-        toolbar.recordButton.setToggleState (processor.isRecordArmed(), juce::dontSendNotification);
+    if (toolbar.recordButton.getToggleState() != rollProcessor.isRecordArmed())
+        toolbar.recordButton.setToggleState (rollProcessor.isRecordArmed(), juce::dontSendNotification);
 
     if (transientStatus.isNotEmpty() && juce::Time::getMillisecondCounter() - transientStatusTime >= 6000)
     {
@@ -392,7 +392,7 @@ void MpeRollEditor::updateScrollBars()
     hScroll.setCurrentRange (view.scrollBeat, visibleBeats, juce::dontSendNotification);
 
     vScroll.setRangeLimits (0.0, 128.0, juce::dontSendNotification);
-    vScroll.setCurrentRange (128.0 - view.scrollKey, grid.getHeight() / view.rowHeight, juce::dontSendNotification);
+    vScroll.setCurrentRange (128.0 - view.scrollKey, (double) grid.getHeight() / view.rowHeight, juce::dontSendNotification);
 }
 
 void MpeRollEditor::scrollBarMoved (juce::ScrollBar* bar, double newRangeStart)
@@ -435,7 +435,7 @@ void MpeRollEditor::scrollToContent()
 //==============================================================================
 void MpeRollEditor::showSynthMenu()
 {
-    auto& synth = processor.getSynth();
+    auto& synth = rollProcessor.getSynth();
     const auto types = synth.getInstrumentTypes();
     const auto* instance = synth.getInstance();
     const auto currentId = instance != nullptr ? instance->getPluginDescription().createIdentifierString() : juce::String();
@@ -467,7 +467,7 @@ void MpeRollEditor::showSynthMenu()
         else if (result == browseId)
             safe->browseForPlugin();
         else if (result == unloadId)
-            safe->processor.getSynth().unload();
+            safe->rollProcessor.getSynth().unload();
         else if (const auto index = juce::KnownPluginList::getIndexChosenByMenu (types, result); index >= 0)
             safe->loadSynth (types[index]);
     });
@@ -477,7 +477,7 @@ void MpeRollEditor::loadSynth (const juce::PluginDescription& description)
 {
     setStatus ("Loading " + description.name + "...");
 
-    processor.getSynth().load (description, [safe = juce::Component::SafePointer<MpeRollEditor> (this), description]
+    rollProcessor.getSynth().load (description, [safe = juce::Component::SafePointer<MpeRollEditor> (this), description]
                                             (const juce::String& error)
     {
         if (safe == nullptr)
@@ -490,7 +490,7 @@ void MpeRollEditor::loadSynth (const juce::PluginDescription& description)
             return;
         }
 
-        safe->processor.requestConfiguration();
+        safe->rollProcessor.requestConfiguration();
         safe->setStatus ("Loaded " + description.name);
     });
 
@@ -499,7 +499,7 @@ void MpeRollEditor::loadSynth (const juce::PluginDescription& description)
 
 void MpeRollEditor::showPluginScanner()
 {
-    auto& synth = processor.getSynth();
+    auto& synth = rollProcessor.getSynth();
 
     juce::DialogWindow::LaunchOptions options;
     options.content.setOwned (new juce::PluginListComponent (synth.getFormatManager(), synth.getKnownPlugins(),
@@ -535,7 +535,7 @@ void MpeRollEditor::browseForPlugin()
             return;
 
         safe->setStatus ("Loading " + file.getFileName() + "...");
-        safe->processor.getSynth().loadFromFile (file, [safe, file] (const juce::String& error)
+        safe->rollProcessor.getSynth().loadFromFile (file, [safe, file] (const juce::String& error)
         {
             if (safe == nullptr)
                 return;
@@ -545,7 +545,7 @@ void MpeRollEditor::browseForPlugin()
             else
                 safe->setStatus ("Loaded " + file.getFileNameWithoutExtension());
 
-            safe->processor.requestConfiguration();
+            safe->rollProcessor.requestConfiguration();
         });
     });
 }
@@ -632,7 +632,7 @@ void MpeRollEditor::exportMidi()
 
         const auto target = fc.getResult().withFileExtension (".mid");
         MidiFileIO::ExportOptions options;
-        options.tempoBpm = safe->processor.getTransport().bpm;
+        options.tempoBpm = safe->rollProcessor.getTransport().bpm;
 
         juce::FileOutputStream out (target);
 
@@ -660,7 +660,7 @@ juce::File MpeRollEditor::writeTemporaryMidiFile()
     file.getParentDirectory().createDirectory();
 
     MidiFileIO::ExportOptions options;
-    options.tempoBpm = processor.getTransport().bpm;
+    options.tempoBpm = rollProcessor.getTransport().bpm;
     options.loopOnce = true;
 
     juce::FileOutputStream out (file);
@@ -740,7 +740,7 @@ void MpeRollEditor::sendToFl()
 
 void MpeRollEditor::showSettings()
 {
-    auto panel = std::make_unique<SettingsPanel> (processor);
+    auto panel = std::make_unique<SettingsPanel> (rollProcessor);
     const auto area = toolbar.settingsButton.getBounds() + toolbar.getPosition();
     juce::CallOutBox::launchAsynchronously (std::move (panel), area, this);
 }

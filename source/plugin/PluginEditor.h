@@ -35,7 +35,7 @@ private:
     class Splitter;
     class MidiDragListener;
 
-    MpeRollProcessor& processor;
+    MpeRollProcessor& rollProcessor;
     ClipDocument& document;
     MpeLookAndFeel lookAndFeel;
     ViewState view;

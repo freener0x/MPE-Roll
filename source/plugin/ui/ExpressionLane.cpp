@@ -21,7 +21,7 @@ namespace
 }
 
 ExpressionLane::ExpressionLane (MpeRollProcessor& p, ViewState& v)
-    : processor (p), document (p.getDocument()), view (v)
+    : document (p.getDocument()), view (v)
 {
     for (auto* b : { &laneButton, &drawButton, &lineButton, &eraseButton, &rangeButton, &clearButton })
         addAndMakeVisible (b);

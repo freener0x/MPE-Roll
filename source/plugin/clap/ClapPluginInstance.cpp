@@ -1400,7 +1400,7 @@ void ClapPluginInstance::guiClosed (bool wasDestroyed)
 // instance exists (while the plugin initialises) or after it's gone.
 namespace hostcallbacks
 {
-    ClapPluginInstance* ownerOf (const clap_host_t* host)      { return ClapHostContext::of (host).owner.load(); }
+    static ClapPluginInstance* ownerOf (const clap_host_t* host)   { return ClapHostContext::of (host).owner.load(); }
 
     const clap_host_thread_check_t threadCheck
     {
@@ -1513,7 +1513,7 @@ namespace hostcallbacks
     };
    #endif
 
-    const void* getExtension (const clap_host_t*, const char* id)
+    static const void* getExtension (const clap_host_t*, const char* id)
     {
         if (id == nullptr)                                      return nullptr;
         if (std::strcmp (id, CLAP_EXT_THREAD_CHECK) == 0)       return &threadCheck;

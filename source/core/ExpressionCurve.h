@@ -11,7 +11,14 @@ struct CurvePoint
     double beat = 0.0;  // relative to the owning note's start, or to the clip start for zone lanes
     float value = 0.0f;
 
+#if defined (__GNUC__) || defined (__clang__)
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wfloat-equal"   // exact on purpose: detects edits, not closeness
+#endif
     bool operator== (const CurvePoint&) const = default;
+#if defined (__GNUC__) || defined (__clang__)
+ #pragma GCC diagnostic pop
+#endif
 };
 
 /** A piecewise-linear automation curve with points sorted by time.

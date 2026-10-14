@@ -70,7 +70,10 @@ struct MpeNote
 
     double end() const noexcept { return start + length; }
 
+    // Exact on purpose: these comparisons detect edits, not closeness.
+    JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfloat-equal")
     bool operator== (const MpeNote&) const = default;
+    JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 };
 
 /** A clip of MPE notes plus zone-wide (master channel) automation. Times are in beats (quarter notes). */
@@ -102,7 +105,10 @@ struct MpeClip
     juce::MemoryBlock toMemoryBlock() const;
     static bool fromMemoryBlock (const juce::MemoryBlock& data, MpeClip& result);
 
+    // Exact on purpose: these comparisons detect edits, not closeness.
+    JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfloat-equal")
     bool operator== (const MpeClip&) const = default;
+    JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 };
 
 /** The value a lane holds when there is no data. */

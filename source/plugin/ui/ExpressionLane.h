@@ -45,7 +45,6 @@ public:
     static constexpr int headerHeight = 28;
 
 private:
-    MpeRollProcessor& processor;
     ClipDocument& document;
     ViewState& view;
 

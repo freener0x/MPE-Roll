@@ -68,7 +68,10 @@ struct OutputSettings
 
     bool clapNoteExpressions = true;    // play CLAP synths with CLAP notes and note expressions, not MIDI
 
+    // Exact on purpose: these comparisons detect edits, not closeness.
+    JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfloat-equal")
     bool operator== (const OutputSettings&) const = default;
+    JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 };
 
 /** How incoming MIDI (controllers, files, FL's own piano roll) is interpreted. */
@@ -87,7 +90,10 @@ struct InputSettings
     bool mpePlus = false;                       // read Haken MPE+ CC87 high-resolution prefixes
     int presetIndex = 0;                        // the controller preset these came from (see ControllerPresets)
 
+    // Exact on purpose: these comparisons detect edits, not closeness.
+    JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfloat-equal")
     bool operator== (const InputSettings&) const = default;
+    JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 };
 
 struct PlaybackSettings
@@ -100,7 +106,10 @@ struct PlaybackSettings
     float controlIntervalMs = 1.0f;     // how often expression curves are sampled during playback
     bool passThroughInput = true;       // play incoming MIDI through the hosted synth
 
+    // Exact on purpose: these comparisons detect edits, not closeness.
+    JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfloat-equal")
     bool operator== (const PlaybackSettings&) const = default;
+    JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 };
 
 struct EngineSettings
