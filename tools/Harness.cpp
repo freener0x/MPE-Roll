@@ -575,6 +575,73 @@ int parameterTest (const juce::File& synthFile)
 }
 
 //==============================================================================
+/** Plays one held note through the CLAP test synth with CLAP note expressions on, then off.
+    The test synth ignores MIDI, so it should only sound when MPE Roll sends it CLAP notes.
+*/
+int clapDialectTest (const juce::File& synthFile)
+{
+    Check check;
+    FakePlayHead playHead;
+    MpeRollProcessor processor;
+    processor.setPlayHead (&playHead);
+    processor.setRateAndBufferSizeDetails (48000.0, 512);
+    processor.prepareToPlay (48000.0, 512);
+
+    if (! loadSynth (processor, synthFile))
+        return 1;
+
+    MpeClip clip;
+    clip.length = 4.0;
+    clip.addNote (note (60, 0.0, 4.0, 0.8f));
+    processor.getDocument().replaceClip (0, clip, "Test");
+
+    auto peakWith = [&] (bool noteExpressions)
+    {
+        auto s = processor.getDocument().getSettings();
+        s.output.clapNoteExpressions = noteExpressions;
+        processor.getDocument().setSettings (s);
+
+        std::printf ("Played with: %s\n", processor.getSynth().describeConnection (s.output).toRawUTF8());
+
+        // Stop, so the note starts again under the new setting.
+        playHead.playing = false;
+        double ppq = 0.0;
+        runBlock (processor, playHead, ppq);
+        playHead.playing = true;
+
+        float peak = 0.0f;
+
+        for (int block = 0; block < 40; ++block)
+        {
+            juce::AudioBuffer<float> audio (2, 512);
+            juce::MidiBuffer midi;
+            playHead.ppq = ppq;
+            processor.processBlock (audio, midi);
+            ppq += 512.0 / 48000.0 * 2.0;
+
+            if (block >= 4)
+                peak = std::max (peak, audio.getMagnitude (0, 512));
+        }
+
+        return peak;
+    };
+
+    std::printf ("A CLAP synth is played with CLAP notes and note expressions\n");
+    const auto withExpressions = peakWith (true);
+    check (withExpressions > 0.01f, "with note expressions on, the synth plays");
+
+    const auto withMidi = peakWith (false);
+    check (withMidi < 1.0e-4f, "with them off it gets MPE MIDI instead (which this synth ignores)");
+
+    const auto again = peakWith (true);
+    check (again > 0.01f, "and switching back works without reloading the synth");
+
+    processor.releaseResources();
+    std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
+    return check.failures == 0 ? 0 : 1;
+}
+
+//==============================================================================
 template <typename ComponentType>
 ComponentType* findChild (juce::Component& parent)
 {
@@ -720,11 +787,15 @@ int main (int argc, char** argv)
     if (args.size() >= 2 && args[0] == "params")
         return parameterTest (cwd.getChildFile (args[1]));
 
+    if (args.size() >= 2 && args[0] == "clapdialect")
+        return clapDialectTest (cwd.getChildFile (args[1]));
+
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
                  "  MpeRollHarness render <synth.vst3> <out.wav>\n"
                  "  MpeRollHarness selftest\n"
                  "  MpeRollHarness uitest\n"
-                 "  MpeRollHarness params <synth.vst3>\n");
+                 "  MpeRollHarness params <synth.vst3>\n"
+                 "  MpeRollHarness clapdialect <MPE Roll Test Synth.clap>\n");
     return 2;
 }

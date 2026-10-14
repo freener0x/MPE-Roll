@@ -116,3 +116,18 @@ jobs:
         run: >
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness params
           "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"
+
+      - name: Render through a hosted CLAP synth (pitch only from note expressions)
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness render
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap" render-clap.wav
+
+      - name: CLAP synth parameters exposed for automation
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness params
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"
+
+      - name: CLAP note expressions switch on and off
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness clapdialect
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"

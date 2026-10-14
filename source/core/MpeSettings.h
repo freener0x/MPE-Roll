@@ -66,6 +66,8 @@ struct OutputSettings
     float defaultTimbre = 0.5f;         // sent before a note that has no timbre data of its own
     int singleChannel = 1;              // output channel when mode == singleChannel
 
+    bool clapNoteExpressions = true;    // play CLAP synths with CLAP notes and note expressions, not MIDI
+
     bool operator== (const OutputSettings&) const = default;
 };
 

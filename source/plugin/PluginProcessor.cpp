@@ -292,6 +292,7 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     // Play the synth. Our own MIDI output carries the MPE stream as well.
     hostMidi.clear();
     hostMidi.addEvents (synthMidi, 0, numSamples, 0);
+    synth.setOutputSettings (snapshot.settings.output);
     synth.process (buffer, hostMidi, getPlayHead());
     midiMessages.swapWith (synthMidi);
 }

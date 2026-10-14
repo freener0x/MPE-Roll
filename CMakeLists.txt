@@ -11,6 +11,7 @@ option(MPEROLL_BUILD_TESTS "Build the core unit tests" ON)
 option(MPEROLL_BUILD_DEV_TOOLS "Build the developer harness (UI snapshots, offline renders)" OFF)
 option(MPEROLL_COPY_PLUGIN_AFTER_BUILD "Copy the built plugin into the system plugin folder" OFF)
 option(MPEROLL_HOST_VST2 "Host VST2 synths (uses the clean-room FST headers in third_party/fst)" ON)
+option(MPEROLL_HOST_CLAP "Host CLAP synths, playing them with CLAP note expressions" ON)
 
 # ---------------------------------------------------------------------------------------------
 # JUCE (AGPLv3). Pass -DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE to use a local checkout.
@@ -21,6 +22,13 @@ FetchContent_Declare(JUCE
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE)
 FetchContent_MakeAvailable(JUCE)
+
+# CLAP headers (MIT). Pass -DFETCHCONTENT_SOURCE_DIR_CLAP=/path/to/clap to use a local checkout.
+FetchContent_Declare(clap
+    GIT_REPOSITORY https://github.com/free-audio/clap.git
+    GIT_TAG 1.2.9
+    GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(clap)
 
 # ---------------------------------------------------------------------------------------------
 # Core: the MPE model, encoder/decoder, player, MIDI file IO and FL Studio bridge.
@@ -51,6 +59,17 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/ui/Toolbar.cpp
     source/plugin/ui/SettingsPanel.cpp)
 
+if(MPEROLL_HOST_CLAP)
+    list(APPEND MPEROLL_PLUGIN_SOURCES
+        source/plugin/clap/ClapNoteTranslator.cpp
+        source/plugin/clap/ClapPluginFormat.cpp
+        source/plugin/clap/ClapPluginInstance.cpp)
+
+    if(APPLE)
+        list(APPEND MPEROLL_PLUGIN_SOURCES source/plugin/clap/ClapMacView.mm)
+    endif()
+endif()
+
 set(MPEROLL_COMMON_DEFINITIONS
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
@@ -64,6 +83,12 @@ if(MPEROLL_HOST_VST2)
     list(APPEND MPEROLL_COMMON_DEFINITIONS JUCE_PLUGINHOST_VST=1)
 else()
     list(APPEND MPEROLL_COMMON_DEFINITIONS JUCE_PLUGINHOST_VST=0)
+endif()
+
+if(MPEROLL_HOST_CLAP)
+    list(APPEND MPEROLL_COMMON_DEFINITIONS MPEROLL_HOST_CLAP=1)
+else()
+    list(APPEND MPEROLL_COMMON_DEFINITIONS MPEROLL_HOST_CLAP=0)
 endif()
 
 if(APPLE)
@@ -102,6 +127,7 @@ target_include_directories(MpeRoll PRIVATE source third_party/fst)
 target_compile_definitions(MpeRoll PUBLIC ${MPEROLL_COMMON_DEFINITIONS})
 target_link_libraries(MpeRoll
     PRIVATE
+        clap
         juce::juce_audio_utils
         juce::juce_audio_processors
     PUBLIC
@@ -124,11 +150,14 @@ if(MPEROLL_BUILD_TESTS)
         tests/MpeDecoderTests.cpp
         tests/ClipPlayerTests.cpp
         tests/RoundTripTests.cpp
-        tests/FlScriptExporterTests.cpp)
+        tests/FlScriptExporterTests.cpp
+        source/plugin/clap/ClapNoteTranslator.cpp
+        tests/ClapNoteTranslatorTests.cpp)
     target_include_directories(MpeRollTests PRIVATE source)
     target_compile_definitions(MpeRollTests PRIVATE JUCE_USE_CURL=0 JUCE_WEB_BROWSER=0)
     target_link_libraries(MpeRollTests
         PRIVATE
+            clap
             juce::juce_core
             juce::juce_audio_basics
         PUBLIC
@@ -179,6 +208,25 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         PRIVATE juce::juce_audio_processors
         PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 
+    # The same sine synth as a CLAP plugin, written straight against the CLAP API. It only takes
+    # pitch from CLAP note expressions, so it checks MPE Roll's MPE to note expression path.
+    if(MPEROLL_HOST_CLAP)
+        add_library(MpeRollClapTestSynth MODULE tools/ClapTestSynth.cpp)
+        target_link_libraries(MpeRollClapTestSynth
+            PRIVATE clap
+            PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+        set_target_properties(MpeRollClapTestSynth PROPERTIES
+            PREFIX ""
+            SUFFIX ".clap"
+            OUTPUT_NAME "MPE Roll Test Synth"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/MpeRollClapTestSynth_artefacts/$<CONFIG>"
+            CXX_VISIBILITY_PRESET hidden)
+
+        if(APPLE)
+            set_target_properties(MpeRollClapTestSynth PROPERTIES BUNDLE TRUE BUNDLE_EXTENSION clap)
+        endif()
+    endif()
+
     juce_add_console_app(MpeRollHarness PRODUCT_NAME "MpeRollHarness")
     target_sources(MpeRollHarness PRIVATE
         ${MPEROLL_CORE_SOURCES}
@@ -197,6 +245,7 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         JucePlugin_IsMidiEffect=0)
     target_link_libraries(MpeRollHarness
         PRIVATE
+            clap
             juce::juce_audio_utils
             juce::juce_audio_processors
         PUBLIC

@@ -1,5 +1,9 @@
 #include "HostedSynth.h"
 
+#if MPEROLL_HOST_CLAP
+ #include "clap/ClapHosting.h"
+#endif
+
 namespace mperoll
 {
 
@@ -63,6 +67,10 @@ HostedSynth::HostedSynth()
 
     juce::addDefaultFormatsToManager (formatManager);
 
+   #if MPEROLL_HOST_CLAP
+    formatManager.addFormat (std::make_unique<ClapPluginFormat>());
+   #endif
+
     if (auto* settings = getUserSettings())
         if (auto xml = settings->getXmlValue ("knownPlugins"))
             knownPlugins.recreateFromXml (*xml);
@@ -81,6 +89,7 @@ HostedSynth::~HostedSynth()
     {
         const juce::SpinLock::ScopedLockType lock (instanceLock);
         old = std::move (instance);
+        clapControls = nullptr;
     }
 }
 
@@ -194,6 +203,10 @@ juce::String HostedSynth::getPluginFilePatterns()
     #endif
    #endif
 
+   #if MPEROLL_HOST_CLAP
+    patterns.add ("*.clap");
+   #endif
+
     return patterns.joinIntoString (";");
 }
 
@@ -232,6 +245,10 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
         scratch.setSize (juce::jmax (channels, scratch.getNumChannels()), juce::jmax (blockSize, scratch.getNumSamples()));
         old = std::move (instance);
         instance = std::move (newInstance);
+
+       #if MPEROLL_HOST_CLAP
+        clapControls = dynamic_cast<ClapSynthControls*> (instance.get());
+       #endif
     }
 
     description = std::make_unique<juce::PluginDescription> (desc);
@@ -260,6 +277,7 @@ void HostedSynth::unload()
     {
         const juce::SpinLock::ScopedLockType lock (instanceLock);
         old = std::move (instance);
+        clapControls = nullptr;
     }
 
     description.reset();
@@ -376,6 +394,11 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
     juce::AudioBuffer<float> view (scratch.getArrayOfWritePointers(), needed, numSamples);
     view.clear();
 
+   #if MPEROLL_HOST_CLAP
+    if (clapControls != nullptr)
+        clapControls->setMpeOutputSettings (outputSettings);
+   #endif
+
     plugin.setPlayHead (playHead);
     plugin.processBlock (view, midi);
 
@@ -386,6 +409,21 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
         else
             buffer.clear (ch, 0, numSamples);
     }
+}
+
+juce::String HostedSynth::describeConnection (const OutputSettings& settings) const
+{
+    if (instance == nullptr)
+        return "No synth loaded.";
+
+   #if MPEROLL_HOST_CLAP
+    if (clapControls != nullptr && clapControls->playsNoteExpressions (settings))
+        return "CLAP notes, each with its own tuning, pressure, brightness, volume, pan, vibrato and expression.";
+   #endif
+
+    const auto midi = settings.mode == OutputSettings::Mode::singleChannel ? juce::String ("Plain MIDI")
+                                                                           : juce::String ("MPE over MIDI");
+    return clapControls != nullptr ? midi + " (the CLAP synth accepts MIDI)." : midi + ".";
 }
 
 int HostedSynth::getLatencySamples() const

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/MpeSettings.h"
+
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 
@@ -9,7 +11,9 @@
 namespace mperoll
 {
 
-/** The synth MPE Roll plays: a VST3 or VST2 (or AU on macOS) instrument hosted inside the plugin.
+class ClapSynthControls;
+
+/** The synth MPE Roll plays: a VST3, VST2 or CLAP (or AU on macOS) instrument hosted inside the plugin.
 
     Loading, unloading and the editor window happen on the message thread. process() is called
     on the audio thread and never blocks: while a plugin is being swapped it outputs silence.
@@ -48,6 +52,14 @@ public:
 
     /** Renders the synth into the buffer. The MIDI buffer may be modified by the plugin. */
     void process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, juce::AudioPlayHead* playHead);
+
+    /** Audio thread, before process(): the MPE layout the MIDI is in. A CLAP synth uses it to turn
+        the MPE into CLAP note expressions.
+    */
+    void setOutputSettings (const OutputSettings& settings) noexcept   { outputSettings = settings; }
+
+    /** How the synth is played with these settings, for showing to the user. Message thread. */
+    juce::String describeConnection (const OutputSettings&) const;
 
     int getLatencySamples() const;
     double getTailLengthSeconds() const;
@@ -100,6 +112,8 @@ private:
 
     mutable juce::SpinLock instanceLock;
     std::unique_ptr<juce::AudioPluginInstance> instance;
+    ClapSynthControls* clapControls = nullptr;    // the instance, when it's a CLAP synth
+    OutputSettings outputSettings;                      // audio thread
     std::unique_ptr<juce::PluginDescription> description;
     std::unique_ptr<EditorWindow> editorWindow;
 

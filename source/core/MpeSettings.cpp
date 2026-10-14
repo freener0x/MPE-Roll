@@ -72,6 +72,7 @@ std::unique_ptr<juce::XmlElement> EngineSettings::toXml() const
     out->setAttribute ("overflow", (int) output.overflow);
     out->setAttribute ("defaultTimbre", output.defaultTimbre);
     out->setAttribute ("singleChannel", output.singleChannel);
+    out->setAttribute ("clapNoteExpressions", output.clapNoteExpressions);
 
     auto* in = xml->createNewChildElement ("Input");
     in->setAttribute ("mode", (int) input.mode);
@@ -123,6 +124,7 @@ EngineSettings EngineSettings::fromXml (const juce::XmlElement* xml)
         o.overflow = enumFromInt (out->getIntAttribute ("overflow"), o.overflow, 2);
         o.defaultTimbre = juce::jlimit (0.0f, 1.0f, (float) out->getDoubleAttribute ("defaultTimbre", o.defaultTimbre));
         o.singleChannel = juce::jlimit (1, 16, out->getIntAttribute ("singleChannel", o.singleChannel));
+        o.clapNoteExpressions = out->getBoolAttribute ("clapNoteExpressions", o.clapNoteExpressions);
     }
 
     if (auto* in = xml->getChildByName ("Input"))
