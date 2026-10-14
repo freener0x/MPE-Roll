@@ -1,9 +1,9 @@
 # MPE Roll
 
 An MPE piano roll for FL Studio. MPE Roll is an instrument plugin (VST3, plus AU on macOS and a
-standalone app) with its own piano roll. You load your synth *inside* it, so every note gets its own
-pitch glide, pressure, timbre and controllers. FL Studio's own piano roll can't send per-note
-expression to plugins.
+standalone app) with its own piano roll. You load your synth *inside* it (VST3, VST2 or CLAP), so
+every note gets its own pitch glide, pressure, timbre and controllers. FL Studio's own piano roll
+can't send per-note expression to plugins.
 
 For FL's native synths (FLEX, Sytrus, Harmor, 3xOsc...), which can't receive MPE at all, MPE Roll
 writes a piano roll script. The script rebuilds the clip in FL's own piano roll using slide notes,
@@ -12,8 +12,9 @@ fine pitch and Mod X / Mod Y.
 ![MPE Roll editor](docs/images/editor.png)
 
 > **Status:** early version. The MPE engine, MIDI files, recording and the FL script are covered by
-> automated tests. The plugin has been checked end to end against a JUCE MPE synth. It has **not
-> been tried inside FL Studio yet**. See [Known limitations](#known-limitations).
+> automated tests, and every change is built and tested on Windows, macOS and Linux. The plugin is
+> checked end to end against VST3, VST2 and CLAP test synths. It has **not been tried inside FL
+> Studio yet**. See [Known limitations](#known-limitations).
 
 ## What it does
 
@@ -27,6 +28,19 @@ fine pitch and Mod X / Mod Y.
 | Press (pressure) | Channel pressure, poly aftertouch or a CC of your choice |
 | Slide (timbre) | CC74 (or any CC), optionally 14-bit with an LSB controller |
 | Any other controller | That CC on the note's own channel: pan, volume, expression, vibrato rate/depth... |
+
+**CLAP synths get it natively.** A CLAP synth is played with CLAP notes and *note expressions*
+instead of MPE MIDI, so there are no channels or bend ranges to set up in the synth:
+
+| MPE Roll lane | CLAP note expression |
+| --- | --- |
+| Glide (plus zone pitch bend) | Tuning, in semitones |
+| Press | Pressure |
+| Slide | Brightness |
+| Per-note CC7 / CC10 / CC1 / CC11 | Volume / pan / vibrato / expression |
+
+Zone-wide controllers such as the sustain pedal reach the synth as MIDI. Synths that only take MIDI
+get MPE as usual, and *MPE settings › CLAP note expressions* switches to MPE MIDI if you prefer it.
 
 **Zone-wide (master channel) lanes:** pitch bend with its own range, pressure, timbre and any
 controller, including the sustain, sostenuto, soft, legato and hold pedals.
@@ -46,17 +60,40 @@ and a plain-MIDI mode for synths that don't do MPE.
 - 16 clip slots. Each plays in sync with FL (**Follow FL**) or is launched by notes from FL's piano
   roll (**Note trigger**: C0 plays slot 1, C#0 slot 2...).
 
+**Your synth, any format**
+- Hosts VST3, VST2 and CLAP instruments (plus AU on macOS), with a plugin scanner and a crash-safe
+  blacklist. The synth's own window opens from *Edit synth*.
+- **Automate the synth from FL:** the synth's parameters show up as MPE Roll's parameters, named
+  after them (*Synth 1* to *Synth 1024*). Move a knob in the synth's window, then use FL's
+  *Tools › Last tweaked* to make an automation clip or link a controller. The link survives saving,
+  even if the synth's parameters are reordered by an update.
+
 **In and out**
-- **Record** from an MPE controller (Seaboard, LinnStrument, Osmose, Push 3, Continuum...). Takes
-  overdub into the clip as one undo step.
+- **Record** from an MPE controller. *MPE settings › Controller* has ready-made setups for ROLI
+  Seaboard and LUMI, LinnStrument, Haken Continuum and ContinuuMini (including MPE+ high resolution),
+  Expressive E Osmose, Ableton Push 3, Keith McMillen K-Board Pro 4 and QuNexus, Embodme Erae,
+  Sensel Morph and Joué, and keyboards with poly aftertouch. Each shows how to set the controller
+  up. Takes overdub into the clip as one undo step.
 - **MIDI files:** import any MIDI file (MPE or not), export MPE MIDI files, or drag the *MIDI file*
   button straight into FL.
 - **Send to FL piano roll:** the bridge for FL's native synths (see below).
 - The MPE stream also goes to the plugin's MIDI output, so you can route it elsewhere in FL.
 
+## Downloading a build
+
+Every change is built by GitHub Actions. Open the repository's **Actions** tab (you need to be signed
+in to GitHub), pick the latest successful **Build** run, and download **MPE-Roll-Windows** or
+**MPE-Roll-macOS** under *Artifacts*. The Windows download contains `MPE Roll.vst3` (copy the whole
+folder to `C:\Program Files\Common Files\VST3`) and the standalone `MPE Roll.exe`.
+
+These builds aren't code signed. Windows may show a SmartScreen warning for the standalone app, and
+on macOS you need to remove the quarantine flag from what you downloaded (for example
+`xattr -dr com.apple.quarantine "MPE Roll.vst3"`) before a DAW will load it.
+
 ## Building
 
-You need CMake 3.22+ and a C++20 compiler. JUCE 9 is downloaded automatically.
+You need CMake 3.22+ and a C++20 compiler. JUCE 9 and the CLAP headers are downloaded
+automatically.
 
 **Windows** (Visual Studio 2022 or 2026 with "Desktop development with C++"):
 
@@ -76,24 +113,30 @@ scheme.
 libxcursor-dev libxi-dev libfreetype-dev libfontconfig1-dev`), then
 `cmake -S . -B build -G Ninja && cmake --build build`.
 
+Options: `-DMPEROLL_HOST_VST2=OFF` and `-DMPEROLL_HOST_CLAP=OFF` leave out VST2 or CLAP hosting, and
+`-DMPEROLL_BUILD_DEV_TOOLS=ON` adds the test harness and test synths.
+
 ## Using it in FL Studio
 
 The short version is below. [docs/FL_STUDIO.md](docs/FL_STUDIO.md) has the full walkthrough.
 
 1. **Add it:** *Options › Manage plugins › Find installed plugins*, then add **MPE Roll** to the
    Channel Rack like any instrument.
-2. **Load your synth:** click *Load synth…*. The first time, choose *Scan for plugins…*, or browse to
-   a `.vst3` file. *Edit synth* opens the synth's own window.
+2. **Load your synth:** click *Load synth…*. The first time, choose *Scan for plugins…*, or pick a
+   `.vst3`, VST2 `.dll` or `.clap` file with *Load plugin file…*. *Edit synth* opens the synth's own
+   window.
 3. **Turn on MPE in the synth** and set its MPE pitch-bend range to **48** (or set MPE Roll's range
    to match the synth's in *MPE settings*). Synths that honour the MPE Configuration Message, like
-   JUCE-based and ROLI Equator synths, set themselves up.
+   JUCE-based and ROLI Equator synths, set themselves up. CLAP synths that support note expressions
+   need no setup at all.
 4. **Write notes** in MPE Roll's piano roll and press play in FL. In *Follow FL* mode the clip follows
    the song or pattern position. In *Note trigger* mode, put notes in FL's piano roll for MPE Roll's
    channel to launch clip slots.
 
 **Recording an MPE controller:** in FL's MIDI settings, enable the controller and give it a
 **Port** number. In MPE Roll's wrapper settings (the gear icon), set the **MIDI input port** to the
-same number. Arm *Rec* in MPE Roll and play FL.
+same number. Pick your controller under *MPE settings › Controller*, arm *Rec* in MPE Roll and play
+FL.
 
 **FL's native synths:** click *Send to FL piano roll*. MPE Roll writes `MPE Roll Import.pyscript`
 into `Documents\Image-Line\FL Studio\Settings\Piano roll scripts`. In the piano roll of a native
@@ -115,9 +158,15 @@ synth's channel, run it from the Scripts menu:
 - The fine-pitch unit FL uses in scripts isn't confirmed. The generated script uses tenths of a
   semitone; if glides land at the wrong pitch, change `PITCHOFS_PER_SEMITONE` at the top of the
   script to `100`.
-- Only VST3 synths can be hosted (plus AU on macOS). VST2 and CLAP aren't supported yet.
-- The hosted synth's parameters aren't exposed to FL for automation yet. Automate them inside the
-  synth, or use the per-note and zone controller lanes.
+- **CLAP and VST2 hosting are new.** Both are tested automatically with small test synths on
+  Linux, and compiled for Windows and macOS. Showing a CLAP synth's own window hasn't been tried
+  with a real synth on any system yet; if it fails, MPE Roll shows a message and the synth still
+  plays. Please report synths that misbehave.
+- VST2 hosting uses [FST](third_party/fst/README.md), a clean-room reimplementation of the VST2
+  headers, because Steinberg's SDK can't be redistributed. Unusual VST2 features may be missing.
+- The controller presets are based on each maker's documentation, not tested on the hardware.
+- FL shows synth parameter slots by number until a synth is loaded. If FL keeps old names after you
+  change synths, reopen the project.
 - If FL also sends your controller to the *selected* Channel Rack channel, notes can play twice.
   Keep another channel selected while recording.
 - FL's native synths only get what FL's piano roll can express: one colour per overlapping note, at
@@ -134,16 +183,23 @@ source/core/      The MPE engine. Only needs juce_core/juce_audio_basics, so it'
   ClipBuilder       turns decoded MIDI into notes and curves (recording, file import)
   MidiFileIO        Standard MIDI File import/export
   FlScriptExporter  the FL Studio piano roll script bridge
-source/plugin/    The plugin: processor, hosted synth, document/undo, and the editor UI.
+  ControllerPresets setups for popular MPE controllers
+source/plugin/    The plugin: processor, hosted synth, automation slots, document/undo, the editor UI.
+  clap/             CLAP hosting: plugin format, instance, and the MPE to note expression translator
 tests/            Unit tests, plus a Python stand-in for FL's flpianoroll module that runs the
                   generated scripts.
-tools/            Developer harness and a tiny MPE test synth (-DMPEROLL_BUILD_DEV_TOOLS=ON).
+tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUCE), and CLAP
+                  (plain CLAP API, pitch only from note expressions). Needs -DMPEROLL_BUILD_DEV_TOOLS=ON.
+third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
 ```
 
-Run the tests with `ctest --test-dir build`. With the dev tools enabled, `MpeRollHarness selftest`,
-`uitest` and `render "<path to MPE Roll Test Synth.vst3>" out.wav` exercise the full plugin. The
-render check confirms that per-note glides reach a hosted MPE synth.
+Run the tests with `ctest --test-dir build`. With the dev tools enabled, `MpeRollHarness selftest`
+and `uitest` exercise the full plugin, and `render <test synth> out.wav`, `params <test synth>` and
+`clapdialect <test synth.clap>` check that per-note glides, parameter automation and CLAP note
+expressions reach a hosted synth. CI runs all of them.
 
 ## License
 
-AGPL-3.0, the open-source licence JUCE is available under. See [LICENSE](LICENSE).
+AGPL-3.0, the open-source licence JUCE is available under. See [LICENSE](LICENSE). It includes the
+FST headers (GPL-3.0-or-later, see [third_party/fst](third_party/fst/README.md)) and builds against the
+CLAP headers (MIT).

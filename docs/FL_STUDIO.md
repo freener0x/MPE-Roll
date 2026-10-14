@@ -8,7 +8,8 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 
 ## 1. Install
 
-1. Build the VST3 (see the README), or download a build.
+1. Download a build (see [Downloading a build](../README.md#downloading-a-build)) or build it
+   yourself.
 2. Copy `MPE Roll.vst3` to `C:\Program Files\Common Files\VST3` (macOS: `/Library/Audio/Plug-Ins/VST3`).
 3. In FL Studio: *Options › Manage plugins › Find installed plugins*.
 4. Add **MPE Roll** to the Channel Rack like any other instrument.
@@ -16,9 +17,11 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 ## 2. Load a synth
 
 1. Open MPE Roll and click **Load synth…**.
-2. The first time, choose **Scan for plugins…**. MPE Roll scans the standard VST3 folders, and a
-   plugin that crashes during the scan is skipped next time. You can also use **Load plugin file…**
-   to pick a `.vst3` directly.
+2. The first time, choose **Scan for plugins…**. MPE Roll scans the standard VST3, VST2 and CLAP
+   folders (for CLAP, `C:\Program Files\Common Files\CLAP`), and a plugin that crashes during the
+   scan is skipped next time. If your VST2 plugins live somewhere else, add that folder in the
+   scanner's options. You can also use **Load plugin file…** to pick a `.vst3`, `.dll` (VST2) or
+   `.clap` file directly.
 3. Click **Edit synth** to open the synth's own window.
 4. **Turn on MPE in the synth.** Most MPE-capable synths have an MPE switch in their settings or
    global menu. Set the synth's MPE pitch-bend range to **48 semitones**, or change MPE Roll's
@@ -26,12 +29,30 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    Configuration Message pick up MPE Roll's setup automatically. Use *Send MPE setup now* after
    changing a synth's MPE mode.
 
+**CLAP synths** that support CLAP note expressions skip step 4: MPE Roll plays each note as a CLAP
+note with its own tuning, pressure and brightness (plus volume, pan, vibrato and expression from
+per-note CC7, CC10, CC1 and CC11), so there are no channels or bend ranges to match. The top of
+**MPE settings** shows how the loaded synth is being played. If a CLAP synth responds better to MPE,
+turn off **CLAP note expressions** there.
+
 The synth and its settings are saved inside your FL project. If you open the project on a computer
 that doesn't have that synth, MPE Roll shows **Missing: <synth name>** and keeps its settings, so
 nothing is lost when you save.
 
 **Synth without MPE?** Set *Synth expects* to **Plain MIDI (one channel)**. Pressure becomes poly
 aftertouch, and the most recent note's glide drives the channel pitch bend.
+
+### Automating the synth from FL
+
+The synth's parameters become MPE Roll's own parameters, *Synth 1* to *Synth 1024*, each named after
+the synth parameter it controls. FL automates them like any plugin parameter:
+
+1. Click **Edit synth** and move the knob you want to automate in the synth's window.
+2. In FL, choose *Tools › Last tweaked › Create automation clip* (or *Link to controller*).
+
+You can also find them under *Browse parameters* in MPE Roll's plugin wrapper menu. The link is saved
+by parameter, so it still points at the right knob after a synth update reorders its parameters.
+Loading a different synth reassigns the slots.
 
 ## 3. Write and play
 
@@ -68,7 +89,10 @@ Playback*).
 
 ## 4. Record from an MPE controller
 
-1. Put the controller in MPE mode (lower zone; most controllers default to this).
+1. Put the controller in MPE mode (lower zone; most controllers default to this). In MPE Roll, pick
+   your controller under *MPE settings › Input from controller / FL › Controller*. The *Setup* line
+   below it says what to set on the controller itself, and the preset sets the matching bend range
+   and zones. For a Haken Continuum or ContinuuMini this also turns on MPE+ high resolution.
 2. FL Studio: *Options › MIDI settings*. Enable the controller as an input and give it a **Port**
    number, for example 10.
 3. MPE Roll: open the plugin's wrapper settings (the gear icon in the plugin window's title bar). Set
@@ -80,8 +104,9 @@ Playback*).
 If notes play twice, FL is also sending the controller to the *selected* Channel Rack channel.
 Select a different channel while you play.
 
-MPE Roll follows the controller's MPE Configuration Messages automatically. If your controller uses
-a different bend range or zone, set it under *MPE settings › Input from controller / FL*.
+MPE Roll follows the controller's MPE Configuration Messages automatically. If your controller isn't
+listed, or uses a different bend range or zone, choose *Generic MPE* and adjust the settings below
+it.
 
 ## 5. FL's native synths: Send to FL piano roll
 
@@ -137,3 +162,6 @@ needs checking in a real FL install.
 | Recording catches nothing | The controller's Port in FL's MIDI settings must match MPE Roll's MIDI input port, and FL must be playing. |
 | Notes play twice while recording | FL also sends the controller to the selected channel. Select another channel. |
 | "Missing: <synth>" on the synth button | That synth isn't installed (or scanned) on this computer. Install it, scan, and pick it again. |
+| A CLAP synth plays but doesn't glide, press or brighten | It may not support CLAP note expressions. Turn off *CLAP note expressions* in *MPE settings* and turn on MPE in the synth instead. |
+| A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded and open their own window; MPE Roll says so. Please report synths whose window doesn't appear at all. |
+| An automation clip moves the wrong knob | The clip belongs to an MPE Roll slot, and slots are reassigned when you load a different synth. Re-link it with *Last tweaked*. |
