@@ -214,7 +214,7 @@ typedef enum {
   FST_HOST_OPCODE_UNKNOWN(GetInputSpeakerArrangement),
 
   fst_audioMasterLast /* last enum */
-} t_fstHostOpcode;;
+} t_fstHostOpcode;
 
 typedef enum {
   FST_EFFECT_OPCODE(Open, 0), /* return 0 */

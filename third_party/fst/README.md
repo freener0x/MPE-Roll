@@ -18,3 +18,4 @@ Local changes to `fst.h`:
 - `t_fstSpeakerArrangement::speakers` holds eight entries instead of being an open-ended array. Hosts,
   JUCE's among them, size that struct on the assumption that it already has room for eight speakers,
   so with the open-ended array they wrote past the end of the block when loading any VST2 plugin.
+- A stray second semicolon after the `t_fstHostOpcode` enum is removed (clang warns about it).
