@@ -106,3 +106,13 @@ jobs:
         run: >
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness render
           "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3" render.wav
+
+      - name: Render through a hosted VST2 synth
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness render
+          "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so" render-vst2.wav
+
+      - name: VST2 synth parameters exposed for automation
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness params
+          "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"

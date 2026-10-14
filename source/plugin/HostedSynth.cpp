@@ -176,6 +176,27 @@ void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
     load (*chosen, std::move (onDone));
 }
 
+juce::String HostedSynth::getPluginFilePatterns()
+{
+    juce::StringArray patterns { "*.vst3" };
+
+   #if JUCE_PLUGINHOST_AU && JUCE_MAC
+    patterns.add ("*.component");
+   #endif
+
+   #if JUCE_PLUGINHOST_VST
+    #if JUCE_WINDOWS
+     patterns.add ("*.dll");
+    #elif JUCE_MAC
+     patterns.add ("*.vst");
+    #else
+     patterns.add ("*.so");
+    #endif
+   #endif
+
+    return patterns.joinIntoString (";");
+}
+
 void HostedSynth::configure (juce::AudioPluginInstance& plugin)
 {
     plugin.disableNonMainBuses();

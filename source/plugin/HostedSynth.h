@@ -9,7 +9,7 @@
 namespace mperoll
 {
 
-/** The synth MPE Roll plays: a VST3 (or AU on macOS) instrument hosted inside the plugin.
+/** The synth MPE Roll plays: a VST3 or VST2 (or AU on macOS) instrument hosted inside the plugin.
 
     Loading, unloading and the editor window happen on the message thread. process() is called
     on the audio thread and never blocks: while a plugin is being swapped it outputs silence.
@@ -26,6 +26,9 @@ public:
     void load (const juce::PluginDescription& description, LoadCallback onDone = {});
     void loadFromFile (const juce::File& file, LoadCallback onDone = {});
     void unload();
+
+    /** File patterns for the plugin formats this build can host, for a file chooser. */
+    static juce::String getPluginFilePatterns();
 
     bool isLoaded() const;
     bool isLoading() const noexcept                     { return loading; }

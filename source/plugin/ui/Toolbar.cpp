@@ -49,7 +49,7 @@ Toolbar::Toolbar()
         addAndMakeVisible (c);
 
     synthButton.setButtonText ("Load synth...");
-    synthButton.setTooltip ("Pick the VST3 synth MPE Roll plays");
+    synthButton.setTooltip ("Pick the synth MPE Roll plays (VST3 or VST2)");
     showSynthButton.setTooltip ("Open the synth's own window");
 
     for (int i = 0; i < 16; ++i)

@@ -10,6 +10,7 @@ option(MPEROLL_BUILD_PLUGIN "Build the plugin (VST3/AU/Standalone)" ON)
 option(MPEROLL_BUILD_TESTS "Build the core unit tests" ON)
 option(MPEROLL_BUILD_DEV_TOOLS "Build the developer harness (UI snapshots, offline renders)" OFF)
 option(MPEROLL_COPY_PLUGIN_AFTER_BUILD "Copy the built plugin into the system plugin folder" OFF)
+option(MPEROLL_HOST_VST2 "Host VST2 synths (uses the clean-room FST headers in third_party/fst)" ON)
 
 # ---------------------------------------------------------------------------------------------
 # JUCE (AGPLv3). Pass -DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE to use a local checkout.
@@ -56,9 +57,14 @@ set(MPEROLL_COMMON_DEFINITIONS
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
     JUCE_PLUGINHOST_VST3=1
-    JUCE_PLUGINHOST_VST=0
     JUCE_PLUGINHOST_LV2=0
     JUCE_PLUGINHOST_ARA=0)
+
+if(MPEROLL_HOST_VST2)
+    list(APPEND MPEROLL_COMMON_DEFINITIONS JUCE_PLUGINHOST_VST=1)
+else()
+    list(APPEND MPEROLL_COMMON_DEFINITIONS JUCE_PLUGINHOST_VST=0)
+endif()
 
 if(APPLE)
     set(MPEROLL_FORMATS VST3 AU Standalone)
@@ -92,7 +98,7 @@ juce_add_plugin(MpeRoll
     NEEDS_CURL FALSE)
 
 target_sources(MpeRoll PRIVATE ${MPEROLL_CORE_SOURCES} ${MPEROLL_PLUGIN_SOURCES})
-target_include_directories(MpeRoll PRIVATE source)
+target_include_directories(MpeRoll PRIVATE source third_party/fst)
 target_compile_definitions(MpeRoll PUBLIC ${MPEROLL_COMMON_DEFINITIONS})
 target_link_libraries(MpeRoll
     PRIVATE
@@ -146,12 +152,21 @@ endif()
 # Developer harness: renders editor snapshots and offline audio through a hosted synth.
 if(MPEROLL_BUILD_DEV_TOOLS)
     # A tiny MPE sine synth on JUCE's own MPE implementation, for checking MPE Roll's output.
+    # Also built as VST2 (through the FST headers) to test VST2 hosting.
+    set(MPEROLL_TEST_SYNTH_FORMATS VST3)
+
+    if(MPEROLL_HOST_VST2)
+        juce_set_vst2_sdk_path(${CMAKE_CURRENT_SOURCE_DIR}/third_party/fst)
+        list(APPEND MPEROLL_TEST_SYNTH_FORMATS VST)
+    endif()
+
     juce_add_plugin(MpeRollTestSynth
         COMPANY_NAME "Glowing Pancake"
         PLUGIN_MANUFACTURER_CODE Glpk
         PLUGIN_CODE Mpt1
-        FORMATS VST3
+        FORMATS ${MPEROLL_TEST_SYNTH_FORMATS}
         PRODUCT_NAME "MPE Roll Test Synth"
+        BUNDLE_ID com.glowingpancake.mperolltestsynth
         IS_SYNTH TRUE
         NEEDS_MIDI_INPUT TRUE
         NEEDS_MIDI_OUTPUT FALSE
@@ -169,7 +184,7 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         ${MPEROLL_CORE_SOURCES}
         ${MPEROLL_PLUGIN_SOURCES}
         tools/Harness.cpp)
-    target_include_directories(MpeRollHarness PRIVATE source)
+    target_include_directories(MpeRollHarness PRIVATE source third_party/fst)
     target_compile_definitions(MpeRollHarness PRIVATE
         ${MPEROLL_COMMON_DEFINITIONS}
         MPEROLL_HARNESS=1

@@ -524,7 +524,7 @@ void MpeRollEditor::browseForPlugin()
     defaultFolder = juce::File::getSpecialLocation (juce::File::userHomeDirectory).getChildFile (".vst3");
    #endif
 
-    chooser = std::make_unique<juce::FileChooser> ("Choose a synth (.vst3)", defaultFolder, "*.vst3;*.component");
+    chooser = std::make_unique<juce::FileChooser> ("Choose a synth", defaultFolder, HostedSynth::getPluginFilePatterns());
     chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
                               | juce::FileBrowserComponent::canSelectDirectories,
                           [safe = juce::Component::SafePointer<MpeRollEditor> (this)] (const juce::FileChooser& fc)
