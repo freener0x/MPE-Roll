@@ -143,6 +143,25 @@ endif()
 # ---------------------------------------------------------------------------------------------
 # Developer harness: renders editor snapshots and offline audio through a hosted synth.
 if(MPEROLL_BUILD_DEV_TOOLS)
+    # A tiny MPE sine synth on JUCE's own MPE implementation, for checking MPE Roll's output.
+    juce_add_plugin(MpeRollTestSynth
+        COMPANY_NAME "Glowing Pancake"
+        PLUGIN_MANUFACTURER_CODE Glpk
+        PLUGIN_CODE Mpt1
+        FORMATS VST3
+        PRODUCT_NAME "MPE Roll Test Synth"
+        IS_SYNTH TRUE
+        NEEDS_MIDI_INPUT TRUE
+        NEEDS_MIDI_OUTPUT FALSE
+        VST3_CATEGORIES Instrument Synth
+        NEEDS_WEB_BROWSER FALSE
+        NEEDS_CURL FALSE)
+    target_sources(MpeRollTestSynth PRIVATE tools/TestSynth.cpp)
+    target_compile_definitions(MpeRollTestSynth PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
+    target_link_libraries(MpeRollTestSynth
+        PRIVATE juce::juce_audio_processors
+        PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
     juce_add_console_app(MpeRollHarness PRODUCT_NAME "MpeRollHarness")
     target_sources(MpeRollHarness PRIVATE
         ${MPEROLL_CORE_SOURCES}
@@ -152,6 +171,7 @@ if(MPEROLL_BUILD_DEV_TOOLS)
     target_compile_definitions(MpeRollHarness PRIVATE
         ${MPEROLL_COMMON_DEFINITIONS}
         MPEROLL_HARNESS=1
+        JUCE_MODAL_LOOPS_PERMITTED=1
         JucePlugin_Name="MPE Roll"
         JucePlugin_VersionString="${PROJECT_VERSION}"
         JucePlugin_IsSynth=1

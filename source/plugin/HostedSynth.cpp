@@ -1,0 +1,419 @@
+#include "HostedSynth.h"
+
+namespace mperoll
+{
+
+class HostedSynth::EditorWindow : public juce::DocumentWindow
+{
+public:
+    EditorWindow (juce::AudioPluginInstance& p, std::function<void()> onClose)
+        : DocumentWindow (p.getName(), juce::Colour (0xff1e1f22),
+                          DocumentWindow::closeButton | DocumentWindow::minimiseButton),
+          plugin (p),
+          closed (std::move (onClose))
+    {
+        setUsingNativeTitleBar (true);
+
+        std::unique_ptr<juce::AudioProcessorEditor> editor;
+
+        if (plugin.hasEditor())
+            editor.reset (plugin.createEditorAndMakeActive());
+
+        if (editor == nullptr)
+            editor = std::make_unique<juce::GenericAudioProcessorEditor> (plugin);
+
+        setResizable (editor->isResizable(), false);
+        setContentOwned (editor.release(), true);
+
+        // Plugin windows aren't owned by the host's window, so keep the synth from hiding behind it.
+        setAlwaysOnTop (true);
+        centreWithSize (getWidth(), getHeight());
+        setVisible (true);
+    }
+
+    ~EditorWindow() override
+    {
+        if (auto* editor = dynamic_cast<juce::AudioProcessorEditor*> (getContentComponent()))
+            plugin.editorBeingDeleted (editor);
+
+        clearContentComponent();
+    }
+
+    void closeButtonPressed() override
+    {
+        if (closed)
+            closed();
+    }
+
+private:
+    juce::AudioPluginInstance& plugin;
+    std::function<void()> closed;
+};
+
+//==============================================================================
+HostedSynth::HostedSynth()
+{
+    juce::PropertiesFile::Options options;
+    options.applicationName = "MPE Roll";
+    options.folderName = "MPE Roll";
+    options.filenameSuffix = "settings";
+    options.osxLibrarySubFolder = "Application Support";
+    options.storageFormat = juce::PropertiesFile::storeAsXML;
+    appProperties.setStorageParameters (options);
+
+    juce::addDefaultFormatsToManager (formatManager);
+
+    if (auto* settings = getUserSettings())
+        if (auto xml = settings->getXmlValue ("knownPlugins"))
+            knownPlugins.recreateFromXml (*xml);
+
+    knownPlugins.addChangeListener (this);
+}
+
+HostedSynth::~HostedSynth()
+{
+    ++loadGeneration;
+    closeEditor();
+    knownPlugins.removeChangeListener (this);
+
+    std::unique_ptr<juce::AudioPluginInstance> old;
+
+    {
+        const juce::SpinLock::ScopedLockType lock (instanceLock);
+        old = std::move (instance);
+    }
+}
+
+juce::File HostedSynth::getDeadMansPedalFile()
+{
+    if (auto* settings = getUserSettings())
+        return settings->getFile().getSiblingFile ("RecentlyCrashedPluginsList");
+
+    return juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("MPE Roll crashed plugins");
+}
+
+void HostedSynth::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    if (auto* settings = getUserSettings())
+    {
+        if (auto xml = knownPlugins.createXml())
+        {
+            settings->setValue ("knownPlugins", xml.get());
+            settings->saveIfNeeded();
+        }
+    }
+}
+
+juce::Array<juce::PluginDescription> HostedSynth::getInstrumentTypes() const
+{
+    juce::Array<juce::PluginDescription> instruments;
+
+    for (const auto& type : knownPlugins.getTypes())
+        if (type.isInstrument)
+            instruments.add (type);
+
+    return instruments.isEmpty() ? knownPlugins.getTypes() : instruments;
+}
+
+//==============================================================================
+void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone)
+{
+    const auto generation = ++loadGeneration;
+    loading = true;
+
+    formatManager.createPluginInstanceAsync (desc, sampleRate, blockSize,
+        [this, generation, desc, onDone, alive = std::weak_ptr<int> (lifetime)]
+        (std::unique_ptr<juce::AudioPluginInstance> plugin, const juce::String& error)
+        {
+            if (alive.expired() || generation != loadGeneration)
+                return;
+
+            loading = false;
+
+            if (plugin == nullptr)
+            {
+                if (onDone)
+                    onDone (error.isNotEmpty() ? error : juce::String ("The plugin couldn't be loaded."));
+
+                return;
+            }
+
+            install (std::move (plugin), desc);
+
+            if (onDone)
+                onDone ({});
+        });
+}
+
+void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
+{
+    juce::OwnedArray<juce::PluginDescription> found;
+
+    for (auto* format : formatManager.getFormats())
+        if (format->fileMightContainThisPluginType (file.getFullPathName()))
+            format->findAllTypesForFile (found, file.getFullPathName());
+
+    if (found.isEmpty())
+    {
+        if (onDone)
+            onDone ("No plugin was found in " + file.getFileName() + ".");
+
+        return;
+    }
+
+    auto* chosen = found.getFirst();
+
+    for (auto* d : found)
+    {
+        if (d->isInstrument)
+        {
+            chosen = d;
+            break;
+        }
+    }
+
+    knownPlugins.addType (*chosen);
+    load (*chosen, std::move (onDone));
+}
+
+void HostedSynth::configure (juce::AudioPluginInstance& plugin)
+{
+    plugin.disableNonMainBuses();
+
+    auto layout = plugin.getBusesLayout();
+
+    if (! layout.outputBuses.isEmpty() && layout.outputBuses[0] != juce::AudioChannelSet::stereo())
+    {
+        auto stereo = layout;
+        stereo.outputBuses.getReference (0) = juce::AudioChannelSet::stereo();
+        plugin.setBusesLayout (stereo);
+    }
+
+    plugin.setRateAndBufferSizeDetails (sampleRate, blockSize);
+
+    if (prepared)
+        plugin.prepareToPlay (sampleRate, blockSize);
+}
+
+void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstance, const juce::PluginDescription& desc)
+{
+    closeEditor();
+    configure (*newInstance);
+
+    const auto channels = juce::jmax (2, newInstance->getTotalNumInputChannels(), newInstance->getTotalNumOutputChannels());
+    std::unique_ptr<juce::AudioPluginInstance> old;
+
+    {
+        const juce::SpinLock::ScopedLockType lock (instanceLock);
+        scratch.setSize (juce::jmax (channels, scratch.getNumChannels()), juce::jmax (blockSize, scratch.getNumSamples()));
+        old = std::move (instance);
+        instance = std::move (newInstance);
+    }
+
+    description = std::make_unique<juce::PluginDescription> (desc);
+    unresolvedState.reset();
+
+    if (old != nullptr)
+        old->releaseResources();
+
+    old.reset();
+
+    if (onPluginChanged)
+        onPluginChanged();
+}
+
+void HostedSynth::unload()
+{
+    ++loadGeneration;
+    loading = false;
+    closeEditor();
+
+    std::unique_ptr<juce::AudioPluginInstance> old;
+
+    {
+        const juce::SpinLock::ScopedLockType lock (instanceLock);
+        old = std::move (instance);
+    }
+
+    description.reset();
+    unresolvedState.reset();
+
+    if (old != nullptr)
+        old->releaseResources();
+
+    old.reset();
+
+    if (onPluginChanged)
+        onPluginChanged();
+}
+
+bool HostedSynth::isLoaded() const
+{
+    return instance != nullptr;
+}
+
+juce::String HostedSynth::getName() const
+{
+    return instance != nullptr ? instance->getName() : juce::String();
+}
+
+juce::String HostedSynth::getMissingSynthName() const
+{
+    if (instance != nullptr || unresolvedState == nullptr)
+        return {};
+
+    if (const auto* descXml = unresolvedState->getChildByName ("PLUGIN"))
+        return descXml->getStringAttribute ("name");
+
+    return {};
+}
+
+void HostedSynth::showEditor()
+{
+    if (instance == nullptr)
+        return;
+
+    if (editorWindow != nullptr)
+    {
+        editorWindow->toFront (true);
+        return;
+    }
+
+    editorWindow = std::make_unique<EditorWindow> (*instance, [this, alive = std::weak_ptr<int> (lifetime)]
+    {
+        // Deleting the window from inside its own callback isn't safe, so do it right after.
+        juce::MessageManager::callAsync ([this, alive]
+        {
+            if (! alive.expired())
+                closeEditor();
+        });
+    });
+}
+
+void HostedSynth::closeEditor()
+{
+    editorWindow.reset();
+}
+
+//==============================================================================
+void HostedSynth::prepare (double newSampleRate, int maximumBlockSize)
+{
+    const juce::SpinLock::ScopedLockType lock (instanceLock);
+
+    sampleRate = newSampleRate;
+    blockSize = juce::jmax (1, maximumBlockSize);
+    prepared = true;
+
+    int channels = 2;
+
+    if (instance != nullptr)
+    {
+        instance->setRateAndBufferSizeDetails (sampleRate, blockSize);
+        instance->prepareToPlay (sampleRate, blockSize);
+        channels = juce::jmax (channels, instance->getTotalNumInputChannels(), instance->getTotalNumOutputChannels());
+    }
+
+    scratch.setSize (juce::jmax (channels, 8), blockSize);
+}
+
+void HostedSynth::release()
+{
+    const juce::SpinLock::ScopedLockType lock (instanceLock);
+    prepared = false;
+
+    if (instance != nullptr)
+        instance->releaseResources();
+}
+
+void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, juce::AudioPlayHead* playHead)
+{
+    const auto numSamples = buffer.getNumSamples();
+    const juce::SpinLock::ScopedTryLockType lock (instanceLock);
+
+    if (! lock.isLocked() || instance == nullptr || ! prepared)
+    {
+        buffer.clear();
+        return;
+    }
+
+    auto& plugin = *instance;
+    const auto outputs = plugin.getTotalNumOutputChannels();
+    const auto needed = juce::jmax (plugin.getTotalNumInputChannels(), outputs);
+
+    if (needed > scratch.getNumChannels() || numSamples > scratch.getNumSamples() || plugin.isSuspended())
+    {
+        buffer.clear();
+        return;
+    }
+
+    juce::AudioBuffer<float> view (scratch.getArrayOfWritePointers(), needed, numSamples);
+    view.clear();
+
+    plugin.setPlayHead (playHead);
+    plugin.processBlock (view, midi);
+
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        if (outputs > 0)
+            buffer.copyFrom (ch, 0, view, juce::jmin (ch, outputs - 1), 0, numSamples);
+        else
+            buffer.clear (ch, 0, numSamples);
+    }
+}
+
+int HostedSynth::getLatencySamples() const
+{
+    return instance != nullptr ? instance->getLatencySamples() : 0;
+}
+
+double HostedSynth::getTailLengthSeconds() const
+{
+    return instance != nullptr ? instance->getTailLengthSeconds() : 0.0;
+}
+
+//==============================================================================
+std::unique_ptr<juce::XmlElement> HostedSynth::saveState() const
+{
+    if (instance == nullptr || description == nullptr)
+        return unresolvedState != nullptr ? std::make_unique<juce::XmlElement> (*unresolvedState) : nullptr;
+
+    auto xml = std::make_unique<juce::XmlElement> ("HostedSynth");
+    xml->addChildElement (description->createXml().release());
+
+    juce::MemoryBlock state;
+    instance->getStateInformation (state);
+    xml->createNewChildElement ("State")->addTextElement (state.toBase64Encoding());
+    return xml;
+}
+
+void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone)
+{
+    juce::PluginDescription desc;
+    const auto* descXml = xml.getChildByName ("PLUGIN");
+
+    if (descXml == nullptr || ! desc.loadFromXml (*descXml))
+    {
+        if (onDone)
+            onDone ("The saved synth couldn't be read.");
+
+        return;
+    }
+
+    juce::MemoryBlock state;
+
+    if (const auto* stateXml = xml.getChildByName ("State"))
+        state.fromBase64Encoding (stateXml->getAllSubText());
+
+    unresolvedState = std::make_unique<juce::XmlElement> (xml);
+
+    load (desc, [this, state, desc, onDone] (const juce::String& error)
+    {
+        if (error.isEmpty() && instance != nullptr && state.getSize() > 0)
+            instance->setStateInformation (state.getData(), (int) state.getSize());
+
+        if (onDone)
+            onDone (error.isEmpty() ? error : desc.name + ": " + error);
+    });
+}
+
+} // namespace mperoll

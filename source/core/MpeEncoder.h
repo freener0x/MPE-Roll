@@ -60,6 +60,9 @@ public:
     /** Returns pitch bend, pressure and pedals to their rest positions on every channel. */
     void resetControllers (juce::MidiBuffer& out, int samplePos);
 
+    /** Returns the zone-wide (master channel) pitch bend, pressure and pedals to rest, leaving notes alone. */
+    void resetZoneControllers (juce::MidiBuffer& out, int samplePos);
+
     bool isPlaying (Handle handle) const noexcept;
     int getChannel (Handle handle) const noexcept;
     int getNumActiveVoices() const noexcept                 { return numActive; }

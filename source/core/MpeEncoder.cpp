@@ -460,6 +460,30 @@ void MpeEncoder::resetControllers (juce::MidiBuffer& out, int samplePos)
     }
 }
 
+void MpeEncoder::resetZoneControllers (juce::MidiBuffer& out, int samplePos)
+{
+    if (isSingleChannelMode())
+    {
+        zonePitch = 0.0f;
+        sendSingleChannelPitch (out, samplePos, false);
+    }
+
+    forEachZoneMaster ([&] (int ch)
+    {
+        auto& st = channels[(size_t) ch];
+
+        if (! isSingleChannelMode() && st.pitchBend >= 0 && st.pitchBend != pitchBendCentre)
+            sendPitchBend (out, samplePos, ch, pitchBendCentre, true);
+
+        if (st.pressure > 0)
+            sendChannelPressure (out, samplePos, ch, 0, true);
+
+        for (auto pedal : { 64, 66, 67, 68, 69 })
+            if (st.controllers[(size_t) pedal] > 0)
+                sendController (out, samplePos, ch, pedal, 0, true);
+    });
+}
+
 //==============================================================================
 void MpeEncoder::setPitch (juce::MidiBuffer& out, int samplePos, Handle handle, float semitones)
 {

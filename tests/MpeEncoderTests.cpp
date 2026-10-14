@@ -175,6 +175,25 @@ public:
             expectEquals (m[0].message.getPitchWheelValue(), 8192 + 4096);
         }
 
+        beginTest ("Zone controllers can be reset without touching notes");
+        {
+            MpeEncoder enc;
+            juce::MidiBuffer out;
+            enc.prepareNote (out, 0, 1, 60);
+            enc.setPitch (out, 0, 1, 2.0f);
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.setZonePitch (out, 0, 1.0f);
+            enc.setZoneController (out, 0, 64, 1.0f);
+            out.clear();
+
+            enc.resetZoneControllers (out, 0);
+            const auto m = collect (out);
+            expectEquals ((int) m.size(), 2);
+            expect (m[0].message.isPitchWheel() && m[0].message.getChannel() == 1 && m[0].message.getPitchWheelValue() == 8192);
+            expect (m[1].message.isControllerOfType (64) && m[1].message.getControllerValue() == 0);
+            expect (enc.isPlaying (1));
+        }
+
         beginTest ("Alternative pressure targets");
         {
             OutputSettings s;
