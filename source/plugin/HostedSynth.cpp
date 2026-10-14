@@ -83,14 +83,7 @@ HostedSynth::~HostedSynth()
     ++loadGeneration;
     closeEditor();
     knownPlugins.removeChangeListener (this);
-
-    std::unique_ptr<juce::AudioPluginInstance> old;
-
-    {
-        const juce::SpinLock::ScopedLockType lock (instanceLock);
-        old = std::move (instance);
-        clapControls = nullptr;
-    }
+    takeInstance().reset();
 }
 
 juce::File HostedSynth::getDeadMansPedalFile()
@@ -181,7 +174,11 @@ void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
         }
     }
 
-    knownPlugins.addType (*chosen);
+    // A file can hold several plugins (a CLAP bundle, a VST2 shell): list them all in the synth
+    // menu, so the others can be picked from there.
+    for (auto* d : found)
+        knownPlugins.addType (*d);
+
     load (*chosen, std::move (onDone));
 }
 
@@ -235,15 +232,11 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
     configure (*newInstance);
 
     const auto channels = juce::jmax (2, newInstance->getTotalNumInputChannels(), newInstance->getTotalNumOutputChannels());
-    std::unique_ptr<juce::AudioPluginInstance> old;
-
-    if (instance != nullptr && onPluginRemoving)
-        onPluginRemoving (*instance);
+    auto old = takeInstance();
 
     {
-        const juce::SpinLock::ScopedLockType lock (instanceLock);
+        const ScopedExclusive exclusive (guard);
         scratch.setSize (juce::jmax (channels, scratch.getNumChannels()), juce::jmax (blockSize, scratch.getNumSamples()));
-        old = std::move (instance);
         instance = std::move (newInstance);
 
        #if MPEROLL_HOST_CLAP
@@ -251,6 +244,7 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
        #endif
     }
 
+    instance->addListener (this);
     description = std::make_unique<juce::PluginDescription> (desc);
     unresolvedState.reset();
 
@@ -269,17 +263,7 @@ void HostedSynth::unload()
     loading = false;
     closeEditor();
 
-    std::unique_ptr<juce::AudioPluginInstance> old;
-
-    if (instance != nullptr && onPluginRemoving)
-        onPluginRemoving (*instance);
-
-    {
-        const juce::SpinLock::ScopedLockType lock (instanceLock);
-        old = std::move (instance);
-        clapControls = nullptr;
-    }
-
+    auto old = takeInstance();
     description.reset();
     unresolvedState.reset();
 
@@ -290,6 +274,36 @@ void HostedSynth::unload()
 
     if (onPluginChanged)
         onPluginChanged();
+}
+
+std::unique_ptr<juce::AudioPluginInstance> HostedSynth::takeInstance()
+{
+    if (instance == nullptr)
+        return {};
+
+    if (onPluginRemoving)
+        onPluginRemoving (*instance);
+
+    instance->removeListener (this);
+    std::unique_ptr<juce::AudioPluginInstance> old;
+
+    {
+        const ScopedExclusive exclusive (guard);
+        old = std::move (instance);
+        clapControls = nullptr;
+    }
+
+    return old;
+}
+
+void HostedSynth::audioProcessorChanged (juce::AudioProcessor*, const ChangeDetails& details)
+{
+    // Plugins report these from any thread.
+    juce::MessageManager::callAsync ([this, details, alive = std::weak_ptr<int> (lifetime)]
+    {
+        if (! alive.expired() && onSynthReportedChange)
+            onSynthReportedChange (details);
+    });
 }
 
 bool HostedSynth::isLoaded() const
@@ -343,7 +357,7 @@ void HostedSynth::closeEditor()
 //==============================================================================
 void HostedSynth::prepare (double newSampleRate, int maximumBlockSize)
 {
-    const juce::SpinLock::ScopedLockType lock (instanceLock);
+    const ScopedExclusive exclusive (guard);
 
     sampleRate = newSampleRate;
     blockSize = juce::jmax (1, maximumBlockSize);
@@ -363,7 +377,7 @@ void HostedSynth::prepare (double newSampleRate, int maximumBlockSize)
 
 void HostedSynth::release()
 {
-    const juce::SpinLock::ScopedLockType lock (instanceLock);
+    const ScopedExclusive exclusive (guard);
     prepared = false;
 
     if (instance != nullptr)
@@ -373,9 +387,9 @@ void HostedSynth::release()
 void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, juce::AudioPlayHead* playHead)
 {
     const auto numSamples = buffer.getNumSamples();
-    const juce::SpinLock::ScopedTryLockType lock (instanceLock);
+    const ScopedUse use (guard);
 
-    if (! lock.isLocked() || instance == nullptr || ! prepared)
+    if (! use.entered || instance == nullptr || ! prepared)
     {
         buffer.clear();
         return;
@@ -428,12 +442,15 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
 
 int HostedSynth::getLatencySamples() const
 {
-    return instance != nullptr ? instance->getLatencySamples() : 0;
+    const ScopedUse use (guard);
+    return use.entered && instance != nullptr ? instance->getLatencySamples() : 0;
 }
 
 double HostedSynth::getTailLengthSeconds() const
 {
-    return instance != nullptr ? instance->getTailLengthSeconds() : 0.0;
+    // Hosts ask for this from any thread.
+    const ScopedUse use (guard);
+    return use.entered && instance != nullptr ? instance->getTailLengthSeconds() : 0.0;
 }
 
 //==============================================================================
@@ -469,6 +486,28 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
     if (const auto* stateXml = xml.getChildByName ("State"))
         state.fromBase64Encoding (stateXml->getAllSubText());
 
+    // The same synth is already here: just give it the saved state.
+    if (instance != nullptr && description != nullptr && description->isDuplicateOf (desc))
+    {
+        ++loadGeneration;   // a load still in flight would otherwise replace it
+        loading = false;
+        unresolvedState.reset();
+
+        if (state.getSize() > 0)
+            instance->setStateInformation (state.getData(), (int) state.getSize());
+
+        if (onPluginChanged)
+            onPluginChanged();
+
+        if (onDone)
+            onDone ({});
+
+        return;
+    }
+
+    // A different synth: let the current one go now. If the new one fails to load, the project
+    // then shows it as missing (and keeps it when saved) instead of quietly keeping the old synth.
+    unload();
     unresolvedState = std::make_unique<juce::XmlElement> (xml);
 
     load (desc, [this, state, desc, onDone] (const juce::String& error)

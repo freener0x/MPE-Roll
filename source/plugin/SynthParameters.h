@@ -36,9 +36,11 @@ private:
 
 /** Mirrors the hosted synth's parameters as MPE Roll parameters.
 
-    Slot n stands for the synth's n-th parameter. When the synth's own window changes a parameter,
-    the matching slot tells the host, so "last tweaked" automation works. The parameter IDs are
-    saved with the project; if a synth update reorders its parameters, slots follow the IDs.
+    Slot n stands for the synth's n-th automatable parameter. When the synth's own window changes a
+    parameter, the matching slot tells the host, so "last tweaked" automation works. Each slot
+    remembers its parameter's ID, and the IDs are saved with the project: if a synth update
+    reorders its parameters, slots follow the IDs, and a slot whose parameter has gone stays empty
+    rather than being handed to another parameter that FL's automation would then move.
 */
 class SynthParameterBank : private juce::AudioProcessorParameter::Listener
 {
@@ -70,15 +72,18 @@ private:
     mutable std::array<std::atomic<float>, numSlots> cachedValues;
     std::vector<int> hostedToSlot;      // only touched on the message thread, or with no listeners attached
     std::atomic<int> numMapped { 0 };
-    juce::StringArray savedIds;         // parameter IDs from the project, applied when the synth arrives
     juce::AudioPluginInstance* listenedTo = nullptr;
+
+    // Message thread: the parameter ID each slot stands for (empty = free), and which synth those
+    // IDs belong to. Kept while no synth is loaded, so a missing synth's slots survive a save.
+    juce::StringArray slotIds;
+    juce::String slotSynth;
 
     void parameterValueChanged (int hostedIndex, float newValue) override;
     void parameterGestureChanged (int hostedIndex, bool gestureIsStarting) override;
 
     float getValue (int slot) const;
     void setValue (int slot, float value);
-    juce::AudioProcessorParameter* hostedParameter (int slot) const;   // message thread only
     void detach();
 };
 

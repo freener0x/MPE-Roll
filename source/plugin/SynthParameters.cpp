@@ -14,6 +14,13 @@ namespace
 
         return juce::String (p.getParameterIndex());
     }
+
+    // Which synth a set of slots belongs to. Leaves out the file path, so moving the plugin, or
+    // opening the project on another computer, keeps the slots.
+    juce::String identityOf (const juce::PluginDescription& d)
+    {
+        return d.pluginFormatName + ":" + juce::String (d.uniqueId != 0 ? d.uniqueId : d.deprecatedUid);
+    }
 }
 
 //==============================================================================
@@ -196,18 +203,24 @@ void SynthParameterBank::synthChanged()
     hostedToSlot.clear();
     int mapped = 0;
 
-    if (auto* instance = synth.getInstance())
+    auto* instance = synth.getInstance();
+    const auto* description = synth.getDescription();
+
+    if (instance != nullptr && description != nullptr)
     {
+        const auto identity = identityOf (*description);
+
+        // The slots were made for another synth: start afresh.
+        if (slotSynth.isNotEmpty() && slotSynth != identity)
+            slotIds.clear();
+
+        slotSynth = identity;
+
+        while (slotIds.size() < numSlots)
+            slotIds.add ({});
+
         const auto& params = instance->getParameters();
         hostedToSlot.assign ((size_t) params.size(), -1);
-
-        // Only parameters a host could automate. JUCE-built synths, for instance, also list a bypass
-        // and thousands of hidden MIDI CC parameters that would otherwise crowd out the real ones.
-        auto eligible = [&] (int hosted)
-        {
-            auto* p = params.getUnchecked (hosted);
-            return p->isAutomatable() && p != instance->getBypassParameter();
-        };
 
         auto assign = [&] (int slot, int hosted)
         {
@@ -217,40 +230,52 @@ void SynthParameterBank::synthChanged()
             ++mapped;
         };
 
-        // Slots saved with the project follow their parameter IDs, in case the synth reordered them.
-        if (! savedIds.isEmpty())
+        // Slots that already stand for a parameter follow its ID, wherever the synth now lists it.
+        // A plugin may (wrongly) repeat an ID, so each ID lists every parameter that has it.
+        std::map<juce::String, std::vector<int>> byId;
+
+        for (int i = 0; i < params.size(); ++i)
+            byId[parameterIdOf (*params.getUnchecked (i))].push_back (i);
+
+        for (int slot = 0; slot < numSlots; ++slot)
         {
-            std::map<juce::String, int> byId;
+            if (slotIds[slot].isEmpty())
+                continue;
 
-            for (int i = 0; i < params.size(); ++i)
-                byId.emplace (parameterIdOf (*params.getUnchecked (i)), i);
+            const auto found = byId.find (slotIds[slot]);
 
-            for (int slot = 0; slot < juce::jmin (numSlots, savedIds.size()); ++slot)
+            if (found == byId.end())
+                continue;   // the parameter has gone: keep the slot for it, unused
+
+            for (auto hosted : found->second)
             {
-                const auto found = byId.find (savedIds[slot]);
-
-                if (savedIds[slot].isNotEmpty() && found != byId.end() && hostedToSlot[(size_t) found->second] < 0
-                    && eligible (found->second))
-                    assign (slot, found->second);
+                if (hostedToSlot[(size_t) hosted] < 0 && params.getUnchecked (hosted) != instance->getBypassParameter())
+                {
+                    assign (slot, hosted);
+                    break;
+                }
             }
-
-            savedIds.clear();
         }
 
-        // Everything else in order, into the free slots.
+        // New parameters go into the free slots, in order. Only parameters a host could automate:
+        // JUCE-built synths, for instance, also list a bypass and thousands of hidden MIDI CC
+        // parameters that would otherwise crowd out the real ones.
         int nextSlot = 0;
 
         for (int hosted = 0; hosted < params.size(); ++hosted)
         {
-            if (hostedToSlot[(size_t) hosted] >= 0 || ! eligible (hosted))
+            auto* p = params.getUnchecked (hosted);
+
+            if (hostedToSlot[(size_t) hosted] >= 0 || ! p->isAutomatable() || p == instance->getBypassParameter())
                 continue;
 
-            while (nextSlot < numSlots && slotToHosted[(size_t) nextSlot] >= 0)
+            while (nextSlot < numSlots && slotIds[nextSlot].isNotEmpty())
                 ++nextSlot;
 
             if (nextSlot >= numSlots)
                 break;
 
+            slotIds.set (nextSlot, parameterIdOf (*p));
             assign (nextSlot, hosted);
         }
 
@@ -268,36 +293,18 @@ void SynthParameterBank::synthChanged()
 std::unique_ptr<juce::XmlElement> SynthParameterBank::toXml() const
 {
     auto xml = std::make_unique<juce::XmlElement> ("SynthParameters");
-    auto* instance = synth.getInstance();
 
-    if (instance == nullptr)
+    if (slotSynth.isNotEmpty())
+        xml->setAttribute ("synth", slotSynth);
+
+    for (int slot = 0; slot < slotIds.size(); ++slot)
     {
-        // The synth hasn't loaded (it may be missing on this computer): keep what the project had.
-        for (int slot = 0; slot < savedIds.size(); ++slot)
-        {
-            if (savedIds[slot].isEmpty())
-                continue;
-
-            auto* child = xml->createNewChildElement ("Slot");
-            child->setAttribute ("index", slot);
-            child->setAttribute ("id", savedIds[slot]);
-        }
-
-        return xml;
-    }
-
-    const auto& params = instance->getParameters();
-
-    for (int slot = 0; slot < numSlots; ++slot)
-    {
-        const auto hosted = slotToHosted[(size_t) slot].load();
-
-        if (! juce::isPositiveAndBelow (hosted, params.size()))
+        if (slotIds[slot].isEmpty())
             continue;
 
         auto* child = xml->createNewChildElement ("Slot");
         child->setAttribute ("index", slot);
-        child->setAttribute ("id", parameterIdOf (*params.getUnchecked (hosted)));
+        child->setAttribute ("id", slotIds[slot]);
     }
 
     return xml;
@@ -305,10 +312,13 @@ std::unique_ptr<juce::XmlElement> SynthParameterBank::toXml() const
 
 void SynthParameterBank::fromXml (const juce::XmlElement* xml)
 {
-    savedIds.clear();
+    slotIds.clear();
+    slotSynth.clear();
 
     if (xml == nullptr)
         return;
+
+    slotSynth = xml->getStringAttribute ("synth");
 
     for (auto* child : xml->getChildWithTagNameIterator ("Slot"))
     {
@@ -317,10 +327,10 @@ void SynthParameterBank::fromXml (const juce::XmlElement* xml)
         if (! juce::isPositiveAndBelow (slot, numSlots))
             continue;
 
-        while (savedIds.size() <= slot)
-            savedIds.add ({});
+        while (slotIds.size() <= slot)
+            slotIds.add ({});
 
-        savedIds.set (slot, child->getStringAttribute ("id"));
+        slotIds.set (slot, child->getStringAttribute ("id"));
     }
 }
 

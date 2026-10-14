@@ -569,6 +569,56 @@ int parameterTest (const juce::File& synthFile)
         restored.releaseResources();
     }
 
+    std::printf ("A slot whose parameter has gone stays empty\n");
+    {
+        auto saveXml = [&]
+        {
+            juce::MemoryBlock state;
+            processor.getStateInformation (state);
+            return juce::AudioProcessor::getXmlFromBinary (state.getData(), (int) state.getSize());
+        };
+
+        // The same synth is loaded, so this restores into it in place.
+        auto restoreXml = [&] (const juce::XmlElement& xml)
+        {
+            juce::MemoryBlock state;
+            juce::AudioProcessor::copyXmlToBinary (xml, state);
+            processor.setStateInformation (state.getData(), (int) state.getSize());
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+        };
+
+        auto firstSlotOf = [] (juce::XmlElement* xml)
+        {
+            auto* slots = xml != nullptr ? xml->getChildByName ("SynthParameters") : nullptr;
+            return slots != nullptr ? slots->getChildByName ("Slot") : nullptr;
+        };
+
+        auto xml = saveXml();
+        auto* first = firstSlotOf (xml.get());
+        check (first != nullptr && first->getIntAttribute ("index", -1) == 0, "the project lists the slots");
+
+        if (first != nullptr)
+        {
+            const juce::String goneId ("a-parameter-this-synth-no-longer-has");
+            first->setAttribute ("id", goneId);
+            restoreXml (*xml);
+
+            check (params[0]->getName (64).contains ("unused"), "its slot isn't handed to another parameter");
+            check (params[1]->getName (64) == "Tone", "the other slots keep their parameters");
+            check (params[2]->getName (64) == "Gain", "a parameter without a slot gets a free one");
+
+            auto again = saveXml();
+            auto* kept = firstSlotOf (again.get());
+            check (kept != nullptr && kept->getStringAttribute ("id") == goneId, "saving keeps the slot for its parameter");
+
+            xml->getChildByName ("SynthParameters")->setAttribute ("synth", "another synth");
+            restoreXml (*xml);
+            check (params[0]->getName (64) == "Gain" && params[1]->getName (64) == "Tone"
+                       && params[2]->getName (64).contains ("unused"),
+                   "slots saved for a different synth start afresh");
+        }
+    }
+
     processor.releaseResources();
     std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
     return check.failures == 0 ? 0 : 1;

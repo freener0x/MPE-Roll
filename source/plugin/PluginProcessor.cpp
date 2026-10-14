@@ -78,6 +78,17 @@ MpeRollProcessor::MpeRollProcessor()
             onStatusChanged();
     };
 
+    // Pass on what the synth tells its host (us), so FL hears it too.
+    synth.onSynthReportedChange = [this] (const juce::AudioProcessorListener::ChangeDetails& details)
+    {
+        if (details.latencyChanged)
+            updateLatency();
+
+        if (details.parameterInfoChanged || details.nonParameterStateChanged)
+            updateHostDisplay (ChangeDetails().withParameterInfoChanged (details.parameterInfoChanged)
+                                              .withNonParameterStateChanged (details.nonParameterStateChanged));
+    };
+
     startTimerHz (30);
 }
 
@@ -86,6 +97,7 @@ MpeRollProcessor::~MpeRollProcessor()
     stopTimer();
     synth.onPluginRemoving = nullptr;
     synth.onPluginChanged = nullptr;
+    synth.onSynthReportedChange = nullptr;
 }
 
 //==============================================================================

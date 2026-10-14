@@ -524,7 +524,15 @@ void MpeRollEditor::browseForPlugin()
     defaultFolder = juce::File::getSpecialLocation (juce::File::userHomeDirectory).getChildFile (".vst3");
    #endif
 
-    chooser = std::make_unique<juce::FileChooser> ("Choose a synth", defaultFolder, HostedSynth::getPluginFilePatterns());
+    // A synth can be a file or a bundle folder. Asked for both, Windows' own dialog only picks
+    // folders, so JUCE's chooser is used there instead.
+   #if JUCE_WINDOWS
+    constexpr auto useNativeDialog = false;
+   #else
+    constexpr auto useNativeDialog = true;
+   #endif
+    chooser = std::make_unique<juce::FileChooser> ("Choose a synth", defaultFolder, HostedSynth::getPluginFilePatterns(),
+                                                   useNativeDialog);
     chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
                               | juce::FileBrowserComponent::canSelectDirectories,
                           [safe = juce::Component::SafePointer<MpeRollEditor> (this)] (const juce::FileChooser& fc)
