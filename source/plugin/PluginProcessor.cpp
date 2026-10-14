@@ -66,8 +66,11 @@ MpeRollProcessor::MpeRollProcessor()
     liveRouter.encoder = &encoder;
     liveRouter.out = &synthMidi;
 
+    synth.onPluginRemoving = [this] (juce::AudioPluginInstance& outgoing) { synthParameters.synthRemoving (outgoing); };
+
     synth.onPluginChanged = [this]
     {
+        synthParameters.synthChanged();
         updateLatency();
         configurationRequested = true;
 
@@ -81,6 +84,8 @@ MpeRollProcessor::MpeRollProcessor()
 MpeRollProcessor::~MpeRollProcessor()
 {
     stopTimer();
+    synth.onPluginRemoving = nullptr;
+    synth.onPluginChanged = nullptr;
 }
 
 //==============================================================================
@@ -594,6 +599,8 @@ void MpeRollProcessor::getStateInformation (juce::MemoryBlock& destData)
     if (auto synthXml = synth.saveState())
         xml.addChildElement (synthXml.release());
 
+    xml.addChildElement (synthParameters.toXml().release());
+
     copyXmlToBinary (xml, destData);
 }
 
@@ -608,6 +615,8 @@ void MpeRollProcessor::setStateInformation (const void* data, int sizeInBytes)
     {
         if (auto* doc = xml->getChildByName ("Document"))
             document.fromXml (*doc);
+
+        synthParameters.fromXml (xml->getChildByName ("SynthParameters"));
 
         if (auto* synthXml = xml->getChildByName ("HostedSynth"))
             synth.restoreState (*synthXml, [this] (const juce::String& error) { setStatus (error); });

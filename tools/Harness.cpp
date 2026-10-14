@@ -5,6 +5,8 @@
 //   MpeRollHarness render <synth.vst3> <out.wav>        plays a test clip through a hosted synth and
 //                                                       checks that per-note glides reach it
 //   MpeRollHarness selftest                             live input, recording, state, note trigger, undo
+//   MpeRollHarness uitest                               simulated mouse and keyboard editing
+//   MpeRollHarness params <synth.vst3>                  synth parameters exposed for host automation
 
 #include "plugin/PluginEditor.h"
 #include "plugin/PluginProcessor.h"
@@ -470,6 +472,109 @@ int selfTest()
 }
 
 //==============================================================================
+bool loadSynth (MpeRollProcessor& processor, const juce::File& file)
+{
+    bool done = false;
+    juce::String error;
+    processor.getSynth().loadFromFile (file, [&] (const juce::String& e) { error = e; done = true; });
+
+    for (int i = 0; i < 200 && ! done; ++i)
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+
+    if (! done || error.isNotEmpty())
+        std::printf ("Couldn't load %s: %s\n", file.getFullPathName().toRawUTF8(), error.toRawUTF8());
+
+    return done && error.isEmpty();
+}
+
+struct ValueRecorder : juce::AudioProcessorParameter::Listener
+{
+    float last = -1.0f;
+    int gestures = 0;
+
+    void parameterValueChanged (int, float v) override  { last = v; }
+    void parameterGestureChanged (int, bool) override    { ++gestures; }
+};
+
+int parameterTest (const juce::File& synthFile)
+{
+    Check check;
+    FakePlayHead playHead;
+    MpeRollProcessor processor;
+    processor.setPlayHead (&playHead);
+    processor.setRateAndBufferSizeDetails (48000.0, 512);
+    processor.prepareToPlay (48000.0, 512);
+
+    if (! loadSynth (processor, synthFile))
+        return 1;
+
+    const auto& params = processor.getParameters();
+    auto* hosted = processor.getSynth().getInstance();
+
+    std::printf ("Synth parameters appear as MPE Roll parameters\n");
+    check (params.size() == SynthParameterBank::numSlots, "MPE Roll offers a fixed set of automatable slots");
+    check (params[0]->getName (64) == "Gain" && params[1]->getName (64) == "Tone", "slots take the synth's parameter names");
+    check (params[2]->getName (64).contains ("unused"), "slots beyond the synth's parameters say they're unused");
+
+    std::printf ("Automation reaches the synth, and synth edits reach the host\n");
+    params[1]->setValue (0.3f);
+    check (std::abs (hosted->getParameters()[1]->getValue() - 0.3f) < 1.0e-4f, "setting a slot sets the synth parameter");
+
+    ValueRecorder recorder;
+    params[1]->addListener (&recorder);
+    hosted->getParameters()[1]->beginChangeGesture();
+    hosted->getParameters()[1]->setValueNotifyingHost (0.75f);
+    hosted->getParameters()[1]->endChangeGesture();
+    params[1]->removeListener (&recorder);
+    check (std::abs (recorder.last - 0.75f) < 1.0e-4f, "a change in the synth is reported to the host");
+    check (recorder.gestures == 2, "and so are its gestures (for FL's 'last tweaked')");
+
+    // Gain 0 through the slot must silence the synth.
+    params[0]->setValue (0.0f);
+    MpeClip clip;
+    clip.addNote (note (60, 0.0, 1.0, 1.0f));
+    processor.getDocument().replaceClip (0, clip, "Test");
+
+    double ppq = 0.0;
+    float peak = 0.0f;
+
+    for (int block = 0; block < 40; ++block)
+    {
+        juce::AudioBuffer<float> audio (2, 512);
+        juce::MidiBuffer midi;
+        playHead.ppq = ppq;
+        processor.processBlock (audio, midi);
+        ppq += 512.0 / 48000.0 * 2.0;
+        peak = std::max (peak, audio.getMagnitude (0, 512));
+    }
+
+    check (peak < 1.0e-4f, "automating the synth's gain to 0 through MPE Roll silences it");
+
+    std::printf ("Slots survive saving and reloading\n");
+    {
+        juce::MemoryBlock state;
+        processor.getStateInformation (state);
+
+        MpeRollProcessor restored;
+        restored.setRateAndBufferSizeDetails (48000.0, 512);
+        restored.prepareToPlay (48000.0, 512);
+        restored.setStateInformation (state.getData(), (int) state.getSize());
+
+        for (int i = 0; i < 100 && ! restored.getSynth().isLoaded(); ++i)
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+        check (restored.getParameters()[1]->getName (64) == "Tone", "the restored slots point at the same parameters");
+        check (std::abs (restored.getParameters()[1]->getValue() - 0.75f) < 1.0e-3f, "and the synth's values come back");
+        restored.releaseResources();
+    }
+
+    processor.releaseResources();
+    std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
+    return check.failures == 0 ? 0 : 1;
+}
+
+//==============================================================================
 template <typename ComponentType>
 ComponentType* findChild (juce::Component& parent)
 {
@@ -612,9 +717,14 @@ int main (int argc, char** argv)
     if (args.size() >= 1 && args[0] == "uitest")
         return uiTest();
 
+    if (args.size() >= 2 && args[0] == "params")
+        return parameterTest (cwd.getChildFile (args[1]));
+
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
                  "  MpeRollHarness render <synth.vst3> <out.wav>\n"
-                 "  MpeRollHarness selftest\n");
+                 "  MpeRollHarness selftest\n"
+                 "  MpeRollHarness uitest\n"
+                 "  MpeRollHarness params <synth.vst3>\n");
     return 2;
 }

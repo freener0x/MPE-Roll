@@ -10,10 +10,12 @@ namespace
 class SineVoice : public juce::MPESynthesiserVoice
 {
 public:
+    explicit SineVoice (juce::AudioParameterFloat& g) : gain (g) {}
+
     void noteStarted() override
     {
         phase = 0.0;
-        level = 0.1f + 0.2f * currentlyPlayingNote.noteOnVelocity.asUnsignedFloat();
+        level = (0.1f + 0.2f * currentlyPlayingNote.noteOnVelocity.asUnsignedFloat()) * gain.get();
     }
 
     void noteStopped (bool) override                { clearCurrentNote(); }
@@ -43,6 +45,7 @@ public:
     }
 
 private:
+    juce::AudioParameterFloat& gain;
     double phase = 0.0;
     float level = 0.2f;
 };
@@ -53,8 +56,11 @@ public:
     TestSynthProcessor()
         : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true))
     {
+        addParameter (gain = new juce::AudioParameterFloat (juce::ParameterID ("gain", 1), "Gain", 0.0f, 1.0f, 1.0f));
+        addParameter (new juce::AudioParameterFloat (juce::ParameterID ("tone", 1), "Tone", 0.0f, 1.0f, 0.5f));
+
         for (int i = 0; i < 16; ++i)
-            synth.addVoice (new SineVoice());
+            synth.addVoice (new SineVoice (*gain));
     }
 
     void prepareToPlay (double sampleRate, int) override        { synth.setCurrentPlaybackSampleRate (sampleRate); }
@@ -79,10 +85,25 @@ public:
     void setCurrentProgram (int) override                       {}
     const juce::String getProgramName (int) override            { return {}; }
     void changeProgramName (int, const juce::String&) override  {}
-    void getStateInformation (juce::MemoryBlock&) override      {}
-    void setStateInformation (const void*, int) override        {}
+    void getStateInformation (juce::MemoryBlock& data) override
+    {
+        juce::MemoryOutputStream out (data, false);
+
+        for (auto* p : getParameters())
+            out.writeFloat (p->getValue());
+    }
+
+    void setStateInformation (const void* data, int size) override
+    {
+        juce::MemoryInputStream in (data, (size_t) size, false);
+
+        for (auto* p : getParameters())
+            if (! in.isExhausted())
+                p->setValueNotifyingHost (in.readFloat());
+    }
 
 private:
+    juce::AudioParameterFloat* gain = nullptr;
     juce::MPESynthesiser synth;
 };
 

@@ -203,6 +203,9 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
     const auto channels = juce::jmax (2, newInstance->getTotalNumInputChannels(), newInstance->getTotalNumOutputChannels());
     std::unique_ptr<juce::AudioPluginInstance> old;
 
+    if (instance != nullptr && onPluginRemoving)
+        onPluginRemoving (*instance);
+
     {
         const juce::SpinLock::ScopedLockType lock (instanceLock);
         scratch.setSize (juce::jmax (channels, scratch.getNumChannels()), juce::jmax (blockSize, scratch.getNumSamples()));
@@ -229,6 +232,9 @@ void HostedSynth::unload()
     closeEditor();
 
     std::unique_ptr<juce::AudioPluginInstance> old;
+
+    if (instance != nullptr && onPluginRemoving)
+        onPluginRemoving (*instance);
 
     {
         const juce::SpinLock::ScopedLockType lock (instanceLock);

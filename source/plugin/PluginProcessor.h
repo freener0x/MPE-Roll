@@ -2,6 +2,7 @@
 
 #include "ClipDocument.h"
 #include "HostedSynth.h"
+#include "SynthParameters.h"
 #include "core/ClipBuilder.h"
 #include "core/ClipPlayer.h"
 #include "core/MpeDecoder.h"
@@ -56,6 +57,7 @@ public:
     //==============================================================================
     ClipDocument& getDocument() noexcept                { return document; }
     HostedSynth& getSynth() noexcept                    { return synth; }
+    SynthParameterBank& getSynthParameters() noexcept   { return synthParameters; }
 
     /** Plays a note on the hosted synth from the UI (piano keys, note previews). */
     void auditionNote (int key, float velocity, bool isNoteOn);
@@ -125,6 +127,7 @@ private:
 
     ClipDocument document;
     HostedSynth synth;
+    SynthParameterBank synthParameters { *this, synth };   // after the synth: it detaches first on destruction
     std::shared_ptr<int> lifetime = std::make_shared<int> (0);
 
     // Audio thread state.

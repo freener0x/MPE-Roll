@@ -41,6 +41,7 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/PluginEditor.cpp
     source/plugin/ClipDocument.cpp
     source/plugin/HostedSynth.cpp
+    source/plugin/SynthParameters.cpp
     source/plugin/ui/MpeLookAndFeel.cpp
     source/plugin/ui/NoteGrid.cpp
     source/plugin/ui/ExpressionLane.cpp

@@ -62,8 +62,31 @@ public:
     /** Instrument types from the scanned plugin list. */
     juce::Array<juce::PluginDescription> getInstrumentTypes() const;
 
+    /** Calls fn with the synth's parameter at this index, without ever blocking (safe on any thread).
+        Returns false if there's no such parameter, or the synth is being swapped right now.
+    */
+    template <typename Fn>
+    bool withParameter (int index, Fn&& fn) const
+    {
+        const juce::SpinLock::ScopedTryLockType lock (instanceLock);
+
+        if (! lock.isLocked() || instance == nullptr)
+            return false;
+
+        const auto& params = instance->getParameters();
+
+        if (! juce::isPositiveAndBelow (index, params.size()))
+            return false;
+
+        fn (*params.getUnchecked (index));
+        return true;
+    }
+
     /** Called on the message thread whenever a plugin is loaded or unloaded. */
     std::function<void()> onPluginChanged;
+
+    /** Called on the message thread just before a plugin instance is removed and deleted. */
+    std::function<void (juce::AudioPluginInstance&)> onPluginRemoving;
 
 private:
     class EditorWindow;
@@ -72,7 +95,7 @@ private:
     juce::AudioPluginFormatManager formatManager;
     juce::KnownPluginList knownPlugins;
 
-    juce::SpinLock instanceLock;
+    mutable juce::SpinLock instanceLock;
     std::unique_ptr<juce::AudioPluginInstance> instance;
     std::unique_ptr<juce::PluginDescription> description;
     std::unique_ptr<EditorWindow> editorWindow;
