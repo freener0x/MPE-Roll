@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -14,10 +15,15 @@ namespace mperoll
 
     The storage is reserved up front and never grows, so filling it on the audio thread doesn't
     allocate. Events have to be added in time order, as CLAP requires.
+
+    Near the end, room is kept for essential events (note on/off...), so a flood of expression
+    values can't crowd them out.
 */
 class ClapEventList
 {
 public:
+    enum class Priority { normal, essential };
+
     ClapEventList()
     {
         input.ctx = this;
@@ -30,7 +36,7 @@ public:
             return static_cast<const ClapEventList*> (list->ctx)->get (index);
         };
 
-        reserve (64 * 1024, 4096);
+        reserve (512 * 1024, 8192);
     }
 
     ClapEventList (const ClapEventList&) = delete;
@@ -43,6 +49,10 @@ public:
         offsets.clear();
         offsets.reserve (events);
         used = 0;
+
+        // An eighth (up to 512 events) is kept for essential events.
+        keptEvents = std::min<size_t> (512, offsets.capacity() / 8);
+        keptWords = std::min (keptEvents * maxEventWords, storage.size() / 8);
     }
 
     void clear() noexcept
@@ -52,14 +62,17 @@ public:
     }
 
     /** Copies an event (anything starting with a clap_event_header whose size is filled in).
-        Returns false, and drops it, when the list is full.
+        Returns false, and drops it, when the list is full (for normal events: when only the room
+        kept for essential ones is left).
     */
-    bool push (const clap_event_header_t& event) noexcept
+    bool push (const clap_event_header_t& event, Priority priority = Priority::normal) noexcept
     {
         const auto words = ((size_t) event.size + sizeof (uint64_t) - 1) / sizeof (uint64_t);
+        const auto essential = priority == Priority::essential;
 
-        if (event.size < sizeof (clap_event_header_t) || used + words > storage.size()
-            || offsets.size() >= offsets.capacity())
+        if (event.size < sizeof (clap_event_header_t)
+            || used + words + (essential ? 0 : keptWords) > storage.size()
+            || offsets.size() + (essential ? 0 : keptEvents) >= offsets.capacity())
             return false;
 
         std::memcpy (storage.data() + used, &event, event.size);
@@ -69,10 +82,10 @@ public:
     }
 
     template <typename Event>
-    bool push (const Event& event) noexcept
+    bool push (const Event& event, Priority priority = Priority::normal) noexcept
     {
         static_assert (offsetof (Event, header) == 0);
-        return push (event.header);
+        return push (event.header, priority);
     }
 
     uint32_t size() const noexcept      { return (uint32_t) offsets.size(); }
@@ -89,9 +102,11 @@ public:
     const clap_input_events_t* getInputEvents() const noexcept     { return &input; }
 
 private:
+    static constexpr size_t maxEventWords = sizeof (clap_event_param_value_t) / sizeof (uint64_t) + 1;
+
     std::vector<uint64_t> storage;      // 8-byte words keep every event's doubles aligned
     std::vector<uint32_t> offsets;      // in words
-    size_t used = 0;
+    size_t used = 0, keptEvents = 0, keptWords = 0;
     clap_input_events_t input {};
 };
 

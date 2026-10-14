@@ -142,7 +142,7 @@ public:
             expectEquals ((int) r.midi.size(), 0, "the master bend isn't also sent as MIDI");
         }
 
-        beginTest ("Zone-wide controllers go on as MIDI, or onto the notes for synths without MIDI");
+        beginTest ("Zone pressure reaches the notes; other zone controllers go to every channel of the zone");
         {
             ClapNoteTranslator t;
             juce::MidiBuffer midi;
@@ -152,23 +152,206 @@ public:
             midi.addEvent (juce::MidiMessage::programChange (1, 3), 7);
 
             auto r = run (t, midi);
-            expectEquals ((int) r.midi.size(), 3);
+            expectEquals ((int) r.midi.size(), 17, "the pedal on the master and all 15 member channels, then the program change");
             expectEquals ((int) r.midi[0].data[0], 0xb0);
             expectEquals ((int) r.midi[0].data[1], 64);
             expectEquals ((int) r.midi[0].data[2], 127);
             expectEquals ((int) r.midi[0].header.time, 5);
-            expectEquals ((int) r.midi[1].data[0], 0xd0);
-            expectEquals ((int) r.midi[2].data[0], 0xc0);
-            expectEquals ((int) r.valuesOf (CLAP_NOTE_EXPRESSION_PRESSURE).size(), 0);
+            expectEquals ((int) r.midi[1].data[0], 0xb1, "including the channel the note is on");
+            expectEquals ((int) r.midi[15].data[0], 0xbf);
+            expectEquals ((int) r.midi[16].data[0], 0xc0);
+
+            auto pressure = r.valuesOf (CLAP_NOTE_EXPRESSION_PRESSURE);
+            expectEquals ((int) pressure.size(), 1, "zone pressure becomes the note's pressure, not MIDI");
+            expectWithinAbsoluteError (pressure[0], 90.0 / 127.0, 1.0e-4);
 
             ClapNoteTranslator clapOnly;
             clapOnly.setDialects (true, false);
             r = run (clapOnly, midi);
             expectEquals ((int) r.midi.size(), 0);
             expectEquals ((int) r.notes.size(), 1);
-            const auto pressure = r.valuesOf (CLAP_NOTE_EXPRESSION_PRESSURE);
-            expectEquals ((int) pressure.size(), 1, "zone pressure reaches the note instead");
+            pressure = r.valuesOf (CLAP_NOTE_EXPRESSION_PRESSURE);
+            expectEquals ((int) pressure.size(), 1);
             expectWithinAbsoluteError (pressure[0], 90.0 / 127.0, 1.0e-4);
+        }
+
+        beginTest ("A zone's values combine with each note's own, as MpeEncoder writes them");
+        {
+            for (const bool synthTakesMidi : { true, false })
+            {
+                OutputSettings s;
+                MpeEncoder enc;
+                enc.setSettings (s);
+                ClapNoteTranslator t;
+                t.setOutputSettings (s);
+                t.setDialects (true, synthTakesMidi);
+
+                juce::MidiBuffer midi;
+                enc.setZonePressure (midi, 0, 0.5f);
+                enc.setZoneTimbre (midi, 0, 0.7f);
+                enc.prepareNote (midi, 0, 1, 60);
+                enc.setPressure (midi, 0, 1, 0.2f);
+                enc.setTimbre (midi, 0, 1, 0.6f);
+                enc.startNote (midi, 0, 1, 0.8f);
+                enc.setZonePressure (midi, 100, 0.6f);
+
+                const auto r = run (t, midi);
+                const auto pressure = r.valuesOf (CLAP_NOTE_EXPRESSION_PRESSURE);
+                const auto brightness = r.valuesOf (CLAP_NOTE_EXPRESSION_BRIGHTNESS);
+                expectEquals ((int) pressure.size(), 2);
+                expectWithinAbsoluteError (pressure[0], 0.7, 0.02, "the note's pressure plus the zone's");
+                expectWithinAbsoluteError (pressure[1], 0.8, 0.02, "and again when the zone's changes");
+                expectEquals ((int) brightness.size(), 1);
+                expectWithinAbsoluteError (brightness[0], 0.8, 0.02, "timbre: the zone's moves the note's from the middle");
+
+                for (const auto& m : r.midi)
+                    expect ((m.data[0] & 0xf0) != 0xd0, "zone pressure isn't also sent as MIDI");
+            }
+        }
+
+        beginTest ("A controller with no note expression goes out as MIDI, never the note it came with");
+        {
+            OutputSettings s;
+            s.zones.lowerMembers = 1;   // so both notes use the same channel
+            MpeEncoder enc;
+            enc.setSettings (s);
+            ClapNoteTranslator t;
+            t.setOutputSettings (s);
+
+            juce::MidiBuffer midi;
+            enc.prepareNote (midi, 0, 1, 60);
+            enc.setController (midi, 0, 1, 71, 0.8f);
+            enc.startNote (midi, 0, 1, 0.9f);
+            enc.stopNote (midi, 100, 1, 0.5f);
+            enc.prepareNote (midi, 200, 2, 62);     // the encoder resets CC71 on the channel first
+            enc.startNote (midi, 200, 2, 0.9f);
+            enc.stopNote (midi, 300, 2, 0.5f);
+
+            const auto r = run (t, midi);
+            int midiNotes = 0;
+            std::vector<int> cc71;
+
+            for (const auto& m : r.midi)
+            {
+                const auto status = m.data[0] & 0xf0;
+                midiNotes += (status == 0x90 || status == 0x80) ? 1 : 0;
+
+                if (status == 0xb0 && m.data[1] == 71)
+                    cc71.push_back (m.data[2]);
+            }
+
+            expectEquals (midiNotes, 0, "no note goes out as MIDI");
+            expectEquals ((int) cc71.size(), 2, "the controller goes out before each note");
+            expectEquals (cc71.at (0), MpeEncoder::toSevenBit (0.8f));
+            expectEquals (r.count (CLAP_EVENT_NOTE_ON), 2);
+            expectEquals (r.count (CLAP_EVENT_NOTE_OFF), 2);
+            expectEquals (t.getNumHeldNotes(), 0);
+        }
+
+        beginTest ("Poly aftertouch sent before a note gives it its starting pressure");
+        {
+            for (const auto mode : { OutputSettings::Mode::singleChannel, OutputSettings::Mode::mpe })
+            {
+                OutputSettings s;
+                s.mode = mode;
+                s.pressureTarget = OutputSettings::PressureTarget::polyAftertouch;
+                MpeEncoder enc;
+                enc.setSettings (s);
+                ClapNoteTranslator t;
+                t.setOutputSettings (s);
+
+                juce::MidiBuffer midi;
+                enc.prepareNote (midi, 0, 1, 60);
+                enc.setPressure (midi, 0, 1, 0.8f);
+                enc.startNote (midi, 0, 1, 0.9f);
+
+                const auto r = run (t, midi);
+                const auto pressure = r.valuesOf (CLAP_NOTE_EXPRESSION_PRESSURE);
+                expect (! pressure.empty(), "the note starts with pressure");
+
+                if (! pressure.empty())
+                    expectWithinAbsoluteError (pressure.back(), 0.8, 0.01);
+            }
+        }
+
+        beginTest ("Reactivating the synth keeps the zone's bend for the next notes");
+        {
+            ClapNoteTranslator t;
+            juce::MidiBuffer midi;
+            midi.addEvent (juce::MidiMessage::pitchWheel (1, bend (2.0f, 2.0f)), 0);
+            midi.addEvent (juce::MidiMessage::noteOn (2, 60, (juce::uint8) 100), 0);
+            run (t, midi);
+
+            t.forgetNotes();
+            expectEquals (t.getNumHeldNotes(), 0);
+
+            juce::MidiBuffer next;
+            next.addEvent (juce::MidiMessage::noteOn (3, 64, (juce::uint8) 100), 0);
+            const auto r = run (t, next);
+            const auto tuning = r.valuesOf (CLAP_NOTE_EXPRESSION_TUNING);
+            expectEquals ((int) tuning.size(), 1);
+            expectWithinAbsoluteError (tuning.at (0), 2.0, 0.01);
+        }
+
+        beginTest ("Tuning stays within the range CLAP defines");
+        {
+            OutputSettings s;
+            s.memberBendRange = 96.0f;
+            s.masterBendRange = 96.0f;
+            ClapNoteTranslator t;
+            t.setOutputSettings (s);
+
+            juce::MidiBuffer midi;
+            midi.addEvent (juce::MidiMessage::pitchWheel (1, bend (90.0f, 96.0f)), 0);
+            midi.addEvent (juce::MidiMessage::pitchWheel (2, bend (90.0f, 96.0f)), 0);
+            midi.addEvent (juce::MidiMessage::noteOn (2, 60, (juce::uint8) 100), 0);
+
+            const auto tuning = run (t, midi).valuesOf (CLAP_NOTE_EXPRESSION_TUNING);
+            expectEquals ((int) tuning.size(), 1);
+            expectWithinAbsoluteError (tuning.at (0), 120.0, 1.0e-9);
+        }
+
+        beginTest ("A note off that doesn't fit in the block is sent at the start of the next");
+        {
+            ClapNoteTranslator t;
+            juce::MidiBuffer midi;
+            midi.addEvent (juce::MidiMessage::noteOn (2, 60, (juce::uint8) 100), 0);
+            midi.addEvent (juce::MidiMessage::noteOff (2, 60, (juce::uint8) 64), 10);
+
+            ClapEventList tiny;
+            tiny.reserve (sizeof (clap_event_note_t), 1);
+            t.translate (midi, tiny, 512);
+            expectEquals ((int) tiny.size(), 1, "only the note on fitted");
+            expectEquals (t.getNumHeldNotes(), 1, "so the note is still owed its note off");
+
+            const auto r = run (t, {});
+            expectEquals (r.count (CLAP_EVENT_NOTE_OFF), 1);
+            expectEquals ((int) r.notes.at (0).header.time, 0);
+            expectEquals (t.getNumHeldNotes(), 0);
+        }
+
+        beginTest ("A flood of expression leaves room for note offs");
+        {
+            ClapNoteTranslator t;
+            juce::MidiBuffer midi;
+            midi.addEvent (juce::MidiMessage::noteOn (2, 60, (juce::uint8) 100), 0);
+
+            for (int i = 0; i < 400; ++i)
+                midi.addEvent (juce::MidiMessage::channelPressureChange (2, i % 128), 1 + i);
+
+            midi.addEvent (juce::MidiMessage::noteOff (2, 60, (juce::uint8) 64), 500);
+
+            ClapEventList small;
+            small.reserve (64 * sizeof (clap_event_note_expression_t), 64);
+            t.translate (midi, small, 512);
+
+            int offs = 0;
+
+            for (uint32_t i = 0; i < small.size(); ++i)
+                offs += small.get (i)->type == CLAP_EVENT_NOTE_OFF ? 1 : 0;
+
+            expectEquals (offs, 1);
+            expectEquals (t.getNumHeldNotes(), 0);
         }
 
         beginTest ("Per-note volume, pan, vibrato and expression controllers become note expressions");
@@ -188,12 +371,18 @@ public:
             expectEquals ((int) pan.size(), 2);
             expectWithinAbsoluteError (pan[0], 0.0, 1.0e-9);
             expectWithinAbsoluteError (pan[1], 0.5, 1.0e-9);
-            expectWithinAbsoluteError (r.valuesOf (CLAP_NOTE_EXPRESSION_VOLUME).at (0), 1.0, 1.0e-9);
+            expectWithinAbsoluteError (r.valuesOf (CLAP_NOTE_EXPRESSION_VOLUME).at (0), 1.27 * 1.27, 1.0e-9);
             expectWithinAbsoluteError (r.valuesOf (CLAP_NOTE_EXPRESSION_VIBRATO).at (0), 1.0, 1.0e-9);
             expectWithinAbsoluteError (r.valuesOf (CLAP_NOTE_EXPRESSION_EXPRESSION).at (0), 0.0, 1.0e-9);
 
             expectEquals ((int) r.midi.size(), 1, "a controller with no note expression goes on as MIDI");
             expectEquals ((int) r.midi[0].data[1], 20);
+
+            juce::MidiBuffer standard;
+            standard.addEvent (juce::MidiMessage::controllerEvent (3, 7, 100), 0);
+            standard.addEvent (juce::MidiMessage::noteOn (3, 60, (juce::uint8) 100), 0);
+            expectWithinAbsoluteError (run (t, standard).valuesOf (CLAP_NOTE_EXPRESSION_VOLUME).at (0), 1.0, 1.0e-9,
+                                       "CC7 at its usual 100 leaves the volume as it is");
         }
 
         beginTest ("Pressure sent on a controller still arrives as pressure");
@@ -291,15 +480,20 @@ public:
             expectEquals (r.count (CLAP_EVENT_NOTE_OFF), 1);
             expectEquals (t.getNumHeldNotes(), 0);
 
-            // Notes started as MIDI are silenced with All Notes Off on the way to note events.
+            // What was sent as MIDI is undone on the way to note events: notes, bends, pressure
+            // and controllers on every channel.
             s.clapNoteExpressions = false;
             t.setOutputSettings (s);
             run (t, midi);
             s.clapNoteExpressions = true;
             t.setOutputSettings (s);
             r = run (t, {});
-            expectEquals ((int) r.midi.size(), 16);
+            expectEquals ((int) r.midi.size(), 64);
             expectEquals ((int) r.midi[0].data[1], 123);
+            expectEquals ((int) r.midi[1].data[1], 121);
+            expectEquals ((int) r.midi[2].data[0], 0xe0);
+            expectEquals ((int) r.midi[2].data[2], 0x40, "pitch bend back to the centre");
+            expectEquals ((int) r.midi[3].data[0], 0xd0);
         }
 
         beginTest ("It reads what MpeEncoder writes, MPE+ and wide bend ranges included");
@@ -342,13 +536,14 @@ public:
         beginTest ("The event list stops at its capacity instead of allocating");
         {
             ClapEventList list;
-            list.reserve (sizeof (clap_event_note_t) * 2, 8);
+            list.reserve (sizeof (clap_event_note_t) * 2, 16);
 
             clap_event_note_t note {};
             note.header = makeClapHeader<clap_event_note_t> (CLAP_EVENT_NOTE_ON, 0);
             expect (list.push (note));
-            expect (list.push (note));
-            expect (! list.push (note));
+            expect (! list.push (note), "the last room is kept for essential events");
+            expect (list.push (note, ClapEventList::Priority::essential));
+            expect (! list.push (note, ClapEventList::Priority::essential));
             expectEquals ((int) list.size(), 2);
             expectEquals ((int) list.getInputEvents()->size (list.getInputEvents()), 2);
             expect (list.getInputEvents()->get (list.getInputEvents(), 1) != nullptr);

@@ -479,7 +479,7 @@ public:
         }
 
         if (translatorNeedsReset.exchange (false))
-            translator.reset();
+            translator.forgetNotes();   // the plugin's voices went with the (re)activation
 
         translator.setOutputSettings (mpeSettings);
         translator.setDialects (takesNoteEvents.load(), takesMidi.load());
@@ -1000,6 +1000,10 @@ private:
 
         spareChannels.setSize (juce::jmax (1, channels), maxFrames);
         spareChannels.clear();
+
+        // Room for a block's worth of notes and expression, even at the finest expression resolution.
+        const auto events = (size_t) juce::jlimit (8192, 1 << 18, maxFrames * 16);
+        audioEvents.reserve (events * sizeof (clap_event_param_value_t), events);
 
         auto setUp = [] (const std::vector<uint32_t>& ports, std::vector<std::vector<float*>>& pointers,
                          std::vector<clap_audio_buffer_t>& buffers)

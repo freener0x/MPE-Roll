@@ -35,12 +35,15 @@ instead of MPE MIDI, so there are no channels or bend ranges to set up in the sy
 | MPE Roll lane | CLAP note expression |
 | --- | --- |
 | Glide (plus zone pitch bend) | Tuning, in semitones |
-| Press | Pressure |
-| Slide | Brightness |
+| Press (plus zone pressure) | Pressure |
+| Slide (moved by zone timbre) | Brightness |
 | Per-note CC7 / CC10 / CC1 / CC11 | Volume / pan / vibrato / expression |
 
-Zone-wide controllers such as the sustain pedal reach the synth as MIDI. Synths that only take MIDI
-get MPE as usual, and *MPE settings › CLAP note expressions* switches to MPE MIDI if you prefer it.
+Other zone-wide controllers, such as the sustain pedal or the mod wheel, reach the synth as MIDI on
+the master channel and every member channel, so they apply to the notes whichever way the synth
+handles channels. (A synth that doesn't take MIDI gets zone CC7/10/1/11 combined into its notes
+instead.) Synths that only take MIDI get MPE as usual, and *MPE settings › CLAP note expressions*
+switches to MPE MIDI if you prefer it.
 
 **Zone-wide (master channel) lanes:** pitch bend with its own range, pressure, timbre and any
 controller, including the sustain, sostenuto, soft, legato and hold pedals.

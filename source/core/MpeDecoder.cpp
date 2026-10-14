@@ -22,6 +22,7 @@ void MpeDecoder::ChannelState::reset (float range) noexcept
     timbreLsb = 0;
     hiResPrefix = -1;
     controllers.fill (-1);
+    polyPressure.fill (-1);
     rpnMsb = rpnLsb = 127;
     nrpnSelected = false;
     dataMsb = -1;
@@ -45,6 +46,11 @@ void MpeDecoder::reset()
     for (int ch = 1; ch <= 16; ++ch)
         channels[(size_t) ch].reset (defaultBendRange (ch));
 
+    forgetNotes();
+}
+
+void MpeDecoder::forgetNotes()
+{
     for (auto& n : notes)
         n = HeldNote {};
 }
@@ -166,6 +172,7 @@ void MpeDecoder::process (const juce::MidiMessage& message, Listener& listener)
     {
         const auto key = message.getNoteNumber();
         const auto value = (float) message.getAfterTouchValue() / 127.0f;
+        st.polyPressure[(size_t) key] = (int8_t) message.getAfterTouchValue();
 
         forEachNoteOnChannel (channel, [&] (const HeldNote& n)
                               {
@@ -242,6 +249,10 @@ void MpeDecoder::handleNoteOn (int channel, int key, int velocity, Listener& lis
                 emit (listener, Event::Type::noteController, id, key, channel, (float) value / 127.0f, cc);
         }
     }
+
+    // Poly aftertouch is the key's own pressure, sent before the note when it starts pressed.
+    if (const auto poly = st.polyPressure[(size_t) key]; poly >= 0)
+        emit (listener, Event::Type::notePressure, id, key, channel, (float) poly / 127.0f);
 
     float strike = (float) velocity / 127.0f;
 

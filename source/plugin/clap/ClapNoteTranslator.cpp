@@ -3,6 +3,28 @@
 namespace mperoll
 {
 
+namespace
+{
+    // What each expression is when nothing has set it: CLAP's own defaults.
+    constexpr std::array<double, 7> neutralValues
+    {
+        1.0,    // CLAP_NOTE_EXPRESSION_VOLUME: a gain
+        0.5,    // CLAP_NOTE_EXPRESSION_PAN: centre
+        0.0,    // CLAP_NOTE_EXPRESSION_TUNING: semitones
+        0.0,    // CLAP_NOTE_EXPRESSION_VIBRATO
+        1.0,    // CLAP_NOTE_EXPRESSION_EXPRESSION
+        0.5,    // CLAP_NOTE_EXPRESSION_BRIGHTNESS
+        0.0     // CLAP_NOTE_EXPRESSION_PRESSURE
+    };
+
+    constexpr double maxTuning = 120.0;     // the range CLAP defines for tuning, in semitones
+
+    bool isNoteEvent (const juce::MidiMessage& m) noexcept
+    {
+        return m.isNoteOnOrOff();
+    }
+}
+
 ClapNoteTranslator::ClapNoteTranslator()
 {
     decoder.setSettings (decoderSettingsFor (output));
@@ -66,7 +88,15 @@ void ClapNoteTranslator::reset()
     for (auto& known : zoneKnown)
         known.fill (false);
 
-    midiNotesMaySound = false;
+    midiSent = false;
+}
+
+void ClapNoteTranslator::forgetNotes()
+{
+    decoder.forgetNotes();
+
+    for (auto& n : notes)
+        n = Note {};
 }
 
 void ClapNoteTranslator::reconfigure (ClapEventList& out)
@@ -74,13 +104,20 @@ void ClapNoteTranslator::reconfigure (ClapEventList& out)
     // Whatever the old configuration started has to stop, in the dialect it was started in.
     endAllNotes (out, 0);
 
-    if (midiNotesMaySound && takesMidi)
+    // MIDI the synth was sent leaves state behind - notes, bends, pressure, pedals - that the new
+    // configuration knows nothing about (and won't reset itself, since bends become tuning).
+    if (midiSent && takesMidi)
     {
         target = &out;
         time = 0;
 
         for (int channel = 1; channel <= 16; ++channel)
+        {
             sendMidi (juce::MidiMessage::allNotesOff (channel));
+            sendMidi (juce::MidiMessage::controllerEvent (channel, 121, 0));     // reset all controllers
+            sendMidi (juce::MidiMessage::pitchWheel (channel, 8192));
+            sendMidi (juce::MidiMessage::channelPressureChange (channel, 0));
+        }
 
         target = nullptr;
     }
@@ -98,6 +135,9 @@ void ClapNoteTranslator::translate (const juce::MidiBuffer& midi, ClapEventList&
         reconfigure (out);
 
     target = &out;
+    time = 0;
+    retryPendingStops();
+
     const auto lastSample = juce::jmax (0, numSamples - 1);
 
     for (const auto metadata : midi)
@@ -108,20 +148,24 @@ void ClapNoteTranslator::translate (const juce::MidiBuffer& midi, ClapEventList&
         if (! useNoteEvents)
         {
             sendMidi (message);
-            midiNotesMaySound = midiNotesMaySound || message.isNoteOn();
             continue;
         }
 
-        forwardAsMidi = false;
+        current = &message;
+        forwardAsMidi = forwardToZone = false;
         decoder.process (message, *this);
+        current = nullptr;
 
-        const bool channelVoice = message.isNoteOnOrOff() || message.isAftertouch() || message.isPitchWheel()
-                               || message.isChannelPressure() || message.isController();
+        // Notes travel as CLAP notes, never also as MIDI.
+        if (isNoteEvent (message) || isProtocolMessage (message) || message.isSysEx())
+            continue;
 
-        // Notes and their expression now travel as CLAP events. What's left - zone-wide controllers,
-        // controllers with no note expression, program changes - goes on as MIDI.
-        if ((forwardAsMidi || (! channelVoice && ! message.isSysEx())) && ! isProtocolMessage (message))
-            sendMidi (message);
+        const bool channelVoice = message.isAftertouch() || message.isChannelPressure() || message.isController();
+
+        if (forwardToZone)
+            sendToZone (message);
+        else if (forwardAsMidi || ! channelVoice)
+            sendMidi (message);     // a controller with no note expression, a program change...
     }
 
     target = nullptr;
@@ -134,7 +178,7 @@ void ClapNoteTranslator::endAllNotes (ClapEventList& out, uint32_t when)
 
     for (auto& n : notes)
     {
-        if (n.inUse && n.started)
+        if (n.inUse && (n.started || n.stopPending))
             sendNote (CLAP_EVENT_NOTE_OFF, n, 0.0);
 
         n = Note {};
@@ -143,11 +187,18 @@ void ClapNoteTranslator::endAllNotes (ClapEventList& out, uint32_t when)
     target = nullptr;
 }
 
+void ClapNoteTranslator::retryPendingStops()
+{
+    for (auto& n : notes)
+        if (n.inUse && n.stopPending && sendNote (CLAP_EVENT_NOTE_OFF, n, 0.0))
+            n = Note {};
+}
+
 //==============================================================================
 ClapNoteTranslator::Note* ClapNoteTranslator::findNote (uint32_t decoderId) noexcept
 {
     for (auto& n : notes)
-        if (n.inUse && n.decoderId == decoderId)
+        if (n.inUse && ! n.stopPending && n.decoderId == decoderId)
             return &n;
 
     return nullptr;
@@ -179,6 +230,13 @@ int ClapNoteTranslator::expressionForController (int controller) const noexcept
     }
 }
 
+bool ClapNoteTranslator::zoneControllerGoesAsMidi (int expression) const noexcept
+{
+    // A zone's mod wheel, volume, pan or expression means whatever the synth maps it to, so a synth
+    // that takes MIDI gets it as MIDI. Pressure sent on a controller is still pressure.
+    return takesMidi && expression != CLAP_NOTE_EXPRESSION_PRESSURE;
+}
+
 double ClapNoteTranslator::expressionValue (int expression, float normalised) noexcept
 {
     const auto v = (double) juce::jlimit (0.0f, 1.0f, normalised);
@@ -186,8 +244,12 @@ double ClapNoteTranslator::expressionValue (int expression, float normalised) no
     switch (expression)
     {
         case CLAP_NOTE_EXPRESSION_VOLUME:
-            // CLAP volume is a gain (1 = unchanged, above 0). CC7 follows the General MIDI curve.
-            return juce::jmax (1.0e-4, v * v);
+        {
+            // CLAP volume is a gain (1 = unchanged, up to 4). CC7 follows the General MIDI curve,
+            // relative to its default of 100, so a channel left at the default plays at full level.
+            const auto cc = std::round (v * 127.0);
+            return juce::jlimit (1.0e-4, 4.0, (cc / 100.0) * (cc / 100.0));
+        }
 
         case CLAP_NOTE_EXPRESSION_PAN:
         {
@@ -201,13 +263,43 @@ double ClapNoteTranslator::expressionValue (int expression, float normalised) no
     }
 }
 
+double ClapNoteTranslator::combine (int expression, double noteValue, double zoneValue) noexcept
+{
+    switch (expression)
+    {
+        case CLAP_NOTE_EXPRESSION_VOLUME:       return juce::jlimit (1.0e-4, 4.0, noteValue * zoneValue);
+        case CLAP_NOTE_EXPRESSION_EXPRESSION:   return juce::jlimit (0.0, 1.0, noteValue * zoneValue);
+        case CLAP_NOTE_EXPRESSION_PAN:
+        case CLAP_NOTE_EXPRESSION_BRIGHTNESS:   return juce::jlimit (0.0, 1.0, noteValue + zoneValue - 0.5);
+        default:                                return juce::jlimit (0.0, 1.0, noteValue + zoneValue);
+    }
+}
+
+double ClapNoteTranslator::tuningOf (const Note& n) const noexcept
+{
+    return juce::jlimit (-maxTuning, maxTuning, (double) n.pitch + zonePitch[(size_t) scopeChannelOf (n)]);
+}
+
+void ClapNoteTranslator::sendCombined (const Note& n, int expression)
+{
+    const auto x = (size_t) expression;
+    const auto scope = (size_t) scopeChannelOf (n);
+    const auto zoneHas = zoneKnown[scope][x];
+
+    if (! n.known[x] && ! zoneHas)
+        return;     // nothing has set it: the synth's default stands
+
+    const auto own = n.known[x] ? n.values[x] : neutralValues[x];
+    sendExpression (n, expression, zoneHas ? combine (expression, own, zoneValues[scope][x]) : own);
+}
+
 void ClapNoteTranslator::setExpression (Note& n, int expression, double value)
 {
     n.values[(size_t) expression] = value;
     n.known[(size_t) expression] = true;
 
     if (n.started)
-        sendExpression (n, expression, value);
+        sendCombined (n, expression);
 }
 
 void ClapNoteTranslator::handleEvent (const MpeDecoder::Event& e)
@@ -260,7 +352,7 @@ void ClapNoteTranslator::handleEvent (const MpeDecoder::Event& e)
             n->pitch = e.value;
 
             if (n->started)
-                sendExpression (*n, CLAP_NOTE_EXPRESSION_TUNING, n->pitch + zonePitch[(size_t) scopeChannelOf (*n)]);
+                sendExpression (*n, CLAP_NOTE_EXPRESSION_TUNING, tuningOf (*n));
 
             break;
 
@@ -278,8 +370,11 @@ void ClapNoteTranslator::handleEvent (const MpeDecoder::Event& e)
 
             if (expression >= 0)
                 setExpression (*n, expression, expressionValue (expression, e.value));
+            else if (current != nullptr && current->isController())
+                forwardAsMidi = true;   // the controller itself, once however many notes share its channel
             else
-                forwardAsMidi = true;
+                sendMidi (juce::MidiMessage::controllerEvent (e.channel, e.controller,
+                                                              juce::jlimit (0, 127, juce::roundToInt (e.value * 127.0f))));
 
             break;
         }
@@ -289,31 +384,32 @@ void ClapNoteTranslator::handleEvent (const MpeDecoder::Event& e)
             n->started = true;
             sendNote (CLAP_EVENT_NOTE_ON, *n, e.value);
 
-            const auto scope = (size_t) scopeChannelOf (*n);
-            const auto tuning = n->pitch + zonePitch[scope];
+            const auto tuning = tuningOf (*n);
 
-            if (std::abs (tuning) > 1.0e-6f)
+            if (std::abs (tuning) > 1.0e-6)
                 sendExpression (*n, CLAP_NOTE_EXPRESSION_TUNING, tuning);
 
             for (int expression = 0; expression < numExpressions; ++expression)
-            {
-                if (expression == CLAP_NOTE_EXPRESSION_TUNING)
-                    continue;
-
-                if (n->known[(size_t) expression])
-                    sendExpression (*n, expression, n->values[(size_t) expression]);
-                else if (zoneKnown[scope][(size_t) expression])
-                    sendExpression (*n, expression, zoneValues[scope][(size_t) expression]);
-            }
+                if (expression != CLAP_NOTE_EXPRESSION_TUNING)
+                    sendCombined (*n, expression);
 
             break;
         }
 
         case Type::noteStop:
-            if (n->started)
-                sendNote (CLAP_EVENT_NOTE_OFF, *n, e.value);
+            if (! n->started)
+            {
+                *n = Note {};
+            }
+            else if (sendNote (CLAP_EVENT_NOTE_OFF, *n, e.value))
+            {
+                *n = Note {};
+            }
+            else
+            {
+                n->stopPending = true;      // no room left in this block: end it at the start of the next
+            }
 
-            *n = Note {};
             break;
 
         case Type::notePrepare:
@@ -335,8 +431,8 @@ void ClapNoteTranslator::handleZoneEvent (const MpeDecoder::Event& e)
         zonePitch[channel] = e.value;
 
         for (auto& n : notes)
-            if (n.inUse && n.started && (size_t) scopeChannelOf (n) == channel)
-                sendExpression (n, CLAP_NOTE_EXPRESSION_TUNING, n.pitch + e.value);
+            if (n.inUse && n.started && ! n.stopPending && (size_t) scopeChannelOf (n) == channel)
+                sendExpression (n, CLAP_NOTE_EXPRESSION_TUNING, tuningOf (n));
 
         return;
     }
@@ -357,31 +453,33 @@ void ClapNoteTranslator::handleZoneEvent (const MpeDecoder::Event& e)
     else if (e.type == Type::zoneController)
     {
         expression = expressionForController (e.controller);
+
+        if (expression < 0 || zoneControllerGoesAsMidi (expression))
+        {
+            forwardToZone = true;
+            return;
+        }
+
         value = expressionValue (expression, e.value);
     }
 
-    // A synth that takes MIDI gets zone-wide messages as they are: it knows best how its own
-    // aftertouch, mod wheel or sustain should combine with each note.
-    if (takesMidi || expression < 0)
-    {
-        forwardAsMidi = true;
+    if (expression < 0)
         return;
-    }
 
-    // Otherwise apply them to every note in the zone that has no value of its own.
+    // Combined into every note of the zone, as an MPE synth combines a zone's values with each note's.
     zoneValues[channel][(size_t) expression] = value;
     zoneKnown[channel][(size_t) expression] = true;
 
     for (auto& n : notes)
-        if (n.inUse && n.started && ! n.known[(size_t) expression] && (size_t) scopeChannelOf (n) == channel)
-            sendExpression (n, expression, value);
+        if (n.inUse && n.started && ! n.stopPending && (size_t) scopeChannelOf (n) == channel)
+            sendCombined (n, expression);
 }
 
 //==============================================================================
-void ClapNoteTranslator::sendNote (uint16_t type, const Note& n, double velocity)
+bool ClapNoteTranslator::sendNote (uint16_t type, const Note& n, double velocity)
 {
     if (target == nullptr)
-        return;
+        return false;
 
     clap_event_note_t event {};
     event.header = makeClapHeader<clap_event_note_t> (type, time);
@@ -390,7 +488,7 @@ void ClapNoteTranslator::sendNote (uint16_t type, const Note& n, double velocity
     event.channel = (int16_t) (n.channel - 1);
     event.key = (int16_t) n.key;
     event.velocity = juce::jlimit (0.0, 1.0, velocity);
-    target->push (event);
+    return target->push (event, ClapEventList::Priority::essential);
 }
 
 void ClapNoteTranslator::sendExpression (const Note& n, int expression, double value)
@@ -426,7 +524,34 @@ void ClapNoteTranslator::sendMidi (const juce::MidiMessage& message)
     for (int i = 0; i < size; ++i)
         event.data[i] = message.getRawData()[i];
 
-    target->push (event);
+    // Notes, and controllers such as the sustain pedal, mustn't be lost; a bend or pressure value
+    // is soon replaced by the next one.
+    const auto essential = message.isNoteOnOrOff() || message.isController() || message.isProgramChange();
+
+    if (target->push (event, essential ? ClapEventList::Priority::essential : ClapEventList::Priority::normal))
+        midiSent = true;
+}
+
+void ClapNoteTranslator::sendToZone (const juce::MidiMessage& message)
+{
+    sendMidi (message);
+
+    // A synth that isn't in MPE mode applies a channel's controllers to the notes on that channel,
+    // and the notes are on the member channels.
+    const auto& zones = decoder.getZones();
+    const auto channel = message.getChannel();
+
+    if (decoder.getSettings().mode == InputSettings::Mode::singleChannel || ! zones.isMasterChannel (channel))
+        return;
+
+    const auto zone = zones.zoneOfChannel (channel);
+
+    for (int i = 0; i < zones.numMembers (zone); ++i)
+    {
+        auto copy = message;
+        copy.setChannel (zones.memberChannel (zone, i));
+        sendMidi (copy);
+    }
 }
 
 bool ClapNoteTranslator::isProtocolMessage (const juce::MidiMessage& message) const noexcept

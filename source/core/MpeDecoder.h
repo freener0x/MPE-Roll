@@ -67,6 +67,9 @@ public:
     /** Forgets all notes and channel state without reporting anything. */
     void reset();
 
+    /** Forgets the held notes only, keeping channel state (bends, pressure, controllers). */
+    void forgetNotes();
+
     int getNumHeldNotes() const noexcept;
 
 private:
@@ -80,6 +83,7 @@ private:
         int timbreLsb = 0;
         int hiResPrefix = -1;           // MPE+ CC87 waiting for its message
         std::array<int8_t, 128> controllers;
+        std::array<int8_t, 128> polyPressure;   // per key, kept like MIDI keeps it: it can come before the note
         int rpnMsb = 127, rpnLsb = 127;
         bool nrpnSelected = false;
         int dataMsb = -1;
