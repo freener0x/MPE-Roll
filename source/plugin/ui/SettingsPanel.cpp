@@ -109,9 +109,11 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     Comps output;
     output.add (new InfoProp ("Synth is played with", [this, settings]
                               { return processor.getSynth().describeConnection (settings().output); }));
+   #if MPEROLL_HOST_CLAP
     output.add (new BoolProp ("CLAP note expressions",
         [settings] { return settings().output.clapNoteExpressions; },
         [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.clapNoteExpressions = b; }); }));
+   #endif
     output.add (new ChoiceProp ("Synth expects", { "MPE", "Plain MIDI (one channel)" },
         [settings] { return (int) settings().output.mode; },
         [this] (int i) { edit ([i] (EngineSettings& e) { e.output.mode = (OutputSettings::Mode) i; }); }));

@@ -25,6 +25,32 @@
  #pragma warning (pop)
 #endif
 
+// fst.h gives opcodes nobody had documented a placeholder value (100000 and up) that no plugin
+// would ever send or answer. Every opcode JUCE's VST2 host uses has to be the real one.
+#define MPEROLL_FST_REAL_OPCODE(name) static_assert (name < 100000, #name " is still an FST placeholder");
+
+MPEROLL_FST_REAL_OPCODE (audioMasterIdle)                       MPEROLL_FST_REAL_OPCODE (audioMasterPinConnected)
+MPEROLL_FST_REAL_OPCODE (audioMasterSetTime)                    MPEROLL_FST_REAL_OPCODE (audioMasterGetNumAutomatableParameters)
+MPEROLL_FST_REAL_OPCODE (audioMasterGetParameterQuantization)   MPEROLL_FST_REAL_OPCODE (audioMasterIOChanged)
+MPEROLL_FST_REAL_OPCODE (audioMasterNeedIdle)                   MPEROLL_FST_REAL_OPCODE (audioMasterGetInputLatency)
+MPEROLL_FST_REAL_OPCODE (audioMasterGetOutputLatency)           MPEROLL_FST_REAL_OPCODE (audioMasterGetPreviousPlug)
+MPEROLL_FST_REAL_OPCODE (audioMasterGetNextPlug)                MPEROLL_FST_REAL_OPCODE (audioMasterWillReplaceOrAccumulate)
+MPEROLL_FST_REAL_OPCODE (audioMasterGetAutomationState)         MPEROLL_FST_REAL_OPCODE (audioMasterOfflineStart)
+MPEROLL_FST_REAL_OPCODE (audioMasterOfflineRead)                MPEROLL_FST_REAL_OPCODE (audioMasterOfflineWrite)
+MPEROLL_FST_REAL_OPCODE (audioMasterOfflineGetCurrentPass)      MPEROLL_FST_REAL_OPCODE (audioMasterOfflineGetCurrentMetaPass)
+MPEROLL_FST_REAL_OPCODE (audioMasterSetOutputSampleRate)        MPEROLL_FST_REAL_OPCODE (audioMasterGetOutputSpeakerArrangement)
+MPEROLL_FST_REAL_OPCODE (audioMasterVendorSpecific)             MPEROLL_FST_REAL_OPCODE (audioMasterSetIcon)
+MPEROLL_FST_REAL_OPCODE (audioMasterGetLanguage)                MPEROLL_FST_REAL_OPCODE (audioMasterOpenWindow)
+MPEROLL_FST_REAL_OPCODE (audioMasterCloseWindow)                MPEROLL_FST_REAL_OPCODE (audioMasterGetDirectory)
+MPEROLL_FST_REAL_OPCODE (effConnectInput)                       MPEROLL_FST_REAL_OPCODE (effConnectOutput)
+MPEROLL_FST_REAL_OPCODE (effEditTop)                            MPEROLL_FST_REAL_OPCODE (effSetBypass)
+MPEROLL_FST_REAL_OPCODE (effGetTailSize)                        MPEROLL_FST_REAL_OPCODE (effIdle)
+MPEROLL_FST_REAL_OPCODE (effKeysRequired)
+
+#undef MPEROLL_FST_REAL_OPCODE
+
+static_assert (sizeof (VstIntPtr) == sizeof (void*), "VST2 passes pointers in VstIntPtr");
+
 // FST doesn't describe MIDI key names. JUCE's VST2 host declares a query for them, which MPE Roll
 // never makes; these placeholders let it compile, and use an opcode no plugin implements, so the
 // query would simply report that there's no name.

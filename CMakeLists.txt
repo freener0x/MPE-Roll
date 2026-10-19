@@ -24,11 +24,17 @@ FetchContent_Declare(JUCE
 FetchContent_MakeAvailable(JUCE)
 
 # CLAP headers (MIT). Pass -DFETCHCONTENT_SOURCE_DIR_CLAP=/path/to/clap to use a local checkout.
-FetchContent_Declare(clap
-    GIT_REPOSITORY https://github.com/free-audio/clap.git
-    GIT_TAG 1.2.9
-    GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(clap)
+# Only fetched when CLAP hosting is built.
+set(MPEROLL_CLAP_LIBRARY "")
+
+if(MPEROLL_HOST_CLAP)
+    FetchContent_Declare(clap
+        GIT_REPOSITORY https://github.com/free-audio/clap.git
+        GIT_TAG 1.2.9
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(clap)
+    set(MPEROLL_CLAP_LIBRARY clap)
+endif()
 
 # ---------------------------------------------------------------------------------------------
 # Core: the MPE model, encoder/decoder, player, MIDI file IO and FL Studio bridge.
@@ -127,7 +133,7 @@ target_include_directories(MpeRoll PRIVATE source third_party/fst)
 target_compile_definitions(MpeRoll PUBLIC ${MPEROLL_COMMON_DEFINITIONS})
 target_link_libraries(MpeRoll
     PRIVATE
-        clap
+        ${MPEROLL_CLAP_LIBRARY}
         juce::juce_audio_utils
         juce::juce_audio_processors
     PUBLIC
@@ -150,14 +156,19 @@ if(MPEROLL_BUILD_TESTS)
         tests/MpeDecoderTests.cpp
         tests/ClipPlayerTests.cpp
         tests/RoundTripTests.cpp
-        tests/FlScriptExporterTests.cpp
-        source/plugin/clap/ClapNoteTranslator.cpp
-        tests/ClapNoteTranslatorTests.cpp)
+        tests/FlScriptExporterTests.cpp)
+
+    if(MPEROLL_HOST_CLAP)
+        target_sources(MpeRollTests PRIVATE
+            source/plugin/clap/ClapNoteTranslator.cpp
+            tests/ClapNoteTranslatorTests.cpp)
+    endif()
+
     target_include_directories(MpeRollTests PRIVATE source)
     target_compile_definitions(MpeRollTests PRIVATE JUCE_USE_CURL=0 JUCE_WEB_BROWSER=0)
     target_link_libraries(MpeRollTests
         PRIVATE
-            clap
+            ${MPEROLL_CLAP_LIBRARY}
             juce::juce_core
             juce::juce_audio_basics
         PUBLIC
@@ -245,7 +256,7 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         JucePlugin_IsMidiEffect=0)
     target_link_libraries(MpeRollHarness
         PRIVATE
-            clap
+            ${MPEROLL_CLAP_LIBRARY}
             juce::juce_audio_utils
             juce::juce_audio_processors
         PUBLIC

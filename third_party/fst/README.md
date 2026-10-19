@@ -19,3 +19,11 @@ Local changes to `fst.h`:
   JUCE's among them, size that struct on the assumption that it already has room for eight speakers,
   so with the open-ended array they wrote past the end of the block when loading any VST2 plugin.
 - A stray second semicolon after the `t_fstHostOpcode` enum is removed (clang warns about it).
+- The host and effect opcodes FST hadn't yet documented had placeholder values (100000 and up), so
+  JUCE's VST2 host never recognised a plugin asking for, say, its directory or an idle call, and
+  asked plugins for their tail or bypass with numbers they didn't know. They now have their real
+  values, as published in other free hosts' VST2 headers (the VeSTige headers in LMMS and Carla,
+  and the `vst` Rust crate) and consistent with the opcodes FST already knew. The shim checks at
+  compile time that every opcode JUCE uses has a real value.
+- The pointer-sized integer is 64 bits on every 64-bit Windows target (`_WIN64`), ARM64 included,
+  not only on x64.

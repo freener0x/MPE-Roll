@@ -207,6 +207,30 @@ juce::String HostedSynth::getPluginFilePatterns()
     return patterns.joinIntoString (";");
 }
 
+juce::String HostedSynth::describeHostedFormats()
+{
+    juce::StringArray formats { "VST3" };
+
+   #if JUCE_PLUGINHOST_VST
+    formats.add ("VST2");
+   #endif
+
+   #if MPEROLL_HOST_CLAP
+    formats.add ("CLAP");
+   #endif
+
+   #if JUCE_PLUGINHOST_AU && JUCE_MAC
+    formats.add ("AU");
+   #endif
+
+    if (formats.size() == 1)
+        return formats[0];
+
+    const auto last = formats[formats.size() - 1];
+    formats.remove (formats.size() - 1);
+    return formats.joinIntoString (", ") + " or " + last;
+}
+
 void HostedSynth::configure (juce::AudioPluginInstance& plugin)
 {
     plugin.disableNonMainBuses();

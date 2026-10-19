@@ -1,5 +1,6 @@
 #include "Toolbar.h"
 #include "MpeLookAndFeel.h"
+#include "plugin/HostedSynth.h"
 
 namespace mperoll
 {
@@ -49,7 +50,7 @@ Toolbar::Toolbar()
         addAndMakeVisible (c);
 
     synthButton.setButtonText ("Load synth...");
-    synthButton.setTooltip ("Pick the synth MPE Roll plays (VST3, VST2 or CLAP)");
+    synthButton.setTooltip ("Pick the synth MPE Roll plays (" + HostedSynth::describeHostedFormats() + ")");
     showSynthButton.setTooltip ("Open the synth's own window");
 
     for (int i = 0; i < 16; ++i)

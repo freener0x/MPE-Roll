@@ -58,17 +58,23 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+      # Artifacts lose file permissions, which would leave the app's executable without its
+      # executable bit. ditto zips the bundles with their permissions kept.
       - name: Package
         run: |
-          mkdir -p dist
-          cp -R "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" dist/
-          cp -R "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" dist/
-          cp -R "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app" dist/
+          mkdir -p "MPE Roll"
+          cp -R "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" "MPE Roll/"
+          cp -R "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" "MPE Roll/"
+          cp -R "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app" "MPE Roll/"
+          ditto -c -k --keepParent "MPE Roll" MPE-Roll-macOS.zip
+          ditto -x -k MPE-Roll-macOS.zip unzipped
+          test -x "unzipped/MPE Roll/MPE Roll.app/Contents/MacOS/MPE Roll"
 
       - uses: actions/upload-artifact@v4
         with:
           name: MPE-Roll-macOS
-          path: dist
+          path: MPE-Roll-macOS.zip
+          compression-level: 0
 
   linux:
     name: Linux (tests and end-to-end harness)

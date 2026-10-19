@@ -37,6 +37,9 @@ public:
     /** File patterns for the plugin formats this build can host, for a file chooser. */
     static juce::String getPluginFilePatterns();
 
+    /** The plugin formats this build can host, for showing to the user ("VST3, VST2 or CLAP"). */
+    static juce::String describeHostedFormats();
+
     bool isLoaded() const;
     bool isLoading() const noexcept                     { return loading; }
     juce::String getName() const;

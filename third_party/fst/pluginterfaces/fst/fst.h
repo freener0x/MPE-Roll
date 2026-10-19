@@ -111,7 +111,7 @@
 #define VSTCALLBACK
 
  /* t_fstPtrInt: pointer sized int */
-#if defined(_WIN32) && (defined(__x86_64__) || defined (_M_X64))
+#if defined(_WIN64)
 typedef long long t_fstPtrInt;
 #else
 typedef long t_fstPtrInt;
@@ -168,50 +168,50 @@ typedef enum {
 
 
 
-  FST_HOST_OPCODE_UNKNOWN(CloseWindow), /* ?, return 0 */
-  FST_HOST_OPCODE_UNKNOWN(OpenWindow), /* ?, return 0 */
-  FST_HOST_OPCODE_UNKNOWN(SetIcon), /* ?, return 0 */
+  FST_HOST_OPCODE(CloseWindow, 40), /* ?, return 0 */
+  FST_HOST_OPCODE(OpenWindow, 39), /* ?, return 0 */
+  FST_HOST_OPCODE(SetIcon, 36), /* ?, return 0 */
 
-  FST_HOST_OPCODE_UNKNOWN(GetParameterQuantization), /* ?, return 0 */
-  FST_HOST_OPCODE_UNKNOWN(GetNumAutomatableParameters),
-  FST_HOST_OPCODE_UNKNOWN(GetAutomationState), /* return {unsupported=0, off, read, write, readwrite} */
+  FST_HOST_OPCODE(GetParameterQuantization, 12), /* ?, return 0 */
+  FST_HOST_OPCODE(GetNumAutomatableParameters, 11),
+  FST_HOST_OPCODE(GetAutomationState, 24), /* return {unsupported=0, off, read, write, readwrite} */
 
-  FST_HOST_OPCODE_UNKNOWN(GetInputLatency), /* ?, return 0 */
-  FST_HOST_OPCODE_UNKNOWN(GetOutputLatency), /* ?, return 0 */
+  FST_HOST_OPCODE(GetInputLatency, 18), /* ?, return 0 */
+  FST_HOST_OPCODE(GetOutputLatency, 19), /* ?, return 0 */
 
-  FST_HOST_OPCODE_UNKNOWN(GetDirectory), /* return (char*)plugindirectory */
-  FST_HOST_OPCODE_UNKNOWN(GetLanguage), /* ?, return 0 */
+  FST_HOST_OPCODE(GetDirectory, 41), /* return (char*)plugindirectory */
+  FST_HOST_OPCODE(GetLanguage, 38), /* ?, return 0 */
 
-  FST_HOST_OPCODE_UNKNOWN(GetOutputSpeakerArrangement), /* ?, return 0 */
+  FST_HOST_OPCODE(GetOutputSpeakerArrangement, 31), /* ?, return 0 */
 
-  FST_HOST_OPCODE_UNKNOWN(OfflineGetCurrentMetaPass), /* ?, return 0 */
-  FST_HOST_OPCODE_UNKNOWN(OfflineGetCurrentPass), /* ?, return 0 */
-  FST_HOST_OPCODE_UNKNOWN(OfflineRead), /* ?, return 0 */
-  FST_HOST_OPCODE_UNKNOWN(OfflineStart), /* ?, return 0 */
-  FST_HOST_OPCODE_UNKNOWN(OfflineWrite), /* ?, return 0 */
+  FST_HOST_OPCODE(OfflineGetCurrentMetaPass, 29), /* ?, return 0 */
+  FST_HOST_OPCODE(OfflineGetCurrentPass, 28), /* ?, return 0 */
+  FST_HOST_OPCODE(OfflineRead, 26), /* ?, return 0 */
+  FST_HOST_OPCODE(OfflineStart, 25), /* ?, return 0 */
+  FST_HOST_OPCODE(OfflineWrite, 27), /* ?, return 0 */
 
-  FST_HOST_OPCODE_UNKNOWN(GetNextPlug), /* ?, return 0 */
-  FST_HOST_OPCODE_UNKNOWN(GetPreviousPlug), /* ?, return 0 */
+  FST_HOST_OPCODE(GetNextPlug, 21), /* ?, return 0 */
+  FST_HOST_OPCODE(GetPreviousPlug, 20), /* ?, return 0 */
 
-  FST_HOST_OPCODE_UNKNOWN(Idle), /* return 0 */
-  FST_HOST_OPCODE_UNKNOWN(NeedIdle), /* return 0 */
+  FST_HOST_OPCODE(Idle, 3), /* return 0 */
+  FST_HOST_OPCODE(NeedIdle, 14), /* return 0 */
 
-  FST_HOST_OPCODE_UNKNOWN(IOChanged), /* return 0 */
-  FST_HOST_OPCODE_UNKNOWN(PinConnected), /* IN:index, IN:ivalue(isOutput), return isValidChannel */
+  FST_HOST_OPCODE(IOChanged, 13), /* return 0 */
+  FST_HOST_OPCODE(PinConnected, 4), /* IN:index, IN:ivalue(isOutput), return isValidChannel */
 
-  FST_HOST_OPCODE_UNKNOWN(SetOutputSampleRate),
-  FST_HOST_OPCODE_UNKNOWN(SetTime), /* ?, return 0 */
+  FST_HOST_OPCODE(SetOutputSampleRate, 30),
+  FST_HOST_OPCODE(SetTime, 9), /* ?, return 0 */
 
-  FST_HOST_OPCODE_UNKNOWN(WillReplaceOrAccumulate), /* ?, return 0 */
+  FST_HOST_OPCODE(WillReplaceOrAccumulate, 22), /* ?, return 0 */
 
-  FST_HOST_OPCODE_UNKNOWN(VendorSpecific), /* ?, return 0 */
+  FST_HOST_OPCODE(VendorSpecific, 35), /* ?, return 0 */
 
   /* the following opcodes are used by MrsWatson */
-  FST_HOST_OPCODE_UNKNOWN(OpenFileSelector),
-  FST_HOST_OPCODE_UNKNOWN(CloseFileSelector),
-  FST_HOST_OPCODE_UNKNOWN(EditFile),
-  FST_HOST_OPCODE_UNKNOWN(GetChunkFile),
-  FST_HOST_OPCODE_UNKNOWN(GetInputSpeakerArrangement),
+  FST_HOST_OPCODE(OpenFileSelector, 45),
+  FST_HOST_OPCODE(CloseFileSelector, 46),
+  FST_HOST_OPCODE(EditFile, 47),
+  FST_HOST_OPCODE(GetChunkFile, 48),
+  FST_HOST_OPCODE(GetInputSpeakerArrangement, 49),
 
   fst_audioMasterLast /* last enum */
 } t_fstHostOpcode;
@@ -299,28 +299,28 @@ typedef enum {
   FST_EFFECT_OPCODE(SetProcessPrecision, 77), /* IN:ivalue(ProcessPrecision64,..), return !isProcessing */
 
 
-  FST_EFFECT_OPCODE_UNKNOWN(KeysRequired), /* return ((bool)KeyboardFocusRequireq; 59?? */
+  FST_EFFECT_OPCODE(KeysRequired, 57), /* return ((bool)KeyboardFocusRequired */
 
 
-  FST_EFFECT_OPCODE_UNKNOWN(EditDraw),
-  FST_EFFECT_OPCODE_UNKNOWN(EditMouse),
-  FST_EFFECT_OPCODE_UNKNOWN(EditSleep),
-  FST_EFFECT_OPCODE_UNKNOWN(EditTop),
+  FST_EFFECT_OPCODE(EditDraw, 16),
+  FST_EFFECT_OPCODE(EditMouse, 17),
+  FST_EFFECT_OPCODE(EditSleep, 21),
+  FST_EFFECT_OPCODE(EditTop, 20),
 
-  FST_EFFECT_OPCODE_UNKNOWN(GetNumMidiInputChannels), /* return 16*isMidi */
-  FST_EFFECT_OPCODE_UNKNOWN(GetNumMidiOutputChannels), /* return 16*isMidi */
+  FST_EFFECT_OPCODE(GetNumMidiInputChannels, 78), /* return 16*isMidi */
+  FST_EFFECT_OPCODE(GetNumMidiOutputChannels, 79), /* return 16*isMidi */
 
-  FST_EFFECT_OPCODE_UNKNOWN(SetBypass), /* IN:ivalue, return 0; effCanDo("bypass") */
-  FST_EFFECT_OPCODE_UNKNOWN(GetTailSize), /* return audiotailInSamples */
+  FST_EFFECT_OPCODE(SetBypass, 44), /* IN:ivalue, return 0; effCanDo("bypass") */
+  FST_EFFECT_OPCODE(GetTailSize, 52), /* return audiotailInSamples */
 
-  FST_EFFECT_OPCODE_UNKNOWN(ConnectInput),
-  FST_EFFECT_OPCODE_UNKNOWN(ConnectOutput),
+  FST_EFFECT_OPCODE(ConnectInput, 31),
+  FST_EFFECT_OPCODE(ConnectOutput, 32),
 
-  FST_EFFECT_OPCODE_UNKNOWN(Idle),
+  FST_EFFECT_OPCODE(Idle, 53),
 
 FST_WARNING("document origin of eff*SetProgram")
-  FST_EFFECT_OPCODE_UNKNOWN(BeginSetProgram),
-  FST_EFFECT_OPCODE_UNKNOWN(EndSetProgram),
+  FST_EFFECT_OPCODE(BeginSetProgram, 67),
+  FST_EFFECT_OPCODE(EndSetProgram, 68),
 
   fst_effLast, /* the enum */
 } t_fstPluginOpcode;
