@@ -232,6 +232,7 @@ public:
         {
             OutputSettings s;
             s.mode = OutputSettings::Mode::singleChannel;
+            s.pressureTarget = OutputSettings::PressureTarget::polyAftertouch;
             MpeEncoder enc;
             enc.setSettings (s);
             juce::MidiBuffer out;
@@ -251,6 +252,116 @@ public:
             expectEquals ((int) m.size(), 2);
             expect (m[0].message.isAftertouch() && m[0].message.getNoteNumber() == 60);
             expect (m[1].message.isPitchWheel() && m[1].message.getPitchWheelValue() == 8192 + 4096);
+        }
+
+        beginTest ("Single channel mode: the newest note's pressure is the channel pressure, added to the zone's");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+
+            enc.prepareNote (out, 0, 1, 60);
+            enc.setPressure (out, 0, 1, 0.25f);
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.prepareNote (out, 0, 2, 64);
+            enc.startNote (out, 0, 2, 0.5f);
+            auto m = collect (out);
+            expectEquals (countIf (m, [] (const juce::MidiMessage& msg) { return msg.isAftertouch(); }), 0);
+            expect (m.back().message.isNoteOn() && m.back().message.getNoteNumber() == 64);
+            expect (m[m.size() - 2].message.isChannelPressure() && m[m.size() - 2].message.getChannelPressureValue() == 0,
+                    "a new note doesn't inherit the previous one's pressure");
+            out.clear();
+
+            enc.setPressure (out, 0, 1, 0.75f);     // not the newest note: it doesn't speak for the channel
+            enc.setPressure (out, 0, 2, 0.5f);
+            enc.setZonePressure (out, 0, 0.25f);
+            m = collect (out);
+            expectEquals ((int) m.size(), 2);
+            expect (m[0].message.isChannelPressure() && m[0].message.getChannelPressureValue() == MpeEncoder::toSevenBit (0.5f));
+            expect (m[1].message.isChannelPressure() && m[1].message.getChannelPressureValue() == MpeEncoder::toSevenBit (0.75f));
+            out.clear();
+
+            enc.stopNote (out, 0, 2, 0.5f);         // the other note takes over the channel
+            m = collect (out);
+            expectEquals (countIf (m, [] (const juce::MidiMessage& msg) { return msg.isChannelPressure(); }), 1);
+            expectEquals (countIf (m, [] (const juce::MidiMessage& msg)
+                                   { return msg.isChannelPressure() && msg.getChannelPressureValue() == 127; }), 1,
+                          "0.75 + 0.25");
+            out.clear();
+
+            enc.resetZoneControllers (out, 0);
+            m = collect (out);
+            expectEquals ((int) m.size(), 1);
+            expect (m[0].message.isChannelPressure() && m[0].message.getChannelPressureValue() == MpeEncoder::toSevenBit (0.75f),
+                    "the held note keeps its own pressure");
+            out.clear();
+
+            enc.stopNote (out, 0, 1, 0.5f);
+            enc.resetZoneControllers (out, 0);
+            m = collect (out);
+            expect (m.back().message.isChannelPressure() && m.back().message.getChannelPressureValue() == 0);
+        }
+
+        beginTest ("Single channel mode: pressure on a controller follows the newest note");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            s.pressureTarget = OutputSettings::PressureTarget::controller;
+            s.pressureController = 2;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+
+            enc.prepareNote (out, 0, 1, 60);
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.prepareNote (out, 0, 2, 64);
+            enc.startNote (out, 0, 2, 0.5f);
+            out.clear();
+
+            enc.setPressure (out, 0, 1, 1.0f);      // ignored
+            enc.setPressure (out, 0, 2, 0.5f);
+            enc.setZonePressure (out, 0, 0.25f);    // still channel pressure, apart from the notes' controller
+            auto m = collect (out);
+            expectEquals ((int) m.size(), 2);
+            expect (m[0].message.isControllerOfType (2) && m[0].message.getControllerValue() == MpeEncoder::toSevenBit (0.5f));
+            expect (m[1].message.isChannelPressure() && m[1].message.getChannelPressureValue() == MpeEncoder::toSevenBit (0.25f));
+            out.clear();
+
+            enc.stopNote (out, 0, 2, 0.5f);
+            expectEquals (countIf (collect (out), [] (const juce::MidiMessage& msg)
+                                   { return msg.isControllerOfType (2) && msg.getControllerValue() == 127; }), 1,
+                          "the other note takes over");
+        }
+
+        beginTest ("Single channel mode: a release keeps its bend and pressure, the next note resets them");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+
+            enc.prepareNote (out, 0, 1, 60);
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.setPitch (out, 0, 1, 1.0f);
+            enc.setPressure (out, 0, 1, 0.5f);
+            out.clear();
+
+            enc.stopNote (out, 0, 1, 0.5f);
+            auto m = collect (out);
+            expectEquals ((int) m.size(), 1);
+            expect (m[0].message.isNoteOff(), "the release tail isn't retuned or let go");
+            out.clear();
+
+            enc.prepareNote (out, 0, 2, 62);
+            enc.startNote (out, 0, 2, 0.5f);
+            m = collect (out);
+            expectEquals ((int) m.size(), 3);
+            expect (m[0].message.isPitchWheel() && m[0].message.getPitchWheelValue() == 8192);
+            expect (m[1].message.isChannelPressure() && m[1].message.getChannelPressureValue() == 0);
+            expect (m[2].message.isNoteOn());
         }
 
         beginTest ("Two zones split the keyboard");

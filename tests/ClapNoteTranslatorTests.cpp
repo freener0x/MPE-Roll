@@ -529,6 +529,7 @@ public:
         {
             OutputSettings s;
             s.mode = OutputSettings::Mode::singleChannel;
+            s.pressureTarget = OutputSettings::PressureTarget::polyAftertouch;
             MpeEncoder enc;
             enc.setSettings (s);
             ClapNoteTranslator t;
@@ -552,6 +553,32 @@ public:
                     ++pressureOnSecond;
 
             expectEquals (pressureOnSecond, 0, "the second note doesn't inherit the first one's pressure");
+        }
+
+        beginTest ("Plain MIDI: the newest note's channel pressure reaches the synth's notes");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            ClapNoteTranslator t;
+            t.setOutputSettings (s);
+
+            juce::MidiBuffer midi;
+            enc.prepareNote (midi, 0, 1, 60);
+            enc.setPressure (midi, 0, 1, 0.8f);
+            enc.startNote (midi, 0, 1, 0.9f);
+            enc.setZonePressure (midi, 10, 0.1f);
+
+            const auto r = run (t, midi);
+            const auto pressure = r.valuesOf (CLAP_NOTE_EXPRESSION_PRESSURE);
+            expectEquals ((int) pressure.size(), 2);
+
+            if (pressure.size() == 2)
+            {
+                expectWithinAbsoluteError (pressure[0], 0.8, 0.01, "the note starts with its pressure");
+                expectWithinAbsoluteError (pressure[1], 0.9, 0.01, "the zone's is added");
+            }
         }
 
         beginTest ("It reads what MpeEncoder writes, MPE+ and wide bend ranges included");

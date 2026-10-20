@@ -88,6 +88,11 @@ bool MpeEncoder::isSingleChannelMode() const noexcept
     return settings.mode == OutputSettings::Mode::singleChannel || ! settings.zones.hasAnyZone();
 }
 
+bool MpeEncoder::combinesZonePressure() const noexcept
+{
+    return isSingleChannelMode() && settings.pressureTarget == OutputSettings::PressureTarget::channelPressure;
+}
+
 int MpeEncoder::zoneForKey (int key) const noexcept
 {
     const auto& z = settings.zones;
@@ -233,9 +238,12 @@ void MpeEncoder::releaseVoice (juce::MidiBuffer& out, int samplePos, Voice& v, f
 
     v = Voice {};
 
-    if (wasLead)
+    // The next newest note takes over the channel. After the last one the channel keeps its values,
+    // so the release tail doesn't jump; the next note sends its own before its Note On.
+    if (wasLead && numActive > 0)
     {
         sendSingleChannelPitch (out, samplePos, false);
+        sendSingleChannelPressure (out, samplePos, false);
 
         if (auto* lead = leadVoice())
             sendTimbre (out, samplePos, settings.singleChannel, lead->timbre, false);
@@ -391,6 +399,7 @@ void MpeEncoder::prepareNote (juce::MidiBuffer& out, int samplePos, Handle handl
     voice->started = false;
     voice->order = ++clock;
     voice->pitch = 0.0f;
+    voice->pressure = 0.0f;
     voice->timbre = settings.defaultTimbre;
 
     activeList[(size_t) numActive++] = (int) (voice - voices.data());
@@ -409,6 +418,7 @@ void MpeEncoder::startNote (juce::MidiBuffer& out, int samplePos, Handle handle,
     if (isSingleChannelMode())
     {
         sendSingleChannelPitch (out, samplePos, false);
+        sendSingleChannelPressure (out, samplePos, false);
     }
     else if (st.numVoices == 1)
     {
@@ -466,6 +476,7 @@ void MpeEncoder::stopAllNotes (juce::MidiBuffer& out, int samplePos)
 void MpeEncoder::resetControllers (juce::MidiBuffer& out, int samplePos)
 {
     zonePitch = 0.0f;
+    zonePressure = 0.0f;
 
     for (int ch = 1; ch <= 16; ++ch)
     {
@@ -491,6 +502,12 @@ void MpeEncoder::resetZoneControllers (juce::MidiBuffer& out, int samplePos)
         sendSingleChannelPitch (out, samplePos, false);
     }
 
+    if (combinesZonePressure())
+    {
+        zonePressure = 0.0f;
+        sendSingleChannelPressure (out, samplePos, false);
+    }
+
     forEachZoneMaster ([&] (int ch)
     {
         auto& st = channels[(size_t) ch];
@@ -498,7 +515,7 @@ void MpeEncoder::resetZoneControllers (juce::MidiBuffer& out, int samplePos)
         if (! isSingleChannelMode() && st.pitchBend >= 0 && st.pitchBend != centreKey)
             sendPitchBend (out, samplePos, ch, pitchBendCentre, true);
 
-        if (st.pressure > 0)
+        if (! combinesZonePressure() && st.pressure > 0)
             sendChannelPressure (out, samplePos, ch, 0.0f, true);
 
         for (auto pedal : { 64, 66, 67, 68, 69 })
@@ -531,11 +548,23 @@ void MpeEncoder::setPitch (juce::MidiBuffer& out, int samplePos, Handle handle, 
 
 void MpeEncoder::setPressure (juce::MidiBuffer& out, int samplePos, Handle handle, float value)
 {
-    if (auto* v = findVoice (handle))
+    auto* v = findVoice (handle);
+
+    if (v == nullptr)
+        return;
+
+    v->pressure = value;
+
+    if (isSingleChannelMode() && settings.pressureTarget != OutputSettings::PressureTarget::polyAftertouch)
     {
-        sendNotePressure (out, samplePos, *v, value, ! v->started);
-        channels[(size_t) v->channel].pressureTouched = true;
+        if (isLead (*v))
+            sendSingleChannelPressure (out, samplePos, ! v->started);
+
+        return;
     }
+
+    sendNotePressure (out, samplePos, *v, value, ! v->started);
+    channels[(size_t) v->channel].pressureTouched = true;
 }
 
 void MpeEncoder::setTimbre (juce::MidiBuffer& out, int samplePos, Handle handle, float value)
@@ -583,6 +612,13 @@ void MpeEncoder::setZonePitch (juce::MidiBuffer& out, int samplePos, float semit
 
 void MpeEncoder::setZonePressure (juce::MidiBuffer& out, int samplePos, float value)
 {
+    if (combinesZonePressure())
+    {
+        zonePressure = value;
+        sendSingleChannelPressure (out, samplePos, false);
+        return;
+    }
+
     forEachZoneMaster ([&] (int ch) { sendChannelPressure (out, samplePos, ch, value, false); });
 }
 
@@ -607,6 +643,22 @@ void MpeEncoder::sendSingleChannelPitch (juce::MidiBuffer& out, int samplePos, b
     const auto semitones = zonePitch + (lead != nullptr ? lead->pitch : 0.0f);
     sendPitchBend (out, samplePos, settings.singleChannel,
                    semitonesToPitchBendFine (semitones, settings.masterBendRange), force);
+}
+
+void MpeEncoder::sendSingleChannelPressure (juce::MidiBuffer& out, int samplePos, bool force)
+{
+    // As poly aftertouch every note keeps its own pressure. Otherwise the newest note's stands for the
+    // channel, as its pitch does; sent as channel pressure, it's added to the zone's.
+    if (settings.pressureTarget == OutputSettings::PressureTarget::polyAftertouch)
+        return;
+
+    const auto* lead = leadVoice();
+    const auto own = lead != nullptr ? lead->pressure : 0.0f;
+
+    if (settings.pressureTarget == OutputSettings::PressureTarget::controller)
+        sendController (out, samplePos, settings.singleChannel, settings.pressureController, toSevenBit (own), force);
+    else
+        sendChannelPressure (out, samplePos, settings.singleChannel, zonePressure + own, force);
 }
 
 void MpeEncoder::sendPitchBend (juce::MidiBuffer& out, int samplePos, int channel, double value, bool force)

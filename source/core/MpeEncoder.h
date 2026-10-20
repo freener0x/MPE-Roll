@@ -89,6 +89,7 @@ private:
         bool started = false;
         uint64_t order = 0;
         float pitch = 0.0f;
+        float pressure = 0.0f;
         float timbre = 0.5f;
     };
 
@@ -114,8 +115,10 @@ private:
     std::array<ChannelState, 17> channels;      // 1-based
     uint64_t clock = 0;
     float zonePitch = 0.0f;                     // single-channel mode combines zone and lead pitch
+    float zonePressure = 0.0f;                  // ...and, sent as channel pressure, zone and lead pressure
 
     bool isSingleChannelMode() const noexcept;
+    bool combinesZonePressure() const noexcept;
     int zoneForKey (int key) const noexcept;
     int chooseMemberChannel (juce::MidiBuffer&, int samplePos, int zone, int key);
 
@@ -129,6 +132,7 @@ private:
     const Voice* leadVoice() const noexcept;
 
     void sendSingleChannelPitch (juce::MidiBuffer&, int samplePos, bool force);
+    void sendSingleChannelPressure (juce::MidiBuffer&, int samplePos, bool force);
     void sendPitchBend (juce::MidiBuffer&, int samplePos, int channel, double value, bool force);
     void sendChannelPressure (juce::MidiBuffer&, int samplePos, int channel, float value, bool force);
     void sendPolyPressure (juce::MidiBuffer&, int samplePos, int channel, int key, int value, bool force);
