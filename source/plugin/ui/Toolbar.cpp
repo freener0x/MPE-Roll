@@ -45,7 +45,8 @@ Toolbar::Toolbar()
 {
     for (auto* c : std::initializer_list<juce::Component*> {
              &synthButton, &showSynthButton, &slotBox, &lengthBox, &modeBox, &loopButton, &recordButton,
-             &settingsButton, &editToolButton, &glideToolButton, &glideSnapButton, &snapBox, &undoButton, &redoButton, &midiButton,
+             &settingsButton, &editToolButton, &paintToolButton, &glideToolButton, &glideSnapButton, &snapBox,
+             &undoButton, &redoButton, &midiButton,
              &flButton, &status })
         addAndMakeVisible (c);
 
@@ -76,11 +77,15 @@ Toolbar::Toolbar()
     recordButton.setColour (juce::TextButton::buttonOnColourId, Theme::record.darker (0.3f));
     recordButton.setTooltip ("Record MPE from your controller while FL plays (overdubs into the clip)");
 
-    editToolButton.setClickingTogglesState (true);
-    glideToolButton.setClickingTogglesState (true);
-    editToolButton.setRadioGroupId (11);
-    glideToolButton.setRadioGroupId (11);
+    for (auto* b : { &editToolButton, &paintToolButton, &glideToolButton })
+    {
+        b->setClickingTogglesState (true);
+        b->setRadioGroupId (11);
+    }
+
     editToolButton.setTooltip ("Edit notes (E)");
+    paintToolButton.setTooltip ("Paint notes (B): drag to lay down notes one after another on the grid, each as long "
+                                "as the last note you placed or resized. Right-drag deletes.");
     glideToolButton.setTooltip ("Draw pitch glides on notes (G): drag from where the glide starts to the pitch it "
                                 "reaches. Right-drag erases, double-click clears.");
     glideSnapButton.setClickingTogglesState (true);
@@ -131,6 +136,7 @@ void Toolbar::resized()
     settingsButton.setBounds (row1.removeFromRight (110));
 
     place (row2, editToolButton, 52, 2);
+    place (row2, paintToolButton, 56, 2);
     place (row2, glideToolButton, 56, 2);
     place (row2, glideSnapButton, 84, 10);
     place (row2, snapBox, 110, 14);

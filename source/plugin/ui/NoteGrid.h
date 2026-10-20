@@ -12,7 +12,9 @@ namespace mperoll
 
     Mouse (FL Studio conventions): click empty space to add a note and drag to place it, drag a
     note to move it, drag its right edge to resize, right-click/drag to delete, Ctrl-drag to
-    select, Shift-drag to duplicate, Alt to bypass snap. With the Glide tool, drag from a point on a
+    select, Shift-drag to duplicate, Alt to bypass snap. With the Paint tool, drag to lay down notes
+    one after another, each as long as the last note placed, from a snapped start (right-drag deletes,
+    as with the Edit tool). With the Glide tool, drag from a point on a
     note to the pitch the glide should reach: with glide snap on it lands on a whole semitone and the
     grid, in a straight line from where the note's pitch was; hold Alt to draw freehand instead.
     Right-drag erases a glide, double-click clears it.
@@ -49,7 +51,7 @@ public:
     void nudgeSelection (double beats);
 
 private:
-    enum class DragMode { none, move, resize, marquee, erase, glide, glideErase };
+    enum class DragMode { none, move, resize, marquee, erase, paint, glide, glideErase };
 
     struct Original
     {
@@ -72,6 +74,10 @@ private:
     double playheadBeat = 0.0;
     bool playheadVisible = false;
     float lastVelocity = 0.8f;
+
+    double paintOrigin = 0.0;                   // where the first painted note starts...
+    double paintLength = 1.0;                   // ...and how far apart (and how long) the notes are
+    long paintSlot = 0;                         // the last slot painted, counted in notes from the origin
 
     uint32_t glideNote = 0;
     bool glideStarted = false, glideSnapped = false;
@@ -96,6 +102,8 @@ private:
     void dragMove (const juce::MouseEvent&);
     void dragResize (const juce::MouseEvent&);
     void eraseAt (juce::Point<float> position);
+    void startPaint (juce::Point<float> position, bool bypassSnap);
+    void paintTo (juce::Point<float> position, bool first);
     void startGlide (const MpeNote&, juce::Point<float> position, bool snapped);
     void drawGlide (juce::Point<float> position);
     void eraseGlide (juce::Point<float> position);

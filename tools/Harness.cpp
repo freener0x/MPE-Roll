@@ -978,6 +978,35 @@ int uiTest()
         juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
     }
 
+    std::printf ("Paint tool\n");
+    {
+        // The last note placed is 2 beats long, so a drag from beat 8.1 to 13.9 paints at 8, 10 and 12.
+        grid->keyPressed (juce::KeyPress ('b'));
+        check (view.tool == ViewState::Tool::paint, "B picks the Paint tool");
+
+        const auto before = clip().notes.size();
+        const auto left = juce::ModifierKeys (juce::ModifierKeys::leftButtonModifier);
+        gesture (*grid, at (8.1, 72.0f), at (13.9, 72.0f), left, 12);
+
+        std::vector<double> starts;
+
+        for (const auto& n : clip().notes)
+            if (n.key == 72)
+                starts.push_back (n.start);
+
+        check (clip().notes.size() == before + 3 && (starts == std::vector<double> { 8.0, 10.0, 12.0 }),
+               "dragging paints snapped notes one after another");
+        check (std::all_of (clip().notes.begin(), clip().notes.end(),
+                            [] (const MpeNote& n) { return n.key != 72 || std::abs (n.length - 2.0) < 1.0e-9; }),
+               "each as long as the last note placed");
+
+        gesture (*grid, at (13.9, 72.0f), at (8.1, 72.0f), left, 12);
+        check (clip().notes.size() == before + 3, "painting back over them adds nothing (and leaves nothing to undo)");
+
+        document.getUndoManager().undo();
+        check (clip().notes.size() == before, "one undo takes the whole stroke away");
+    }
+
     grid->keyPressed (juce::KeyPress ('e'));
 
     std::printf ("Expression lane\n");

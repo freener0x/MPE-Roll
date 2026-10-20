@@ -11,7 +11,7 @@ namespace mperoll
 class ViewState
 {
 public:
-    enum class Tool { edit, glide };
+    enum class Tool { edit, paint, glide };
 
     struct Listener
     {

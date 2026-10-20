@@ -231,6 +231,7 @@ void MpeRollEditor::wireToolbar()
     toolbar.settingsButton.onClick = [this] { showSettings(); };
 
     toolbar.editToolButton.onClick = [this] { view.tool = ViewState::Tool::edit; view.changed(); };
+    toolbar.paintToolButton.onClick = [this] { view.tool = ViewState::Tool::paint; view.changed(); };
     toolbar.glideToolButton.onClick = [this] { view.tool = ViewState::Tool::glide; view.changed(); };
     toolbar.glideSnapButton.onClick = [this] { view.snapGlide = toolbar.glideSnapButton.getToggleState(); view.changed(); };
 
@@ -287,6 +288,7 @@ void MpeRollEditor::refreshToolbar()
     toolbar.modeBox.setSelectedId (settings.playback.mode == PlaybackSettings::Mode::noteTrigger ? 2 : 1, juce::dontSendNotification);
     toolbar.snapBox.setSelectedId (Toolbar::indexForSnap (view.snap) + 1, juce::dontSendNotification);
     toolbar.editToolButton.setToggleState (view.tool == ViewState::Tool::edit, juce::dontSendNotification);
+    toolbar.paintToolButton.setToggleState (view.tool == ViewState::Tool::paint, juce::dontSendNotification);
     toolbar.glideToolButton.setToggleState (view.tool == ViewState::Tool::glide, juce::dontSendNotification);
     toolbar.glideSnapButton.setToggleState (view.snapGlide, juce::dontSendNotification);
     toolbar.undoButton.setEnabled (document.getUndoManager().canUndo());
@@ -394,6 +396,7 @@ void MpeRollEditor::viewChanged()
 
     const juce::ScopedValueSetter<bool> svs (updatingToolbar, true);
     toolbar.editToolButton.setToggleState (view.tool == ViewState::Tool::edit, juce::dontSendNotification);
+    toolbar.paintToolButton.setToggleState (view.tool == ViewState::Tool::paint, juce::dontSendNotification);
     toolbar.glideToolButton.setToggleState (view.tool == ViewState::Tool::glide, juce::dontSendNotification);
     toolbar.glideSnapButton.setToggleState (view.snapGlide, juce::dontSendNotification);
     toolbar.snapBox.setSelectedId (Toolbar::indexForSnap (view.snap) + 1, juce::dontSendNotification);

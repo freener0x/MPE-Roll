@@ -44,6 +44,31 @@ namespace
     {
         return juce::MidiMessage::getMidiNoteName (key, true, true, 5);
     }
+
+    /** A paintbrush pointer, its tip (the hot spot) at the bottom left. */
+    juce::MouseCursor brushCursor()
+    {
+        juce::Image image (juce::Image::ARGB, 20, 20, true);
+        juce::Graphics g (image);
+        juce::Path handle;
+        handle.addLineSegment ({ 8.0f, 12.0f, 18.0f, 2.0f }, 3.0f);
+        juce::Path bristles;
+        bristles.startNewSubPath (1.0f, 19.0f);
+        bristles.quadraticTo (2.0f, 12.0f, 7.0f, 10.0f);
+        bristles.lineTo (10.0f, 13.0f);
+        bristles.quadraticTo (8.0f, 18.0f, 1.0f, 19.0f);
+        bristles.closeSubPath();
+
+        for (auto [path, colour] : { std::pair { &handle, Theme::text }, std::pair { &bristles, Theme::note } })
+        {
+            g.setColour (juce::Colours::black);
+            g.strokePath (*path, juce::PathStrokeType (2.0f));
+            g.setColour (colour);
+            g.fillPath (*path);
+        }
+
+        return { image, 1, 18 };
+    }
 }
 
 NoteGrid::NoteGrid (MpeRollProcessor& p, ViewState& v)
@@ -301,6 +326,13 @@ void NoteGrid::mouseMove (const juce::MouseEvent& e)
         return;
     }
 
+    if (view.tool == ViewState::Tool::paint)
+    {
+        static const auto brush = brushCursor();
+        setMouseCursor (brush);
+        return;
+    }
+
     if (auto* n = noteAt (e.position))
         setMouseCursor (isNearEnd (*n, e.position) ? juce::MouseCursor::LeftRightResizeCursor
                                                    : juce::MouseCursor::DraggingHandCursor);
@@ -389,6 +421,14 @@ void NoteGrid::mouseDown (const juce::MouseEvent& e)
         dragMode = DragMode::erase;
         document.beginEdit ("Delete notes");
         eraseAt (e.position);
+        return;
+    }
+
+    if (view.tool == ViewState::Tool::paint && ! e.mods.isCommandDown())
+    {
+        document.beginEdit ("Paint notes");
+        dragMode = DragMode::paint;
+        startPaint (e.position, e.mods.isAltDown());
         return;
     }
 
@@ -538,6 +578,71 @@ void NoteGrid::eraseAt (juce::Point<float> position)
     }
 }
 
+void NoteGrid::startPaint (juce::Point<float> position, bool bypassSnap)
+{
+    paintLength = juce::jmax (minNoteLength, view.lastNoteLength);
+    paintOrigin = juce::jmax (0.0, view.snapFloor (view.xToBeat (position.x), bypassSnap));
+
+    // Starting on a note carries on in its rhythm.
+    if (auto* n = noteAt (position))
+    {
+        paintOrigin = n->start;
+        paintLength = juce::jmax (minNoteLength, n->length);
+        view.lastNoteLength = paintLength;
+        lastVelocity = n->strike;
+    }
+
+    document.selection.clear();
+    paintSlot = 0;
+    paintTo (position, true);
+}
+
+void NoteGrid::paintTo (juce::Point<float> position, bool first)
+{
+    const auto key = juce::jlimit (0, 127, view.yToKey (position.y));
+    const auto slot = (long) std::floor ((view.xToBeat (position.x) - paintOrigin) / paintLength + 1.0e-9);
+
+    if (key != auditionKey)
+        startAudition (key, lastVelocity);
+
+    if (slot == paintSlot && ! first)
+        return;
+
+    // Every slot the pen passed since the last one gets a note, so a fast drag leaves no gaps. Slots
+    // where this key already has a note are left alone, so going back over them adds nothing.
+    auto& clip = document.editClip();
+    const auto step = slot >= paintSlot ? 1L : -1L;
+    bool added = false;
+
+    for (auto s = first ? slot : paintSlot + step;; s += step)
+    {
+        const auto start = paintOrigin + (double) s * paintLength;
+        const auto taken = std::any_of (clip.notes.begin(), clip.notes.end(), [&] (const MpeNote& n)
+        {
+            return n.key == key && n.start < start + paintLength - 1.0e-9 && n.end() > start + 1.0e-9;
+        });
+
+        if (start > -1.0e-9 && ! taken)
+        {
+            MpeNote note;
+            note.key = key;
+            note.start = juce::jmax (0.0, start);
+            note.length = paintLength;
+            note.strike = lastVelocity;
+            document.selection.insert (clip.addNote (note));
+            added = true;
+        }
+
+        if (s == slot)
+            break;
+    }
+
+    paintSlot = slot;
+
+    if (added || first)
+        document.changed();
+}
+
 void NoteGrid::startGlide (const MpeNote& n, juce::Point<float> position, bool snapped)
 {
     glideNote = n.id;
@@ -650,6 +755,7 @@ void NoteGrid::mouseDrag (const juce::MouseEvent& e)
         case DragMode::move:        dragMove (e); break;
         case DragMode::resize:      dragResize (e); break;
         case DragMode::erase:       eraseAt (e.position); break;
+        case DragMode::paint:       paintTo (e.position, false); break;
         case DragMode::glide:       drawGlide (e.position); break;
         case DragMode::glideErase:  eraseGlide (e.position); break;
 
@@ -759,6 +865,7 @@ bool NoteGrid::keyPressed (const juce::KeyPress& key)
         {
             case 'q': quantizeSelection(); return true;
             case 'e': view.tool = ViewState::Tool::edit; view.changed(); return true;
+            case 'b': view.tool = ViewState::Tool::paint; view.changed(); return true;
             case 'g': view.tool = ViewState::Tool::glide; view.changed(); return true;
             default: break;
         }

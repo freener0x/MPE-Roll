@@ -83,6 +83,11 @@ Loading a different synth reassigns the slots.
   right-drag) deletes.
 - **Selection:** Ctrl-drag to select, Ctrl-click to add or remove a note, Ctrl+A for everything.
   Shift-drag duplicates.
+- **Paint tool (B):** drag across the grid to lay down notes one after another, each as long as the
+  last note you placed or resized, starting on the grid (hold **Alt** to start off the grid). Move up
+  or down while dragging to change key. Start on an existing note to carry on in its rhythm and
+  length. Going back over painted notes doesn't double them, a whole stroke is one undo, and the
+  painted notes stay selected so ↑/↓ or ←/→ move them straight away. Right-drag deletes.
 - **Glide tool (G):** press on a note where the glide should start and drag to the pitch it should
   reach. With **Snap glide** on (the default), the glide is a straight line that lands on a whole
   semitone and starts and ends on the grid, and a label shows the interval and the note it lands on.

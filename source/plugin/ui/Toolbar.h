@@ -23,7 +23,8 @@ public:
     juce::TextButton loopButton { "Loop" }, recordButton, settingsButton { "MPE settings" };
 
     // Row 2: editing and exchange.
-    juce::TextButton editToolButton { "Edit" }, glideToolButton { "Glide" }, glideSnapButton { "Snap glide" };
+    juce::TextButton editToolButton { "Edit" }, paintToolButton { "Paint" }, glideToolButton { "Glide" },
+                     glideSnapButton { "Snap glide" };
     juce::ComboBox snapBox;
     juce::TextButton undoButton { "Undo" }, redoButton { "Redo" }, midiButton, flButton { "Send to FL piano roll" };
     juce::Label status;
