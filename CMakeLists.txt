@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# Windows: link the C++ runtime into the plugin, so it loads without the Visual C++
+# Redistributable installed.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 option(MPEROLL_BUILD_PLUGIN "Build the plugin (VST3/AU/Standalone)" ON)
 option(MPEROLL_BUILD_TESTS "Build the core unit tests" ON)
 option(MPEROLL_BUILD_DEV_TOOLS "Build the developer harness (UI snapshots, offline renders)" OFF)
