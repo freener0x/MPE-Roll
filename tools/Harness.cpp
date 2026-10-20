@@ -928,60 +928,33 @@ int uiTest()
 
 // Plugin files are looked at in the scanner process: a crash or hang there doesn't reach MPE Roll.
 // Stands in for MPE Roll Scanner when scantest runs the harness as one. It makes up a plugin named after
-// each file without loading anything, but goes down just after answering for a file named "leaves a crash
-// behind", and just after starting on whichever file follows one named "crashes the next file": as a
-// plugin does that leaves a thread or timer running after it's been looked at.
-class StandInScanner final : private juce::ChildProcessWorker
+// the file without loading anything. For a file named "never starts" it goes down before it gets to the
+// file, for "crashes" while it's looking, and for "crashes on the way out" once it has written what it
+// found, as a plugin does whose clean-up code crashes.
+int standInScanner (const juce::File& job)
 {
-public:
-    using juce::ChildProcessWorker::initialiseFromCommandLine;
+    const auto lines = juce::StringArray::fromLines (job.loadFileAsString());
+    juce::PluginDescription d;
+    d.pluginFormatName = lines[0];
+    d.fileOrIdentifier = lines[1];
+    d.name = juce::File (d.fileOrIdentifier).getFileNameWithoutExtension();
+    d.uniqueId = d.deprecatedUid = d.name.hashCode();
 
-private:
-    bool crashOnNextFile = false;
+    if (d.name == "never starts")
+        std::_Exit (3);
 
-    void say (const juce::String& text)
-    {
-        sendMessageToCoordinator ({ text.toRawUTF8(), text.getNumBytesAsUTF8() });
-    }
+    PluginScanner::startedMarkerFor (job).create();
 
-    void handleConnectionMade() override    { say (PluginScanner::readyMessage); }
-    void handleConnectionLost() override    { std::_Exit (0); }
+    if (d.name == "crashes")
+        std::_Exit (3);
 
-    void handleMessageFromCoordinator (const juce::MemoryBlock& block) override
-    {
-        if (block.isEmpty())
-            return;
+    juce::XmlElement list ("LIST");
+    list.addChildElement (d.createXml().release());
+    PluginScanner::resultFileFor (job).replaceWithText (list.toString());
 
-        juce::MemoryInputStream stream (block, false);
-        juce::PluginDescription d;
-        d.pluginFormatName = stream.readString();
-        d.fileOrIdentifier = stream.readString();
-        d.name = juce::File (d.fileOrIdentifier).getFileNameWithoutExtension();
-        d.uniqueId = d.deprecatedUid = d.name.hashCode();
-        say (PluginScanner::startedMessage);
+    if (d.name == "crashes on the way out")
+        std::_Exit (3);
 
-        if (crashOnNextFile)
-            std::_Exit (3);
-
-        juce::XmlElement list ("LIST");
-        list.addChildElement (d.createXml().release());
-        say (list.toString());
-
-        if (d.name == "leaves a crash behind")
-            std::_Exit (3);
-
-        crashOnNextFile = d.name == "crashes the next file";
-    }
-};
-
-int runStandInScanner (const juce::String& commandLine)
-{
-    StandInScanner scanner;
-
-    if (! scanner.initialiseFromCommandLine (commandLine, PluginScanner::processId))
-        return 1;
-
-    juce::MessageManager::getInstance()->runDispatchLoop();
     return 0;
 }
 
@@ -1007,8 +980,10 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
     std::printf ("A plugin that crashes or hangs only takes the scanner down\n");
     {
         juce::OwnedArray<juce::PluginDescription> found;
+        const auto crashStart = juce::Time::getMillisecondCounterHiRes();
         check (PluginScanner::findTypes ("CLAP", crashing.getFullPathName(), found, 60000) == PluginScanner::Outcome::crashed,
                "a crash is reported as one");
+        check (juce::Time::getMillisecondCounterHiRes() - crashStart < 5000, "at once");
 
         const auto start = juce::Time::getMillisecondCounterHiRes();
         check (PluginScanner::findTypes ("CLAP", hanging.getFullPathName(), found, 3000) == PluginScanner::Outcome::timedOut,
@@ -1054,25 +1029,26 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
                "and the synth after them is listed");
     }
 
-    std::printf ("A file isn't blamed for a scanner that a file before it brought down\n");
+    std::printf ("A file is only blamed for what happened while it was being looked at\n");
     {
         PluginScanner::setExecutableForTesting (juce::File::getSpecialLocation (juce::File::currentExecutableFile));
         const auto folder = juce::File::getSpecialLocation (juce::File::tempDirectory);
-        juce::KnownPluginList list;
-        list.setCustomScanner (std::make_unique<PluginScanner::OutOfProcessScanner> (3000));
-        juce::VST3PluginFormat format;      // only its name reaches the stand-in scanner
+        const auto pathOf = [&folder] (const char* name) { return folder.getChildFile (juce::String (name) + ".vst3").getFullPathName(); };
         juce::OwnedArray<juce::PluginDescription> found;
-        const auto start = juce::Time::getMillisecondCounterHiRes();
 
-        for (auto name : { "leaves a crash behind", "innocent", "crashes the next file", "also innocent" })
-            list.scanAndAddFile (folder.getChildFile (juce::String (name) + ".vst3").getFullPathName(), false, found, format);
+        check (PluginScanner::findTypes ("VST3", pathOf ("crashes on the way out"), found, 10000) == PluginScanner::Outcome::found
+                   && found.size() == 1,
+               "a plugin that crashes after it has been looked at keeps what was found");
+        check (PluginScanner::findTypes ("VST3", pathOf ("crashes"), found, 10000) == PluginScanner::Outcome::crashed,
+               "one that crashes while it's looked at is reported");
+        check (PluginScanner::findTypes ("VST3", pathOf ("never starts"), found, 10000) == PluginScanner::Outcome::unavailable,
+               "a scanner that goes down before it gets to the file says nothing about the file");
 
-        check (list.getBlacklistedFiles().isEmpty(), "none of the files is set aside");
-        check (list.getNumTypes() == 4, "and all four are listed");
-
-        for (const auto& file : list.getBlacklistedFiles())
-            std::printf ("    set aside: %s\n", juce::File (file).getFileName().toRawUTF8());
-        check (juce::Time::getMillisecondCounterHiRes() - start < 15000, "without waiting out a timeout");
+        juce::KnownPluginList list;
+        list.setCustomScanner (std::make_unique<PluginScanner::OutOfProcessScanner> (10000));
+        juce::VST3PluginFormat format;      // only its name reaches the stand-in scanner
+        list.scanAndAddFile (pathOf ("never starts"), false, found, format);
+        check (list.getBlacklistedFiles().isEmpty(), "so a scan doesn't set that file aside");
         PluginScanner::setExecutableForTesting (scanner);
     }
 
@@ -1146,8 +1122,8 @@ int main (int argc, char** argv)
     const juce::StringArray args (argv + 1, argc - 1);
     const auto cwd = juce::File::getCurrentWorkingDirectory();
 
-    if (! args.isEmpty() && args[0].startsWith (juce::String ("--") + PluginScanner::processId + ":"))
-        return runStandInScanner (args.joinIntoString (" "));
+    if (args.size() >= 2 && args[0] == PluginScanner::scanArgument)
+        return standInScanner (cwd.getChildFile (args[1]));
 
     if (args.size() >= 2 && args[0] == "snapshot")
         return snapshot (cwd.getChildFile (args[1]),

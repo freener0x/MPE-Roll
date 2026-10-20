@@ -31,8 +31,8 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    MPE Roll looks inside each plugin file with **MPE Roll Scanner**, a separate program, so a plugin
    that crashes or hangs while it's being looked at only stops the scanner. Such a plugin is listed
    at the end of the scan and skipped afterwards, and *Load plugin file…* refuses it with a message
-   instead of crashing FL. A plugin that crashes the scanner a moment later, after it has been looked
-   at, doesn't get the next file blamed: that file is looked at again in a fresh scanner first. The scanner comes inside the `.vst3` folder; with the `.dll`, keep
+   instead of crashing FL. Each file gets a scanner of its own, so nothing a plugin leaves behind
+   can take the next file down with it. The scanner comes inside the `.vst3` folder; with the `.dll`, keep
    `MPE Roll Scanner.exe` next to it. Without the scanner, plugins are looked at inside FL, where a
    crashing one takes FL down.
 3. Click **Edit synth** to open the synth's own window.
