@@ -2,6 +2,7 @@
 #include "core/FlScriptExporter.h"
 #include "core/MidiFileIO.h"
 #include "ui/SettingsPanel.h"
+#include "ui/WindowDrawing.h"
 
 namespace mperoll
 {
@@ -166,6 +167,14 @@ void MpeRollEditor::resized()
 
     view.clampVertical ((float) grid.getHeight());
     updateScrollBars();
+}
+
+void MpeRollEditor::parentHierarchyChanged()
+{
+    // The window the editor is in only exists once the host has put it on screen, and it's a new
+    // one each time the host reopens it.
+    WindowDrawing::apply (*this, WindowDrawing::getMode (rollProcessor.getSynth().getUserSettings()));
+    ticksSinceWindowCheck = 0;
 }
 
 bool MpeRollEditor::keyPressed (const juce::KeyPress& key)
@@ -356,6 +365,14 @@ void MpeRollEditor::timerCallback()
     {
         transientStatus.clear();
         refreshToolbar();
+    }
+
+    // A host can resize, hide or rescale the window without JUCE hearing about it (FL Studio
+    // reopening a plugin window), which leaves clicks landing away from what's drawn.
+    if (++ticksSinceWindowCheck >= 15)
+    {
+        ticksSinceWindowCheck = 0;
+        WindowDrawing::resync (*this);
     }
 }
 

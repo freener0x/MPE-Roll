@@ -18,6 +18,7 @@
 #include "plugin/PluginScanner.h"
 #include "plugin/ui/SettingsPanel.h"
 #include "plugin/ui/Toolbar.h"
+#include "plugin/ui/WindowDrawing.h"
 
 #if MPEROLL_HOST_CLAP
  #include "plugin/clap/ClapHosting.h"
@@ -31,9 +32,27 @@
 #include <map>
 #include <thread>
 
+#if JUCE_LINUX
+ #include <dlfcn.h>
+#endif
+
 namespace
 {
 using namespace mperoll;
+
+/** JUCE only catches X errors in apps with a JUCEApplication, and Xlib's own handler ends the process.
+    Under Xvfb there's no window manager, so some of the window properties JUCE sets are refused. */
+void ignoreXErrors()
+{
+   #if JUCE_LINUX
+    using Handler = int (*) (void*, void*);
+    using SetHandler = Handler (*) (Handler);
+
+    if (auto* x11 = dlopen ("libX11.so.6", RTLD_LAZY))
+        if (auto setHandler = reinterpret_cast<SetHandler> (dlsym (x11, "XSetErrorHandler")))
+            setHandler ([] (void*, void*) { return 0; });
+   #endif
+}
 
 MpeNote note (int key, double start, double length, float strike)
 {
@@ -962,6 +981,65 @@ int uiTest()
 
         document.getUndoManager().undo();
         check (clip().notes.size() == 2, "undo brings it back");
+    }
+
+    std::printf ("The editor's window\n");
+    {
+        auto& mm = *juce::MessageManager::getInstance();
+        ignoreXErrors();
+
+        auto openWindow = [&]
+        {
+            editor->addToDesktop (0);
+            editor->setVisible (true);
+            mm.runDispatchLoopUntil (200);
+        };
+
+        openWindow();
+        check (WindowDrawing::describe (*editor).contains ("scale, drawn by"), "Settings can say how the window is drawn");
+        check (! WindowDrawing::resync (*editor), "a window JUCE knows the size of is left alone");
+
+        // As a host closing the plugin window and opening a new one.
+        editor->removeFromDesktop();
+        mm.runDispatchLoopUntil (100);
+        openWindow();
+
+        // Through the window, as the mouse reaches the editor: it lands where it was clicked.
+        if (auto* peer = editor->getPeer())
+        {
+            const auto where = grid->getPosition().toFloat() + at (0.53, 67.0f);
+            const auto source = juce::MouseInputSource::InputSourceType::mouse;
+            const auto down = juce::ModifierKeys (juce::ModifierKeys::leftButtonModifier);
+            const auto time = juce::Time::currentTimeMillis();
+            peer->handleMouseEvent (source, where, {}, juce::MouseInputSource::defaultPressure, 0.0f, time);
+            peer->handleMouseEvent (source, where, down, juce::MouseInputSource::defaultPressure, 0.0f, time + 10);
+            peer->handleMouseEvent (source, where, {}, juce::MouseInputSource::defaultPressure, 0.0f, time + 20);
+        }
+
+        const auto landed = std::any_of (clip().notes.begin(), clip().notes.end(), [] (const MpeNote& n)
+                                         { return n.key == 67 && std::abs (n.start - 0.5) < 1.0e-9; });
+        check (landed, "after the window is reopened, a click adds its note under the mouse");
+
+        if (WindowDrawing::isChoiceAvailable())
+        {
+            WindowDrawing::apply (*editor, WindowDrawing::Mode::software);
+            mm.runDispatchLoopUntil (100);
+            check (WindowDrawing::describe (*editor).contains ("Software Renderer"), "the window can be drawn in software");
+            WindowDrawing::apply (*editor, WindowDrawing::Mode::gpu);
+            mm.runDispatchLoopUntil (100);
+            check (WindowDrawing::describe (*editor).contains ("Direct2D"), "and back with Direct2D");
+        }
+
+        auto settingsFile = juce::File::createTempFile (".settings");
+        {
+            juce::PropertiesFile settings (settingsFile, {});
+            check (WindowDrawing::getMode (&settings) == WindowDrawing::Mode::automatic, "window drawing starts on Automatic");
+            WindowDrawing::setMode (&settings, WindowDrawing::Mode::software);
+            check (WindowDrawing::getMode (&settings) == WindowDrawing::Mode::software, "and remembers a choice");
+        }
+        settingsFile.deleteFile();
+
+        editor->removeFromDesktop();
     }
 
     processor.editorBeingDeleted (editor.get());

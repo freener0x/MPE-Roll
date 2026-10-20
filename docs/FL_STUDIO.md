@@ -240,6 +240,7 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 | MPE Roll crashes | The standalone app saves a report to `%APPDATA%\MPE Roll\Crash report.txt` and says so. In FL, FL's own crash message names the file that crashed. Please include either when you report it. |
 | No sound | Load a synth (*Load synth…*), and check that the synth itself makes sound in its own window. |
 | Clicks, timing drift or CPU spikes | In MPE Roll's wrapper settings, turn on *Use fixed size buffers* (Troubleshooting tab). |
+| Mouse clicks land away from the pointer after reopening the window | In FL, MPE Roll draws its window in software (*MPE settings › Window › Window drawing: Automatic*), which avoids this. If it still happens, try the other *Window drawing* choices and tell us what the *Window* line next to it says. |
 | Glides are much too big or too small | The synth's MPE bend range doesn't match MPE Roll's *Per-note bend range* (48 by default). |
 | All notes bend together | The synth isn't in MPE mode. Turn MPE on in the synth, or switch MPE Roll to *Plain MIDI*. |
 | Recording catches nothing | The controller's Port in FL's MIDI settings must match MPE Roll's MIDI input port, and FL must be playing. |

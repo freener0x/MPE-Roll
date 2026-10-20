@@ -26,6 +26,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void parentHierarchyChanged() override;
     bool keyPressed (const juce::KeyPress&) override;
 
     bool isInterestedInFileDrag (const juce::StringArray& files) override;
@@ -53,6 +54,7 @@ private:
 
     int laneHeight = 200;
     int lastEditSlot = -1;
+    int ticksSinceWindowCheck = 0;
     bool updatingToolbar = false;
     juce::String transientStatus;
     juce::uint32 transientStatusTime = 0;

@@ -1,5 +1,6 @@
 #include "SettingsPanel.h"
 #include "MpeLookAndFeel.h"
+#include "WindowDrawing.h"
 #include "core/ControllerPresets.h"
 
 namespace mperoll
@@ -238,6 +239,23 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
         [settings] { return (double) settings().playback.controlIntervalMs; },
         [this] (double v) { edit ([v] (EngineSettings& e) { e.playback.controlIntervalMs = (float) v; }); }));
     panel.addSection ("Playback", playback);
+
+    // The editor's window. Kept with the computer's MPE Roll settings rather than the project.
+    Comps window;
+    auto* userSettings = processor.getSynth().getUserSettings();
+
+    if (WindowDrawing::isChoiceAvailable())
+        window.add (new ChoiceProp ("Window drawing", WindowDrawing::modeNames(),
+            [userSettings] { return (int) WindowDrawing::getMode (userSettings); },
+            [this, userSettings] (int i)
+            {
+                WindowDrawing::setMode (userSettings, (WindowDrawing::Mode) i);
+                WindowDrawing::apply (*this, (WindowDrawing::Mode) i);
+                panel.refreshAll();
+            }));
+
+    window.add (new InfoProp ("Window", [this] { return WindowDrawing::describe (*this); }));
+    panel.addSection ("Window", window, false);
 
     addAndMakeVisible (panel);
     document.addChangeListener (this);
