@@ -34,6 +34,9 @@ struct ZoneLayout
     /** The i-th member channel (0-based) of a zone. */
     int memberChannel (int zone, int index) const noexcept;
 
+    /** The channels notes are played on, for showing to the user: "2-16", "2-8 and 9-15". */
+    juce::String describeMemberChannels() const;
+
     bool operator== (const ZoneLayout&) const = default;
 };
 

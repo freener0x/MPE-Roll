@@ -218,7 +218,9 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 - Authorize it once in its standalone app or directly in FL before loading it inside MPE Roll.
 - A parameter only reaches MPE Roll's *Synth* slots after you right-click it in Omnisphere and choose
   **Enable Host Automation**.
-- **Omnisphere 3** has MPE (3.0.1c and later include MPE fixes):
+- **Omnisphere 3** has MPE (3.0.1c and later include MPE fixes). It's off until you turn it on, and
+  until then Omnisphere only hears MIDI channel 1, where MPE Roll sends no notes, so it stays silent.
+  MPE Roll points this out after a few seconds of silence and offers *Use Plain MIDI* instead.
   - Turn MPE on in its **System** page (the SYSTEM button in its header). Set its *MPE Pitch Bend
     Range* to MPE Roll's *Per-note bend range* (48 by default). If Omnisphere doesn't offer 48, set
     MPE Roll to a value it does offer; don't count on Omnisphere following MPE Roll's setup messages.
@@ -268,6 +270,7 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 | Per-note lanes do nothing, zone-wide ones work | The synth isn't in MPE mode, or has none. Turn MPE on in the synth, or set *Synth expects* to *Plain MIDI*, where the newest note's expression drives the whole synth. |
 | MPE Roll crashes | The standalone app saves a report to `%APPDATA%\MPE Roll\Crash report.txt` and says so. In FL, FL's own crash message names the file that crashed. Please include either when you report it. |
 | No sound | Load a synth (*Load synth…*), and check that the synth itself makes sound in its own window. |
+| No sound from a loaded synth; "No sound from …" appears | The synth isn't in MPE mode, so it only listens on channel 1, and MPE Roll plays notes on channels 2–16. Turn MPE on in the synth (Omnisphere 3: its *System* page), or click *Use Plain MIDI*. MPE Roll asks once each time a synth is loaded. *Synth is played with* in *MPE settings* shows the channels. |
 | Clicks, timing drift or CPU spikes | In MPE Roll's wrapper settings, turn on *Use fixed size buffers* (Troubleshooting tab). |
 | Mouse clicks land away from the pointer after reopening the window | In FL, MPE Roll draws its window in software (*MPE settings › Window › Window drawing: Automatic*), which avoids this. If it still happens, try the other *Window drawing* choices and tell us what the *Window* line next to it says. |
 | Glides are much too big or too small | The synth's MPE bend range doesn't match MPE Roll's *Per-note bend range* (48 by default). |

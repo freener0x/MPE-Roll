@@ -20,13 +20,16 @@ option(MPEROLL_BUILD_VST2 "On Windows, also build MPE Roll as a VST2 plugin (.dl
 option(MPEROLL_MP3 "Export audio as MP3 too (builds the LAME encoder, LGPL)" ON)
 
 # ---------------------------------------------------------------------------------------------
-# JUCE (AGPLv3). Pass -DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE to use a local checkout.
+# JUCE (AGPLv3), with the fixes in cmake/PatchJuce.cmake. Pass
+# -DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE to use a local checkout; run that script in it
+# (cmake -P) to apply them there.
 include(FetchContent)
 FetchContent_Declare(JUCE
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
     GIT_TAG 9.0.4
     GIT_SHALLOW TRUE
-    GIT_PROGRESS TRUE)
+    GIT_PROGRESS TRUE
+    PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchJuce.cmake)
 FetchContent_MakeAvailable(JUCE)
 
 # CLAP headers (MIT). Pass -DFETCHCONTENT_SOURCE_DIR_CLAP=/path/to/clap to use a local checkout.

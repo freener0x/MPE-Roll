@@ -460,8 +460,11 @@ int render (const juce::File& synthFile, const juce::File& target)
     MpeRollProcessor processor;
     FakePlayHead playHead;
     processor.setPlayHead (&playHead);
-    processor.setRateAndBufferSizeDetails (sampleRate, blockSize);
-    processor.prepareToPlay (sampleRate, blockSize);
+
+    // The synth is loaded at another rate and block size, then the host changes both, as FL does
+    // when its audio settings change. The pitches below are only right if the synth heard that.
+    processor.setRateAndBufferSizeDetails (44100.0, 256);
+    processor.prepareToPlay (44100.0, 256);
 
     bool done = false;
     juce::String error;
@@ -477,6 +480,8 @@ int render (const juce::File& synthFile, const juce::File& target)
     }
 
     std::printf ("Hosting: %s\n", processor.getSynth().getName().toRawUTF8());
+    processor.setRateAndBufferSizeDetails (sampleRate, blockSize);
+    processor.prepareToPlay (sampleRate, blockSize);
 
     // C4 glides up an octave between beats 0.5 and 1.5 while E4 holds still. Then A4 has MPE Roll's
     // vibrato: a semitone either way, five times a second.
@@ -887,6 +892,40 @@ void clapSynthChecks (Check& check, MpeRollProcessor& processor, FakePlayHead& p
     }
 }
 
+/** Loads the synth afresh, plays it a note held for four seconds and says whether MPE Roll
+    warned that the synth made no sound. Empty if the synth didn't load.
+*/
+std::optional<bool> warnsOfSilence (const juce::File& synthFile, OutputSettings::Mode mode, bool muted)
+{
+    FakePlayHead playHead;
+    playHead.playing = false;
+    MpeRollProcessor processor;
+    processor.setPlayHead (&playHead);
+    processor.setRateAndBufferSizeDetails (48000.0, 512);
+    processor.prepareToPlay (48000.0, 512);
+
+    if (! loadSynth (processor, synthFile))
+        return {};
+
+    auto settings = processor.getDocument().getSettings();
+    settings.output.mode = mode;
+    processor.getDocument().setSettings (settings);
+
+    if (muted)
+        for (int i = 0; processor.getSynth().withParameter (i, [] (juce::AudioProcessorParameter& p)
+                                                            { if (p.getName (64) == "Gain") p.setValue (0.0f); }); ++i) {}
+
+    double ppq = 0.0;
+    runBlock (processor, playHead, ppq, { { 0, juce::MidiMessage::noteOn (2, 60, (juce::uint8) 100) } });
+
+    for (int block = 0; block < 4 * 48000 / 512; ++block)
+        runBlock (processor, playHead, ppq);
+
+    const auto warned = processor.getSynth().takeSilenceWarning();
+    processor.releaseResources();
+    return warned;
+}
+
 int parameterTest (const juce::File& synthFile)
 {
     Check check;
@@ -1038,6 +1077,18 @@ int parameterTest (const juce::File& synthFile)
                 check (std::abs (lastBeats() - expected) < 1.0e-4, "each piece hears where in the song it starts");
             }
         }
+    }
+
+    std::printf ("A synth that makes no sound over MPE is pointed out\n");
+    {
+        // Muting the synth stands in for one that isn't listening on MPE Roll's channels. A CLAP
+        // synth played with note expressions gets its notes whatever the channels.
+        const auto midiOnly = ! synthFile.hasFileExtension ("clap");
+        check (warnsOfSilence (synthFile, OutputSettings::Mode::mpe, true) == midiOnly,
+               midiOnly ? "a silent synth played over MPE is pointed out" : "not with note expressions");
+        check (warnsOfSilence (synthFile, OutputSettings::Mode::mpe, false) == false, "a synth that sounds isn't");
+        check (warnsOfSilence (synthFile, OutputSettings::Mode::singleChannel, true) == false,
+               "nor a silent one played with Plain MIDI");
     }
 
     processor.releaseResources();

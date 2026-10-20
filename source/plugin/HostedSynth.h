@@ -79,6 +79,12 @@ public:
     /** Whether these settings play the synth with CLAP note expressions rather than MIDI. Message thread. */
     bool playsNoteExpressions (const OutputSettings&) const;
 
+    /** True once per synth loaded if, since it was loaded, it has been played over MPE for a few
+        seconds without making a sound: most likely a synth that isn't in MPE mode and so only
+        listens on channel 1. Any thread.
+    */
+    bool takeSilenceWarning() noexcept                  { return silenceWarning.exchange (false); }
+
     int getLatencySamples() const;
     double getTailLengthSeconds() const;
 
@@ -228,9 +234,19 @@ private:
     std::unique_ptr<juce::PluginDescription> description;
     std::unique_ptr<EditorWindow> editorWindow;
 
+    /** Audio thread: whether the synth has made a sound while notes were held over MPE. */
+    struct SilenceWatch
+    {
+        int heldNotes = 0;
+        double silentSeconds = 0.0;
+        bool finished = false;                          // it was heard, or the warning was given
+    };
+
     juce::AudioBuffer<float> scratch;
     juce::MidiBuffer midiPiece;                         // audio thread: a long block's MIDI, one piece at a time
     PieceHead pieceHead;                                // audio thread: and its transport position
+    SilenceWatch silenceWatch;
+    std::atomic<bool> silenceWarning { false };
     double sampleRate = 44100.0;
     int blockSize = 512;
     bool prepared = false;
@@ -245,6 +261,8 @@ private:
     void install (std::unique_ptr<juce::AudioPluginInstance> newInstance, const juce::PluginDescription& desc);
     std::unique_ptr<juce::AudioPluginInstance> takeInstance();
     void configure (juce::AudioPluginInstance& plugin);
+    void countHeldNotes (const juce::MidiBuffer&) noexcept;
+    void listenForSound (const juce::AudioBuffer<float>&) noexcept;
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     void audioProcessorParameterChanged (juce::AudioProcessor*, int, float) override {}

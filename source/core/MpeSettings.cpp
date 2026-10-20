@@ -41,6 +41,25 @@ int ZoneLayout::memberChannel (int zone, int index) const noexcept
     return zone == 0 ? 2 + index : 15 - index;
 }
 
+juce::String ZoneLayout::describeMemberChannels() const
+{
+    const auto zones = normalised();
+    juce::StringArray ranges;
+
+    auto range = [] (int first, int last)
+    {
+        return first == last ? juce::String (first) : juce::String (first) + "-" + juce::String (last);
+    };
+
+    if (zones.hasLowerZone())
+        ranges.add (range (2, 1 + zones.lowerMembers));
+
+    if (zones.hasUpperZone())
+        ranges.add (range (16 - zones.upperMembers, 15));
+
+    return ranges.joinIntoString (" and ");
+}
+
 //==============================================================================
 namespace
 {

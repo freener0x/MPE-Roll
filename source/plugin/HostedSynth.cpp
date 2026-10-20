@@ -320,6 +320,8 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
         const ScopedExclusive exclusive (guard);
         scratch.setSize (juce::jmax (channels, scratch.getNumChannels()), juce::jmax (blockSize, scratch.getNumSamples()));
         instance = std::move (newInstance);
+        silenceWatch = {};
+        silenceWarning = false;
 
        #if MPEROLL_HOST_CLAP
         clapControls = dynamic_cast<ClapSynthControls*> (instance.get());
@@ -460,15 +462,22 @@ void HostedSynth::prepare (double newSampleRate, int maximumBlockSize)
     const MessageThreadLock messageThread;
     const ScopedExclusive exclusive (guard);
 
+    const auto wasPrepared = std::exchange (prepared, true);
     sampleRate = newSampleRate;
     blockSize = juce::jmax (1, maximumBlockSize);
-    prepared = true;
+    silenceWatch.heldNotes = 0;     // MPE Roll stops its notes when it's prepared
 
     int channels = 2;
 
     if (instance != nullptr)
     {
-        instance->setRateAndBufferSizeDetails (sampleRate, blockSize);
+        // A synth that's running is stopped before it hears the new rate or block size: JUCE's
+        // VST3 host skips prepareToPlay for an active plugin whose rate and size look unchanged,
+        // and VST2 synths may only be given them while suspended.
+        if (wasPrepared && (! juce::approximatelyEqual (instance->getSampleRate(), sampleRate)
+                              || instance->getBlockSize() != blockSize))
+            instance->releaseResources();
+
         instance->prepareToPlay (sampleRate, blockSize);
         channels = juce::jmax (channels, instance->getTotalNumInputChannels(), instance->getTotalNumOutputChannels());
     }
@@ -514,6 +523,8 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
         clapControls->setMpeOutputSettings (outputSettings);
    #endif
 
+    countHeldNotes (midi);
+
     // Hosts may send a longer block than prepare() said. The synth gets it in pieces it was
     // prepared for, so the block (and its note-offs) isn't lost. Each piece's transport position
     // is moved on to where that piece starts.
@@ -548,6 +559,61 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
     }
 
     plugin.setPlayHead (playHead);
+    listenForSound (buffer);
+}
+
+void HostedSynth::countHeldNotes (const juce::MidiBuffer& midi) noexcept
+{
+    if (silenceWatch.finished)
+        return;
+
+    for (const auto metadata : midi)
+    {
+        const auto msg = metadata.getMessage();
+
+        if (msg.isNoteOn())
+            ++silenceWatch.heldNotes;
+        else if (msg.isNoteOff())
+            silenceWatch.heldNotes = juce::jmax (0, silenceWatch.heldNotes - 1);
+        else if (msg.isAllNotesOff() || msg.isAllSoundOff())
+            silenceWatch.heldNotes = 0;
+    }
+}
+
+void HostedSynth::listenForSound (const juce::AudioBuffer<float>& output) noexcept
+{
+    constexpr float silent = 3.0e-5f;               // -90 dB
+    constexpr double secondsBeforeWarning = 3.0;    // of notes held, so a slow attack isn't taken for silence
+
+    auto& watch = silenceWatch;
+
+    if (watch.finished)
+        return;
+
+    if (output.getMagnitude (0, output.getNumSamples()) > silent)
+    {
+        watch.finished = true;
+        return;
+    }
+
+    // Only MPE over MIDI spreads notes over channels a synth may not be listening to.
+    auto overMpe = outputSettings.mode == OutputSettings::Mode::mpe;
+
+   #if MPEROLL_HOST_CLAP
+    if (clapControls != nullptr && clapControls->playsNoteExpressions (outputSettings))
+        overMpe = false;
+   #endif
+
+    if (watch.heldNotes == 0 || ! overMpe)
+        return;
+
+    watch.silentSeconds += output.getNumSamples() / sampleRate;
+
+    if (watch.silentSeconds >= secondsBeforeWarning)
+    {
+        watch.finished = true;
+        silenceWarning = true;
+    }
 }
 
 juce::Optional<juce::AudioPlayHead::PositionInfo> HostedSynth::PieceHead::getPosition() const
@@ -583,9 +649,19 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
     if (playsNoteExpressions (settings))
         return "CLAP notes, each with its own tuning, pressure, brightness, volume, pan, vibrato and expression.";
 
-    const auto midi = settings.mode == OutputSettings::Mode::singleChannel ? juce::String ("Plain MIDI")
-                                                                           : juce::String ("MPE over MIDI");
-    return clapControls != nullptr ? midi + " (the CLAP synth accepts MIDI)." : midi + ".";
+    const auto via = clapControls != nullptr ? juce::String (" (the CLAP synth accepts MIDI)") : juce::String();
+
+    if (settings.mode == OutputSettings::Mode::singleChannel)
+        return "Plain MIDI on channel " + juce::String (settings.singleChannel) + via + ".";
+
+    // A synth that isn't in MPE mode often listens on channel 1 only, and hears nothing.
+    const auto channels = settings.zones.describeMemberChannels();
+
+    if (channels.isEmpty())
+        return "MPE over MIDI" + via + ".";
+
+    return "MPE over MIDI" + via + ", notes on channels " + channels + ". Turn on MPE in the synth, "
+           "or it may not hear them.";
 }
 
 bool HostedSynth::playsNoteExpressions (const OutputSettings& settings) const

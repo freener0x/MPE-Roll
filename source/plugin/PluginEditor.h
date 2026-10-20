@@ -61,6 +61,7 @@ private:
     bool updatingToolbar = false;
     juce::String transientStatus;
     juce::uint32 transientStatusTime = 0;
+    juce::ScopedMessageBox silenceBox;
 
     void timerCallback() override;
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
@@ -79,6 +80,7 @@ private:
     void browseForPlugin();
     void loadSynth (const juce::PluginDescription&);
     juce::String describeLoaded (const juce::String& synthName) const;
+    void warnSynthSilent();
 
     void showMidiMenu();
     void importMidi();

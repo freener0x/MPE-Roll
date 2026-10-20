@@ -362,6 +362,9 @@ void MpeRollEditor::timerCallback()
     if (rollProcessor.getRecordingSlot() >= 0)
         grid.refreshRecording();
 
+    if (rollProcessor.getSynth().takeSilenceWarning())
+        warnSynthSilent();
+
     if (toolbar.recordButton.getToggleState() != rollProcessor.isRecordArmed())
         toolbar.recordButton.setToggleState (rollProcessor.isRecordArmed(), juce::dontSendNotification);
 
@@ -540,6 +543,42 @@ juce::String MpeRollEditor::describeLoaded (const juce::String& name) const
         return "Loaded " + name + ". Turn on MPE in it; if it has no MPE mode, set Synth expects to Plain MIDI in MPE settings.";
 
     return "Loaded " + name;
+}
+
+void MpeRollEditor::warnSynthSilent()
+{
+    auto& synth = rollProcessor.getSynth();
+    const auto& output = document.getSettings().output;
+
+    // The settings may have changed since the audio thread noticed.
+    if (! synth.isLoaded() || output.mode != OutputSettings::Mode::mpe || synth.playsNoteExpressions (output))
+        return;
+
+    const auto name = synth.getName();
+    const auto message = name + " hasn't made a sound in the few seconds MPE Roll has been playing notes to it.\n\n"
+                         "MPE Roll plays each note on its own MIDI channel (" + output.zones.describeMemberChannels()
+                         + "). A synth that isn't in MPE mode usually listens on channel 1 only, so it hears none of them.\n\n"
+                         "Turn on MPE in " + name + " (in Omnisphere 3, on its System page), or play it with Plain MIDI "
+                         "on one channel, where only the newest note gets glides, pressure and timbre.";
+
+    const auto options = juce::MessageBoxOptions()
+                             .withIconType (juce::MessageBoxIconType::WarningIcon)
+                             .withTitle ("No sound from " + name)
+                             .withMessage (message)
+                             .withButton ("Use Plain MIDI")
+                             .withButton ("Keep MPE")
+                             .withAssociatedComponent (this);
+
+    silenceBox = juce::AlertWindow::showScopedAsync (options, [safe = juce::Component::SafePointer<MpeRollEditor> (this), name] (int result)
+    {
+        if (safe == nullptr || result != 1)
+            return;
+
+        auto settings = safe->document.getSettings();
+        settings.output.mode = OutputSettings::Mode::singleChannel;
+        safe->document.setSettings (settings);
+        safe->setStatus ("Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
+    });
 }
 
 void MpeRollEditor::showPluginScanner()

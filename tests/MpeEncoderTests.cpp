@@ -549,6 +549,24 @@ public:
             expectWithinAbsoluteError (MpeEncoder::pitchBendToSemitones (16383, 48.0f), 48.0f, 1.0e-5f);
             expectWithinAbsoluteError (MpeEncoder::pitchBendToSemitones (0, 48.0f), -48.0f, 1.0e-5f);
         }
+
+        beginTest ("The channels notes are played on, described");
+        {
+            auto describe = [] (int lower, int upper)
+            {
+                ZoneLayout zones;
+                zones.lowerMembers = lower;
+                zones.upperMembers = upper;
+                return zones.describeMemberChannels();
+            };
+
+            expectEquals (describe (15, 0), juce::String ("2-16"));
+            expectEquals (describe (7, 7), juce::String ("2-8 and 9-15"));
+            expectEquals (describe (1, 0), juce::String ("2"));
+            expectEquals (describe (0, 3), juce::String ("13-15"));
+            expectEquals (describe (10, 10), juce::String ("2-11 and 12-15"), "the lower zone wins on overlap");
+            expectEquals (describe (0, 0), juce::String());
+        }
     }
 };
 

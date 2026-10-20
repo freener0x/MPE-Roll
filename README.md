@@ -116,7 +116,9 @@ on macOS you need to remove the quarantine flag from what you downloaded (for ex
 ## Building
 
 You need CMake 3.22+ and a C++20 compiler. JUCE 9, the CLAP headers and the LAME MP3 encoder are
-downloaded automatically (`-DMPEROLL_MP3=OFF` builds without MP3 export, and without LAME).
+downloaded automatically (`-DMPEROLL_MP3=OFF` builds without MP3 export, and without LAME). The
+downloaded JUCE gets a fix to its VST3 hosting from `cmake/PatchJuce.cmake`; with your own JUCE
+checkout (`-DFETCHCONTENT_SOURCE_DIR_JUCE=...`), run `cmake -P path/to/PatchJuce.cmake` in it.
 
 **Windows** (Visual Studio 2022 or 2026 with "Desktop development with C++"):
 
@@ -217,6 +219,7 @@ tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUC
                   (plain CLAP API, pitch only from note expressions). Needs -DMPEROLL_BUILD_DEV_TOOLS=ON.
 third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
 third_party/lame/ The build configuration for the LAME MP3 encoder (LAME itself is downloaded).
+cmake/            A fix applied to the downloaded JUCE.
 ```
 
 Run the tests with `ctest --test-dir build`. With the dev tools enabled, `MpeRollHarness selftest`
