@@ -65,16 +65,24 @@ private:
         triggerAsyncUpdate();
     }
 
+    void say (const juce::String& text)
+    {
+        sendMessageToCoordinator ({ text.toRawUTF8(), text.getNumBytesAsUTF8() });
+    }
+
     void handleConnectionMade() override
     {
-        const juce::String ready (mperoll::PluginScanner::readyMessage);
-        sendMessageToCoordinator ({ ready.toRawUTF8(), ready.getNumBytesAsUTF8() });
+        say (mperoll::PluginScanner::readyMessage);
     }
 
     void handleConnectionLost() override
     {
         // MPE Roll has gone, or wants this process gone (after a plugin took too long, say). Leave
-        // at once: the message thread may be stuck inside that plugin, so don't wait for it.
+        // at once: the message thread may be stuck inside that plugin, so don't wait for it. On
+        // Windows, _Exit would still run every DLL's detach code, the stuck plugin's included.
+       #if JUCE_WINDOWS
+        TerminateProcess (GetCurrentProcess(), 0);
+       #endif
         std::_Exit (0);
     }
 
@@ -94,6 +102,7 @@ private:
                 pending.pop();
             }
 
+            say (mperoll::PluginScanner::startedMessage);
             sendMessageToCoordinator (scan (block));
         }
     }

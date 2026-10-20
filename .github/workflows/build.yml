@@ -72,6 +72,10 @@ jobs:
           grep -q "It tried to write to address 0x0" crash-report.txt
           grep -q "running the crash test" crash-report.txt
           grep -q "crashOnPurpose" crash-report.txt
+          if "$HARNESS" crashtest overflow-report.txt overflow; then echo "The harness didn't overflow"; exit 1; fi
+          cat overflow-report.txt
+          grep -q "a stack overflow" overflow-report.txt
+          grep -q "overflowOnPurpose" overflow-report.txt
 
       - name: Plugin files are looked at in the scanner process (crashing and hanging ones too)
         run: '"$HARNESS" scantest "$SCANNER" "$VST3_SYNTH" "$CRASHING_PLUGIN" "$HANGING_PLUGIN"'

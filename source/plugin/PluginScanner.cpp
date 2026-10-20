@@ -10,6 +10,10 @@ namespace
 {
     juce::File executableForTesting;
     bool useExecutableForTesting = false;
+
+    // A scanner whose message thread is free says it has started on a file at once; one that hasn't
+    // after this long is stuck in something left over from before.
+    constexpr int startTimeoutMs = 20000;
 }
 
 juce::File findExecutable()
@@ -76,12 +80,11 @@ public:
     {
         {
             const std::lock_guard<std::mutex> lock (mutex);
+            reply.reset();
+            started = replied = false;
 
             if (lost)
                 return Outcome::crashed;
-
-            reply.reset();
-            replied = false;
         }
 
         juce::MemoryBlock request;
@@ -95,7 +98,10 @@ public:
         if (! sendMessageToWorker (request))
             return Outcome::crashed;
 
-        const auto deadline = juce::Time::getMillisecondCounterHiRes() + timeoutMs;
+        const auto sent = juce::Time::getMillisecondCounterHiRes();
+        const auto deadline = sent + timeoutMs;
+        const auto startDeadline = sent + juce::jmin (timeoutMs, startTimeoutMs);
+        auto nextProbe = sent;
         std::unique_lock<std::mutex> lock (mutex);
 
         while (! replied && ! lost)
@@ -106,12 +112,34 @@ public:
             if (shouldStop != nullptr && shouldStop())
                 return Outcome::cancelled;
 
-            if (juce::Time::getMillisecondCounterHiRes() > deadline)
+            const auto now = juce::Time::getMillisecondCounterHiRes();
+
+            if (now > deadline || (! started && now > startDeadline))
                 return Outcome::timedOut;
+
+            // JUCE reports a scanner gone only through the message thread, which may be this one, or
+            // (on Linux) after a long silence. Writing to a scanner that's gone fails at once. The
+            // scanner ignores empty messages.
+            if (now >= nextProbe)
+            {
+                nextProbe = now + 250.0;
+                lock.unlock();
+                const auto alive = sendMessageToWorker ({});
+                lock.lock();
+
+                // Its answer may still be on its way through the pipe.
+                if (! alive)
+                {
+                    condition.wait_for (lock, std::chrono::milliseconds (250), [this] { return replied; });
+                    break;
+                }
+            }
         }
 
         if (! replied)
             return Outcome::crashed;
+
+        ++filesLookedAt;
 
         if (reply != nullptr)
         {
@@ -127,21 +155,32 @@ public:
         return Outcome::found;
     }
 
+    /** Whether the last scan() got as far as the file. If not, it failed through no fault of the file's. */
+    bool reachedFile()
+    {
+        const std::lock_guard<std::mutex> lock (mutex);
+        return started;
+    }
+
+    /** Whether this scanner has loaded other files, any of which could have left something running in it. */
+    bool hasLookedAtOtherFiles() const noexcept     { return filesLookedAt > 0; }
+
 private:
     std::mutex mutex;
     std::condition_variable condition;
     std::unique_ptr<juce::XmlElement> reply;
-    bool ready = false, replied = false, lost = false;
+    bool ready = false, started = false, replied = false, lost = false;
+    int filesLookedAt = 0;
 
-    // Both arrive on the connection's own thread, so they get through while the caller waits.
+    // These arrive on the connection's own thread, so they get through while the caller waits.
     void handleMessageFromWorker (const juce::MemoryBlock& block) override
     {
         const auto text = block.toString();
 
-        if (text == readyMessage)
+        if (text == readyMessage || text == startedMessage)
         {
             const std::lock_guard<std::mutex> lock (mutex);
-            ready = true;
+            (text == readyMessage ? ready : started) = true;
             condition.notify_all();
             return;
         }
@@ -176,7 +215,13 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
     if (! process.launch (executable))
         return Outcome::unavailable;
 
-    return process.scan (formatName, fileOrIdentifier, results, timeoutMs, {});
+    const auto outcome = process.scan (formatName, fileOrIdentifier, results, timeoutMs, {});
+
+    // A fresh scanner that failed before it reached the file says nothing about the file.
+    if (outcome != Outcome::found && ! process.reachedFile())
+        return Outcome::unavailable;
+
+    return outcome;
 }
 
 juce::String describeFailure (Outcome outcome, const juce::String& fileName)
@@ -210,30 +255,47 @@ bool OutOfProcessScanner::findPluginTypesFor (juce::AudioPluginFormat& format,
 {
     const std::lock_guard<std::mutex> lock (mutex);
 
-    if (process == nullptr)
+    for (int attempt = 0;; ++attempt)
     {
-        const auto executable = findExecutable();
-        auto fresh = std::make_unique<Process>();
-
-        if (executable == juce::File() || ! fresh->launch (executable))
+        if (process == nullptr)
         {
-            // No scanner program: look in this process, as before.
-            format.findAllTypesForFile (result, fileOrIdentifier);
-            return true;
+            const auto executable = findExecutable();
+            auto fresh = std::make_unique<Process>();
+
+            if (executable == juce::File() || ! fresh->launch (executable))
+            {
+                // A scanner that just worked won't start again: skip the file rather than risk it here.
+                if (attempt > 0)
+                    return true;
+
+                // No scanner program: look in this process, as before.
+                format.findAllTypesForFile (result, fileOrIdentifier);
+                return true;
+            }
+
+            process = std::move (fresh);
         }
 
-        process = std::move (fresh);
+        const auto afterOtherFiles = process->hasLookedAtOtherFiles();
+        const auto outcome = process->scan (format.getName(), fileOrIdentifier, result, timeoutMs,
+                                            [this] { return shouldExit(); });
+
+        if (outcome == Outcome::found || outcome == Outcome::cancelled)
+            return true;
+
+        // It crashed or hung: whatever comes next gets a new scanner.
+        const auto reachedFile = process->reachedFile();
+        process.reset();
+
+        // Not this file's doing if the scanner never reached it, and perhaps not if an earlier file left
+        // something behind that crashed it: look again in a fresh scanner. A file that hung once it was
+        // reached is blamed straight away, rather than given the whole time allowed again.
+        if (attempt == 0 && (! reachedFile || (afterOtherFiles && outcome == Outcome::crashed)))
+            continue;
+
+        // Listed as failed, unless the scanner never got to it at all: then the next scan tries it again.
+        return ! reachedFile;
     }
-
-    const auto outcome = process->scan (format.getName(), fileOrIdentifier, result, timeoutMs,
-                                        [this] { return shouldExit(); });
-
-    if (outcome == Outcome::found || outcome == Outcome::cancelled)
-        return true;
-
-    // It crashed or hung: the next file gets a new scanner, and this one is listed as failed.
-    process.reset();
-    return false;
 }
 
 void OutOfProcessScanner::scanFinished()

@@ -27,3 +27,9 @@ Local changes to `fst.h`:
   compile time that every opcode JUCE uses has a real value.
 - The pointer-sized integer is 64 bits on every 64-bit Windows target (`_WIN64`), ARM64 included,
   not only on x64.
+- The output pin flags (`kVstPinIsActive`, `kVstPinIsStereo`, `kVstPinUseSpeaker`) were 0, so MPE
+  Roll's VST2 build told hosts its outputs were inactive mono pins. The program name length is 24,
+  not 25. In `t_fstTimeInfo` the SMPTE offset and frame rate are the two fields before
+  `samplesToNextClock` (FST had called them `currentBar` and `magic`, and put the SMPTE fields after
+  `flags`, past the end of the struct hosts pass). The same sources agree on all three, and the shim
+  checks them at compile time.

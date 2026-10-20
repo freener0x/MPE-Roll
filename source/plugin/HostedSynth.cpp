@@ -96,6 +96,10 @@ HostedSynth::~HostedSynth()
     ++loadGeneration;
     closeEditor();
     knownPlugins.removeChangeListener (this);
+
+    if (instance != nullptr)
+        CrashReport::setActivity ("closing the synth " + getName());
+
     takeInstance().reset();
 }
 
@@ -323,13 +327,17 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
     }
 
     instance->addListener (this);
+    const auto oldName = description != nullptr ? describe (*description) : juce::String();
     description = std::make_unique<juce::PluginDescription> (desc);
     unresolvedState.reset();
 
     if (old != nullptr)
+    {
+        CrashReport::setActivity ("closing the synth " + oldName + " to make way for " + describe (desc));
         old->releaseResources();
-
-    old.reset();
+        old.reset();
+        CrashReport::setActivity ("setting up the synth " + describe (desc));
+    }
 
     if (onPluginChanged)
         onPluginChanged();
@@ -342,6 +350,10 @@ void HostedSynth::unload()
     closeEditor();
 
     auto old = takeInstance();
+
+    if (description != nullptr)
+        CrashReport::setActivity ("closing the synth " + describe (*description));
+
     description.reset();
     unresolvedState.reset();
 
@@ -349,6 +361,7 @@ void HostedSynth::unload()
         old->releaseResources();
 
     old.reset();
+    CrashReport::setActivity ("no synth loaded");
 
     if (onPluginChanged)
         onPluginChanged();
@@ -433,7 +446,12 @@ void HostedSynth::showEditor()
 
 void HostedSynth::closeEditor()
 {
+    if (editorWindow == nullptr)
+        return;
+
+    CrashReport::setActivity ("closing the window of the synth " + getName());
     editorWindow.reset();
+    CrashReport::setActivity ("playing the synth " + getName());
 }
 
 //==============================================================================

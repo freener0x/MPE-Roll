@@ -180,6 +180,38 @@ public:
                              { return m.isControllerOfType (64) && m.getChannel() == 1; }) > 2);
         }
 
+        beginTest ("Plain MIDI: zone lanes running on after the last note leave its release tail alone");
+        {
+            MpeClip clip;
+            auto n = makeNote (60, 0.0, 1.0);
+            n.lanes.pitch = { { 0.0, 0.0f }, { 0.5, 1.0f } };
+            n.lanes.pressure = { { 0.0, 0.6f } };
+            clip.addNote (n);
+            clip.zone.pitch = { { 0.0, 0.0f }, { 2.0, 0.0f } };
+            clip.zone.pressure = { { 0.0, 0.1f }, { 2.0, 0.1f } };
+
+            Rig rig;
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            rig.encoder.setSettings (s);
+            rig.player.setControlInterval (48);
+            rig.play (clip, 48000, 512, false);
+
+            expectEquals ((int) rig.noteOffSamples().size(), 1);
+            bool released = false;
+            int changesAfter = 0;
+
+            for (const auto& m : rig.messages)
+            {
+                released = released || m.message.isNoteOff();
+
+                if (released && (m.message.isPitchWheel() || m.message.isChannelPressure()))
+                    ++changesAfter;
+            }
+
+            expectEquals (changesAfter, 0);
+        }
+
         beginTest ("Notes removed by an edit are stopped");
         {
             MpeClip clip;

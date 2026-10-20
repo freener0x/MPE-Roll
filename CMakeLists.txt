@@ -145,7 +145,7 @@ juce_add_plugin(MpeRoll
     VST3_CATEGORIES Instrument Synth
     AU_MAIN_TYPE kAudioUnitType_MusicDevice
     MICROPHONE_PERMISSION_ENABLED FALSE
-    COPY_PLUGIN_AFTER_BUILD ${MPEROLL_COPY_PLUGIN_AFTER_BUILD}
+    COPY_PLUGIN_AFTER_BUILD FALSE   # enabled below, once the scanner is in place
     NEEDS_WEB_BROWSER FALSE
     NEEDS_CURL FALSE)
 
@@ -196,6 +196,11 @@ if(NOT APPLE)
                 VERBATIM)
         endif()
     endforeach()
+endif()
+
+# After the scanner copy above, so the installed plugins have it from the first build.
+if(MPEROLL_COPY_PLUGIN_AFTER_BUILD)
+    juce_enable_copy_plugin_step(MpeRoll)
 endif()
 endif()
 

@@ -364,6 +364,133 @@ public:
             expect (m[2].message.isNoteOn());
         }
 
+        beginTest ("Single channel mode: zone changes after the last release add to its bend and pressure");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+
+            enc.setZonePressure (out, 0, 0.25f);
+            enc.prepareNote (out, 0, 1, 60);
+            enc.setPitch (out, 0, 1, 1.0f);
+            enc.setPressure (out, 0, 1, 0.25f);
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.stopNote (out, 0, 1, 0.5f);
+            out.clear();
+
+            enc.setZonePitch (out, 0, 0.0f);        // zone lanes are sent on every control tick
+            enc.setZonePressure (out, 0, 0.25f);
+            expect (out.isEmpty(), "unchanged zone values leave the tail as it was");
+
+            enc.setZonePitch (out, 0, 1.0f);
+            enc.setZonePressure (out, 0, 0.5f);
+            auto m = collect (out);
+            expectEquals ((int) m.size(), 2);
+            expect (m[0].message.isPitchWheel()
+                    && m[0].message.getPitchWheelValue() == MpeEncoder::semitonesToPitchBend (2.0f, s.masterBendRange));
+            expect (m[1].message.isChannelPressure() && m[1].message.getChannelPressureValue() == MpeEncoder::toSevenBit (0.75f));
+            out.clear();
+
+            enc.prepareNote (out, 0, 2, 62);
+            enc.startNote (out, 0, 2, 0.5f);
+            m = collect (out);
+            expect (m[0].message.isPitchWheel()
+                    && m[0].message.getPitchWheelValue() == MpeEncoder::semitonesToPitchBend (1.0f, s.masterBendRange),
+                    "the next note brings the zone's bend alone");
+            expect (m[1].message.isChannelPressure() && m[1].message.getChannelPressureValue() == MpeEncoder::toSevenBit (0.5f));
+        }
+
+        beginTest ("Pressure sent as a controller returns it to rest when settings change");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            s.pressureTarget = OutputSettings::PressureTarget::controller;
+            s.pressureController = 11;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+
+            enc.prepareNote (out, 0, 1, 60);
+            enc.startNote (out, 0, 1, 0.5f);
+            expectEquals (countIf (collect (out), [] (const juce::MidiMessage& msg)
+                                   { return msg.isControllerOfType (11) && msg.getControllerValue() == 0; }), 1,
+                          "a note without pressure has none");
+            out.clear();
+
+            // As applySettings does it.
+            enc.stopAllNotes (out, 0);
+            enc.resetControllers (out, 0);
+            s.pressureTarget = OutputSettings::PressureTarget::channelPressure;
+            enc.setSettings (s);
+            enc.forgetZoneValues();
+            expectEquals (countIf (collect (out), [] (const juce::MidiMessage& msg)
+                                   { return msg.isControllerOfType (11) && msg.getControllerValue() == 127; }), 1,
+                          "Expression is back at full");
+
+            // Same for MPE, on the member channels.
+            OutputSettings mpe;
+            mpe.pressureTarget = OutputSettings::PressureTarget::controller;
+            mpe.pressureController = 1;
+            MpeEncoder member;
+            member.setSettings (mpe);
+            out.clear();
+            member.prepareNote (out, 0, 1, 60);
+            member.setPressure (out, 0, 1, 0.5f);
+            member.startNote (out, 0, 1, 0.5f);
+            const auto channel = member.getChannel (1);
+            out.clear();
+            member.stopAllNotes (out, 0);
+            member.resetControllers (out, 0);
+            const auto m = collect (out);
+            expectEquals (countIf (m, [channel] (const juce::MidiMessage& msg)
+                                   { return msg.isControllerOfType (1) && msg.getControllerValue() == 0 && msg.getChannel() == channel; }), 1);
+        }
+
+        beginTest ("Single channel mode: timbre follows the newest note only once a note has used it");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+            const auto timbres = [] (const juce::MidiBuffer& b)
+            {
+                return countIf (collect (b), [] (const juce::MidiMessage& msg) { return msg.isControllerOfType (74); });
+            };
+
+            enc.prepareNote (out, 0, 1, 60);
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.prepareNote (out, 0, 2, 62);
+            enc.startNote (out, 0, 2, 0.5f);
+            enc.stopNote (out, 0, 2, 0.5f);         // note 1 takes over
+            enc.stopNote (out, 0, 1, 0.5f);
+            expectEquals (timbres (out), 0, "a synth with its filter on CC74 keeps the preset's");
+            out.clear();
+
+            enc.prepareNote (out, 0, 3, 60);
+            enc.setTimbre (out, 0, 3, 1.0f);
+            enc.startNote (out, 0, 3, 0.5f);
+            enc.stopNote (out, 0, 3, 0.5f);
+            out.clear();
+
+            enc.prepareNote (out, 0, 4, 62);
+            enc.startNote (out, 0, 4, 0.5f);
+            auto m = collect (out);
+            expectEquals ((int) m.size(), 2);
+            expect (m[0].message.isControllerOfType (74) && m[0].message.getControllerValue() == MpeEncoder::toSevenBit (s.defaultTimbre),
+                    "the next note brings its own timbre before its Note On");
+            expect (m[1].message.isNoteOn());
+            enc.stopNote (out, 0, 4, 0.5f);
+            out.clear();
+
+            enc.setZoneTimbre (out, 0, 0.25f);
+            enc.prepareNote (out, 0, 5, 60);
+            enc.startNote (out, 0, 5, 0.5f);
+            expectEquals (timbres (out), 1, "a zone timbre lane isn't overridden by a note without timbre");
+        }
+
         beginTest ("Two zones split the keyboard");
         {
             OutputSettings s;

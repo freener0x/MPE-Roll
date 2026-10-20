@@ -442,7 +442,7 @@ enum {
   FST_CONSTANT_EXPERIMENTAL(MaxVendorStrLen, 128),
   FST_CONSTANT_EXPERIMENTAL(MaxLabelLen, 64),
   FST_CONSTANT_EXPERIMENTAL(MaxShortLabelLen, 8),
-  FST_CONSTANT(MaxProgNameLen, 25), // effGetProgramName
+  FST_CONSTANT(MaxProgNameLen, 24), // effGetProgramName (MPE Roll local change: was 25)
 
   /* JUCE says that MaxParamStrLen is 8, but hosts allow a bit more (24) */
   FST_CONSTANT(MaxParamStrLen, 8),
@@ -451,9 +451,10 @@ enum {
   FST_FLAG_UNKNOWN(AutomationUnsupported),
 
   /* used as t_fstPinProperties.flags */
-  FST_FLAG_UNKNOWN(PinIsActive),
-  FST_FLAG_UNKNOWN(PinUseSpeaker),
-  FST_FLAG_UNKNOWN(PinIsStereo),
+  /* MPE Roll local change: real values instead of 0 */
+  FST_FLAG(PinIsActive, 0),
+  FST_FLAG(PinIsStereo, 1),
+  FST_FLAG(PinUseSpeaker, 2),
 
   /* REAPER: used with effVendorSpecific to indicate that parameter values are enums */
   FST_CONSTANT_UNKNOWN(ParameterUsesIntStep),
@@ -580,15 +581,16 @@ typedef struct fstTimeInfo_ {
   int timeSigNumerator; /* OK */
   int timeSigDenominator; /* OK */
 
-  int FST_UNKNOWN(currentBar), FST_UNKNOWN(magic); /* we just made these fields up, as their values seem to be neither flags nor smtp* */
+  /* MPE Roll local change: the SMPTE fields are these two (FST had named them currentBar and magic,
+   * and put the SMPTE fields after flags, past the end of the struct hosts pass) */
+  FST_UNKNOWN(int) smpteOffset;
+  FST_UNKNOWN(int) smpteFrameRate;
 
 FST_WARNING("document origin of samplesToNextClock")
   /* this used to be '_pad' */
   FST_UNKNOWN(int) samplesToNextClock;/* ? */
 
   FST_UNKNOWN(int) flags;/* = Vst2::kVstNanosValid // ? */
-  FST_UNKNOWN(int) smpteFrameRate; /* int32 // ? */
-  FST_UNKNOWN(int) smpteOffset; /* int32 // ? */
 } FST_UNKNOWN(t_fstTimeInfo);
 
 typedef struct fstPinProperties_ {

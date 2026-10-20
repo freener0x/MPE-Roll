@@ -19,6 +19,8 @@
 
 #include "../fst/aeffectx.h"
 
+#include <cstddef>
+
 #if defined (__GNUC__) || defined (__clang__)
  #pragma GCC diagnostic pop
 #elif defined (_MSC_VER)
@@ -50,6 +52,15 @@ MPEROLL_FST_REAL_OPCODE (effKeysRequired)
 #undef MPEROLL_FST_REAL_OPCODE
 
 static_assert (sizeof (VstIntPtr) == sizeof (void*), "VST2 passes pointers in VstIntPtr");
+
+// What JUCE's VST2 plugin and host both read and write, as other free VST2 headers have it.
+static_assert (kVstPinIsActive == 1 && kVstPinIsStereo == 2 && kVstPinUseSpeaker == 4,
+               "output pins would be reported as inactive mono ones");
+static_assert (kVstMaxProgNameLen == 24, "program names would overrun the host's buffer");
+static_assert (offsetof (VstTimeInfo, timeSigDenominator) == 68 && offsetof (VstTimeInfo, smpteOffset) == 72
+                   && offsetof (VstTimeInfo, smpteFrameRate) == 76 && offsetof (VstTimeInfo, samplesToNextClock) == 80
+                   && offsetof (VstTimeInfo, flags) == 84 && sizeof (VstTimeInfo) == 88,
+               "VstTimeInfo must have the layout hosts and plugins use");
 
 // FST doesn't describe MIDI key names. JUCE's VST2 host declares a query for them, which MPE Roll
 // never makes; these placeholders let it compile, and use an opcode no plugin implements, so the

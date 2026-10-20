@@ -31,7 +31,8 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    MPE Roll looks inside each plugin file with **MPE Roll Scanner**, a separate program, so a plugin
    that crashes or hangs while it's being looked at only stops the scanner. Such a plugin is listed
    at the end of the scan and skipped afterwards, and *Load plugin file…* refuses it with a message
-   instead of crashing FL. The scanner comes inside the `.vst3` folder; with the `.dll`, keep
+   instead of crashing FL. A plugin that crashes the scanner a moment later, after it has been looked
+   at, doesn't get the next file blamed: that file is looked at again in a fresh scanner first. The scanner comes inside the `.vst3` folder; with the `.dll`, keep
    `MPE Roll Scanner.exe` next to it. Without the scanner, plugins are looked at inside FL, where a
    crashing one takes FL down.
 3. Click **Edit synth** to open the synth's own window.
@@ -53,9 +54,12 @@ nothing is lost when you save.
 
 **Synth without MPE?** Set *Synth expects* to **Plain MIDI (one channel)**. The most recent note's
 glide, pressure and timbre drive the whole channel, so set *Zone bend range* to the synth's own bend
-range. Pressure goes out as *Pressure sent as* says: channel aftertouch (the default, added to the
-zone-wide *Channel pressure* lane), a controller, or poly aftertouch, which keeps each note's own
-pressure for synths that respond to it.
+range. Glide and pressure are added to the zone-wide lanes, and after the last note ends they stay
+where it left them, so its release doesn't jump. Timbre (CC74) is only sent once a note has a timbre
+lane, so a synth with its filter on CC74 keeps the preset's setting otherwise. Pressure goes out as
+*Pressure sent as* says: channel aftertouch (the default, added to the zone-wide *Channel pressure*
+lane), a controller (back to its usual value when you change this setting), or poly aftertouch,
+which keeps each note's own pressure for synths that respond to it.
 
 **To hear real per-note expression**, use a synth with MPE. Two free ones: *Surge XT* (load its
 `.clap` and MPE Roll plays it with CLAP note expressions, nothing to set up; with its VST3, turn on
@@ -215,9 +219,9 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 - Analog Lab responds to channel aftertouch, not poly aftertouch, so keep *Pressure sent as* on
   **Channel pressure**. The newest note's pressure then goes out as aftertouch, added to the
   zone-wide *Channel pressure* lane.
-- The newest note's timbre is sent as CC74. Whether that changes the sound depends on the *MIDI
-  Controller* map in Analog Lab's settings; with *Generic MIDI Controller*, MIDI-learn CC74 to a
-  control.
+- The newest note's timbre is sent as CC74 (once any note has a timbre lane). Whether that changes
+  the sound depends on the *MIDI Controller* map in Analog Lab's settings; with *Generic MIDI
+  Controller*, MIDI-learn CC74 to a control.
 - From FL you can automate the macros, the assignable controls and the effects. To automate an
   engine parameter, assign it to one of Analog Lab's controls first.
 

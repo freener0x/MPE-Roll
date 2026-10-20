@@ -7,7 +7,8 @@
 //   MpeRollHarness selftest                             live input, recording, state, note trigger, undo
 //   MpeRollHarness uitest                               simulated mouse and keyboard editing
 //   MpeRollHarness params <synth.vst3>                  synth parameters exposed for host automation
-//   MpeRollHarness crashtest <report.txt>               Windows: crashes on purpose to check the crash report
+//   MpeRollHarness crashtest <report.txt> [overflow]    Windows: crashes on purpose (or overflows the stack)
+//                                                       to check the crash report
 //   MpeRollHarness scantest <scanner> <synth> <crashing.clap> <hanging.clap>
 //                                                       plugin files are looked at in the scanner process
 
@@ -25,6 +26,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <map>
 #include <thread>
 
@@ -925,6 +927,64 @@ int uiTest()
 }
 
 // Plugin files are looked at in the scanner process: a crash or hang there doesn't reach MPE Roll.
+// Stands in for MPE Roll Scanner when scantest runs the harness as one. It makes up a plugin named after
+// each file without loading anything, but goes down just after answering for a file named "leaves a crash
+// behind", and just after starting on whichever file follows one named "crashes the next file": as a
+// plugin does that leaves a thread or timer running after it's been looked at.
+class StandInScanner final : private juce::ChildProcessWorker
+{
+public:
+    using juce::ChildProcessWorker::initialiseFromCommandLine;
+
+private:
+    bool crashOnNextFile = false;
+
+    void say (const juce::String& text)
+    {
+        sendMessageToCoordinator ({ text.toRawUTF8(), text.getNumBytesAsUTF8() });
+    }
+
+    void handleConnectionMade() override    { say (PluginScanner::readyMessage); }
+    void handleConnectionLost() override    { std::_Exit (0); }
+
+    void handleMessageFromCoordinator (const juce::MemoryBlock& block) override
+    {
+        if (block.isEmpty())
+            return;
+
+        juce::MemoryInputStream stream (block, false);
+        juce::PluginDescription d;
+        d.pluginFormatName = stream.readString();
+        d.fileOrIdentifier = stream.readString();
+        d.name = juce::File (d.fileOrIdentifier).getFileNameWithoutExtension();
+        d.uniqueId = d.deprecatedUid = d.name.hashCode();
+        say (PluginScanner::startedMessage);
+
+        if (crashOnNextFile)
+            std::_Exit (3);
+
+        juce::XmlElement list ("LIST");
+        list.addChildElement (d.createXml().release());
+        say (list.toString());
+
+        if (d.name == "leaves a crash behind")
+            std::_Exit (3);
+
+        crashOnNextFile = d.name == "crashes the next file";
+    }
+};
+
+int runStandInScanner (const juce::String& commandLine)
+{
+    StandInScanner scanner;
+
+    if (! scanner.initialiseFromCommandLine (commandLine, PluginScanner::processId))
+        return 1;
+
+    juce::MessageManager::getInstance()->runDispatchLoop();
+    return 0;
+}
+
 int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce::File& crashing, const juce::File& hanging)
 {
     Check check;
@@ -994,6 +1054,28 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
                "and the synth after them is listed");
     }
 
+    std::printf ("A file isn't blamed for a scanner that a file before it brought down\n");
+    {
+        PluginScanner::setExecutableForTesting (juce::File::getSpecialLocation (juce::File::currentExecutableFile));
+        const auto folder = juce::File::getSpecialLocation (juce::File::tempDirectory);
+        juce::KnownPluginList list;
+        list.setCustomScanner (std::make_unique<PluginScanner::OutOfProcessScanner> (3000));
+        juce::VST3PluginFormat format;      // only its name reaches the stand-in scanner
+        juce::OwnedArray<juce::PluginDescription> found;
+        const auto start = juce::Time::getMillisecondCounterHiRes();
+
+        for (auto name : { "leaves a crash behind", "innocent", "crashes the next file", "also innocent" })
+            list.scanAndAddFile (folder.getChildFile (juce::String (name) + ".vst3").getFullPathName(), false, found, format);
+
+        check (list.getBlacklistedFiles().isEmpty(), "none of the files is set aside");
+        check (list.getNumTypes() == 4, "and all four are listed");
+
+        for (const auto& file : list.getBlacklistedFiles())
+            std::printf ("    set aside: %s\n", juce::File (file).getFileName().toRawUTF8());
+        check (juce::Time::getMillisecondCounterHiRes() - start < 15000, "without waiting out a timeout");
+        PluginScanner::setExecutableForTesting (scanner);
+    }
+
     std::printf ("Loading a plugin file that crashes is refused, not fatal\n");
     {
         HostedSynth synth;
@@ -1016,20 +1098,41 @@ void crashOnPurpose (volatile int* target)
 {
     *target = 42;
 }
+
+volatile bool keepRecursing = true;     // always true, but the compiler can't know that
+
+ #if JUCE_MSVC
+__declspec (noinline)
+ #endif
+int overflowOnPurpose (int depth)
+{
+    volatile char frame[4096];
+    frame[0] = (char) depth;
+
+    if (! keepRecursing)
+        return 0;
+
+    return overflowOnPurpose (depth + 1) + frame[0];
+}
 #endif
 
 // Windows: the standalone app's crash report, checked by crashing on purpose. Never returns there.
-int crashTest (const juce::File& reportFile)
+int crashTest (const juce::File& reportFile, bool overflow)
 {
    #if JUCE_WINDOWS
     static volatile int* volatile nowhere = nullptr;
     CrashReport::install (reportFile, false);
     CrashReport::setActivity ("running the crash test");
-    crashOnPurpose (nowhere);
+
+    if (overflow)
+        overflowOnPurpose (0);
+    else
+        crashOnPurpose (nowhere);
+
     std::printf ("FAIL: it didn't crash\n");
     return 1;
    #else
-    juce::ignoreUnused (reportFile);
+    juce::ignoreUnused (reportFile, overflow);
     std::printf ("Crash reports are only made on Windows.\n");
     return 0;
    #endif
@@ -1042,6 +1145,9 @@ int main (int argc, char** argv)
     juce::ScopedJuceInitialiser_GUI juceInit;
     const juce::StringArray args (argv + 1, argc - 1);
     const auto cwd = juce::File::getCurrentWorkingDirectory();
+
+    if (! args.isEmpty() && args[0].startsWith (juce::String ("--") + PluginScanner::processId + ":"))
+        return runStandInScanner (args.joinIntoString (" "));
 
     if (args.size() >= 2 && args[0] == "snapshot")
         return snapshot (cwd.getChildFile (args[1]),
@@ -1067,7 +1173,7 @@ int main (int argc, char** argv)
         return clapDialectTest (cwd.getChildFile (args[1]));
 
     if (args.size() >= 2 && args[0] == "crashtest")
-        return crashTest (cwd.getChildFile (args[1]));
+        return crashTest (cwd.getChildFile (args[1]), args.size() >= 3 && args[2] == "overflow");
 
     if (args.size() >= 5 && args[0] == "scantest")
         return scanTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]), cwd.getChildFile (args[3]),
@@ -1080,7 +1186,7 @@ int main (int argc, char** argv)
                  "  MpeRollHarness uitest\n"
                  "  MpeRollHarness params <synth.vst3>\n"
                  "  MpeRollHarness clapdialect <MPE Roll Test Synth.clap>\n"
-                 "  MpeRollHarness crashtest <report.txt>\n"
+                 "  MpeRollHarness crashtest <report.txt> [overflow]\n"
                  "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n");
     return 2;
 }

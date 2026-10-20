@@ -116,6 +116,8 @@ private:
     uint64_t clock = 0;
     float zonePitch = 0.0f;                     // single-channel mode combines zone and lead pitch
     float zonePressure = 0.0f;                  // ...and, sent as channel pressure, zone and lead pressure
+    float tailPitch = 0.0f, tailPressure = 0.0f; // the last released note's, standing in for a lead until the next note
+    bool timbreFromNote = false;                // single channel's timbre was last set by a note, not the zone
 
     bool isSingleChannelMode() const noexcept;
     bool combinesZonePressure() const noexcept;
@@ -133,6 +135,7 @@ private:
 
     void sendSingleChannelPitch (juce::MidiBuffer&, int samplePos, bool force);
     void sendSingleChannelPressure (juce::MidiBuffer&, int samplePos, bool force);
+    void sendSingleChannelTimbre (juce::MidiBuffer&, int samplePos);
     void sendPitchBend (juce::MidiBuffer&, int samplePos, int channel, double value, bool force);
     void sendChannelPressure (juce::MidiBuffer&, int samplePos, int channel, float value, bool force);
     void sendPolyPressure (juce::MidiBuffer&, int samplePos, int channel, int key, int value, bool force);

@@ -236,17 +236,21 @@ void MpeEncoder::releaseVoice (juce::MidiBuffer& out, int samplePos, Voice& v, f
         }
     }
 
+    // The next newest note takes over the channel. After the last one the channel keeps its values, even
+    // as zone lanes change, so the release tail doesn't jump; the next note sends its own before its Note On.
+    if (wasLead && numActive == 0)
+    {
+        tailPitch = v.pitch;
+        tailPressure = v.pressure;
+    }
+
     v = Voice {};
 
-    // The next newest note takes over the channel. After the last one the channel keeps its values,
-    // so the release tail doesn't jump; the next note sends its own before its Note On.
     if (wasLead && numActive > 0)
     {
         sendSingleChannelPitch (out, samplePos, false);
         sendSingleChannelPressure (out, samplePos, false);
-
-        if (auto* lead = leadVoice())
-            sendTimbre (out, samplePos, settings.singleChannel, lead->timbre, false);
+        sendSingleChannelTimbre (out, samplePos);
     }
 }
 
@@ -401,6 +405,7 @@ void MpeEncoder::prepareNote (juce::MidiBuffer& out, int samplePos, Handle handl
     voice->pitch = 0.0f;
     voice->pressure = 0.0f;
     voice->timbre = settings.defaultTimbre;
+    tailPitch = tailPressure = 0.0f;
 
     activeList[(size_t) numActive++] = (int) (voice - voices.data());
 }
@@ -419,6 +424,7 @@ void MpeEncoder::startNote (juce::MidiBuffer& out, int samplePos, Handle handle,
     {
         sendSingleChannelPitch (out, samplePos, false);
         sendSingleChannelPressure (out, samplePos, false);
+        sendSingleChannelTimbre (out, samplePos);
     }
     else if (st.numVoices == 1)
     {
@@ -477,6 +483,13 @@ void MpeEncoder::resetControllers (juce::MidiBuffer& out, int samplePos)
 {
     zonePitch = 0.0f;
     zonePressure = 0.0f;
+    tailPitch = tailPressure = 0.0f;
+    timbreFromNote = false;
+
+    // Called before settings change: a controller carrying pressure may not carry it from now on,
+    // so it goes back to its own rest value (Expression to full) rather than staying where pressure left it.
+    const auto pressureController = settings.pressureTarget == OutputSettings::PressureTarget::controller
+                                        ? settings.pressureController : -1;
 
     for (int ch = 1; ch <= 16; ++ch)
     {
@@ -491,6 +504,14 @@ void MpeEncoder::resetControllers (juce::MidiBuffer& out, int samplePos)
         for (auto pedal : { 64, 66, 67, 68, 69 })
             if (st.controllers[(size_t) pedal] > 0)
                 sendController (out, samplePos, ch, pedal, 0, true);
+
+        if (pressureController >= 0)
+        {
+            const auto rest = toSevenBit (defaultControllerValue (pressureController));
+
+            if (st.controllers[(size_t) pressureController] >= 0 && st.controllers[(size_t) pressureController] != rest)
+                sendController (out, samplePos, ch, pressureController, rest, true);
+        }
     }
 }
 
@@ -499,6 +520,7 @@ void MpeEncoder::resetZoneControllers (juce::MidiBuffer& out, int samplePos)
     if (isSingleChannelMode())
     {
         zonePitch = 0.0f;
+        tailPitch = tailPressure = 0.0f;
         sendSingleChannelPitch (out, samplePos, false);
     }
 
@@ -576,8 +598,13 @@ void MpeEncoder::setTimbre (juce::MidiBuffer& out, int samplePos, Handle handle,
 
     v->timbre = value;
 
-    if (isSingleChannelMode() && ! isLead (*v))
-        return;
+    if (isSingleChannelMode())
+    {
+        if (! isLead (*v))
+            return;
+
+        timbreFromNote = true;
+    }
 
     sendTimbre (out, samplePos, v->channel, value, ! v->started);
     channels[(size_t) v->channel].timbreTouched = true;
@@ -624,6 +651,7 @@ void MpeEncoder::setZonePressure (juce::MidiBuffer& out, int samplePos, float va
 
 void MpeEncoder::setZoneTimbre (juce::MidiBuffer& out, int samplePos, float value)
 {
+    timbreFromNote = false;
     forEachZoneMaster ([&] (int ch) { sendTimbre (out, samplePos, ch, value, false); });
 }
 
@@ -640,7 +668,7 @@ void MpeEncoder::setZoneController (juce::MidiBuffer& out, int samplePos, int co
 void MpeEncoder::sendSingleChannelPitch (juce::MidiBuffer& out, int samplePos, bool force)
 {
     const auto* lead = leadVoice();
-    const auto semitones = zonePitch + (lead != nullptr ? lead->pitch : 0.0f);
+    const auto semitones = zonePitch + (lead != nullptr ? lead->pitch : tailPitch);
     sendPitchBend (out, samplePos, settings.singleChannel,
                    semitonesToPitchBendFine (semitones, settings.masterBendRange), force);
 }
@@ -653,12 +681,23 @@ void MpeEncoder::sendSingleChannelPressure (juce::MidiBuffer& out, int samplePos
         return;
 
     const auto* lead = leadVoice();
-    const auto own = lead != nullptr ? lead->pressure : 0.0f;
+    const auto own = lead != nullptr ? lead->pressure : tailPressure;
 
     if (settings.pressureTarget == OutputSettings::PressureTarget::controller)
         sendController (out, samplePos, settings.singleChannel, settings.pressureController, toSevenBit (own), force);
     else
         sendChannelPressure (out, samplePos, settings.singleChannel, zonePressure + own, force);
+}
+
+void MpeEncoder::sendSingleChannelTimbre (juce::MidiBuffer& out, int samplePos)
+{
+    // Only once a note has set the timbre: a synth that has CC74 on its filter keeps the preset's
+    // setting through clips that never use timbre, and a zone timbre lane isn't fought over.
+    if (! timbreFromNote)
+        return;
+
+    if (const auto* lead = leadVoice())
+        sendTimbre (out, samplePos, settings.singleChannel, lead->timbre, false);
 }
 
 void MpeEncoder::sendPitchBend (juce::MidiBuffer& out, int samplePos, int channel, double value, bool force)

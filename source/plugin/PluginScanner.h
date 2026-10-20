@@ -19,6 +19,11 @@ inline constexpr const char* processId = "mperollscanner";
 /** What the scanner says as soon as it's connected, so one that can't start is noticed quickly. */
 inline constexpr const char* readyMessage = "mperoll-scanner-ready";
 
+/** What the scanner says when it starts on a file, before it loads anything. A scanner that went down
+    before saying it, or got stuck before it could, never reached the file, so the file isn't blamed.
+*/
+inline constexpr const char* startedMessage = "mperoll-scanner-started";
+
 /** How long one file may take, including any dialog the plugin shows (authorisation, say). */
 inline constexpr int defaultTimeoutMs = 180000;
 
@@ -49,6 +54,10 @@ juce::String describeFailure (Outcome, const juce::String& fileName);
 /** For KnownPluginList: scans each file in a scanner process, keeping the process for the whole scan
     and starting a new one after a crash. A file that crashes or hangs is reported as failed, so the
     list blacklists it. Without a scanner program, files are scanned in this process as before.
+
+    A scanner that had looked at other files may have been brought down by one of them (a thread or
+    timer it left running), and one that never reached the file can't have been brought down by it:
+    either way the file is looked at once more, in a fresh scanner, before it's blamed.
 */
 class OutOfProcessScanner final : public juce::KnownPluginList::CustomScanner
 {
