@@ -13,6 +13,9 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 2. Copy `MPE Roll.vst3` to `C:\Program Files\Common Files\VST3` (macOS: `/Library/Audio/Plug-Ins/VST3`).
 3. In FL Studio: *Options › Manage plugins › Find installed plugins*.
 4. Add **MPE Roll** to the Channel Rack like any other instrument.
+5. In MPE Roll's wrapper settings (the gear icon in the plugin window's title bar), leave *Send pitch
+   bend range* off so FL doesn't send its own bend range on top of MPE Roll's. If you use FL's *Smart
+   disable*, turn it off for MPE Roll: MPE Roll plays its own clip, so FL may think it's idle.
 
 ## 2. Load a synth
 
@@ -39,8 +42,10 @@ The synth and its settings are saved inside your FL project. If you open the pro
 that doesn't have that synth, MPE Roll shows **Missing: <synth name>** and keeps its settings, so
 nothing is lost when you save.
 
-**Synth without MPE?** Set *Synth expects* to **Plain MIDI (one channel)**. Pressure becomes poly
-aftertouch, and the most recent note's glide drives the channel pitch bend.
+**Synth without MPE?** Set *Synth expects* to **Plain MIDI (one channel)**. The most recent note's
+glide and timbre drive the channel's pitch bend and timbre controller, so set *Zone bend range* to the
+synth's own bend range. Per-note pressure becomes poly aftertouch. For a synth that only responds to
+channel aftertouch, draw pressure in the zone-wide *Channel pressure* lane instead.
 
 ### Automating the synth from FL
 
@@ -152,11 +157,48 @@ needs checking in a real FL install.
 - MPE Roll's **MIDI output** carries the same MPE stream it sends to the hosted synth. In the
   wrapper settings, set an output port to send it to another plugin's input port.
 
+## 7. Notes on particular synths
+
+These come from the makers' documentation and user reports. They haven't been checked inside MPE Roll
+yet. Neither synth comes as CLAP, so the CLAP note-expression path doesn't apply.
+
+**Spectrasonics Omnisphere**
+- MPE needs **Omnisphere 3**; 3.0.1c and later include MPE fixes. Omnisphere 2 has no MPE, so use
+  *Plain MIDI (one channel)* with it.
+- Authorize it once in its standalone app or directly in FL before loading it inside MPE Roll.
+- Turn MPE on in its **System** page (the SYSTEM button in its header). Set its *MPE Pitch Bend
+  Range* to MPE Roll's *Per-note bend range* (48 by default). If Omnisphere doesn't offer 48, set MPE
+  Roll to a value it does offer; don't count on Omnisphere following MPE Roll's setup messages.
+- Load the patch into **Part 1** only. With MPE on, every Part listens on all channels, so any other
+  loaded Part plays as well.
+- Omnisphere's *MPE Y* is timbre (CC74) and *MPE Z* is pressure. Patches in the factory *MPE*
+  category already use them. For other patches, route MPE Y or MPE Z yourself (right-click a control ›
+  *Modulate*). Keep *Pressure sent as* on **Channel pressure**.
+- A parameter only reaches MPE Roll's *Synth* slots after you right-click it in Omnisphere and choose
+  **Enable Host Automation**.
+- If held notes bend together through the VST3 version, try the VST2 `Omnisphere.dll` with *Load
+  plugin file…*.
+
+**Arturia Analog Lab**
+- Arturia says Analog Lab itself isn't MPE compatible. (Their individual instruments, such as
+  Pigments, are.) Set *Synth expects* to **Plain MIDI (one channel)**. In Analog Lab's Settings, set
+  *MIDI Channel* to *All* or 1.
+- Set *Zone bend range* to the preset's pitch-bend range (often 2). The newest note's glide bends the
+  whole channel and stops at the edge of that range.
+- Analog Lab responds to channel aftertouch, not poly aftertouch, so draw pressure in the zone-wide
+  *Channel pressure* lane.
+- The newest note's timbre is sent as CC74. Whether that changes the sound depends on the *MIDI
+  Controller* map in Analog Lab's settings; with *Generic MIDI Controller*, MIDI-learn CC74 to a
+  control.
+- From FL you can automate the macros, the assignable controls and the effects. To automate an
+  engine parameter, assign it to one of Analog Lab's controls first.
+
 ## Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
 | No sound | Load a synth (*Load synth…*), and check that the synth itself makes sound in its own window. |
+| Clicks, timing drift or CPU spikes | In MPE Roll's wrapper settings, turn on *Use fixed size buffers* (Troubleshooting tab). |
 | Glides are much too big or too small | The synth's MPE bend range doesn't match MPE Roll's *Per-note bend range* (48 by default). |
 | All notes bend together | The synth isn't in MPE mode. Turn MPE on in the synth, or switch MPE Roll to *Plain MIDI*. |
 | Recording catches nothing | The controller's Port in FL's MIDI settings must match MPE Roll's MIDI input port, and FL must be playing. |
