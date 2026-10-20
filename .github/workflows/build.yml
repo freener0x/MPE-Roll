@@ -14,17 +14,50 @@ jobs:
   windows:
     name: Windows (VST3, Standalone)
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      HARNESS: build/MpeRollHarness_artefacts/Release/MpeRollHarness.exe
+      VST3_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3
+      VST2_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST/MPE Roll Test Synth.dll
+      CLAP_SYNTH: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap
     steps:
       - uses: actions/checkout@v4
 
       - name: Configure
-        run: cmake -S . -B build -A x64
+        run: cmake -S . -B build -A x64 -DMPEROLL_BUILD_DEV_TOOLS=ON
 
       - name: Build
-        run: cmake --build build --config Release --parallel --target MpeRoll_VST3 MpeRoll_Standalone MpeRollTests
+        run: >
+          cmake --build build --config Release --parallel --target MpeRoll_VST3 MpeRoll_Standalone MpeRollTests
+          MpeRollHarness MpeRollTestSynth_VST3 MpeRollTestSynth_VST MpeRollClapTestSynth
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
+
+      # Hosting synths on Windows, with the same checks the Linux job runs.
+      - name: Plugin self-test
+        run: '"$HARNESS" selftest'
+
+      - name: UI interaction test
+        run: '"$HARNESS" uitest'
+
+      - name: Hosted VST3 synth (parameters, render)
+        run: |
+          "$HARNESS" params "$VST3_SYNTH"
+          "$HARNESS" render "$VST3_SYNTH" render.wav
+
+      - name: Hosted VST2 synth (parameters, render)
+        run: |
+          "$HARNESS" params "$VST2_SYNTH"
+          "$HARNESS" render "$VST2_SYNTH" render-vst2.wav
+
+      - name: Hosted CLAP synth (parameters, render, note expressions)
+        run: |
+          "$HARNESS" params "$CLAP_SYNTH"
+          "$HARNESS" render "$CLAP_SYNTH" render-clap.wav
+          "$HARNESS" clapdialect "$CLAP_SYNTH"
 
       - name: Package
         shell: pwsh
