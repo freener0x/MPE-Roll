@@ -94,6 +94,12 @@ Loading a different synth reassigns the slots.
   and other pedals and controllers. *Draw* replaces only the stretch you draw over, *Line* draws a
   straight line, *Erase* removes points. Edits apply to the selected notes, or to every note under
   the pen if none are selected.
+- **Vibrato:** pick *Vibrato* in the lane menu and draw how deep it is, up to a semitone either way.
+  Ramp it up to have the vibrato come in late. MPE Roll plays it by wobbling each note's own pitch,
+  so it works with any synth, MPE or not, with no setup in the synth. The speed (in Hz, the same at
+  any tempo) is set next to the lane menu and applies to the whole clip. Notes with vibrato show a
+  wavy line. *Send to FL piano roll* turns it into slide notes. (The *Vibrato Rate / Depth*
+  controllers, CC76 to CC78, are different: they only do something if the synth maps them.)
 - **Zoom/scroll:** Ctrl+wheel zooms time, Alt+wheel zooms keys, Shift+wheel scrolls sideways. Drag
   the green handle on the ruler to change the clip length.
 - **Keys:** ↑/↓ transpose (Shift: octave), ←/→ nudge, Q quantizes, Ctrl+C/X/V, Ctrl+D or Ctrl+B

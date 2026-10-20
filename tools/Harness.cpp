@@ -83,15 +83,9 @@ MpeClip makeDemoClip()
     top.lanes.pressure = { { 0.0, 0.3f }, { 1.0, 0.7f }, { 3.5, 0.5f } };
     clip.addNote (top);
 
-    // A melody with vibrato and a long glide.
+    // A melody whose vibrato fades in, and a long glide.
     auto lead = note (67, 4.0, 2.0, 0.85f);
-
-    for (int i = 0; i <= 200; ++i)
-    {
-        const auto t = i * 0.01;
-        lead.lanes.pitch.append (t, t < 0.5 ? 0.0f : 0.35f * (float) std::sin ((t - 0.5) * 30.0) * (float) juce::jmin (1.0, (t - 0.5) * 2.0));
-    }
-
+    lead.lanes.vibrato = { { 0.0, 0.0f }, { 0.5, 0.0f }, { 1.0, 0.35f } };
     lead.lanes.pressure = { { 0.0, 0.2f }, { 1.0, 1.0f }, { 2.0, 0.4f } };
     clip.addNote (lead);
 
@@ -224,16 +218,21 @@ int render (const juce::File& synthFile, const juce::File& target)
 
     std::printf ("Hosting: %s\n", processor.getSynth().getName().toRawUTF8());
 
-    // C4 glides up an octave between beats 0.5 and 1.5 while E4 holds still.
+    // C4 glides up an octave between beats 0.5 and 1.5 while E4 holds still. Then A4 has MPE Roll's
+    // vibrato: a semitone either way, five times a second.
     MpeClip clip;
-    clip.length = 4.0;
+    clip.length = 8.0;
     auto glide = note (60, 0.0, 2.0, 0.8f);
     glide.lanes.pitch = { { 0.0, 0.0f }, { 0.5, 0.0f }, { 1.5, 12.0f } };
     clip.addNote (glide);
     clip.addNote (note (64, 0.0, 2.0, 0.8f));
+    auto wobble = note (69, 3.0, 2.0, 0.8f);
+    wobble.lanes.vibrato = { { 0.0, 1.0f } };
+    clip.addNote (wobble);
+    clip.vibratoRate = 5.0;
     processor.getDocument().replaceClip (0, clip, "Test");
 
-    const auto totalSamples = (int) (2.5 / 2.0 * sampleRate);
+    const auto totalSamples = (int) (5.5 / 2.0 * sampleRate);
     juce::AudioBuffer<float> output (2, totalSamples);
     output.clear();
 
@@ -297,11 +296,47 @@ int render (const juce::File& synthFile, const juce::File& target)
     const bool startsInTune = earlyC4 > 10.0 * earlyC5 && earlyE4 > 0.01;
     const bool glidedUp = lateC5 > 10.0 * lateC4;
     const bool otherNoteHeld = lateE4 > 0.5 * earlyE4;
-    const bool ok = separateChannels && startsInTune && glidedUp && otherNoteHeld;
 
-    std::printf ("Separate channels: %s, starts in tune: %s, C4 glided to C5: %s, E4 unaffected: %s\n",
+    // The sine's frequency from one upward zero crossing to the next, between beats 3.2 and 4.8.
+    double highest = 0.0, lowest = 1.0e9;
+    int swings = 0;
+    {
+        const auto a4 = juce::MidiMessage::getMidiNoteInHertz (69);
+        const auto* data = output.getReadPointer (0);
+        double lastCrossing = -1.0;
+        bool high = false;
+
+        for (auto i = (int) (3.2 / 2.0 * sampleRate); i < (int) (4.8 / 2.0 * sampleRate); ++i)
+        {
+            if (data[i - 1] >= 0.0f || data[i] < 0.0f)
+                continue;
+
+            const auto crossing = i - 1 + data[i - 1] / (data[i - 1] - data[i]);
+
+            if (lastCrossing >= 0.0)
+            {
+                const auto frequency = sampleRate / (crossing - lastCrossing);
+                highest = std::max (highest, frequency);
+                lowest = std::min (lowest, frequency);
+
+                if (! high && frequency > a4 * 1.02)
+                    ++swings;
+
+                high = frequency > a4 * 1.02 || (high && frequency > a4 / 1.02);
+            }
+
+            lastCrossing = crossing;
+        }
+    }
+
+    // A semitone either way is 415 to 466 Hz; 0.8 seconds at 5 Hz is four swings.
+    const bool vibrato = highest > 460.0 && highest < 472.0 && lowest > 410.0 && lowest < 421.0 && swings >= 3 && swings <= 5;
+    const bool ok = separateChannels && startsInTune && glidedUp && otherNoteHeld && vibrato;
+
+    std::printf ("Vibrato on A4: %.1f to %.1f Hz, %d swings\n", lowest, highest, swings);
+    std::printf ("Separate channels: %s, starts in tune: %s, C4 glided to C5: %s, E4 unaffected: %s, vibrato: %s\n",
                  separateChannels ? "yes" : "NO", startsInTune ? "yes" : "NO",
-                 glidedUp ? "yes" : "NO", otherNoteHeld ? "yes" : "NO");
+                 glidedUp ? "yes" : "NO", otherNoteHeld ? "yes" : "NO", vibrato ? "yes" : "NO");
     std::printf ("%s (wrote %s)\n", ok ? "PASS" : "FAIL", target.getFullPathName().toRawUTF8());
 
     processor.releaseResources();
@@ -965,6 +1000,25 @@ int uiTest()
         const auto erased = std::none_of (pressure.getPoints().begin(), pressure.getPoints().end(),
                                           [] (const CurvePoint& p) { return p.beat > 0.55 && p.beat < 1.45; });
         check (erased && ! pressure.isEmpty(), "right-dragging erases just the points under the pen");
+
+        lane->setTarget (ExpressionLane::Target::noteVibrato);
+        gesture (*lane, laneAt (3.0, 0.6f), laneAt (5.0, 0.6f), juce::ModifierKeys (juce::ModifierKeys::leftButtonModifier), 40);
+        const auto& vibrato = clip().notes[0].lanes.vibrato;
+        check (! vibrato.isEmpty() && std::abs (vibrato.valueAt (1.0, 0.0f) - 0.6f) < 0.03f, "the vibrato lane draws depth onto the note");
+
+        if (auto* rate = findChild<juce::Slider> (*lane))
+        {
+            rate->setValue (7.0, juce::sendNotificationSync);
+            check (std::abs (clip().vibratoRate - 7.0) < 1.0e-9, "its speed is set next to the lane menu");
+            document.getUndoManager().undo();
+            check (std::abs (clip().vibratoRate - defaultVibratoRate) < 1.0e-9, "and can be undone");
+        }
+        else
+        {
+            check (false, "the vibrato lane has a speed control");
+        }
+
+        lane->setTarget (ExpressionLane::Target::notePressure);
     }
 
     std::printf ("Selection, clipboard and undo\n");

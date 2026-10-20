@@ -215,6 +215,31 @@ void NoteGrid::paintNote (juce::Graphics& g, const MpeNote& n, bool selected, bo
         g.strokePath (p, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.fillEllipse (juce::Rectangle<float> (5.0f, 5.0f).withCentre (startPoint));
     }
+
+    // Vibrato is in Hz: drawn at the project's tempo, as it will play.
+    if (lanes.vibrato.maxValue (0.0f) > 0.0f)
+    {
+        const auto cyclesPerBeat = document.getEditClip().vibratoRate * 60.0 / juce::jmax (1.0, processor.getTransport().bpm);
+        const auto noteX = (float) view.beatToX (n.start);
+        const auto fromX = juce::jmax (noteX, -4.0f);
+        const auto toX = juce::jmin ((float) view.beatToX (n.end()), (float) getWidth() + 4.0f);
+        auto pointAt = [&] (float x)
+        {
+            const auto t = (double) (x - noteX) / view.pixelsPerBeat;
+            const auto pitch = (float) n.key + lanes.pitch.valueAt (t, 0.0f)
+                             + vibratoOffset (lanes.vibrato.valueAt (t, 0.0f), t * cyclesPerBeat);
+            return juce::Point<float> (x, view.pitchToY (pitch));
+        };
+
+        juce::Path p;
+        p.startNewSubPath (pointAt (fromX));
+
+        for (auto x = fromX + 1.5f; x <= toX; x += 1.5f)
+            p.lineTo (pointAt (x));
+
+        g.setColour (Theme::glide.withAlpha (outsideLoop ? 0.3f : 0.8f));
+        g.strokePath (p, juce::PathStrokeType (1.3f));
+    }
 }
 
 void NoteGrid::paint (juce::Graphics& g)

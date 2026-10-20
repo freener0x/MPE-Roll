@@ -62,6 +62,28 @@ public:
         }
     };
 
+    /** Plays a clip and returns the member channel's pitch, in semitones, at each bend sent. */
+    static std::vector<std::pair<int, float>> vibratoBends (const MpeClip& clip, double beatsPerSample, int numSamples)
+    {
+        MpeEncoder encoder;
+        ClipPlayer player;
+        player.setSampleRate (sampleRate);
+        player.setControlInterval (48);
+        std::vector<std::pair<int, float>> bends;
+
+        for (int s = 0; s < numSamples; s += 512)
+        {
+            juce::MidiBuffer out;
+            player.renderBlock (clip, encoder, out, s * beatsPerSample, beatsPerSample, 0, std::min (512, numSamples - s), false);
+
+            for (const auto& m : collect (out))
+                if (m.message.isPitchWheel() && m.message.getChannel() != 1)
+                    bends.emplace_back (s + m.sample, (float) (m.message.getPitchWheelValue() - 8192) / 8192.0f * 48.0f);
+        }
+
+        return bends;
+    }
+
     void runTest() override
     {
         beginTest ("Notes start and stop on the exact sample");
@@ -210,6 +232,63 @@ public:
             }
 
             expectEquals (changesAfter, 0);
+        }
+
+        beginTest ("Vibrato wobbles the pitch at its rate in Hz, whatever the tempo");
+        {
+            for (auto bpm : { 60.0, 120.0, 174.0 })
+            {
+                const auto beatsPerSample = bpm / 60.0 / sampleRate;
+                MpeClip clip;
+                clip.vibratoRate = 5.0;
+                auto n = makeNote (60, 0.0, 2.0 * bpm / 60.0);
+                n.lanes.vibrato = { { 0.0, 0.5f } };
+                clip.addNote (n);
+
+                const auto bends = vibratoBends (clip, beatsPerSample, (int) sampleRate);
+                const auto label = juce::String (bpm) + " bpm";
+                int upwardCrossings = 0;
+                float highest = -1.0f, lowest = 1.0f;
+
+                for (size_t i = 1; i < bends.size(); ++i)
+                {
+                    upwardCrossings += bends[i - 1].second < 0.0f && bends[i].second >= 0.0f ? 1 : 0;
+                    highest = std::max (highest, bends[i].second);
+                    lowest = std::min (lowest, bends[i].second);
+                }
+
+                // Five cycles in a second; the first starts at zero going up, so it isn't a crossing.
+                expect (upwardCrossings == 4 || upwardCrossings == 5, label + ": " + juce::String (upwardCrossings));
+                expectWithinAbsoluteError (highest, 0.5f, 0.03f, label);
+                expectWithinAbsoluteError (lowest, -0.5f, 0.03f, label);
+            }
+        }
+
+        beginTest ("Vibrato depth follows its lane and adds to the glide");
+        {
+            MpeClip clip;
+            auto n = makeNote (60, 0.0, 4.0);
+            n.lanes.pitch = { { 0.0, 2.0f } };
+            n.lanes.vibrato = { { 0.0, 0.0f }, { 2.0, 1.0f } };
+            clip.addNote (n);
+
+            const auto bends = vibratoBends (clip, bps, (int) (2.0 / bps));
+            float earlySwing = 0.0f, lateHighest = 0.0f, lateLowest = 9.0f;
+
+            for (const auto& [sample, semitones] : bends)
+            {
+                if (sample < 2400)
+                    earlySwing = std::max (earlySwing, std::abs (semitones - 2.0f));
+
+                if (sample > 36000)
+                {
+                    lateHighest = std::max (lateHighest, semitones);
+                    lateLowest = std::min (lateLowest, semitones);
+                }
+            }
+
+            expect (earlySwing < 0.1f, "starts without vibrato: " + juce::String (earlySwing));
+            expect (lateHighest > 2.7f && lateLowest < 1.3f, "swings around the glide by the end");
         }
 
         beginTest ("Notes removed by an edit are stopped");

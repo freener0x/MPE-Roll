@@ -15,7 +15,7 @@ namespace mperoll
 */
 struct LaneId
 {
-    enum class Kind : uint8_t { pitch, pressure, timbre, controller };
+    enum class Kind : uint8_t { pitch, pressure, timbre, controller, vibrato };
 
     Kind kind = Kind::pitch;
     int controller = 0;     // only meaningful when kind == controller
@@ -23,6 +23,7 @@ struct LaneId
     static LaneId pitch() noexcept                  { return { Kind::pitch, 0 }; }
     static LaneId pressure() noexcept               { return { Kind::pressure, 0 }; }
     static LaneId timbre() noexcept                 { return { Kind::timbre, 0 }; }
+    static LaneId vibrato() noexcept                { return { Kind::vibrato, 0 }; }
     static LaneId cc (int number) noexcept          { return { Kind::controller, number }; }
 
     bool operator== (const LaneId&) const = default;
@@ -36,13 +37,16 @@ struct ControllerLane
     bool operator== (const ControllerLane&) const = default;
 };
 
-/** A set of expression lanes: pitch (in semitones), pressure, timbre and any number of controllers (0..1). */
+/** A set of expression lanes: pitch (in semitones), pressure, timbre and any number of controllers (0..1),
+    plus the depth of the vibrato MPE Roll performs itself by wobbling the pitch (0..1, see maxVibratoDepth).
+*/
 struct LaneSet
 {
     ExpressionCurve pitch;
     ExpressionCurve pressure;
     ExpressionCurve timbre;
     std::vector<ControllerLane> controllers;
+    ExpressionCurve vibrato;
 
     const ExpressionCurve* find (LaneId id) const noexcept;
     ExpressionCurve* find (LaneId id) noexcept;
@@ -76,6 +80,14 @@ struct MpeNote
     JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 };
 
+/** Semitones either way that a vibrato lane at full depth swings the pitch. */
+inline constexpr float maxVibratoDepth = 1.0f;
+
+inline constexpr double defaultVibratoRate = 5.5, minVibratoRate = 0.5, maxVibratoRate = 12.0;
+
+/** The pitch offset, in semitones, of a vibrato at the given depth (0..1) and phase (in cycles). */
+float vibratoOffset (float depth, double phase) noexcept;
+
 /** A clip of MPE notes plus zone-wide (master channel) automation. Times are in beats (quarter notes). */
 struct MpeClip
 {
@@ -85,6 +97,7 @@ struct MpeClip
     std::vector<MpeNote> notes; // kept sorted by start time
     LaneSet zone;               // curve times are relative to the clip start
     uint32_t nextNoteId = 1;
+    double vibratoRate = defaultVibratoRate;    // Hz, for every vibrato lane in the clip
 
     /** Adds a note, giving it a fresh id, and keeps the notes sorted. Returns the new id. */
     uint32_t addNote (MpeNote note);

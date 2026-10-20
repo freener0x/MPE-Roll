@@ -9,7 +9,7 @@ namespace mperoll
 {
 
 /** The expression editor under the grid. Shows and edits one lane at a time: velocity, release
-    velocity, pitch, pressure, timbre or any controller - per note or zone-wide.
+    velocity, pitch, pressure, timbre, vibrato depth or any controller - per note or zone-wide.
 
     Per-note edits apply to the selected notes, or to every note under the pen when nothing is
     selected. Drawing only replaces the stretch you draw over; the rest of the curve is kept.
@@ -23,7 +23,8 @@ public:
     {
         strike, lift,
         notePitch, notePressure, noteTimbre, noteController,
-        zonePitch, zonePressure, zoneTimbre, zoneController
+        zonePitch, zonePressure, zoneTimbre, zoneController,
+        noteVibrato, zoneVibrato
     };
 
     enum class Tool { draw, line, erase };
@@ -55,7 +56,9 @@ private:
 
     juce::TextButton laneButton, drawButton { "Draw" }, lineButton { "Line" }, eraseButton { "Erase" },
                      rangeButton, clearButton { "Clear" };
+    juce::Slider rateSlider { juce::Slider::LinearBar, juce::Slider::TextBoxLeft };
     juce::Label hint;
+    bool draggingRate = false;
 
     // The stroke being drawn and the curves as they were before it started.
     std::vector<juce::Point<double>> stroke;   // (beat, value)
@@ -64,12 +67,13 @@ private:
     bool dragging = false, erasing = false;
 
     void viewChanged() override                                     { repaint(); }
-    void changeListenerCallback (juce::ChangeBroadcaster*) override { repaint(); }
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     juce::Rectangle<float> plotArea() const;
     bool isPerNoteCurve() const noexcept;
     bool isZone() const noexcept;
     bool isPitch() const noexcept;
+    bool isVibrato() const noexcept     { return target == Target::noteVibrato || target == Target::zoneVibrato; }
     bool isVelocity() const noexcept    { return target == Target::strike || target == Target::lift; }
     LaneId laneId() const noexcept;
     float minValue() const;
@@ -92,6 +96,7 @@ private:
     void showRangeMenu();
     void askForController (bool zone);
     void updateHeader();
+    void setVibratoRate (double hz);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExpressionLane)
 };

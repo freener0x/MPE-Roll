@@ -113,8 +113,11 @@ public:
             n.lanes.pitch = { { 0.0, 0.0f }, { 0.5, 2.5f } };
             n.lanes.pressure = { { 0.1, 0.4f } };
             n.lanes.get (LaneId::cc (10)) = { { 0.0, 0.25f } };
+            n.lanes.vibrato = { { 0.0, 0.0f }, { 0.4, 0.6f } };
             clip.addNote (n);
             clip.zone.get (LaneId::cc (64)) = { { 0.0, 1.0f }, { 4.0, 0.0f } };
+            clip.zone.vibrato = { { 2.0, 0.3f } };
+            clip.vibratoRate = 7.5;
 
             MpeClip restored;
             expect (MpeClip::fromMemoryBlock (clip.toMemoryBlock(), restored));
@@ -123,6 +126,46 @@ public:
             juce::MemoryBlock garbage ("not a clip", 10);
             MpeClip untouched;
             expect (! MpeClip::fromMemoryBlock (garbage, untouched));
+        }
+
+        beginTest ("Clips saved before vibrato still load");
+        {
+            // Version 1: one note with a pitch curve and controller 10, and no zone lanes.
+            juce::MemoryOutputStream out;
+            out.writeInt (0x4d505243);
+            out.writeInt (1);
+            out.writeString ("Old");
+            out.writeDouble (8.0);
+            out.writeBool (true);
+            out.writeInt (2);
+            out.writeInt (1);
+            out.writeInt (1);
+            out.writeInt (62);
+            out.writeDouble (0.5);
+            out.writeDouble (1.0);
+            out.writeFloat (0.7f);
+            out.writeFloat (0.4f);
+            out.writeInt (2);
+            out.writeDouble (0.0); out.writeFloat (0.0f);
+            out.writeDouble (1.0); out.writeFloat (3.0f);
+            out.writeInt (0);
+            out.writeInt (0);
+            out.writeInt (1);
+            out.writeInt (10);
+            out.writeInt (1);
+            out.writeDouble (0.0); out.writeFloat (0.25f);
+
+            for (int i = 0; i < 3; ++i)
+                out.writeInt (0);
+
+            out.writeInt (0);
+
+            MpeClip old;
+            expect (MpeClip::fromMemoryBlock (out.getMemoryBlock(), old));
+            expect (old.name == "Old" && old.notes.size() == 1 && old.notes[0].key == 62);
+            expect (old.notes[0].lanes.pitch.size() == 2 && old.notes[0].lanes.find (LaneId::cc (10)) != nullptr);
+            expect (old.notes[0].lanes.vibrato.isEmpty() && old.zone.vibrato.isEmpty());
+            expectEquals (old.vibratoRate, defaultVibratoRate);
         }
 
         beginTest ("Settings round trip through XML");

@@ -354,6 +354,7 @@ void MpeRollProcessor::applySettings (const EngineSnapshot& snapshot, int)
 
     player.setControlInterval ((int) std::lround (s.playback.controlIntervalMs * currentSampleRate / 1000.0));
     player.setChaseNotes (s.playback.chaseNotes);
+    player.setSampleRate (currentSampleRate);
 }
 
 void MpeRollProcessor::handleAudition()

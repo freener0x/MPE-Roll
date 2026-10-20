@@ -725,6 +725,7 @@ void MpeRollEditor::sendToFl()
 
     FlScriptExporter::Options options;
     options.title = clip.name;
+    options.tempoBpm = rollProcessor.getTransport().bpm;
     auto result = std::make_shared<FlScriptExporter::Result> (FlScriptExporter::generate (clip, options));
 
     auto write = [safe = juce::Component::SafePointer<MpeRollEditor> (this), result] (const juce::File& target)

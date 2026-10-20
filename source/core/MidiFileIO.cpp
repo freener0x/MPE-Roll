@@ -19,6 +19,7 @@ juce::MidiMessageSequence renderToSequence (const MpeClip& clip, const OutputSet
     ClipPlayer player;
     player.setControlInterval (juce::jmax (1, options.controlIntervalTicks));
     player.setChaseNotes (false);
+    player.setSampleRate (ppq * juce::jmax (1.0, options.tempoBpm) / 60.0);
 
     // Render with one "sample" per tick so sample positions are tick positions.
     juce::MidiBuffer buffer;

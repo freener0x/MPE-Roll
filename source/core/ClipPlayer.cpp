@@ -139,6 +139,10 @@ void ClipPlayer::renderSpan (const MpeClip& clip, MpeEncoder& encoder, juce::Mid
 
     auto onsFrom = startBeat;
 
+    // Vibrato is in Hz, so its phase moves with time rather than beats.
+    const auto cyclesPerBeat = clip.vibratoRate / (beatsPerSample * sampleRate);
+    const auto cyclesPerSample = clip.vibratoRate / sampleRate;
+
     if (needsChase)
     {
         if (chase)
@@ -146,12 +150,14 @@ void ClipPlayer::renderSpan (const MpeClip& clip, MpeEncoder& encoder, juce::Mid
             for (size_t i = 0; i < notes.size() && notes[i].start < startBeat - beatEpsilon; ++i)
             {
                 const auto& n = notes[i];
+                const auto offset = startBeat - n.start;
 
                 if (effectiveEnd (n) > startBeat + beatEpsilon && numActive < maxActiveNotes && ! isActive (n.id))
-                    startNote (n, i, startBeat - n.start, encoder, out, startSample);
+                    startNote (n, i, offset, offset * cyclesPerBeat, encoder, out, startSample);
             }
         }
 
+        zoneVibratoPhase = std::fmod (startBeat * cyclesPerBeat, 1.0);
         needsChase = false;
     }
     else if (nextOnsFrom >= 0.0 && startBeat >= nextOnsFrom && startBeat - nextOnsFrom < maxGapToBridge)
@@ -175,8 +181,9 @@ void ClipPlayer::renderSpan (const MpeClip& clip, MpeEncoder& encoder, juce::Mid
         // Expression for everything already sounding.
         for (int i = 0; i < numActive; ++i)
         {
-            const auto& n = notes[active[(size_t) i].index];
-            sendNoteExpression (n, encoder, out, cs, bs - n.start);
+            const auto& a = active[(size_t) i];
+            const auto& n = notes[a.index];
+            sendNoteExpression (n, encoder, out, cs, bs - n.start, a.vibratoPhase);
         }
 
         sendZoneExpression (clip, encoder, out, cs, bs);
@@ -211,7 +218,8 @@ void ClipPlayer::renderSpan (const MpeClip& clip, MpeEncoder& encoder, juce::Mid
                 continue;
 
             const auto pos = sampleFor (std::max (it->start, bs));
-            startNote (*it, (size_t) (it - notes.begin()), std::max (0.0, bs - it->start), encoder, out, pos);
+            const auto offset = std::max (0.0, bs - it->start);
+            startNote (*it, (size_t) (it - notes.begin()), offset, offset * cyclesPerBeat, encoder, out, pos);
 
             const auto end = effectiveEnd (*it);
 
@@ -222,32 +230,41 @@ void ClipPlayer::renderSpan (const MpeClip& clip, MpeEncoder& encoder, juce::Mid
             }
         }
 
+        const auto cycles = (ce - cs) * cyclesPerSample;
+
+        for (int i = 0; i < numActive; ++i)
+            active[(size_t) i].vibratoPhase = std::fmod (active[(size_t) i].vibratoPhase + cycles, 1.0);
+
+        zoneVibratoPhase = std::fmod (zoneVibratoPhase + cycles, 1.0);
         cs = ce;
     }
 
     nextOnsFrom = startBeat + numSamples * beatsPerSample;
 }
 
-void ClipPlayer::startNote (const MpeNote& note, size_t index, double offsetInNote,
+void ClipPlayer::startNote (const MpeNote& note, size_t index, double offsetInNote, double vibratoPhase,
                             MpeEncoder& encoder, juce::MidiBuffer& out, int samplePos)
 {
     const auto handle = handleFor (note.id);
+    vibratoPhase = std::fmod (vibratoPhase, 1.0);
 
     encoder.prepareNote (out, samplePos, handle, note.key);
-    sendNoteExpression (note, encoder, out, samplePos, offsetInNote);
+    sendNoteExpression (note, encoder, out, samplePos, offsetInNote, vibratoPhase);
     encoder.startNote (out, samplePos, handle, note.strike);
 
-    active[(size_t) numActive++] = { note.id, index, note.key, note.lift };
+    active[(size_t) numActive++] = { note.id, index, note.key, note.lift, vibratoPhase };
 }
 
 void ClipPlayer::sendNoteExpression (const MpeNote& note, MpeEncoder& encoder, juce::MidiBuffer& out,
-                                     int samplePos, double offsetInNote)
+                                     int samplePos, double offsetInNote, double vibratoPhase)
 {
     const auto handle = handleFor (note.id);
     const auto& lanes = note.lanes;
 
-    if (! lanes.pitch.isEmpty())
-        encoder.setPitch (out, samplePos, handle, lanes.pitch.valueAt (offsetInNote, 0.0f));
+    if (! lanes.pitch.isEmpty() || ! lanes.vibrato.isEmpty())
+        encoder.setPitch (out, samplePos, handle,
+                          lanes.pitch.valueAt (offsetInNote, 0.0f)
+                              + vibratoOffset (lanes.vibrato.valueAt (offsetInNote, 0.0f), vibratoPhase));
 
     if (! lanes.pressure.isEmpty())
         encoder.setPressure (out, samplePos, handle, lanes.pressure.valueAt (offsetInNote, 0.0f));
@@ -265,8 +282,9 @@ void ClipPlayer::sendZoneExpression (const MpeClip& clip, MpeEncoder& encoder, j
 {
     const auto& zone = clip.zone;
 
-    if (! zone.pitch.isEmpty())
-        encoder.setZonePitch (out, samplePos, zone.pitch.valueAt (clipBeat, 0.0f));
+    if (! zone.pitch.isEmpty() || ! zone.vibrato.isEmpty())
+        encoder.setZonePitch (out, samplePos, zone.pitch.valueAt (clipBeat, 0.0f)
+                                                  + vibratoOffset (zone.vibrato.valueAt (clipBeat, 0.0f), zoneVibratoPhase));
 
     if (! zone.pressure.isEmpty())
         encoder.setZonePressure (out, samplePos, zone.pressure.valueAt (clipBeat, 0.0f));

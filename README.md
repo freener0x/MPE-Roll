@@ -25,6 +25,7 @@ fine pitch and Mod X / Mod Y.
 | Strike (note-on velocity) | Note On velocity, optionally 14-bit with a CC88 prefix |
 | Lift (release velocity) | Note Off velocity, optionally 14-bit with a CC88 prefix |
 | Glide (pitch) | 14-bit pitch bend on the note's channel, any range up to ±96 semitones |
+| Vibrato (depth drawn per note, speed in Hz per clip) | Played by MPE Roll as part of the note's pitch bend, so any synth gets it |
 | Press (pressure) | Channel pressure, poly aftertouch or a CC of your choice |
 | Slide (timbre) | CC74 (or any CC), optionally 14-bit with an LSB controller |
 | Any other controller | That CC on the note's own channel: pan, volume, expression, vibrato rate/depth... |
@@ -59,7 +60,7 @@ and a plain-MIDI mode for synths that don't do MPE.
 - **Glide tool (G):** draw pitch bends straight onto notes. Glides snap to whole semitones and the
   grid (Alt draws freely).
 - **Expression lane:** draw, line or erase any of the lanes above, on selected notes or every note
-  under the pen.
+  under the pen. The vibrato lane shows on the notes as a wavy line.
 - Undo/redo, copy/paste, duplicate (Ctrl+D/B), quantize (Q), transpose (↑/↓), nudge (←/→).
 - 16 clip slots. Each plays in sync with FL (**Follow FL**) or is launched by notes from FL's piano
   roll (**Note trigger**: C0 plays slot 1, C#0 slot 2...).

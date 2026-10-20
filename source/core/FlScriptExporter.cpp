@@ -38,6 +38,25 @@ namespace
         }
     }
 
+    /** Vibrato isn't piecewise linear: sample it often enough for the slides to follow its shape. */
+    void addVibratoTimes (std::vector<double>& times, const ExpressionCurve& depth, double offset, double length,
+                          double cycleBeats)
+    {
+        if (depth.isEmpty() || depth.maxValue (0.0f) <= 0.0f || cycleBeats <= 0.0)
+            return;
+
+        // A curve holds its first value before its first point and its last value after its last.
+        const auto& first = depth.getPoints().front();
+        const auto& last = depth.getPoints().back();
+        const auto from = first.value > 0.0f ? 0.0 : std::max (0.0, first.beat - offset);
+        const auto to = last.value > 0.0f ? length : std::min (length, last.beat - offset);
+        const auto step = cycleBeats / 8.0;
+
+        for (auto t = from; t < to && times.size() < 100'000; t += step)
+            if (t > 0.0)
+                times.push_back (t);
+    }
+
     template <typename Fn>
     ExpressionCurve sampleCurve (std::vector<double> times, Fn&& valueAt)
     {
@@ -93,19 +112,28 @@ namespace
         const auto& lanes = note.lanes;
 
         // Pitch: the note's own glide plus (optionally) the zone-wide bend. Both are piecewise linear,
-        // so sampling at the union of their breakpoints is exact.
+        // so sampling at the union of their breakpoints is exact. Vibrato is sampled densely on top.
         std::vector<double> pitchTimes { 0.0, length };
         addTimes (pitchTimes, lanes.pitch, 0.0, length);
 
+        const auto secondsPerBeat = 60.0 / std::max (1.0, options.tempoBpm);
+        const auto cycleBeats = 1.0 / (clip.vibratoRate * secondsPerBeat);
+        addVibratoTimes (pitchTimes, lanes.vibrato, 0.0, length, cycleBeats);
+
         if (options.bakeZonePitch)
+        {
             addTimes (pitchTimes, clip.zone.pitch, note.start, length);
+            addVibratoTimes (pitchTimes, clip.zone.vibrato, note.start, length, cycleBeats);
+        }
 
         auto pitchAt = [&] (double t)
         {
-            auto value = lanes.pitch.valueAt (t, 0.0f);
+            auto value = lanes.pitch.valueAt (t, 0.0f)
+                       + vibratoOffset (lanes.vibrato.valueAt (t, 0.0f), t / cycleBeats);
 
             if (options.bakeZonePitch)
-                value += clip.zone.pitch.valueAt (note.start + t, 0.0f);
+                value += clip.zone.pitch.valueAt (note.start + t, 0.0f)
+                       + vibratoOffset (clip.zone.vibrato.valueAt (note.start + t, 0.0f), (note.start + t) / cycleBeats);
 
             return value;
         };

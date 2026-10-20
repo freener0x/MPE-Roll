@@ -80,6 +80,39 @@ public:
             expect (result.notes[0].slides.empty());
         }
 
+        beginTest ("Vibrato is baked into slides at the project's tempo");
+        {
+            MpeClip clip;
+            clip.vibratoRate = 4.0;
+            auto n = makeNote (60, 0.0, 2.0);
+            n.lanes.vibrato = { { 0.0, 0.5f } };
+            clip.addNote (n);
+
+            // At 120 bpm two beats are one second: four cycles, each swinging up and down by half a semitone.
+            FlScriptExporter::Options options;
+            options.tempoBpm = 120.0;
+            const auto result = FlScriptExporter::generate (clip, options);
+            int peaks = 0, troughs = 0;
+
+            for (const auto& s : result.notes[0].slides)
+            {
+                peaks += s.pitch > 0.4f ? 1 : 0;
+                troughs += s.pitch < -0.4f ? 1 : 0;
+            }
+
+            expectEquals (peaks, 4);
+            expectEquals (troughs, 4);
+
+            // Twice the tempo, twice the beats per cycle: half as many in the note.
+            options.tempoBpm = 240.0;
+            peaks = 0;
+
+            for (const auto& s : FlScriptExporter::generate (clip, options).notes[0].slides)
+                peaks += s.pitch > 0.4f ? 1 : 0;
+
+            expectEquals (peaks, 2);
+        }
+
         beginTest ("Dense curves are capped to the slide budget");
         {
             MpeClip clip;

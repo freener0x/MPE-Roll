@@ -16,6 +16,7 @@ namespace
     enum MenuIds
     {
         idStrike = 1, idLift, idPitch, idPressure, idTimbre, idZonePitch, idZonePressure, idZoneTimbre,
+        idVibrato, idZoneVibrato,
         idOtherNoteCC = 99, idNoteCCBase = 100, idOtherZoneCC = 299, idZoneCCBase = 300
     };
 }
@@ -25,6 +26,15 @@ ExpressionLane::ExpressionLane (MpeRollProcessor& p, ViewState& v)
 {
     for (auto* b : { &laneButton, &drawButton, &lineButton, &eraseButton, &rangeButton, &clearButton })
         addAndMakeVisible (b);
+
+    // Vibrato speed is one setting for the whole clip; dragging it is one undo step.
+    rateSlider.setRange (minVibratoRate, maxVibratoRate, 0.1);
+    rateSlider.setTextValueSuffix (" Hz");
+    rateSlider.setTooltip ("Vibrato speed for every note in this clip");
+    rateSlider.onDragStart = [this] { draggingRate = true; document.beginEdit ("Vibrato speed"); };
+    rateSlider.onDragEnd = [this] { draggingRate = false; document.endEdit(); };
+    rateSlider.onValueChange = [this] { setVibratoRate (rateSlider.getValue()); };
+    addChildComponent (rateSlider);
 
     for (auto* b : { &drawButton, &lineButton, &eraseButton })
     {
@@ -91,6 +101,8 @@ juce::String ExpressionLane::getTargetName() const
         case Target::zonePressure:    return "Zone pressure";
         case Target::zoneTimbre:      return "Zone timbre";
         case Target::zoneController:  return "Zone " + controllerName (controller) + " (CC" + juce::String (controller) + ")";
+        case Target::noteVibrato:     return "Vibrato depth";
+        case Target::zoneVibrato:     return "Zone vibrato depth";
     }
 
     return {};
@@ -99,13 +111,13 @@ juce::String ExpressionLane::getTargetName() const
 bool ExpressionLane::isPerNoteCurve() const noexcept
 {
     return target == Target::notePitch || target == Target::notePressure
-        || target == Target::noteTimbre || target == Target::noteController;
+        || target == Target::noteTimbre || target == Target::noteController || target == Target::noteVibrato;
 }
 
 bool ExpressionLane::isZone() const noexcept
 {
     return target == Target::zonePitch || target == Target::zonePressure
-        || target == Target::zoneTimbre || target == Target::zoneController;
+        || target == Target::zoneTimbre || target == Target::zoneController || target == Target::zoneVibrato;
 }
 
 bool ExpressionLane::isPitch() const noexcept
@@ -125,6 +137,8 @@ LaneId ExpressionLane::laneId() const noexcept
         case Target::zoneTimbre:        return LaneId::timbre();
         case Target::noteController:
         case Target::zoneController:    return LaneId::cc (controller);
+        case Target::noteVibrato:
+        case Target::zoneVibrato:       return LaneId::vibrato();
         case Target::strike:
         case Target::lift:              break;
     }
@@ -166,7 +180,8 @@ juce::Colour ExpressionLane::laneColour() const
 
     switch (laneId().kind)
     {
-        case LaneId::Kind::pitch:       return Theme::glide;
+        case LaneId::Kind::pitch:
+        case LaneId::Kind::vibrato:     return Theme::glide;
         case LaneId::Kind::pressure:    return Theme::pressure;
         case LaneId::Kind::timbre:      return Theme::timbre;
         case LaneId::Kind::controller:  return Theme::controller;
@@ -215,6 +230,12 @@ void ExpressionLane::resized()
         header.removeFromLeft (4);
     }
 
+    if (isVibrato())
+    {
+        rateSlider.setBounds (header.removeFromLeft (110));
+        header.removeFromLeft (4);
+    }
+
     clearButton.setBounds (header.removeFromLeft (52));
     header.removeFromLeft (10);
     hint.setBounds (header);
@@ -225,7 +246,32 @@ void ExpressionLane::updateHeader()
     laneButton.setButtonText (getTargetName() + juce::String::fromUTF8 (" \xe2\x96\xbe"));
     rangeButton.setVisible (target == Target::notePitch);
     rangeButton.setButtonText (juce::String::fromUTF8 ("\xc2\xb1") + juce::String ((int) pitchRange) + " st");
+    rateSlider.setVisible (isVibrato());
+    rateSlider.setValue (document.getEditClip().vibratoRate, juce::dontSendNotification);
     resized();
+}
+
+void ExpressionLane::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    if (! draggingRate)
+        rateSlider.setValue (document.getEditClip().vibratoRate, juce::dontSendNotification);
+
+    repaint();
+}
+
+void ExpressionLane::setVibratoRate (double hz)
+{
+    hz = juce::jlimit (minVibratoRate, maxVibratoRate, hz);
+
+    if (draggingRate)
+    {
+        document.editClip().vibratoRate = hz;
+        document.changed();
+    }
+    else if (std::abs (document.getEditClip().vibratoRate - hz) > 1.0e-9)
+    {
+        document.perform ("Vibrato speed", [hz] (MpeClip& clip) { clip.vibratoRate = hz; });
+    }
 }
 
 void ExpressionLane::paint (juce::Graphics& g)
@@ -278,7 +324,8 @@ void ExpressionLane::paint (juce::Graphics& g)
         for (int i = 0; i <= 4; ++i)
         {
             const auto v = (float) i / 4.0f;
-            const auto label = isController ? juce::String (juce::roundToInt (v * 127.0f))
+            const auto label = isVibrato()   ? juce::String::fromUTF8 ("\xc2\xb1") + juce::String (v * maxVibratoDepth, 1) + " st"
+                             : isController ? juce::String (juce::roundToInt (v * 127.0f))
                                             : juce::String (juce::roundToInt (v * 100.0f)) + "%";
             guide (v, (i % 2 == 0) ? label : juce::String(), i == 0 || i == 4);
         }
@@ -720,6 +767,7 @@ void ExpressionLane::showLaneMenu()
     menu.addItem (idPitch, "Pitch glide", true, tick (Target::notePitch));
     menu.addItem (idPressure, "Pressure (press)", true, tick (Target::notePressure));
     menu.addItem (idTimbre, "Timbre (slide)", true, tick (Target::noteTimbre));
+    menu.addItem (idVibrato, "Vibrato (played by MPE Roll, any synth)", true, tick (Target::noteVibrato));
 
     juce::PopupMenu noteControllers;
 
@@ -743,6 +791,7 @@ void ExpressionLane::showLaneMenu()
     menu.addItem (idZonePitch, "Pitch bend", true, tick (Target::zonePitch));
     menu.addItem (idZonePressure, "Channel pressure", true, tick (Target::zonePressure));
     menu.addItem (idZoneTimbre, "Timbre", true, tick (Target::zoneTimbre));
+    menu.addItem (idZoneVibrato, "Vibrato", true, tick (Target::zoneVibrato));
 
     juce::PopupMenu zoneMenu;
 
@@ -780,6 +829,8 @@ void ExpressionLane::showLaneMenu()
             case idZonePitch:       self.setTarget (Target::zonePitch); return;
             case idZonePressure:    self.setTarget (Target::zonePressure); return;
             case idZoneTimbre:      self.setTarget (Target::zoneTimbre); return;
+            case idVibrato:         self.setTarget (Target::noteVibrato); return;
+            case idZoneVibrato:     self.setTarget (Target::zoneVibrato); return;
             case idOtherNoteCC:     self.askForController (false); return;
             case idOtherZoneCC:     self.askForController (true); return;
             default: break;

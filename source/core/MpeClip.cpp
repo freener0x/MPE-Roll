@@ -16,6 +16,7 @@ const ExpressionCurve* LaneSet::find (LaneId id) const noexcept
         case LaneId::Kind::pitch:       return &pitch;
         case LaneId::Kind::pressure:    return &pressure;
         case LaneId::Kind::timbre:      return &timbre;
+        case LaneId::Kind::vibrato:     return &vibrato;
         case LaneId::Kind::controller:  break;
     }
 
@@ -50,7 +51,7 @@ void LaneSet::removeEmptyControllers()
 
 bool LaneSet::hasAnyData() const noexcept
 {
-    return ! pitch.isEmpty() || ! pressure.isEmpty() || ! timbre.isEmpty()
+    return ! pitch.isEmpty() || ! pressure.isEmpty() || ! timbre.isEmpty() || ! vibrato.isEmpty()
         || std::any_of (controllers.begin(), controllers.end(),
                         [] (const ControllerLane& c) { return ! c.curve.isEmpty(); });
 }
@@ -60,6 +61,7 @@ void LaneSet::shiftTime (double delta)
     pitch.shiftTime (delta);
     pressure.shiftTime (delta);
     timbre.shiftTime (delta);
+    vibrato.shiftTime (delta);
 
     for (auto& c : controllers)
         c.curve.shiftTime (delta);
@@ -70,6 +72,7 @@ void LaneSet::scaleTime (double factor)
     pitch.scaleTime (factor);
     pressure.scaleTime (factor);
     timbre.scaleTime (factor);
+    vibrato.scaleTime (factor);
 
     for (auto& c : controllers)
         c.curve.scaleTime (factor);
@@ -134,6 +137,7 @@ double MpeClip::contentEnd() const noexcept
     curveEnd (zone.pitch);
     curveEnd (zone.pressure);
     curveEnd (zone.timbre);
+    curveEnd (zone.vibrato);
 
     for (const auto& c : zone.controllers)
         curveEnd (c.curve);
@@ -145,7 +149,7 @@ double MpeClip::contentEnd() const noexcept
 namespace
 {
     constexpr int clipMagic = 0x4d505243;   // "MPRC"
-    constexpr int clipVersion = 1;
+    constexpr int clipVersion = 2;     // 2 added vibrato lanes and rate
     constexpr int maxReasonableCount = 10'000'000;
 
     void writeCurve (juce::OutputStream& out, const ExpressionCurve& curve)
@@ -193,9 +197,11 @@ namespace
             out.writeInt (c.controller);
             writeCurve (out, c.curve);
         }
+
+        writeCurve (out, lanes.vibrato);
     }
 
-    bool readLanes (juce::InputStream& in, LaneSet& lanes)
+    bool readLanes (juce::InputStream& in, LaneSet& lanes, int version)
     {
         if (! readCurve (in, lanes.pitch) || ! readCurve (in, lanes.pressure) || ! readCurve (in, lanes.timbre))
             return false;
@@ -218,7 +224,7 @@ namespace
                 return false;
         }
 
-        return true;
+        return version < 2 || readCurve (in, lanes.vibrato);
     }
 }
 
@@ -244,6 +250,7 @@ void MpeClip::writeTo (juce::OutputStream& out) const
     }
 
     writeLanes (out, zone);
+    out.writeDouble (vibratoRate);
 }
 
 bool MpeClip::readFrom (juce::InputStream& in, MpeClip& result)
@@ -279,15 +286,21 @@ bool MpeClip::readFrom (juce::InputStream& in, MpeClip& result)
         n.strike = in.readFloat();
         n.lift = in.readFloat();
 
-        if (! readLanes (in, n.lanes))
+        if (! readLanes (in, n.lanes, version))
             return false;
 
         clip.nextNoteId = std::max (clip.nextNoteId, n.id + 1);
         clip.notes.push_back (std::move (n));
     }
 
-    if (! readLanes (in, clip.zone))
+    if (! readLanes (in, clip.zone, version))
         return false;
+
+    if (version >= 2)
+    {
+        const auto rate = in.readDouble();
+        clip.vibratoRate = std::isfinite (rate) ? juce::jlimit (minVibratoRate, maxVibratoRate, rate) : defaultVibratoRate;
+    }
 
     if (! std::isfinite (clip.length) || clip.length <= 0.0)
         clip.length = 16.0;
@@ -311,6 +324,11 @@ bool MpeClip::fromMemoryBlock (const juce::MemoryBlock& data, MpeClip& result)
 }
 
 //==============================================================================
+float vibratoOffset (float depth, double phase) noexcept
+{
+    return depth * maxVibratoDepth * (float) std::sin (juce::MathConstants<double>::twoPi * phase);
+}
+
 float defaultLaneValue (LaneId lane, float defaultTimbre) noexcept
 {
     switch (lane.kind)
@@ -318,6 +336,7 @@ float defaultLaneValue (LaneId lane, float defaultTimbre) noexcept
         case LaneId::Kind::pitch:       return 0.0f;
         case LaneId::Kind::pressure:    return 0.0f;
         case LaneId::Kind::timbre:      return defaultTimbre;
+        case LaneId::Kind::vibrato:     return 0.0f;
         case LaneId::Kind::controller:  return defaultControllerValue (lane.controller);
     }
 
@@ -331,6 +350,7 @@ juce::String laneName (LaneId lane)
         case LaneId::Kind::pitch:       return "Pitch";
         case LaneId::Kind::pressure:    return "Pressure";
         case LaneId::Kind::timbre:      return "Timbre";
+        case LaneId::Kind::vibrato:     return "Vibrato";
         case LaneId::Kind::controller:  return controllerName (lane.controller);
     }
 

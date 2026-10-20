@@ -12,7 +12,7 @@
     rebuilds a clip with those tools:
 
     - every note gets a colour no overlapping note uses, so its slides only bend that note
-    - pitch glides become chains of slide notes, the starting offset becomes fine pitch
+    - pitch glides (and MPE Roll's vibrato) become chains of slide notes, the starting offset becomes fine pitch
     - pressure and timbre become Mod X / Mod Y (static values plus ramps on the slide notes)
     - strike / lift become velocity / release, the per-note pan controller becomes pan
     - zone pitch bend can be folded into every note, the sustain pedal into note lengths
@@ -31,6 +31,7 @@ struct Options
     int maxSlidesPerNote = 48;
     bool bakeZonePitch = true;              // fold master-channel pitch bend into every note
     bool applySustainPedal = true;          // extend notes while the zone's CC64 is held
+    double tempoBpm = 120.0;                // vibrato is in Hz, so baking it into slides needs the tempo
 };
 
 struct Slide
