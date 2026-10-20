@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AudioExport.h"
 #include "PluginProcessor.h"
 #include "ui/ExpressionLane.h"
 #include "ui/MpeLookAndFeel.h"
@@ -83,6 +84,7 @@ private:
     void importMidi();
     void importMidiFile (const juce::File&);
     void exportMidi();
+    void exportAudio (AudioExport::Format);
     juce::File writeTemporaryMidiFile();
     void sendToFl();
     void showSettings();

@@ -1,0 +1,61 @@
+#pragma once
+
+#include "HostedSynth.h"
+#include "core/MpeClip.h"
+#include "core/MpeSettings.h"
+
+namespace mperoll
+{
+class MpeRollProcessor;
+
+/** Exporting a clip as audio: it's played through a copy of the loaded synth (same plugin, same
+    sound), faster than real time and away from the audio thread, then written as WAV or MP3. The
+    synth playing live isn't touched.
+*/
+namespace AudioExport
+{
+    enum class Format { wav, mp3 };
+
+    /** True if this build can write MP3 (it's built with the LAME encoder). */
+    bool canWriteMp3();
+
+    struct Options
+    {
+        Format format = Format::wav;
+        double sampleRate = 48000.0;
+        double bpm = 120.0;
+        int blockSize = 512;
+        double controlIntervalMs = 1.0;     // expression resolution, as in playback
+        double maxTailSeconds = 10.0;       // how long to let the synth ring on after the last note
+        int wavBits = 24;
+        int mp3Kbps = 320;
+        juce::String title;
+    };
+
+    /** Gets the synth ready for render(): its rate and block size, and offline quality. Message
+        thread (VST3 synths must be prepared there).
+    */
+    void prepareForRender (HostedSynth&, const Options&);
+
+    /** Plays the clip once from its start through the synth and returns what it made, ending once
+        the synth has gone quiet after the last note or after maxTailSeconds. progress is called
+        now and then with 0..1; it returns false to cancel, which returns an empty buffer. Any
+        thread but the audio thread, with nothing else using the synth, after prepareForRender().
+    */
+    juce::AudioBuffer<float> render (const MpeClip&, const OutputSettings&, HostedSynth&, const Options&,
+                                     const std::function<bool (double)>& progress = {});
+
+    /** These return an error message, or an empty string when the file was written. */
+    juce::String writeWav (const juce::AudioBuffer<float>&, double sampleRate, const juce::File&, int bitsPerSample);
+    juce::String writeMp3 (const juce::AudioBuffer<float>&, double sampleRate, const juce::File&, int kbps,
+                           const juce::String& title);
+
+    /** The whole export, with a progress window: copies the loaded synth, renders the clip with the
+        project's output settings and writes the file. done gets an error message, or an empty
+        string. Message thread.
+    */
+    void exportClip (MpeRollProcessor&, const MpeClip&, const juce::File& target, const Options&,
+                     std::function<void (const juce::String& error)> done);
+}
+
+} // namespace mperoll

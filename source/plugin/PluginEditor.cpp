@@ -606,9 +606,19 @@ void MpeRollEditor::browseForPlugin()
 //==============================================================================
 void MpeRollEditor::showMidiMenu()
 {
+    const auto hasSynth = rollProcessor.getSynth().isLoaded();
+
     juce::PopupMenu menu;
     menu.addItem (1, "Import MIDI file...");
     menu.addItem (2, "Export MPE MIDI file...");
+    menu.addSeparator();
+    menu.addItem (4, "Export audio as WAV...", hasSynth);
+    menu.addItem (5, juce::String ("Export audio as MP3...") + (AudioExport::canWriteMp3() ? "" : " (not in this build)"),
+                  hasSynth && AudioExport::canWriteMp3());
+
+    if (! hasSynth)
+        menu.addItem (6, "(Load a synth to export audio: the clip is played through it)", false);
+
     menu.addSeparator();
     menu.addItem (3, "Tip: drag this button into FL to drop the clip as a MIDI file", false);
 
@@ -622,6 +632,60 @@ void MpeRollEditor::showMidiMenu()
             safe->importMidi();
         else if (result == 2)
             safe->exportMidi();
+        else if (result == 4)
+            safe->exportAudio (AudioExport::Format::wav);
+        else if (result == 5)
+            safe->exportAudio (AudioExport::Format::mp3);
+    });
+}
+
+void MpeRollEditor::exportAudio (AudioExport::Format format)
+{
+    const auto& clip = document.getEditClip();
+    const auto name = clip.name.isNotEmpty() ? clip.name : juce::String ("MPE Roll clip");
+    const auto extension = format == AudioExport::Format::mp3 ? juce::String (".mp3") : juce::String (".wav");
+
+    chooser = std::make_unique<juce::FileChooser> (format == AudioExport::Format::mp3 ? "Export audio as MP3" : "Export audio as WAV",
+                                                   juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                                                       .getChildFile (juce::File::createLegalFileName (name) + extension),
+                                                   "*" + extension);
+    chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
+                              | juce::FileBrowserComponent::warnAboutOverwriting,
+                          [safe = juce::Component::SafePointer<MpeRollEditor> (this), format, extension] (const juce::FileChooser& fc)
+    {
+        if (safe == nullptr || fc.getResult() == juce::File())
+            return;
+
+        const auto target = fc.getResult().withFileExtension (extension);
+        const auto transport = safe->rollProcessor.getTransport();
+        const auto settings = safe->document.getSettings();
+
+        AudioExport::Options options;
+        options.format = format;
+        options.sampleRate = safe->rollProcessor.getSampleRate() > 0.0 ? safe->rollProcessor.getSampleRate() : 48000.0;
+        options.bpm = transport.bpm;
+        options.controlIntervalMs = settings.playback.controlIntervalMs;
+        options.title = safe->document.getEditClip().name;
+
+        safe->setStatus ("Exporting " + target.getFileName() + "...");
+
+        AudioExport::exportClip (safe->rollProcessor, safe->document.getEditClip(), target, options,
+                                 [safe, target] (const juce::String& error)
+        {
+            if (safe == nullptr)
+                return;
+
+            if (error.isEmpty())
+            {
+                safe->setStatus ("Exported " + target.getFileName());
+                target.revealToUser();
+            }
+            else
+            {
+                safe->setStatus ("Export: " + error.upToFirstOccurrenceOf (".", true, false));
+                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Export audio", error);
+            }
+        });
     });
 }
 

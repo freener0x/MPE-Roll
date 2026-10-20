@@ -63,6 +63,9 @@ jobs:
           "$HARNESS" render "$CLAP_SYNTH" render-clap.wav
           "$HARNESS" clapdialect "$CLAP_SYNTH"
 
+      - name: Export the clip as WAV and MP3 (VST3 synth)
+        run: '"$HARNESS" export "$VST3_SYNTH" exported'
+
       # The standalone app's crash report: the harness installs it and crashes on purpose.
       - name: Crash report names the crash and the function
         run: |
@@ -196,6 +199,14 @@ jobs:
         run: >
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness clapdialect
           "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"
+
+      - name: Export the clip as WAV and MP3 (VST3, VST2 and CLAP synths)
+        run: |
+          for synth in "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3" \
+                       "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so" \
+                       "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"; do
+            xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness export "$synth" exported
+          done
 
       - name: Plugin files are looked at in the scanner process (crashing and hanging ones too)
         run: >

@@ -611,6 +611,14 @@ double HostedSynth::getTailLengthSeconds() const
     return use.entered && instance != nullptr ? instance->getTailLengthSeconds() : 0.0;
 }
 
+void HostedSynth::setNonRealtime (bool isNonRealtime)
+{
+    const ScopedExclusive exclusive (guard);
+
+    if (instance != nullptr)
+        instance->setNonRealtime (isNonRealtime);
+}
+
 //==============================================================================
 std::unique_ptr<juce::XmlElement> HostedSynth::saveState() const
 {

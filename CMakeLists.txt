@@ -17,6 +17,7 @@ option(MPEROLL_COPY_PLUGIN_AFTER_BUILD "Copy the built plugin into the system pl
 option(MPEROLL_HOST_VST2 "Host VST2 synths (uses the clean-room FST headers in third_party/fst)" ON)
 option(MPEROLL_HOST_CLAP "Host CLAP synths, playing them with CLAP note expressions" ON)
 option(MPEROLL_BUILD_VST2 "On Windows, also build MPE Roll as a VST2 plugin (.dll, uses the FST headers)" ON)
+option(MPEROLL_MP3 "Export audio as MP3 too (builds the LAME encoder, LGPL)" ON)
 
 # ---------------------------------------------------------------------------------------------
 # JUCE (AGPLv3). Pass -DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE to use a local checkout.
@@ -41,6 +42,37 @@ if(MPEROLL_HOST_CLAP)
     set(MPEROLL_CLAP_LIBRARY clap)
 endif()
 
+# LAME (LGPL), for exporting audio as MP3. Only the encoding library is built, from the release
+# tarball (LAME has no CMake build of its own), with a config header of ours. Pass
+# -DFETCHCONTENT_SOURCE_DIR_LAME=/path/to/lame-3.100 to use a local copy.
+set(MPEROLL_MP3_LIBRARY "")
+
+if(MPEROLL_MP3)
+    FetchContent_Declare(lame
+        URL https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
+        URL_HASH SHA256=ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        SOURCE_SUBDIR no-cmake-build)
+    FetchContent_MakeAvailable(lame)
+
+    file(GLOB MPEROLL_LAME_SOURCES ${lame_SOURCE_DIR}/libmp3lame/*.c)
+    add_library(mperoll_lame STATIC ${MPEROLL_LAME_SOURCES})
+    target_include_directories(mperoll_lame
+        PUBLIC ${lame_SOURCE_DIR}/include
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lame ${lame_SOURCE_DIR}/libmp3lame)
+    target_compile_definitions(mperoll_lame PRIVATE HAVE_CONFIG_H)
+    set_target_properties(mperoll_lame PROPERTIES POSITION_INDEPENDENT_CODE ON FOLDER third_party)
+
+    # Third-party code: its warnings aren't ours to fix.
+    if(MSVC)
+        target_compile_options(mperoll_lame PRIVATE /w)
+    else()
+        target_compile_options(mperoll_lame PRIVATE -w)
+    endif()
+
+    set(MPEROLL_MP3_LIBRARY mperoll_lame)
+endif()
+
 # ---------------------------------------------------------------------------------------------
 # Core: the MPE model, encoder/decoder, player, MIDI file IO and FL Studio bridge.
 # Depends only on juce_core and juce_audio_basics so it can be unit tested without a GUI.
@@ -57,6 +89,7 @@ set(MPEROLL_CORE_SOURCES
     source/core/ControllerPresets.cpp)
 
 set(MPEROLL_PLUGIN_SOURCES
+    source/plugin/AudioExport.cpp
     source/plugin/PluginProcessor.cpp
     source/plugin/PluginEditor.cpp
     source/plugin/ClipDocument.cpp
@@ -110,6 +143,12 @@ else()
     list(APPEND MPEROLL_COMMON_DEFINITIONS MPEROLL_HOST_CLAP=0)
 endif()
 
+if(MPEROLL_MP3)
+    list(APPEND MPEROLL_COMMON_DEFINITIONS MPEROLL_MP3=1)
+else()
+    list(APPEND MPEROLL_COMMON_DEFINITIONS MPEROLL_MP3=0)
+endif()
+
 if(APPLE)
     set(MPEROLL_FORMATS VST3 AU Standalone)
     list(APPEND MPEROLL_COMMON_DEFINITIONS JUCE_PLUGINHOST_AU=1)
@@ -157,6 +196,7 @@ target_compile_definitions(MpeRoll PUBLIC ${MPEROLL_COMMON_DEFINITIONS})
 target_link_libraries(MpeRoll
     PRIVATE
         ${MPEROLL_CLAP_LIBRARY}
+        ${MPEROLL_MP3_LIBRARY}
         juce::juce_audio_utils
         juce::juce_audio_processors
     PUBLIC
@@ -332,10 +372,12 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         JucePlugin_IsSynth=1
         JucePlugin_WantsMidiInput=1
         JucePlugin_ProducesMidiOutput=1
-        JucePlugin_IsMidiEffect=0)
+        JucePlugin_IsMidiEffect=0
+        JUCE_USE_MP3AUDIOFORMAT=1)  # to read back the MP3s the export test writes
     target_link_libraries(MpeRollHarness
         PRIVATE
             ${MPEROLL_CLAP_LIBRARY}
+            ${MPEROLL_MP3_LIBRARY}
             juce::juce_audio_utils
             juce::juce_audio_processors
         PUBLIC

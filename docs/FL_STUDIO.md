@@ -193,12 +193,17 @@ needs checking in a real FL install.
 
 ## 6. MIDI files and other plugins
 
-- **MIDI file ▾ › Import:** reads any MIDI file. MPE files keep their per-note expression; plain
+- **File ▾ › Export audio as WAV / MP3:** plays the clip once through a copy of your synth (same
+  plugin, same sound) faster than real time and writes it, release tail included, as a 24-bit WAV
+  or a 320 kbps MP3 at FL's tempo and sample rate. The synth playing live isn't interrupted, and the
+  file opens in your file browser when it's done. Big sample libraries take a moment to load the copy.
+  To render with FL's own mixer and effects, use FL's *Export* as usual instead.
+- **File ▾ › Import:** reads any MIDI file. MPE files keep their per-note expression; plain
   files import as notes with zone-wide pitch bend and controllers. You can also drop a `.mid` file
   onto MPE Roll.
-- **MIDI file ▾ › Export:** writes an MPE MIDI file, with the zone setup at the start, for other DAWs
-  and MPE-aware tools.
-- **Drag the MIDI file button** into FL (playlist, piano roll or a channel) to drop the clip as a
+- **File ▾ › Export MPE MIDI file:** writes an MPE MIDI file, with the zone setup at the start, for
+  other DAWs and MPE-aware tools.
+- **Drag the File button** into FL (playlist, piano roll or a channel) to drop the clip as a
   MIDI file. FL's own MIDI import keeps the notes but not per-note expression.
 - MPE Roll's **MIDI output** carries the same MPE stream it sends to the hosted synth. In the
   wrapper settings, set an output port to send it to another plugin's input port.

@@ -3,6 +3,7 @@
 //   MpeRollHarness snapshot <out.png> [width height]   renders the editor with a demo clip
 //   MpeRollHarness settings <out.png>                   renders the MPE settings panel
 //   MpeRollHarness skins <folder>                       renders the editor in every skin, and a sheet of them
+//   MpeRollHarness export <synth> <folder>              exports a clip as WAV and MP3 and reads them back
 //   MpeRollHarness render <synth.vst3> <out.wav>        plays a test clip through a hosted synth and
 //                                                       checks that per-note glides reach it
 //   MpeRollHarness selftest                             live input, recording, state, note trigger, undo
@@ -303,6 +304,154 @@ double goertzel (const float* samples, int numSamples, double frequency, double 
     return std::sqrt (s1 * s1 + s2 * s2 - coefficient * s1 * s2) / numSamples;
 }
 
+struct Check
+{
+    int failures = 0;
+
+    void operator() (bool ok, const char* what)
+    {
+        std::printf ("  [%s] %s\n", ok ? "ok" : "FAIL", what);
+        failures += ok ? 0 : 1;
+    }
+
+    void operator() (bool ok, const juce::String& what)     { (*this) (ok, what.toRawUTF8()); }
+};
+
+/** The average frequency of a sine between two samples, from its upward zero crossings. */
+double sineFrequency (const juce::AudioBuffer<float>& audio, int from, int to, double sampleRate)
+{
+    const auto* data = audio.getReadPointer (0);
+    double first = -1.0, last = -1.0;
+    int cycles = -1;
+
+    for (auto i = juce::jmax (1, from); i < juce::jmin (to, audio.getNumSamples()); ++i)
+    {
+        if (data[i - 1] < 0.0f && data[i] >= 0.0f)
+        {
+            last = i - 1 + data[i - 1] / (data[i - 1] - data[i]);
+            first = first < 0.0 ? last : first;
+            ++cycles;
+        }
+    }
+
+    return cycles > 0 ? sampleRate * cycles / (last - first) : 0.0;
+}
+
+/** Exports a clip as WAV and MP3 through a copy of the synth, the way the File menu does, and reads both back. */
+int exportTest (const juce::File& synthFile, const juce::File& folder)
+{
+    Check check;
+    constexpr double sampleRate = 48000.0;
+    folder.createDirectory();
+
+    MpeRollProcessor processor;
+    processor.setRateAndBufferSizeDetails (sampleRate, 512);
+    processor.prepareToPlay (sampleRate, 512);
+
+    auto& mm = *juce::MessageManager::getInstance();
+    bool loaded = false;
+    juce::String error;
+    processor.getSynth().loadFromFile (synthFile, [&] (const juce::String& e) { error = e; loaded = true; });
+
+    for (int i = 0; i < 200 && ! loaded; ++i)
+        mm.runDispatchLoopUntil (50);
+
+    if (! loaded || error.isNotEmpty())
+    {
+        std::printf ("Couldn't load %s: %s\n", synthFile.getFullPathName().toRawUTF8(), error.toRawUTF8());
+        return 1;
+    }
+
+    // At 120 bpm: A4 for half a second, then C5 for half a second.
+    MpeClip clip;
+    clip.name = "Export test";
+    clip.length = 2.0;
+    clip.looping = false;
+    clip.addNote (note (69, 0.0, 1.0, 0.8f));
+    clip.addNote (note (72, 1.0, 1.0, 0.8f));
+
+    auto exportAs = [&] (AudioExport::Format format, const juce::File& target)
+    {
+        AudioExport::Options options;
+        options.format = format;
+        options.sampleRate = sampleRate;
+        options.bpm = 120.0;
+        options.title = clip.name;
+
+        bool finished = false;
+        juce::String result;
+        AudioExport::exportClip (processor, clip, target, options, [&] (const juce::String& e) { result = e; finished = true; });
+
+        for (int i = 0; i < 600 && ! finished; ++i)
+            mm.runDispatchLoopUntil (50);
+
+        check (finished && result.isEmpty(), "the export finishes without a problem: " + result);
+    };
+
+    auto readBack = [] (juce::AudioFormat& format, const juce::File& file, double& rate)
+    {
+        juce::AudioBuffer<float> audio;
+        std::unique_ptr<juce::AudioFormatReader> reader (format.createReaderFor (file.createInputStream().release(), true));
+
+        if (reader != nullptr)
+        {
+            rate = reader->sampleRate;
+            audio.setSize ((int) reader->numChannels, (int) reader->lengthInSamples);
+            reader->read (&audio, 0, (int) reader->lengthInSamples, 0, true, true);
+        }
+
+        return audio;
+    };
+
+    const auto a4 = juce::MidiMessage::getMidiNoteInHertz (69), c5 = juce::MidiMessage::getMidiNoteInHertz (72);
+
+    std::printf ("WAV\n");
+    {
+        const auto wavFile = folder.getChildFile ("export.wav");
+        exportAs (AudioExport::Format::wav, wavFile);
+
+        juce::WavAudioFormat wav;
+        double rate = 0.0;
+        const auto audio = readBack (wav, wavFile, rate);
+        const auto seconds = audio.getNumSamples() / juce::jmax (1.0, rate);
+        const auto first = sineFrequency (audio, (int) (0.1 * rate), (int) (0.4 * rate), rate);
+        const auto second = sineFrequency (audio, (int) (0.6 * rate), (int) (0.9 * rate), rate);
+        std::printf ("%.3f s at %.0f Hz, %d channels: %.1f Hz then %.1f Hz\n", seconds, rate, audio.getNumChannels(), first, second);
+
+        check (audio.getNumChannels() == 2 && std::abs (rate - sampleRate) < 1.0, "a stereo WAV at the project's rate");
+        check (seconds > 0.99 && seconds < 1.4, "as long as the clip, plus the synth's tail");
+        check (std::abs (first - a4) < 1.0 && std::abs (second - c5) < 1.0, "the notes play in time and in tune");
+    }
+
+    if (AudioExport::canWriteMp3())
+    {
+        std::printf ("MP3\n");
+        const auto mp3File = folder.getChildFile ("export.mp3");
+        exportAs (AudioExport::Format::mp3, mp3File);
+
+       #if JUCE_USE_MP3AUDIOFORMAT
+        juce::MP3AudioFormat mp3;
+        double rate = 0.0;
+        const auto audio = readBack (mp3, mp3File, rate);
+        const auto seconds = audio.getNumSamples() / juce::jmax (1.0, rate);
+        const auto first = sineFrequency (audio, (int) (0.15 * rate), (int) (0.4 * rate), rate);
+        const auto second = sineFrequency (audio, (int) (0.65 * rate), (int) (0.9 * rate), rate);
+        std::printf ("%.3f s at %.0f Hz, %lld bytes: %.1f Hz then %.1f Hz\n", seconds, rate,
+                     (long long) mp3File.getSize(), first, second);
+
+        check (std::abs (rate - sampleRate) < 1.0 && audio.getNumChannels() == 2, "a stereo MP3 at 48 kHz");
+        check (seconds > 0.95 && seconds < 1.5, "as long as the clip, give or take the encoder's padding");
+        check (std::abs (first - a4) < 3.0 && std::abs (second - c5) < 3.0, "and it sounds the same");
+       #endif
+    }
+
+    check (processor.getSynth().isLoaded(), "the synth playing live is still there");
+
+    processor.releaseResources();
+    std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
+    return check.failures == 0 ? 0 : 1;
+}
+
 int render (const juce::File& synthFile, const juce::File& target)
 {
     constexpr double sampleRate = 48000.0;
@@ -455,17 +604,6 @@ int render (const juce::File& synthFile, const juce::File& target)
 }
 
 //==============================================================================
-struct Check
-{
-    int failures = 0;
-
-    void operator() (bool ok, const char* what)
-    {
-        std::printf ("  [%s] %s\n", ok ? "ok" : "FAIL", what);
-        failures += ok ? 0 : 1;
-    }
-};
-
 std::vector<juce::MidiMessage> runBlock (MpeRollProcessor& processor, FakePlayHead& playHead, double& ppq,
                                          std::initializer_list<std::pair<int, juce::MidiMessage>> input = {})
 {
@@ -1495,6 +1633,12 @@ int main (int argc, char** argv)
     if (args.size() >= 2 && args[0] == "skins")
         return skinsSnapshots (cwd.getChildFile (args[1]));
 
+    if (args.size() >= 3 && args[0] == "export")
+    {
+        ignoreXErrors();     // the progress window
+        return exportTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]));
+    }
+
     if (args.size() >= 3 && args[0] == "render")
         return render (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]));
 
@@ -1520,6 +1664,7 @@ int main (int argc, char** argv)
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
                  "  MpeRollHarness skins <folder>\n"
+                 "  MpeRollHarness export <synth> <folder>\n"
                  "  MpeRollHarness render <synth.vst3> <out.wav>\n"
                  "  MpeRollHarness selftest\n"
                  "  MpeRollHarness uitest\n"

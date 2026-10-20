@@ -81,8 +81,11 @@ and a plain-MIDI mode for synths that don't do MPE.
   Expressive E Osmose, Ableton Push 3, Keith McMillen K-Board Pro 4 and QuNexus, Embodme Erae,
   Sensel Morph and Joué, and keyboards with poly aftertouch. Each shows how to set the controller
   up. Takes overdub into the clip as one undo step.
-- **MIDI files:** import any MIDI file (MPE or not), export MPE MIDI files, or drag the *MIDI file*
+- **MIDI files:** import any MIDI file (MPE or not), export MPE MIDI files, or drag the *File*
   button straight into FL.
+- **Export audio:** *File › Export audio as WAV / MP3* plays the clip through a copy of your synth
+  (same sound, faster than real time, without touching the one playing) and writes a 24-bit WAV or a
+  320 kbps MP3, including the synth's release tail.
 - **Send to FL piano roll:** the bridge for FL's native synths (see below).
 - The MPE stream also goes to the plugin's MIDI output, so you can route it elsewhere in FL.
 
@@ -112,8 +115,8 @@ on macOS you need to remove the quarantine flag from what you downloaded (for ex
 
 ## Building
 
-You need CMake 3.22+ and a C++20 compiler. JUCE 9 and the CLAP headers are downloaded
-automatically.
+You need CMake 3.22+ and a C++20 compiler. JUCE 9, the CLAP headers and the LAME MP3 encoder are
+downloaded automatically (`-DMPEROLL_MP3=OFF` builds without MP3 export, and without LAME).
 
 **Windows** (Visual Studio 2022 or 2026 with "Desktop development with C++"):
 
@@ -213,15 +216,19 @@ tests/            Unit tests, plus a Python stand-in for FL's flpianoroll module
 tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUCE), and CLAP
                   (plain CLAP API, pitch only from note expressions). Needs -DMPEROLL_BUILD_DEV_TOOLS=ON.
 third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
+third_party/lame/ The build configuration for the LAME MP3 encoder (LAME itself is downloaded).
 ```
 
 Run the tests with `ctest --test-dir build`. With the dev tools enabled, `MpeRollHarness selftest`
 and `uitest` exercise the full plugin, and `render <test synth> out.wav`, `params <test synth>` and
 `clapdialect <test synth.clap>` check that per-note glides, parameter automation and CLAP note
-expressions reach a hosted synth. CI runs all of them.
+expressions reach a hosted synth, and `export <test synth> <folder>` exports a clip as WAV and MP3
+and reads both back. CI runs all of them.
 
 ## License
 
 AGPL-3.0, the open-source licence JUCE is available under. See [LICENSE](LICENSE). It includes the
 FST headers (GPL-3.0-or-later, see [third_party/fst](third_party/fst/README.md)) and builds against the
-CLAP headers (MIT).
+CLAP headers (MIT). MP3 export uses [LAME](https://lame.sourceforge.io) 3.100 (LGPL-2.0-or-later),
+built from its unchanged source as a static library; MPE Roll's own source being available is what
+lets anyone rebuild it with another version of LAME.

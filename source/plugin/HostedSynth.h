@@ -82,6 +82,9 @@ public:
     int getLatencySamples() const;
     double getTailLengthSeconds() const;
 
+    /** Tells the synth whether it's being rendered offline, where it can take its time. Message thread. */
+    void setNonRealtime (bool isNonRealtime);
+
     //==============================================================================
     std::unique_ptr<juce::XmlElement> saveState() const;
     void restoreState (const juce::XmlElement& xml, LoadCallback onDone = {});

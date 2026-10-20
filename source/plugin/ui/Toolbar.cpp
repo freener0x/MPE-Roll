@@ -95,8 +95,9 @@ Toolbar::Toolbar()
     for (int i = 0; i < (int) std::size (snapOptions); ++i)
         snapBox.addItem (snapOptions[i].name, i + 1);
 
-    midiButton.setButtonText ("MIDI file" + juce::String::fromUTF8 (" \xe2\x96\xbe"));
-    midiButton.setTooltip ("Import or export MPE MIDI files, or drag this button into FL");
+    midiButton.setButtonText ("File" + juce::String::fromUTF8 (" \xe2\x96\xbe"));
+    midiButton.setTooltip ("Import or export MPE MIDI files, export the clip as audio (WAV or MP3), "
+                           "or drag this button into FL to drop the clip as a MIDI file");
     flButton.setTooltip ("Write a piano roll script that rebuilds this clip in FL's own piano roll "
                          "(slide notes, fine pitch, Mod X/Y) for FL's native synths");
     settingsButton.setTooltip ("MPE zones, bend ranges, pressure/timbre routing, input and playback options");
