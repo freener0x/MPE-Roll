@@ -354,6 +354,11 @@ void install (const juce::File& reportFile, bool tellUser)
     showDialog = tellUser;
     installed = true;
     startOverflowHelper();
+
+    // Keeps room on this thread (the app's main one) for Windows to report a stack overflow in.
+    ULONG reserve = 64 * 1024;
+    SetThreadStackGuarantee (&reserve);
+
     setHandlers();
    #else
     juce::ignoreUnused (reportFile, tellUser);

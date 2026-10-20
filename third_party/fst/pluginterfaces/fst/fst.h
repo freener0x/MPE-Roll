@@ -598,6 +598,9 @@ typedef struct fstPinProperties_ {
   FST_UNKNOWN(int) flags; /* ? kVstPinIsActive | kVstPinUseSpeaker | kVstPinIsStereo */
   FST_UNKNOWN(int) arrangementType; /* ? */
   char shortLabel[8];
+  /* MPE Roll local change: the reserved tail that makes the struct the 128 bytes hosts and plugins
+   * size it as; without it, a plugin filling the struct writes past the end of the host's */
+  char future[48];
 } FST_UNKNOWN(t_fstPinProperties);
 
 

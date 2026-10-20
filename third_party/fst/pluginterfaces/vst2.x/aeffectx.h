@@ -61,6 +61,8 @@ static_assert (offsetof (VstTimeInfo, timeSigDenominator) == 68 && offsetof (Vst
                    && offsetof (VstTimeInfo, smpteFrameRate) == 76 && offsetof (VstTimeInfo, samplesToNextClock) == 80
                    && offsetof (VstTimeInfo, flags) == 84 && sizeof (VstTimeInfo) == 88,
                "VstTimeInfo must have the layout hosts and plugins use");
+static_assert (offsetof (VstPinProperties, shortLabel) == 72 && sizeof (VstPinProperties) == 128,
+               "plugins write VstPinProperties as 128 bytes (JUCE's own write past shortLabel)");
 
 // FST doesn't describe MIDI key names. JUCE's VST2 host declares a query for them, which MPE Roll
 // never makes; these placeholders let it compile, and use an opcode no plugin implements, so the

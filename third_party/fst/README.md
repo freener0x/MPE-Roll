@@ -33,3 +33,6 @@ Local changes to `fst.h`:
   `samplesToNextClock` (FST had called them `currentBar` and `magic`, and put the SMPTE fields after
   `flags`, past the end of the struct hosts pass). The same sources agree on all three, and the shim
   checks them at compile time.
+- `t_fstPinProperties` ends with 48 reserved bytes, making it 128 bytes as hosts and plugins size it.
+  Without them, a plugin filling the struct wrote past the end of the host's copy: JUCE's VST2 plugin
+  code writes one byte past `shortLabel`, which crashed MPE Roll's VST2 host on Windows.
