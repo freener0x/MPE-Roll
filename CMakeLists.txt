@@ -62,6 +62,7 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/ClipDocument.cpp
     source/plugin/CrashReport.cpp
     source/plugin/HostedSynth.cpp
+    source/plugin/PluginScanner.cpp
     source/plugin/SynthParameters.cpp
     source/plugin/ui/MpeLookAndFeel.cpp
     source/plugin/ui/NoteGrid.cpp
@@ -71,15 +72,19 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/ui/Toolbar.cpp
     source/plugin/ui/SettingsPanel.cpp)
 
+set(MPEROLL_CLAP_SOURCES "")
+
 if(MPEROLL_HOST_CLAP)
-    list(APPEND MPEROLL_PLUGIN_SOURCES
+    list(APPEND MPEROLL_CLAP_SOURCES
         source/plugin/clap/ClapNoteTranslator.cpp
         source/plugin/clap/ClapPluginFormat.cpp
         source/plugin/clap/ClapPluginInstance.cpp)
 
     if(APPLE)
-        list(APPEND MPEROLL_PLUGIN_SOURCES source/plugin/clap/ClapMacView.mm)
+        list(APPEND MPEROLL_CLAP_SOURCES source/plugin/clap/ClapMacView.mm)
     endif()
+
+    list(APPEND MPEROLL_PLUGIN_SOURCES ${MPEROLL_CLAP_SOURCES})
 endif()
 
 set(MPEROLL_COMMON_DEFINITIONS
@@ -162,6 +167,35 @@ target_link_libraries(MpeRoll
 if(MSVC)
     target_compile_options(MpeRoll PRIVATE "$<$<CONFIG:Release>:/Zi;/FS>")
     target_link_options(MpeRoll_Standalone PRIVATE "$<$<CONFIG:Release>:/DEBUG;/OPT:REF;/OPT:ICF>")
+endif()
+
+# The scanner MPE Roll looks inside plugin files with, in its own process, so a plugin that crashes or
+# hangs while being looked at can't take the DAW with it. It's copied next to each plugin binary.
+# Not on macOS, where adding a file would invalidate the signed bundles; there plugins are looked at
+# in process, as before.
+if(NOT APPLE)
+    juce_add_console_app(MpeRollScanner PRODUCT_NAME "MPE Roll Scanner")
+    set_target_properties(MpeRollScanner PROPERTIES OUTPUT_NAME "MPE Roll Scanner")
+    target_sources(MpeRollScanner PRIVATE source/scanner/ScannerMain.cpp ${MPEROLL_CORE_SOURCES} ${MPEROLL_CLAP_SOURCES})
+    target_include_directories(MpeRollScanner PRIVATE source third_party/fst)
+    target_compile_definitions(MpeRollScanner PRIVATE ${MPEROLL_COMMON_DEFINITIONS})
+    target_link_libraries(MpeRollScanner
+        PRIVATE
+            ${MPEROLL_CLAP_LIBRARY}
+            juce::juce_audio_utils
+            juce::juce_audio_processors
+        PUBLIC
+            juce::juce_recommended_config_flags
+            juce::juce_recommended_warning_flags)
+
+    foreach(format_target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone)
+        if(TARGET ${format_target})
+            add_dependencies(${format_target} MpeRollScanner)
+            add_custom_command(TARGET ${format_target} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:MpeRollScanner>" "$<TARGET_FILE_DIR:${format_target}>"
+                VERBATIM)
+        endif()
+    endforeach()
 endif()
 endif()
 
@@ -258,6 +292,22 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         if(APPLE)
             set_target_properties(MpeRollClapTestSynth PROPERTIES BUNDLE TRUE BUNDLE_EXTENSION clap)
         endif()
+
+        # Plugin files that crash or hang as soon as they're loaded, for the scanner test.
+        foreach(kind Crashing Hanging)
+            add_library(MpeRoll${kind}TestPlugin MODULE tools/BrokenTestPlugin.cpp)
+            target_link_libraries(MpeRoll${kind}TestPlugin
+                PRIVATE clap
+                PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+            set_target_properties(MpeRoll${kind}TestPlugin PROPERTIES
+                PREFIX ""
+                SUFFIX ".clap"
+                OUTPUT_NAME "MPE Roll ${kind} Test Plugin"
+                LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/MpeRollClapTestSynth_artefacts/$<CONFIG>"
+                CXX_VISIBILITY_PRESET hidden)
+        endforeach()
+
+        target_compile_definitions(MpeRollHangingTestPlugin PRIVATE MPEROLL_TEST_PLUGIN_HANGS=1)
     endif()
 
     juce_add_console_app(MpeRollHarness PRODUCT_NAME "MpeRollHarness")

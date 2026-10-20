@@ -76,6 +76,9 @@ public:
     /** How the synth is played with these settings, for showing to the user. Message thread. */
     juce::String describeConnection (const OutputSettings&) const;
 
+    /** Whether these settings play the synth with CLAP note expressions rather than MIDI. Message thread. */
+    bool playsNoteExpressions (const OutputSettings&) const;
+
     int getLatencySamples() const;
     double getTailLengthSeconds() const;
 

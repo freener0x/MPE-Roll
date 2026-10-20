@@ -22,6 +22,9 @@ jobs:
       VST3_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3
       VST2_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST/MPE Roll Test Synth.dll
       CLAP_SYNTH: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap
+      SCANNER: build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe
+      CRASHING_PLUGIN: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Crashing Test Plugin.clap
+      HANGING_PLUGIN: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Hanging Test Plugin.clap
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +34,8 @@ jobs:
       - name: Build
         run: >
           cmake --build build --config Release --parallel --target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone
-          MpeRollTests MpeRollHarness MpeRollTestSynth_VST3 MpeRollTestSynth_VST MpeRollClapTestSynth
+          MpeRollScanner MpeRollTests MpeRollHarness MpeRollTestSynth_VST3 MpeRollTestSynth_VST MpeRollClapTestSynth
+          MpeRollCrashingTestPlugin MpeRollHangingTestPlugin
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
@@ -69,12 +73,17 @@ jobs:
           grep -q "running the crash test" crash-report.txt
           grep -q "crashOnPurpose" crash-report.txt
 
+      - name: Plugin files are looked at in the scanner process (crashing and hanging ones too)
+        run: '"$HARNESS" scantest "$SCANNER" "$VST3_SYNTH" "$CRASHING_PLUGIN" "$HANGING_PLUGIN"'
+
       - name: Package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item -Recurse "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" dist/
+          if (-not (Test-Path "dist/MPE Roll.vst3/Contents/x86_64-win/MPE Roll Scanner.exe")) { throw "The scanner isn't in the VST3 bundle" }
           Copy-Item "build/MpeRoll_artefacts/Release/VST/MPE Roll.dll" dist/
+          Copy-Item "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe" dist/
           Copy-Item "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.exe" dist/
           Copy-Item "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.pdb" dist/
           Get-ChildItem -Recurse dist | Select-Object FullName, Length
@@ -183,3 +192,11 @@ jobs:
         run: >
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness clapdialect
           "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"
+
+      - name: Plugin files are looked at in the scanner process (crashing and hanging ones too)
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness scantest
+          "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner"
+          "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Crashing Test Plugin.clap"
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Hanging Test Plugin.clap"

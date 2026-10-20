@@ -1,5 +1,6 @@
 #include "HostedSynth.h"
 #include "CrashReport.h"
+#include "PluginScanner.h"
 
 #if MPEROLL_HOST_CLAP
  #include "clap/ClapHosting.h"
@@ -85,6 +86,8 @@ HostedSynth::HostedSynth()
         if (auto xml = settings->getXmlValue ("knownPlugins"))
             knownPlugins.recreateFromXml (*xml);
 
+    // Scans look at each plugin file in the scanner process, so one that crashes can't take FL with it.
+    knownPlugins.setCustomScanner (std::make_unique<PluginScanner::OutOfProcessScanner>());
     knownPlugins.addChangeListener (this);
 }
 
@@ -169,8 +172,27 @@ void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
     CrashReport::setActivity ("reading the plugin file " + file.getFullPathName());
 
     for (auto* format : formatManager.getFormats())
-        if (format->fileMightContainThisPluginType (file.getFullPathName()))
+    {
+        if (! format->fileMightContainThisPluginType (file.getFullPathName()))
+            continue;
+
+        // Look inside it in the scanner process first: a plugin that crashes there isn't loaded here.
+        const auto outcome = PluginScanner::findTypes (format->getName(), file.getFullPathName(), found);
+
+        if (outcome == PluginScanner::Outcome::unavailable)
+        {
             format->findAllTypesForFile (found, file.getFullPathName());
+        }
+        else if (outcome != PluginScanner::Outcome::found)
+        {
+            CrashReport::setActivity ("refused to load " + file.getFullPathName());
+
+            if (onDone)
+                onDone (PluginScanner::describeFailure (outcome, file.getFileName()));
+
+            return;
+        }
+    }
 
     if (found.isEmpty())
     {
@@ -540,14 +562,22 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
     if (instance == nullptr)
         return "No synth loaded.";
 
-   #if MPEROLL_HOST_CLAP
-    if (clapControls != nullptr && clapControls->playsNoteExpressions (settings))
+    if (playsNoteExpressions (settings))
         return "CLAP notes, each with its own tuning, pressure, brightness, volume, pan, vibrato and expression.";
-   #endif
 
     const auto midi = settings.mode == OutputSettings::Mode::singleChannel ? juce::String ("Plain MIDI")
                                                                            : juce::String ("MPE over MIDI");
     return clapControls != nullptr ? midi + " (the CLAP synth accepts MIDI)." : midi + ".";
+}
+
+bool HostedSynth::playsNoteExpressions (const OutputSettings& settings) const
+{
+   #if MPEROLL_HOST_CLAP
+    return clapControls != nullptr && clapControls->playsNoteExpressions (settings);
+   #else
+    juce::ignoreUnused (settings);
+    return false;
+   #endif
 }
 
 int HostedSynth::getLatencySamples() const

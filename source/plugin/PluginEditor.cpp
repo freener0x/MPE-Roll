@@ -491,10 +491,21 @@ void MpeRollEditor::loadSynth (const juce::PluginDescription& description)
         }
 
         safe->rollProcessor.requestConfiguration();
-        safe->setStatus ("Loaded " + description.name);
+        safe->setStatus (safe->describeLoaded (description.name));
     });
 
     refreshToolbar();
+}
+
+juce::String MpeRollEditor::describeLoaded (const juce::String& name) const
+{
+    // A synth played with MPE over MIDI only gets per-note expression if it's in MPE mode.
+    const auto& output = document.getSettings().output;
+
+    if (output.mode == OutputSettings::Mode::mpe && ! rollProcessor.getSynth().playsNoteExpressions (output))
+        return "Loaded " + name + ". Turn on MPE in it; if it has no MPE mode, set Synth expects to Plain MIDI in MPE settings.";
+
+    return "Loaded " + name;
 }
 
 void MpeRollEditor::showPluginScanner()
@@ -551,7 +562,7 @@ void MpeRollEditor::browseForPlugin()
             if (error.isNotEmpty())
                 juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Couldn't load synth", error);
             else
-                safe->setStatus ("Loaded " + file.getFileNameWithoutExtension());
+                safe->setStatus (safe->describeLoaded (file.getFileNameWithoutExtension()));
 
             safe->rollProcessor.requestConfiguration();
         });

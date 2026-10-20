@@ -12,7 +12,8 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    yourself.
 2. Copy the whole `MPE Roll.vst3` folder to `C:\Program Files\Common Files\VST3` (macOS:
    `/Library/Audio/Plug-Ins/VST3`). On Windows you can use `MPE Roll.dll`, the VST2 version, instead:
-   put it in one of the plugin folders listed under *Options › Manage plugins*.
+   put it in one of the plugin folders listed under *Options › Manage plugins*, with
+   `MPE Roll Scanner.exe` beside it (see step 2 below).
 3. In FL Studio: *Options › Manage plugins › Find installed plugins*.
 4. Add **MPE Roll** to the Channel Rack like any other instrument.
 5. In MPE Roll's wrapper settings (the gear icon in the plugin window's title bar), leave *Send pitch
@@ -23,10 +24,16 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 
 1. Open MPE Roll and click **Load synth…**.
 2. The first time, choose **Scan for plugins…**. MPE Roll scans the standard VST3, VST2 and CLAP
-   folders (for CLAP, `C:\Program Files\Common Files\CLAP`), and a plugin that crashes during the
-   scan is skipped next time. If your VST2 plugins live somewhere else, add that folder in the
-   scanner's options. You can also use **Load plugin file…** to pick a `.vst3`, `.dll` (VST2) or
-   `.clap` file directly.
+   folders (for CLAP, `C:\Program Files\Common Files\CLAP`). If your VST2 plugins live somewhere
+   else, add that folder in the scanner's options. You can also use **Load plugin file…** to pick a
+   `.vst3`, `.dll` (VST2) or `.clap` file directly.
+
+   MPE Roll looks inside each plugin file with **MPE Roll Scanner**, a separate program, so a plugin
+   that crashes or hangs while it's being looked at only stops the scanner. Such a plugin is listed
+   at the end of the scan and skipped afterwards, and *Load plugin file…* refuses it with a message
+   instead of crashing FL. The scanner comes inside the `.vst3` folder; with the `.dll`, keep
+   `MPE Roll Scanner.exe` next to it. Without the scanner, plugins are looked at inside FL, where a
+   crashing one takes FL down.
 3. Click **Edit synth** to open the synth's own window.
 4. **Turn on MPE in the synth.** Most MPE-capable synths have an MPE switch in their settings or
    global menu. Set the synth's MPE pitch-bend range to **48 semitones**, or change MPE Roll's
@@ -49,6 +56,10 @@ glide, pressure and timbre drive the whole channel, so set *Zone bend range* to 
 range. Pressure goes out as *Pressure sent as* says: channel aftertouch (the default, added to the
 zone-wide *Channel pressure* lane), a controller, or poly aftertouch, which keeps each note's own
 pressure for synths that respond to it.
+
+**To hear real per-note expression**, use a synth with MPE. Two free ones: *Surge XT* (load its
+`.clap` and MPE Roll plays it with CLAP note expressions, nothing to set up; with its VST3, turn on
+MPE in its menu) and *Vital* (turn on MPE in its settings).
 
 ### Automating the synth from FL
 
@@ -162,8 +173,9 @@ needs checking in a real FL install.
 
 ## 7. Notes on particular synths
 
-These come from the makers' documentation and user reports. They haven't been checked inside MPE Roll
-yet. Neither synth comes as CLAP, so the CLAP note-expression path doesn't apply.
+These come from the makers' documentation and user reports, and from a first test of Analog Lab in
+MPE Roll in FL Studio 26.1.7 (it loads and plays; zone-wide lanes work, per-note ones need *Plain
+MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path doesn't apply.
 
 **Spectrasonics Omnisphere**
 - Authorize it once in its standalone app or directly in FL before loading it inside MPE Roll.
@@ -194,6 +206,10 @@ yet. Neither synth comes as CLAP, so the CLAP note-expression path doesn't apply
 - Arturia says Analog Lab itself isn't MPE compatible. (Their individual instruments, such as
   Pigments, are.) Set *Synth expects* to **Plain MIDI (one channel)**. In Analog Lab's Settings, set
   *MIDI Channel* to *All* or 1.
+- What to expect: left on MPE (MPE Roll's default), per-note glides are scaled for a 48-semitone
+  range and Analog Lab applies them with its own, usually 2, so they barely move; only the zone-wide
+  lanes work. With *Plain MIDI* the newest note's glide, pressure and timbre work, but every held note
+  follows them. Each note having its own takes a synth with MPE.
 - Set *Zone bend range* to the preset's pitch-bend range (often 2). The newest note's glide bends the
   whole channel and stops at the edge of that range.
 - Analog Lab responds to channel aftertouch, not poly aftertouch, so keep *Pressure sent as* on
@@ -210,6 +226,9 @@ yet. Neither synth comes as CLAP, so the CLAP note-expression path doesn't apply
 | Problem | Fix |
 | --- | --- |
 | FL doesn't list MPE Roll | Check where the files went: the whole `MPE Roll.vst3` folder in `C:\Program Files\Common Files\VST3`, or `MPE Roll.dll` in one of the plugin folders listed under *Options › Manage plugins*. Then click *Find installed plugins*. |
+| Scanning for plugins crashes FL | MPE Roll Scanner isn't installed, so plugins were looked at inside FL. It's inside the `.vst3` folder; with the `.dll`, put `MPE Roll Scanner.exe` next to it. |
+| "… crashed while MPE Roll was checking it" | That plugin crashes when it's loaded outside its usual host, so MPE Roll won't load it (FL would go down with it). Try updating the plugin, and please report which one it is. |
+| Per-note lanes do nothing, zone-wide ones work | The synth isn't in MPE mode, or has none. Turn MPE on in the synth, or set *Synth expects* to *Plain MIDI*, where the newest note's expression drives the whole synth. |
 | MPE Roll crashes | The standalone app saves a report to `%APPDATA%\MPE Roll\Crash report.txt` and says so. In FL, FL's own crash message names the file that crashed. Please include either when you report it. |
 | No sound | Load a synth (*Load synth…*), and check that the synth itself makes sound in its own window. |
 | Clicks, timing drift or CPU spikes | In MPE Roll's wrapper settings, turn on *Use fixed size buffers* (Troubleshooting tab). |

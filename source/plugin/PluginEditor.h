@@ -73,6 +73,7 @@ private:
     void showPluginScanner();
     void browseForPlugin();
     void loadSynth (const juce::PluginDescription&);
+    juce::String describeLoaded (const juce::String& synthName) const;
 
     void showMidiMenu();
     void importMidi();

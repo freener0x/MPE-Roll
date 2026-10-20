@@ -8,11 +8,18 @@
 //   MpeRollHarness uitest                               simulated mouse and keyboard editing
 //   MpeRollHarness params <synth.vst3>                  synth parameters exposed for host automation
 //   MpeRollHarness crashtest <report.txt>               Windows: crashes on purpose to check the crash report
+//   MpeRollHarness scantest <scanner> <synth> <crashing.clap> <hanging.clap>
+//                                                       plugin files are looked at in the scanner process
 
 #include "plugin/CrashReport.h"
 #include "plugin/PluginEditor.h"
 #include "plugin/PluginProcessor.h"
+#include "plugin/PluginScanner.h"
 #include "plugin/ui/SettingsPanel.h"
+
+#if MPEROLL_HOST_CLAP
+ #include "plugin/clap/ClapHosting.h"
+#endif
 
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_utils/juce_audio_utils.h>
@@ -917,6 +924,90 @@ int uiTest()
     return check.failures == 0 ? 0 : 1;
 }
 
+// Plugin files are looked at in the scanner process: a crash or hang there doesn't reach MPE Roll.
+int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce::File& crashing, const juce::File& hanging)
+{
+    Check check;
+    PluginScanner::setExecutableForTesting (scanner);
+
+    const auto formatOf = [] (const juce::File& f)
+    {
+        return f.hasFileExtension (".clap") ? juce::String ("CLAP")
+             : f.hasFileExtension (".vst3") ? juce::String ("VST3") : juce::String ("VST");
+    };
+
+    std::printf ("The scanner looks inside a plugin file\n");
+    {
+        juce::OwnedArray<juce::PluginDescription> found;
+        const auto outcome = PluginScanner::findTypes (formatOf (synthFile), synthFile.getFullPathName(), found, 60000);
+        check (outcome == PluginScanner::Outcome::found, "it reports what it found");
+        check (found.size() == 1 && found[0]->name == "MPE Roll Test Synth", "which is the test synth");
+    }
+
+    std::printf ("A plugin that crashes or hangs only takes the scanner down\n");
+    {
+        juce::OwnedArray<juce::PluginDescription> found;
+        check (PluginScanner::findTypes ("CLAP", crashing.getFullPathName(), found, 60000) == PluginScanner::Outcome::crashed,
+               "a crash is reported as one");
+
+        const auto start = juce::Time::getMillisecondCounterHiRes();
+        check (PluginScanner::findTypes ("CLAP", hanging.getFullPathName(), found, 3000) == PluginScanner::Outcome::timedOut,
+               "a hang is reported as one");
+        check (juce::Time::getMillisecondCounterHiRes() - start < 15000, "once the time allowed is up");
+        check (found.isEmpty(), "and neither lists a plugin");
+    }
+
+    std::printf ("A scan carries on past them\n");
+    {
+        juce::AudioPluginFormatManager formats;
+        juce::addDefaultFormatsToManager (formats);
+       #if MPEROLL_HOST_CLAP
+        formats.addFormat (std::make_unique<ClapPluginFormat>());
+       #endif
+
+        const auto formatNamed = [&formats] (const juce::String& name) -> juce::AudioPluginFormat*
+        {
+            for (auto* format : formats.getFormats())
+                if (format->getName() == name)
+                    return format;
+
+            return nullptr;
+        };
+
+        juce::KnownPluginList list;
+        list.setCustomScanner (std::make_unique<PluginScanner::OutOfProcessScanner> (3000));
+        juce::OwnedArray<juce::PluginDescription> found;
+        auto* clap = formatNamed ("CLAP");
+        auto* synthFormat = formatNamed (formatOf (synthFile));
+
+        if (clap != nullptr && synthFormat != nullptr)
+        {
+            list.scanAndAddFile (crashing.getFullPathName(), false, found, *clap);
+            list.scanAndAddFile (hanging.getFullPathName(), false, found, *clap);
+            list.scanAndAddFile (synthFile.getFullPathName(), false, found, *synthFormat);
+        }
+
+        const auto& setAside = list.getBlacklistedFiles();
+        check (setAside.contains (crashing.getFullPathName()) && setAside.contains (hanging.getFullPathName()),
+               "the crashing and hanging files are set aside");
+        check (list.getNumTypes() == 1 && list.getTypes()[0].name == "MPE Roll Test Synth",
+               "and the synth after them is listed");
+    }
+
+    std::printf ("Loading a plugin file that crashes is refused, not fatal\n");
+    {
+        HostedSynth synth;
+        juce::String error = "(no answer)";
+        synth.loadFromFile (crashing, [&error] (const juce::String& e) { error = e; });
+        check (error.contains ("crashed"), "the user is told it crashed");
+        check (! synth.isLoaded(), "and nothing is loaded");
+    }
+
+    PluginScanner::setExecutableForTesting ({});
+    std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
+    return check.failures == 0 ? 0 : 1;
+}
+
 #if JUCE_WINDOWS
  #if JUCE_MSVC
 __declspec (noinline)
@@ -978,6 +1069,10 @@ int main (int argc, char** argv)
     if (args.size() >= 2 && args[0] == "crashtest")
         return crashTest (cwd.getChildFile (args[1]));
 
+    if (args.size() >= 5 && args[0] == "scantest")
+        return scanTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]), cwd.getChildFile (args[3]),
+                         cwd.getChildFile (args[4]));
+
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
                  "  MpeRollHarness render <synth.vst3> <out.wav>\n"
@@ -985,6 +1080,7 @@ int main (int argc, char** argv)
                  "  MpeRollHarness uitest\n"
                  "  MpeRollHarness params <synth.vst3>\n"
                  "  MpeRollHarness clapdialect <MPE Roll Test Synth.clap>\n"
-                 "  MpeRollHarness crashtest <report.txt>\n");
+                 "  MpeRollHarness crashtest <report.txt>\n"
+                 "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n");
     return 2;
 }
