@@ -7,7 +7,9 @@
 //   MpeRollHarness selftest                             live input, recording, state, note trigger, undo
 //   MpeRollHarness uitest                               simulated mouse and keyboard editing
 //   MpeRollHarness params <synth.vst3>                  synth parameters exposed for host automation
+//   MpeRollHarness crashtest <report.txt>               Windows: crashes on purpose to check the crash report
 
+#include "plugin/CrashReport.h"
 #include "plugin/PluginEditor.h"
 #include "plugin/PluginProcessor.h"
 #include "plugin/ui/SettingsPanel.h"
@@ -915,6 +917,33 @@ int uiTest()
     return check.failures == 0 ? 0 : 1;
 }
 
+#if JUCE_WINDOWS
+ #if JUCE_MSVC
+__declspec (noinline)
+ #endif
+void crashOnPurpose (volatile int* target)
+{
+    *target = 42;
+}
+#endif
+
+// Windows: the standalone app's crash report, checked by crashing on purpose. Never returns there.
+int crashTest (const juce::File& reportFile)
+{
+   #if JUCE_WINDOWS
+    static volatile int* volatile nowhere = nullptr;
+    CrashReport::install (reportFile, false);
+    CrashReport::setActivity ("running the crash test");
+    crashOnPurpose (nowhere);
+    std::printf ("FAIL: it didn't crash\n");
+    return 1;
+   #else
+    juce::ignoreUnused (reportFile);
+    std::printf ("Crash reports are only made on Windows.\n");
+    return 0;
+   #endif
+}
+
 } // namespace
 
 int main (int argc, char** argv)
@@ -946,12 +975,16 @@ int main (int argc, char** argv)
     if (args.size() >= 2 && args[0] == "clapdialect")
         return clapDialectTest (cwd.getChildFile (args[1]));
 
+    if (args.size() >= 2 && args[0] == "crashtest")
+        return crashTest (cwd.getChildFile (args[1]));
+
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
                  "  MpeRollHarness render <synth.vst3> <out.wav>\n"
                  "  MpeRollHarness selftest\n"
                  "  MpeRollHarness uitest\n"
                  "  MpeRollHarness params <synth.vst3>\n"
-                 "  MpeRollHarness clapdialect <MPE Roll Test Synth.clap>\n");
+                 "  MpeRollHarness clapdialect <MPE Roll Test Synth.clap>\n"
+                 "  MpeRollHarness crashtest <report.txt>\n");
     return 2;
 }

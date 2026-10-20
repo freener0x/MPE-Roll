@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "CrashReport.h"
 
 #include <cmath>
 #include <cstring>
@@ -55,6 +56,10 @@ MpeRollProcessor::MpeRollProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       document ([this] (std::shared_ptr<const EngineSnapshot> s) { publish (std::move (s)); })
 {
+    // The standalone app reports its own crashes; inside a DAW, the DAW does.
+    if (juce::PluginHostType::getPluginLoadedAs() == wrapperType_Standalone)
+        CrashReport::install();
+
     recordEvents.resize ((size_t) recordFifo.getTotalSize());
 
     const auto& settings = document.getSettings();

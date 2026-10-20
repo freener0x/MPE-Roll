@@ -86,8 +86,13 @@ and a plain-MIDI mode for synths that don't do MPE.
 
 Every change is built by GitHub Actions. Open the repository's **Actions** tab (you need to be signed
 in to GitHub), pick the latest successful **Build** run, and download **MPE-Roll-Windows** or
-**MPE-Roll-macOS** under *Artifacts*. The Windows download contains `MPE Roll.vst3` (copy the whole
-folder to `C:\Program Files\Common Files\VST3`) and the standalone `MPE Roll.exe`.
+**MPE-Roll-macOS** under *Artifacts*. The Windows download contains:
+- `MPE Roll.vst3`, the VST3 plugin: copy the whole folder to `C:\Program Files\Common Files\VST3`.
+- `MPE Roll.dll`, the same plugin as VST2: put it in a VST plugin folder that FL Studio scans (the
+  folders are listed under *Options › Manage plugins*). Install either one, or both.
+- `MPE Roll.exe`, the standalone app, with `MPE Roll.pdb` beside it. Keep the two together: if the
+  app crashes, it saves a report to `%APPDATA%\MPE Roll\Crash report.txt`, and the `.pdb` lets the
+  report name the code involved.
 
 The macOS download holds one more zip, `MPE-Roll-bundles.zip`, which keeps the app's permissions.
 Open that one with Finder (or `ditto -x -k MPE-Roll-bundles.zip .`); other unzip tools can lose them,

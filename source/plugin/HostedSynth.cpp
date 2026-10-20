@@ -1,4 +1,5 @@
 #include "HostedSynth.h"
+#include "CrashReport.h"
 
 #if MPEROLL_HOST_CLAP
  #include "clap/ClapHosting.h"
@@ -6,6 +7,15 @@
 
 namespace mperoll
 {
+
+namespace
+{
+    // For crash reports: which synth, in which format, from which file.
+    juce::String describe (const juce::PluginDescription& d)
+    {
+        return d.name + " (" + d.pluginFormatName + ", " + d.fileOrIdentifier + ")";
+    }
+}
 
 class HostedSynth::EditorWindow : public juce::DocumentWindow
 {
@@ -122,6 +132,7 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
 {
     const auto generation = ++loadGeneration;
     loading = true;
+    CrashReport::setActivity ("loading the synth " + describe (desc));
 
     formatManager.createPluginInstanceAsync (desc, sampleRate, blockSize,
         [this, generation, desc, onDone, alive = std::weak_ptr<int> (lifetime)]
@@ -134,13 +145,18 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
 
             if (plugin == nullptr)
             {
+                CrashReport::setActivity ("failed to load the synth " + describe (desc));
+
                 if (onDone)
                     onDone (error.isNotEmpty() ? error : juce::String ("The plugin couldn't be loaded."));
 
                 return;
             }
 
+            CrashReport::setActivity ("setting up the synth " + describe (desc));
             install (std::move (plugin), desc);
+            CrashReport::renew();
+            CrashReport::setActivity ("playing the synth " + describe (desc));
 
             if (onDone)
                 onDone ({});
@@ -150,6 +166,7 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
 void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
 {
     juce::OwnedArray<juce::PluginDescription> found;
+    CrashReport::setActivity ("reading the plugin file " + file.getFullPathName());
 
     for (auto* format : formatManager.getFormats())
         if (format->fileMightContainThisPluginType (file.getFullPathName()))
@@ -377,6 +394,8 @@ void HostedSynth::showEditor()
         return;
     }
 
+    CrashReport::setActivity ("opening the window of the synth " + getName());
+
     editorWindow = std::make_unique<EditorWindow> (*instance, [this, alive = std::weak_ptr<int> (lifetime)]
     {
         // Deleting the window from inside its own callback isn't safe, so do it right after.
@@ -386,6 +405,8 @@ void HostedSynth::showEditor()
                 closeEditor();
         });
     });
+
+    CrashReport::setActivity ("playing the synth " + getName() + ", with its window open");
 }
 
 void HostedSynth::closeEditor()

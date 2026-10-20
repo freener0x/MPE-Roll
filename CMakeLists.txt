@@ -16,6 +16,7 @@ option(MPEROLL_BUILD_DEV_TOOLS "Build the developer harness (UI snapshots, offli
 option(MPEROLL_COPY_PLUGIN_AFTER_BUILD "Copy the built plugin into the system plugin folder" OFF)
 option(MPEROLL_HOST_VST2 "Host VST2 synths (uses the clean-room FST headers in third_party/fst)" ON)
 option(MPEROLL_HOST_CLAP "Host CLAP synths, playing them with CLAP note expressions" ON)
+option(MPEROLL_BUILD_VST2 "On Windows, also build MPE Roll as a VST2 plugin (.dll, uses the FST headers)" ON)
 
 # ---------------------------------------------------------------------------------------------
 # JUCE (AGPLv3). Pass -DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE to use a local checkout.
@@ -59,6 +60,7 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/PluginProcessor.cpp
     source/plugin/PluginEditor.cpp
     source/plugin/ClipDocument.cpp
+    source/plugin/CrashReport.cpp
     source/plugin/HostedSynth.cpp
     source/plugin/SynthParameters.cpp
     source/plugin/ui/MpeLookAndFeel.cpp
@@ -109,6 +111,16 @@ else()
     list(APPEND MPEROLL_COMMON_DEFINITIONS JUCE_PLUGINHOST_AU=0)
 endif()
 
+# VST2 plugins built against the FST headers (JUCE takes the header path only once): MPE Roll itself
+# on Windows, where many FL users keep their plugins as .dll files, and the dev tools' test synth.
+if(WIN32 AND MPEROLL_BUILD_VST2)
+    list(APPEND MPEROLL_FORMATS VST)
+endif()
+
+if((WIN32 AND MPEROLL_BUILD_VST2) OR (MPEROLL_BUILD_DEV_TOOLS AND MPEROLL_HOST_VST2))
+    juce_set_vst2_sdk_path(${CMAKE_CURRENT_SOURCE_DIR}/third_party/fst)
+endif()
+
 # ---------------------------------------------------------------------------------------------
 # The plugin.
 if(MPEROLL_BUILD_PLUGIN)
@@ -144,6 +156,13 @@ target_link_libraries(MpeRoll
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
+
+# Windows: the standalone app comes with its .pdb symbols, so its crash report can name the
+# functions involved. The plugins don't need them: inside a DAW, the DAW reports crashes.
+if(MSVC)
+    target_compile_options(MpeRoll PRIVATE "$<$<CONFIG:Release>:/Zi;/FS>")
+    target_link_options(MpeRoll_Standalone PRIVATE "$<$<CONFIG:Release>:/DEBUG;/OPT:REF;/OPT:ICF>")
+endif()
 endif()
 
 # ---------------------------------------------------------------------------------------------
@@ -200,7 +219,6 @@ if(MPEROLL_BUILD_DEV_TOOLS)
     set(MPEROLL_TEST_SYNTH_FORMATS VST3)
 
     if(MPEROLL_HOST_VST2)
-        juce_set_vst2_sdk_path(${CMAKE_CURRENT_SOURCE_DIR}/third_party/fst)
         list(APPEND MPEROLL_TEST_SYNTH_FORMATS VST)
     endif()
 
@@ -266,4 +284,10 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         PUBLIC
             juce::juce_recommended_config_flags
             juce::juce_recommended_warning_flags)
+
+    # Symbols, so the crash report test can check that functions are named.
+    if(MSVC)
+        target_compile_options(MpeRollHarness PRIVATE "$<$<CONFIG:Release>:/Zi;/FS>")
+        target_link_options(MpeRollHarness PRIVATE "$<$<CONFIG:Release>:/DEBUG;/OPT:REF;/OPT:ICF>")
+    endif()
 endif()

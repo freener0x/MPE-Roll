@@ -30,8 +30,8 @@ jobs:
 
       - name: Build
         run: >
-          cmake --build build --config Release --parallel --target MpeRoll_VST3 MpeRoll_Standalone MpeRollTests
-          MpeRollHarness MpeRollTestSynth_VST3 MpeRollTestSynth_VST MpeRollClapTestSynth
+          cmake --build build --config Release --parallel --target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone
+          MpeRollTests MpeRollHarness MpeRollTestSynth_VST3 MpeRollTestSynth_VST MpeRollClapTestSynth
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
@@ -59,12 +59,25 @@ jobs:
           "$HARNESS" render "$CLAP_SYNTH" render-clap.wav
           "$HARNESS" clapdialect "$CLAP_SYNTH"
 
+      # The standalone app's crash report: the harness installs it and crashes on purpose.
+      - name: Crash report names the crash and the function
+        run: |
+          if "$HARNESS" crashtest crash-report.txt; then echo "The harness didn't crash"; exit 1; fi
+          cat crash-report.txt
+          grep -q "access violation" crash-report.txt
+          grep -q "It tried to write to address 0x0" crash-report.txt
+          grep -q "running the crash test" crash-report.txt
+          grep -q "crashOnPurpose" crash-report.txt
+
       - name: Package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item -Recurse "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" dist/
+          Copy-Item "build/MpeRoll_artefacts/Release/VST/MPE Roll.dll" dist/
           Copy-Item "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.exe" dist/
+          Copy-Item "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.pdb" dist/
+          Get-ChildItem -Recurse dist | Select-Object FullName, Length
 
       - uses: actions/upload-artifact@v4
         with:

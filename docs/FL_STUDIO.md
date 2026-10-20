@@ -10,7 +10,9 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 
 1. Download a build (see [Downloading a build](../README.md#downloading-a-build)) or build it
    yourself.
-2. Copy `MPE Roll.vst3` to `C:\Program Files\Common Files\VST3` (macOS: `/Library/Audio/Plug-Ins/VST3`).
+2. Copy the whole `MPE Roll.vst3` folder to `C:\Program Files\Common Files\VST3` (macOS:
+   `/Library/Audio/Plug-Ins/VST3`). On Windows you can use `MPE Roll.dll`, the VST2 version, instead:
+   put it in one of the plugin folders listed under *Options › Manage plugins*.
 3. In FL Studio: *Options › Manage plugins › Find installed plugins*.
 4. Add **MPE Roll** to the Channel Rack like any other instrument.
 5. In MPE Roll's wrapper settings (the gear icon in the plugin window's title bar), leave *Send pitch
@@ -207,6 +209,8 @@ yet. Neither synth comes as CLAP, so the CLAP note-expression path doesn't apply
 
 | Problem | Fix |
 | --- | --- |
+| FL doesn't list MPE Roll | Check where the files went: the whole `MPE Roll.vst3` folder in `C:\Program Files\Common Files\VST3`, or `MPE Roll.dll` in one of the plugin folders listed under *Options › Manage plugins*. Then click *Find installed plugins*. |
+| MPE Roll crashes | The standalone app saves a report to `%APPDATA%\MPE Roll\Crash report.txt` and says so. In FL, FL's own crash message names the file that crashed. Please include either when you report it. |
 | No sound | Load a synth (*Load synth…*), and check that the synth itself makes sound in its own window. |
 | Clicks, timing drift or CPU spikes | In MPE Roll's wrapper settings, turn on *Use fixed size buffers* (Troubleshooting tab). |
 | Glides are much too big or too small | The synth's MPE bend range doesn't match MPE Roll's *Per-note bend range* (48 by default). |
