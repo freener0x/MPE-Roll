@@ -46,7 +46,8 @@ ExpressionLane::ExpressionLane (MpeRollProcessor& p, ViewState& v)
     clearButton.setTooltip ("Clear this lane on the selected notes (or all notes)");
 
     hint.setText ("Edits apply to selected notes, or every note under the pen. Right-drag erases, "
-                  "Shift snaps pitch to semitones, double-click clears.", juce::dontSendNotification);
+                  "double-click clears. Pitch snaps to semitones while Snap glide is on (Alt draws freely, Shift always snaps).",
+                  juce::dontSendNotification);
     hint.setColour (juce::Label::textColourId, Theme::textDim);
     hint.setFont (juce::FontOptions (12.0f));
     addAndMakeVisible (hint);
@@ -402,11 +403,18 @@ void ExpressionLane::paint (juce::Graphics& g)
 juce::Point<double> ExpressionLane::strokePoint (const juce::MouseEvent& e) const
 {
     const auto plot = plotArea();
-    const auto beat = juce::jmax (0.0, view.xToBeat (e.position.x - plot.getX()));
+    auto beat = juce::jmax (0.0, view.xToBeat (e.position.x - plot.getX()));
     auto value = yToValue (e.position.y);
 
-    if (isPitch() && e.mods.isShiftDown())
+    // Pitch snaps as glides drawn on the grid do: whole semitones, and lines start and end on the grid.
+    // Shift snaps even with Snap glide off.
+    if (isPitch() && ((view.snapGlide && ! e.mods.isAltDown()) || e.mods.isShiftDown()))
+    {
         value = std::round (value);
+
+        if (tool == Tool::line && ! erasing)
+            beat = view.snapRound (beat, false);
+    }
 
     return { beat, (double) value };
 }

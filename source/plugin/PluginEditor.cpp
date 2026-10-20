@@ -223,6 +223,7 @@ void MpeRollEditor::wireToolbar()
 
     toolbar.editToolButton.onClick = [this] { view.tool = ViewState::Tool::edit; view.changed(); };
     toolbar.glideToolButton.onClick = [this] { view.tool = ViewState::Tool::glide; view.changed(); };
+    toolbar.glideSnapButton.onClick = [this] { view.snapGlide = toolbar.glideSnapButton.getToggleState(); view.changed(); };
 
     toolbar.snapBox.onChange = [this]
     {
@@ -278,6 +279,7 @@ void MpeRollEditor::refreshToolbar()
     toolbar.snapBox.setSelectedId (Toolbar::indexForSnap (view.snap) + 1, juce::dontSendNotification);
     toolbar.editToolButton.setToggleState (view.tool == ViewState::Tool::edit, juce::dontSendNotification);
     toolbar.glideToolButton.setToggleState (view.tool == ViewState::Tool::glide, juce::dontSendNotification);
+    toolbar.glideSnapButton.setToggleState (view.snapGlide, juce::dontSendNotification);
     toolbar.undoButton.setEnabled (document.getUndoManager().canUndo());
     toolbar.redoButton.setEnabled (document.getUndoManager().canRedo());
     toolbar.recordButton.setToggleState (rollProcessor.isRecordArmed(), juce::dontSendNotification);
@@ -376,6 +378,7 @@ void MpeRollEditor::viewChanged()
     const juce::ScopedValueSetter<bool> svs (updatingToolbar, true);
     toolbar.editToolButton.setToggleState (view.tool == ViewState::Tool::edit, juce::dontSendNotification);
     toolbar.glideToolButton.setToggleState (view.tool == ViewState::Tool::glide, juce::dontSendNotification);
+    toolbar.glideSnapButton.setToggleState (view.snapGlide, juce::dontSendNotification);
     toolbar.snapBox.setSelectedId (Toolbar::indexForSnap (view.snap) + 1, juce::dontSendNotification);
 }
 

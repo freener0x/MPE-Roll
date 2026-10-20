@@ -248,6 +248,18 @@ void NoteGrid::paint (juce::Graphics& g)
         g.drawRect (marquee, 1.0f);
     }
 
+    if (dragMode == DragMode::glide && glideLabel.isNotEmpty())
+    {
+        const juce::Font font (juce::FontOptions (12.0f, juce::Font::bold));
+        g.setFont (font);
+        const auto box = juce::Rectangle<float> (0.0f, 0.0f, juce::GlyphArrangement::getStringWidth (font, glideLabel) + 10.0f, 18.0f)
+                             .withPosition (glideLabelPosition.translated (8.0f, -22.0f));
+        g.setColour (Theme::background.withAlpha (0.85f));
+        g.fillRoundedRectangle (box, 3.0f);
+        g.setColour (Theme::glide);
+        g.drawText (glideLabel, box, juce::Justification::centred);
+    }
+
     if (playheadVisible)
     {
         g.setColour (Theme::playhead.withAlpha (0.85f));
@@ -332,10 +344,6 @@ void NoteGrid::mouseDown (const juce::MouseEvent& e)
 
         if (auto* n = noteAt (e.position))
         {
-            glideNote = n->id;
-            glideStarted = false;
-            dragMode = DragMode::glide;
-
             if (selection.count (n->id) == 0)
             {
                 selection = { n->id };
@@ -343,7 +351,9 @@ void NoteGrid::mouseDown (const juce::MouseEvent& e)
             }
 
             document.beginEdit ("Draw glide");
-            drawGlide (e.position, e.mods.isShiftDown());
+            dragMode = DragMode::glide;
+            startGlide (*n, e.position, view.snapGlide && ! e.mods.isAltDown());
+            drawGlide (e.position);
         }
 
         return;
@@ -503,7 +513,19 @@ void NoteGrid::eraseAt (juce::Point<float> position)
     }
 }
 
-void NoteGrid::drawGlide (juce::Point<float> position, bool snapToSemitones)
+void NoteGrid::startGlide (const MpeNote& n, juce::Point<float> position, bool snapped)
+{
+    glideNote = n.id;
+    glideStarted = false;
+    glideSnapped = snapped;
+    glideOriginal = n.lanes.pitch;
+
+    // A snapped glide starts on the grid, from wherever the note's pitch is at that point.
+    glideAnchorTime = juce::jlimit (0.0, n.length, view.snapRound (view.xToBeat (position.x), false) - n.start);
+    glideAnchorValue = glideOriginal.valueAt (glideAnchorTime, 0.0f);
+}
+
+void NoteGrid::drawGlide (juce::Point<float> position)
 {
     auto* n = document.editClip().findNote (glideNote);
 
@@ -511,13 +533,37 @@ void NoteGrid::drawGlide (juce::Point<float> position, bool snapToSemitones)
         return;
 
     const auto range = document.getSettings().output.memberBendRange;
-    const auto t = juce::jlimit (0.0, n->length, view.xToBeat (position.x) - n->start);
-    auto value = juce::jlimit (-range, range, view.yToPitch (position.y) - (float) n->key);
-
-    if (snapToSemitones)
-        value = std::round (value);
-
     auto& curve = n->lanes.pitch;
+
+    if (glideSnapped)
+    {
+        // A straight line from the anchor to a whole semitone on the grid. Redrawn from the original
+        // each time, so the result only depends on where the pen is now.
+        const auto t = juce::jlimit (0.0, n->length, view.snapRound (view.xToBeat (position.x), false) - n->start);
+        const auto value = std::round (juce::jlimit (-range, range, view.yToPitch (position.y) - (float) n->key));
+
+        curve = glideOriginal;
+
+        if (curve.isEmpty() && std::min (t, glideAnchorTime) > 1.0e-6)
+            curve.addPoint (0.0, 0.0f);
+
+        if (std::abs (t - glideAnchorTime) < 1.0e-9)
+            curve.addPoint (t, value);
+        else if (t > glideAnchorTime)
+            curve.replaceRange (glideAnchorTime, t, { { glideAnchorTime, glideAnchorValue }, { t, value } });
+        else
+            curve.replaceRange (t, glideAnchorTime, { { t, value }, { glideAnchorTime, glideAnchorValue } });
+
+        const auto semitones = juce::roundToInt (value);
+        glideLabel = (semitones > 0 ? "+" : "") + juce::String (semitones) + "  "
+                   + juce::MidiMessage::getMidiNoteName (n->key + semitones, true, true, 4);
+        glideLabelPosition = { (float) view.beatToX (n->start + t), view.pitchToY ((float) n->key + value) };
+        document.changed();
+        return;
+    }
+
+    const auto t = juce::jlimit (0.0, n->length, view.xToBeat (position.x) - n->start);
+    const auto value = juce::jlimit (-range, range, view.yToPitch (position.y) - (float) n->key);
 
     if (! glideStarted)
     {
@@ -579,7 +625,7 @@ void NoteGrid::mouseDrag (const juce::MouseEvent& e)
         case DragMode::move:        dragMove (e); break;
         case DragMode::resize:      dragResize (e); break;
         case DragMode::erase:       eraseAt (e.position); break;
-        case DragMode::glide:       drawGlide (e.position, e.mods.isShiftDown()); break;
+        case DragMode::glide:       drawGlide (e.position); break;
         case DragMode::glideErase:  eraseGlide (e.position); break;
 
         case DragMode::marquee:
@@ -609,6 +655,7 @@ void NoteGrid::mouseUp (const juce::MouseEvent&)
 
     stopAudition();
     dragMode = DragMode::none;
+    glideLabel.clear();
     repaint();
 }
 

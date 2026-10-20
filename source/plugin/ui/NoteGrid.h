@@ -12,8 +12,10 @@ namespace mperoll
 
     Mouse (FL Studio conventions): click empty space to add a note and drag to place it, drag a
     note to move it, drag its right edge to resize, right-click/drag to delete, Ctrl-drag to
-    select, Shift-drag to duplicate, Alt to bypass snap. With the Glide tool, drag across a note
-    to draw its pitch bend (Shift snaps to semitones, right-drag erases).
+    select, Shift-drag to duplicate, Alt to bypass snap. With the Glide tool, drag from a point on a
+    note to the pitch the glide should reach: with glide snap on it lands on a whole semitone and the
+    grid, in a straight line from where the note's pitch was; hold Alt to draw freehand instead.
+    Right-drag erases a glide, double-click clears it.
 */
 class NoteGrid : public juce::Component,
                  private ViewState::Listener,
@@ -72,9 +74,14 @@ private:
     float lastVelocity = 0.8f;
 
     uint32_t glideNote = 0;
-    bool glideStarted = false;
+    bool glideStarted = false, glideSnapped = false;
     double glideLastTime = 0.0;
     float glideLastValue = 0.0f;
+    ExpressionCurve glideOriginal;              // the note's glide before this drag
+    double glideAnchorTime = 0.0;               // snapped: where the glide starts...
+    float glideAnchorValue = 0.0f;              // ...and the pitch it starts from
+    juce::String glideLabel;                    // snapped: the interval and note it lands on
+    juce::Point<float> glideLabelPosition;
 
     static std::vector<MpeNote> clipboard;
 
@@ -89,7 +96,8 @@ private:
     void dragMove (const juce::MouseEvent&);
     void dragResize (const juce::MouseEvent&);
     void eraseAt (juce::Point<float> position);
-    void drawGlide (juce::Point<float> position, bool snapToSemitones);
+    void startGlide (const MpeNote&, juce::Point<float> position, bool snapped);
+    void drawGlide (juce::Point<float> position);
     void eraseGlide (juce::Point<float> position);
     void startAudition (int key, float velocity);
     void stopAudition();

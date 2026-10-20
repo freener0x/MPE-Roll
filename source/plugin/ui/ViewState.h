@@ -24,6 +24,7 @@ public:
     float rowHeight = 14.0f;
     float scrollKey = 90.0f;        // the key just above the top edge: the top row shows key (scrollKey - 1)
     double snap = 0.25;             // beats, 0 = off
+    bool snapGlide = true;          // glides land on whole semitones (and on the grid)
     Tool tool = Tool::edit;
     double lastNoteLength = 1.0;
 

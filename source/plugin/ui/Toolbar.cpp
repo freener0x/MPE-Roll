@@ -45,7 +45,7 @@ Toolbar::Toolbar()
 {
     for (auto* c : std::initializer_list<juce::Component*> {
              &synthButton, &showSynthButton, &slotBox, &lengthBox, &modeBox, &loopButton, &recordButton,
-             &settingsButton, &editToolButton, &glideToolButton, &snapBox, &undoButton, &redoButton, &midiButton,
+             &settingsButton, &editToolButton, &glideToolButton, &glideSnapButton, &snapBox, &undoButton, &redoButton, &midiButton,
              &flButton, &status })
         addAndMakeVisible (c);
 
@@ -81,7 +81,11 @@ Toolbar::Toolbar()
     editToolButton.setRadioGroupId (11);
     glideToolButton.setRadioGroupId (11);
     editToolButton.setTooltip ("Edit notes (E)");
-    glideToolButton.setTooltip ("Draw pitch glides directly on notes (G). Shift snaps to semitones, right-drag erases.");
+    glideToolButton.setTooltip ("Draw pitch glides on notes (G): drag from where the glide starts to the pitch it "
+                                "reaches. Right-drag erases, double-click clears.");
+    glideSnapButton.setClickingTogglesState (true);
+    glideSnapButton.setTooltip ("Glides land on whole semitones, starting and ending on the grid, in a straight line. "
+                                "Hold Alt while drawing to draw freely.");
 
     for (int i = 0; i < (int) std::size (snapOptions); ++i)
         snapBox.addItem (snapOptions[i].name, i + 1);
@@ -127,7 +131,8 @@ void Toolbar::resized()
     settingsButton.setBounds (row1.removeFromRight (110));
 
     place (row2, editToolButton, 52, 2);
-    place (row2, glideToolButton, 56, 10);
+    place (row2, glideToolButton, 56, 2);
+    place (row2, glideSnapButton, 84, 10);
     place (row2, snapBox, 110, 14);
     place (row2, undoButton, 52, 2);
     place (row2, redoButton, 52, 14);

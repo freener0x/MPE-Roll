@@ -17,6 +17,7 @@
 #include "plugin/PluginProcessor.h"
 #include "plugin/PluginScanner.h"
 #include "plugin/ui/SettingsPanel.h"
+#include "plugin/ui/Toolbar.h"
 
 #if MPEROLL_HOST_CLAP
  #include "plugin/clap/ClapHosting.h"
@@ -880,6 +881,49 @@ int uiTest()
     gesture (*grid, at (3.0, 62.0f), at (5.0, 65.0f), juce::ModifierKeys (juce::ModifierKeys::leftButtonModifier), 30);
     const auto& glide = clip().notes[0].lanes.pitch;
     check (! glide.isEmpty() && std::abs (glide.valueAt (2.0, 0.0f) - 3.0f) < 0.2f, "the glide tool draws pitch onto the note");
+
+    // Off the grid and between semitones on purpose: the glide still lands on beat 4.25 and +3.
+    grid->mouseDoubleClick (juce::MouseEvent (juce::Desktop::getInstance().getMainMouseSource(), at (3.5, 62.0f),
+                                              juce::ModifierKeys(), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, grid, grid,
+                                              juce::Time::getCurrentTime(), at (3.5, 62.0f), juce::Time::getCurrentTime(), 2, false));
+    gesture (*grid, at (3.6, 62.0f), at (4.37, 64.6f));
+    {
+        const auto& points = clip().notes[0].lanes.pitch.getPoints();
+        bool onGrid = ! points.empty();
+
+        for (const auto& p : points)
+            onGrid = onGrid && std::abs (p.beat * 4.0 - std::round (p.beat * 4.0)) < 1.0e-9
+                            && std::abs (p.value - std::round (p.value)) < 1.0e-6f;
+
+        const auto& snapped = clip().notes[0].lanes.pitch;
+        check (onGrid && std::abs (snapped.valueAt (0.5, 9.0f)) < 1.0e-6f && std::abs (snapped.valueAt (1.25, 0.0f) - 3.0f) < 1.0e-6f
+                   && std::abs (snapped.valueAt (2.0, 0.0f) - 3.0f) < 1.0e-6f,
+               "a snapped glide runs straight from the grid to a whole semitone on the grid");
+    }
+
+    gesture (*grid, at (3.0, 62.0f), at (4.9, 63.6f),
+             juce::ModifierKeys (juce::ModifierKeys::leftButtonModifier | juce::ModifierKeys::altModifier), 20);
+    {
+        bool between = false;
+
+        for (const auto& p : clip().notes[0].lanes.pitch.getPoints())
+            between = between || std::abs (p.value - std::round (p.value)) > 0.1f;
+
+        check (between, "with Alt held, it's drawn freely");
+    }
+
+    auto* bar = findChild<Toolbar> (*editor);
+    check (bar != nullptr && bar->glideSnapButton.getToggleState(), "Snap glide is on to start with");
+
+    if (bar != nullptr)
+    {
+        bar->glideSnapButton.triggerClick();
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+        check (! view.snapGlide, "and the toolbar turns it off");
+        bar->glideSnapButton.triggerClick();
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+    }
+
     grid->keyPressed (juce::KeyPress ('e'));
 
     std::printf ("Expression lane\n");

@@ -83,8 +83,12 @@ Loading a different synth reassigns the slots.
   right-drag) deletes.
 - **Selection:** Ctrl-drag to select, Ctrl-click to add or remove a note, Ctrl+A for everything.
   Shift-drag duplicates.
-- **Glide tool (G):** drag across a note to draw its pitch bend. Shift snaps to semitones,
-  right-drag erases, double-click clears. Press **E** to go back to editing.
+- **Glide tool (G):** press on a note where the glide should start and drag to the pitch it should
+  reach. With **Snap glide** on (the default), the glide is a straight line that lands on a whole
+  semitone and starts and ends on the grid, and a label shows the interval and the note it lands on.
+  Hold **Alt** to draw freely instead (or turn Snap glide off). Drag to the left of where you pressed
+  to scoop up or down into it. Right-drag erases, double-click clears. Press **E** to go back to
+  editing.
 - **Expression lane** (bottom): pick a lane from the menu. Lanes include velocity, release, pitch,
   pressure and timbre, any per-note controller, and zone-wide pitch bend, pressure, timbre, sustain
   and other pedals and controllers. *Draw* replaces only the stretch you draw over, *Line* draws a

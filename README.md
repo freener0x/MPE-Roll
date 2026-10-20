@@ -56,7 +56,8 @@ and a plain-MIDI mode for synths that don't do MPE.
 **Editing**
 - FL-style note editing: click to add, drag to move or resize, right-click to delete, Ctrl-drag to
   select, Shift-drag to duplicate, Alt to bypass snap.
-- **Glide tool (G):** draw pitch bends straight onto notes (Shift snaps to semitones).
+- **Glide tool (G):** draw pitch bends straight onto notes. Glides snap to whole semitones and the
+  grid (Alt draws freely).
 - **Expression lane:** draw, line or erase any of the lanes above, on selected notes or every note
   under the pen.
 - Undo/redo, copy/paste, duplicate (Ctrl+D/B), quantize (Q), transpose (↑/↓), nudge (←/→).
