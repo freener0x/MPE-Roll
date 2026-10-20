@@ -88,7 +88,7 @@ void ClapNoteTranslator::reset()
     for (auto& known : zoneKnown)
         known.fill (false);
 
-    midiSent = false;
+    passedThroughMidi = false;
 }
 
 void ClapNoteTranslator::forgetNotes()
@@ -104,9 +104,13 @@ void ClapNoteTranslator::reconfigure (ClapEventList& out)
     // Whatever the old configuration started has to stop, in the dialect it was started in.
     endAllNotes (out, 0);
 
-    // MIDI the synth was sent leaves state behind - notes, bends, pressure, pedals - that the new
-    // configuration knows nothing about (and won't reset itself, since bends become tuning).
-    if (midiSent && takesMidi)
+    const auto newDecoderSettings = decoderSettingsFor (output);
+    const auto newUseNoteEvents = takesNoteEvents && (output.clapNoteExpressions || ! takesMidi);
+
+    // MIDI passed through untouched leaves notes behind, and once notes go as CLAP events their
+    // bends and pressure become note expressions, so nothing would return the synth's MIDI bend and
+    // pressure to rest. Controllers are left alone: MpeEncoder knows what it sent and resends it.
+    if (passedThroughMidi && takesMidi)
     {
         target = &out;
         time = 0;
@@ -114,17 +118,31 @@ void ClapNoteTranslator::reconfigure (ClapEventList& out)
         for (int channel = 1; channel <= 16; ++channel)
         {
             sendMidi (juce::MidiMessage::allNotesOff (channel));
-            sendMidi (juce::MidiMessage::controllerEvent (channel, 121, 0));     // reset all controllers
-            sendMidi (juce::MidiMessage::pitchWheel (channel, 8192));
-            sendMidi (juce::MidiMessage::channelPressureChange (channel, 0));
+
+            if (newUseNoteEvents)
+            {
+                sendMidi (juce::MidiMessage::pitchWheel (channel, 8192));
+                sendMidi (juce::MidiMessage::channelPressureChange (channel, 0));
+            }
         }
 
         target = nullptr;
     }
 
-    reset();
-    decoder.setSettings (decoderSettingsFor (output));
-    useNoteEvents = takesNoteEvents && (output.clapNoteExpressions || ! takesMidi);
+    // What the zones are set to still holds if they're the same zones and notes were already
+    // CLAP notes (MpeEncoder won't resend an unchanged zone value). Otherwise start afresh.
+    const auto& oldDecoderSettings = decoder.getSettings();
+    const auto sameZones = oldDecoderSettings.mode == newDecoderSettings.mode
+                        && oldDecoderSettings.zones == newDecoderSettings.zones;
+
+    if (sameZones && useNoteEvents && newUseNoteEvents)
+        forgetNotes();
+    else
+        reset();
+
+    passedThroughMidi = false;
+    decoder.setSettings (newDecoderSettings);
+    useNoteEvents = newUseNoteEvents;
     settingsChanged = false;
 }
 
@@ -148,6 +166,7 @@ void ClapNoteTranslator::translate (const juce::MidiBuffer& midi, ClapEventList&
         if (! useNoteEvents)
         {
             sendMidi (message);
+            passedThroughMidi = true;
             continue;
         }
 
@@ -528,8 +547,7 @@ void ClapNoteTranslator::sendMidi (const juce::MidiMessage& message)
     // is soon replaced by the next one.
     const auto essential = message.isNoteOnOrOff() || message.isController() || message.isProgramChange();
 
-    if (target->push (event, essential ? ClapEventList::Priority::essential : ClapEventList::Priority::normal))
-        midiSent = true;
+    target->push (event, essential ? ClapEventList::Priority::essential : ClapEventList::Priority::normal);
 }
 
 void ClapNoteTranslator::sendToZone (const juce::MidiMessage& message)

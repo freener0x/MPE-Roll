@@ -286,6 +286,23 @@ public:
                                    { return m.isControllerOfType (10) && m.getControllerValue() == 64; }), 1);
         }
 
+        beginTest ("After forgetting zone values, an unchanged zone value is sent again");
+        {
+            MpeEncoder enc;
+            juce::MidiBuffer out;
+            enc.setZoneController (out, 0, 1, 0.7f);
+            enc.setZoneController (out, 1, 1, 0.7f);
+            expectEquals (countIf (collect (out), [] (const juce::MidiMessage& m) { return m.isControllerOfType (1); }), 1,
+                          "unchanged values aren't repeated");
+
+            enc.forgetZoneValues();
+            out.clear();
+            enc.setZoneController (out, 0, 1, 0.7f);
+            const auto m = collect (out);
+            expectEquals (countIf (m, [] (const juce::MidiMessage& msg) { return msg.isControllerOfType (1); }), 1);
+            expect (m.at (0).message.getChannel() == 1, "on the master channel");
+        }
+
         beginTest ("Pitch bend conversion is exact at the extremes");
         {
             expectEquals (MpeEncoder::semitonesToPitchBend (48.0f, 48.0f), 16383);

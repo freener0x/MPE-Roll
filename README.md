@@ -89,9 +89,9 @@ in to GitHub), pick the latest successful **Build** run, and download **MPE-Roll
 **MPE-Roll-macOS** under *Artifacts*. The Windows download contains `MPE Roll.vst3` (copy the whole
 folder to `C:\Program Files\Common Files\VST3`) and the standalone `MPE Roll.exe`.
 
-The macOS download holds one more zip, `MPE-Roll-macOS.zip`, which keeps the app's permissions.
-Open it with Finder (or `ditto -x -k MPE-Roll-macOS.zip .`); other unzip tools can lose them, and the
-app then won't start. Inside are `MPE Roll.vst3` (for `/Library/Audio/Plug-Ins/VST3`),
+The macOS download holds one more zip, `MPE-Roll-bundles.zip`, which keeps the app's permissions.
+Open that one with Finder (or `ditto -x -k MPE-Roll-bundles.zip .`); other unzip tools can lose them,
+and the app then won't start. Inside are `MPE Roll.vst3` (for `/Library/Audio/Plug-Ins/VST3`),
 `MPE Roll.component` (for `/Library/Audio/Plug-Ins/Components`) and the standalone `MPE Roll.app`.
 
 These builds aren't code signed. Windows may show a SmartScreen warning for the standalone app, and

@@ -321,6 +321,10 @@ void MpeRollProcessor::applySettings (const EngineSnapshot& snapshot, int)
         encoder.resetControllers (synthMidi, 0);
         liveDecoder.reset();
         encoder.setSettings (s.output);
+
+        // The synth (and, for a CLAP synth, how its notes are made) may be set up afresh now, so
+        // every zone lane is sent again instead of assuming the synth still has its value.
+        encoder.forgetZoneValues();
         lastOutputSettings = s.output;
         needsConfiguration = true;
     }

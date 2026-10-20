@@ -520,8 +520,9 @@ void clapSynthChecks (Check& check, MpeRollProcessor& processor, FakePlayHead& p
     auto turnKnob = (TurnKnob) hooks.getFunction ("mperoll_test_synth_turn_tone_knob");
     auto rebuild = (Rebuild) hooks.getFunction ("mperoll_test_synth_rebuild_parameters");
     auto staleCookies = (StaleCookies) hooks.getFunction ("mperoll_test_synth_stale_cookies");
+    auto currentCookies = (StaleCookies) hooks.getFunction ("mperoll_test_synth_current_cookies");
 
-    if (turnKnob == nullptr || rebuild == nullptr || staleCookies == nullptr)
+    if (turnKnob == nullptr || rebuild == nullptr || staleCookies == nullptr || currentCookies == nullptr)
     {
         std::printf ("  (the CLAP test synth has no hooks: skipped)\n");
         return;
@@ -563,8 +564,10 @@ void clapSynthChecks (Check& check, MpeRollProcessor& processor, FakePlayHead& p
         check (rebuild(), "the synth rebuilt its parameters while inactive");
         processor.prepareToPlay (48000.0, 512);
 
+        const auto currentBefore = currentCookies();
         params[1]->setValue (0.6f);
         processOnAudioThread();
+        check (currentCookies() > currentBefore, "the value reached the synth with its new cookie");
         check (staleCookies() == 0, "no value was sent with an out-of-date cookie");
     }
 }
@@ -706,6 +709,20 @@ int parameterTest (const juce::File& synthFile)
         processor.processBlock (audio, midi);
         check (audio.getMagnitude (0, 0, 512) > 1.0e-3f && audio.getMagnitude (0, 1536, 512) > 1.0e-3f,
                "the synth sounds all the way through it");
+
+        // The CLAP test synth reports where the transport said its last piece started.
+        juce::DynamicLibrary hooks;
+
+        if (synthFile.hasFileExtension ("clap") && hooks.open (synthFile.getFullPathName()))
+        {
+            using LastBeats = double (*)();
+
+            if (auto lastBeats = (LastBeats) hooks.getFunction ("mperoll_test_synth_last_song_beats"))
+            {
+                const auto expected = 1536.0 / 48000.0 * playHead.bpm / 60.0;
+                check (std::abs (lastBeats() - expected) < 1.0e-4, "each piece hears where in the song it starts");
+            }
+        }
     }
 
     processor.releaseResources();

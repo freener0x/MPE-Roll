@@ -60,7 +60,9 @@ struct TestSynth
     std::array<Voice, 16> voices {};
     std::atomic<double> gain { 1.0 }, tone { 0.5 };
 
-    std::atomic<int> cookieGeneration { 0 }, staleCookies { 0 };
+    std::atomic<int> cookieGeneration { 0 }, staleCookies { 0 }, currentCookies { 0 };
+    std::atomic<bool> active { false };
+    std::atomic<double> lastSongBeats { -1.0 };     // where the last process() call started, in beats
     std::atomic<bool> knobTurnPending { false };
     std::atomic<double> knobTurnValue { 0.0 };
 
@@ -172,6 +174,8 @@ struct TestSynth
 
                 if (e.cookie != nullptr && e.cookie != cookieFor (e.param_id))
                     ++staleCookies;
+                else if (e.cookie != nullptr)
+                    ++currentCookies;
 
                 if (e.param_id == gainId)       gain = e.value;
                 else if (e.param_id == toneId)  tone = e.value;
@@ -370,12 +374,15 @@ const clap_plugin_t* createPlugin (const clap_host_t* host)
     p.activate = [] (const clap_plugin_t* plugin, double rate, uint32_t, uint32_t)
     {
         TestSynth::of (plugin).sampleRate = rate;
+        TestSynth::of (plugin).active = true;
         return true;
     };
     p.deactivate = [] (const clap_plugin_t* plugin)
     {
         for (auto& v : TestSynth::of (plugin).voices)
             v.active = false;
+
+        TestSynth::of (plugin).active = false;
     };
     p.start_processing = [] (const clap_plugin_t*) { return true; };
     p.stop_processing = [] (const clap_plugin_t*) {};
@@ -390,6 +397,9 @@ const clap_plugin_t* createPlugin (const clap_host_t* host)
 
         if (process->audio_outputs_count < 1 || process->audio_outputs[0].channel_count < 2)
             return CLAP_PROCESS_ERROR;
+
+        if (process->transport != nullptr && (process->transport->flags & CLAP_TRANSPORT_HAS_BEATS_TIMELINE) != 0)
+            synth.lastSongBeats = (double) process->transport->song_pos_beats / (double) CLAP_BEATTIME_FACTOR;
 
         auto* left = process->audio_outputs[0].data32[0];
         auto* right = process->audio_outputs[0].data32[1];
@@ -468,7 +478,8 @@ extern "C" CLAP_EXPORT bool mperoll_test_synth_rebuild_parameters()
 {
     auto* synth = newestInstance();
 
-    if (synth == nullptr)
+    // CLAP only allows rescan(ALL) while deactivated.
+    if (synth == nullptr || synth->active.load())
         return false;
 
     const auto* hostParams = static_cast<const clap_host_params_t*> (synth->host->get_extension (synth->host, CLAP_EXT_PARAMS));
@@ -486,6 +497,20 @@ extern "C" CLAP_EXPORT int mperoll_test_synth_stale_cookies()
 {
     auto* synth = newestInstance();
     return synth != nullptr ? synth->staleCookies.load() : -1;
+}
+
+/** The song position (in beats) the transport gave the last process() call, or -1. */
+extern "C" CLAP_EXPORT double mperoll_test_synth_last_song_beats()
+{
+    auto* synth = newestInstance();
+    return synth != nullptr ? synth->lastSongBeats.load() : -1.0;
+}
+
+/** How many values arrived with the current cookie. */
+extern "C" CLAP_EXPORT int mperoll_test_synth_current_cookies()
+{
+    auto* synth = newestInstance();
+    return synth != nullptr ? synth->currentCookies.load() : -1;
 }
 
 extern "C" CLAP_EXPORT const clap_plugin_entry_t clap_entry

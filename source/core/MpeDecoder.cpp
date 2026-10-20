@@ -282,6 +282,7 @@ void MpeDecoder::handleNoteOff (int channel, int key, int velocity, Listener& li
         {
             emit (listener, Event::Type::noteStop, n.id, n.key, channel, lift);
             n = HeldNote {};
+            st.polyPressure[(size_t) key] = -1;     // the key's pressure went with its note
             return;
         }
     }
@@ -508,6 +509,7 @@ void MpeDecoder::stopNotes (int channel, bool wholeZone, Listener& listener)
         if (matches)
         {
             emit (listener, Event::Type::noteStop, n.id, n.key, n.channel, 0.5f);
+            channels[(size_t) n.channel].polyPressure[(size_t) n.key] = -1;
             n = HeldNote {};
         }
     }
@@ -520,6 +522,7 @@ void MpeDecoder::stopAllNotes (Listener& listener)
         if (n.inUse)
         {
             emit (listener, Event::Type::noteStop, n.id, n.key, n.channel, 0.5f);
+            channels[(size_t) n.channel].polyPressure[(size_t) n.key] = -1;
             n = HeldNote {};
         }
     }

@@ -114,6 +114,11 @@ void MpeEncoder::forEachZoneMaster (Fn&& fn) const
         fn (16);
 }
 
+void MpeEncoder::forgetZoneValues() noexcept
+{
+    forEachZoneMaster ([this] (int ch) { channels[(size_t) ch].clearValues(); });
+}
+
 MpeEncoder::Voice* MpeEncoder::findVoice (Handle handle) noexcept
 {
     for (int i = 0; i < numActive; ++i)

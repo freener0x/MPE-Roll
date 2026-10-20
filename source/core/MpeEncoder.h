@@ -63,6 +63,12 @@ public:
     /** Returns the zone-wide (master channel) pitch bend, pressure and pedals to rest, leaving notes alone. */
     void resetZoneControllers (juce::MidiBuffer& out, int samplePos);
 
+    /** Forgets the zone-wide values it has sent (master channels, or the single channel), so each
+        is sent again the next time it's set even if it hasn't changed. For when the receiver may
+        have lost them, e.g. the synth was set up afresh. Call with no notes playing.
+    */
+    void forgetZoneValues() noexcept;
+
     bool isPlaying (Handle handle) const noexcept;
     int getChannel (Handle handle) const noexcept;
     int getNumActiveVoices() const noexcept                 { return numActive; }

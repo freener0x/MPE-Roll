@@ -207,6 +207,21 @@ juce::String HostedSynth::getPluginFilePatterns()
     return patterns.joinIntoString (";");
 }
 
+bool HostedSynth::isSameSynth (const juce::PluginDescription& a, const juce::PluginDescription& b)
+{
+    if (a.pluginFormatName != b.pluginFormatName)
+        return false;
+
+    // The ID, not the file: the same synth installed somewhere else is still the same synth.
+    if (a.uniqueId != 0 || b.uniqueId != 0)
+        return a.uniqueId == b.uniqueId;
+
+    if (a.deprecatedUid != 0 || b.deprecatedUid != 0)
+        return a.deprecatedUid == b.deprecatedUid;
+
+    return a.isDuplicateOf (b);
+}
+
 juce::String HostedSynth::describeHostedFormats()
 {
     juce::StringArray formats { "VST3" };
@@ -381,6 +396,7 @@ void HostedSynth::closeEditor()
 //==============================================================================
 void HostedSynth::prepare (double newSampleRate, int maximumBlockSize)
 {
+    const MessageThreadLock messageThread;
     const ScopedExclusive exclusive (guard);
 
     sampleRate = newSampleRate;
@@ -402,6 +418,7 @@ void HostedSynth::prepare (double newSampleRate, int maximumBlockSize)
 
 void HostedSynth::release()
 {
+    const MessageThreadLock messageThread;
     const ScopedExclusive exclusive (guard);
     prepared = false;
 
@@ -436,10 +453,9 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
         clapControls->setMpeOutputSettings (outputSettings);
    #endif
 
-    plugin.setPlayHead (playHead);
-
     // Hosts may send a longer block than prepare() said. The synth gets it in pieces it was
-    // prepared for, so the block (and its note-offs) isn't lost.
+    // prepared for, so the block (and its note-offs) isn't lost. Each piece's transport position
+    // is moved on to where that piece starts.
     for (int start = 0; start < numSamples; start += pieceSize)
     {
         const auto length = juce::jmin (pieceSize, numSamples - start);
@@ -451,6 +467,11 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
             midiPiece.addEvents (midi, start, length, -start);
             pieceMidi = &midiPiece;
         }
+
+        pieceHead.source = playHead;
+        pieceHead.offset = start;
+        pieceHead.sampleRate = sampleRate;
+        plugin.setPlayHead (start == 0 || playHead == nullptr ? playHead : &pieceHead);
 
         juce::AudioBuffer<float> view (scratch.getArrayOfWritePointers(), needed, length);
         view.clear();
@@ -464,6 +485,33 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
                 buffer.clear (ch, start, length);
         }
     }
+
+    plugin.setPlayHead (playHead);
+}
+
+juce::Optional<juce::AudioPlayHead::PositionInfo> HostedSynth::PieceHead::getPosition() const
+{
+    if (source == nullptr)
+        return {};
+
+    auto position = source->getPosition();
+
+    if (! position.hasValue() || offset == 0 || sampleRate <= 0.0 || ! position->getIsPlaying())
+        return position;
+
+    const auto seconds = offset / sampleRate;
+
+    if (const auto samples = position->getTimeInSamples())
+        position->setTimeInSamples (*samples + offset);
+
+    if (const auto time = position->getTimeInSeconds())
+        position->setTimeInSeconds (*time + seconds);
+
+    if (const auto ppq = position->getPpqPosition())
+        if (const auto bpm = position->getBpm())
+            position->setPpqPosition (*ppq + seconds * *bpm / 60.0);
+
+    return position;
 }
 
 juce::String HostedSynth::describeConnection (const OutputSettings& settings) const
@@ -527,8 +575,8 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
     if (const auto* stateXml = xml.getChildByName ("State"))
         state.fromBase64Encoding (stateXml->getAllSubText());
 
-    // The same synth is already here: just give it the saved state.
-    if (instance != nullptr && description != nullptr && description->isDuplicateOf (desc))
+    // The same synth is already here (wherever it was installed when saved): just give it the state.
+    if (instance != nullptr && description != nullptr && isSameSynth (*description, desc))
     {
         ++loadGeneration;   // a load still in flight would otherwise replace it
         loading = false;
@@ -550,6 +598,20 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
     // then shows it as missing (and keeps it when saved) instead of quietly keeping the old synth.
     unload();
     unresolvedState = std::make_unique<juce::XmlElement> (xml);
+
+    // A project from another computer may name a path that doesn't exist here: use the same synth
+    // where it's installed on this one, if a scan found it.
+    if (! formatManager.doesPluginStillExist (desc))
+    {
+        for (const auto& known : knownPlugins.getTypes())
+        {
+            if (isSameSynth (known, desc) && formatManager.doesPluginStillExist (known))
+            {
+                desc = known;
+                break;
+            }
+        }
+    }
 
     load (desc, [this, state, desc, onDone] (const juce::String& error)
     {

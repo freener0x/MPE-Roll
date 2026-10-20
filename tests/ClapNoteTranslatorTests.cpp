@@ -480,20 +480,78 @@ public:
             expectEquals (r.count (CLAP_EVENT_NOTE_OFF), 1);
             expectEquals (t.getNumHeldNotes(), 0);
 
-            // What was sent as MIDI is undone on the way to note events: notes, bends, pressure
-            // and controllers on every channel.
+            // What was passed through as MIDI is undone on the way to note events: notes, and the
+            // bends and pressure that now become note expressions, on every channel. Controllers
+            // are left alone (MpeEncoder resends them; Reset All Controllers would undo them).
             s.clapNoteExpressions = false;
             t.setOutputSettings (s);
             run (t, midi);
             s.clapNoteExpressions = true;
             t.setOutputSettings (s);
             r = run (t, {});
-            expectEquals ((int) r.midi.size(), 64);
+            expectEquals ((int) r.midi.size(), 48);
             expectEquals ((int) r.midi[0].data[1], 123);
-            expectEquals ((int) r.midi[1].data[1], 121);
-            expectEquals ((int) r.midi[2].data[0], 0xe0);
-            expectEquals ((int) r.midi[2].data[2], 0x40, "pitch bend back to the centre");
-            expectEquals ((int) r.midi[3].data[0], 0xd0);
+            expectEquals ((int) r.midi[1].data[0], 0xe0);
+            expectEquals ((int) r.midi[1].data[2], 0x40, "pitch bend back to the centre");
+            expectEquals ((int) r.midi[2].data[0], 0xd0);
+
+            for (const auto& m : r.midi)
+                expect (! ((m.data[0] & 0xf0) == 0xb0 && m.data[1] == 121), "no Reset All Controllers");
+        }
+
+        beginTest ("A settings change keeps the zone's values and sends no controller resets");
+        {
+            ClapNoteTranslator t;
+            juce::MidiBuffer first;
+            first.addEvent (juce::MidiMessage::controllerEvent (1, 74, 102), 0);   // zone timbre 0.8
+            first.addEvent (juce::MidiMessage::controllerEvent (1, 1, 89), 0);    // zone mod wheel, as MIDI
+            first.addEvent (juce::MidiMessage::noteOn (2, 60, (juce::uint8) 100), 0);
+            run (t, first);
+
+            OutputSettings s;
+            s.defaultTimbre = 0.4f;         // anything that isn't the zone layout
+            t.setOutputSettings (s);
+
+            juce::MidiBuffer next;
+            next.addEvent (juce::MidiMessage::controllerEvent (3, 74, 64), 0);    // the note's own timbre, 0.5
+            next.addEvent (juce::MidiMessage::noteOn (3, 64, (juce::uint8) 100), 0);
+            const auto r = run (t, next);
+
+            const auto brightness = r.valuesOf (CLAP_NOTE_EXPRESSION_BRIGHTNESS);
+            expectEquals ((int) brightness.size(), 1);
+            expectWithinAbsoluteError (brightness.at (0), 0.8, 0.02, "the zone's timbre still moves the new note");
+
+            for (const auto& m : r.midi)
+                expect (! ((m.data[0] & 0xf0) == 0xb0 && m.data[1] == 121), "the synth's mod wheel isn't reset");
+        }
+
+        beginTest ("A key's poly aftertouch ends with its note");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            ClapNoteTranslator t;
+            t.setOutputSettings (s);
+
+            juce::MidiBuffer midi;
+            enc.prepareNote (midi, 0, 1, 60);
+            enc.setPressure (midi, 0, 1, 0.8f);
+            enc.startNote (midi, 0, 1, 0.9f);
+            enc.stopNote (midi, 100, 1, 0.5f);
+            enc.prepareNote (midi, 200, 2, 60);      // the same key again, with no pressure of its own
+            enc.startNote (midi, 200, 2, 0.9f);
+
+            const auto r = run (t, midi);
+            expectEquals (r.count (CLAP_EVENT_NOTE_ON), 2);
+            const auto second = r.notes.back().note_id;
+            int pressureOnSecond = 0;
+
+            for (const auto& e : r.expressions)
+                if (e.expression_id == CLAP_NOTE_EXPRESSION_PRESSURE && e.note_id == second)
+                    ++pressureOnSecond;
+
+            expectEquals (pressureOnSecond, 0, "the second note doesn't inherit the first one's pressure");
         }
 
         beginTest ("It reads what MpeEncoder writes, MPE+ and wide bend ranges included");

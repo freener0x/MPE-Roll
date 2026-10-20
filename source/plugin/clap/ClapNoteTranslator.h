@@ -81,7 +81,7 @@ private:
     OutputSettings output;
     bool settingsChanged = true;
     bool takesNoteEvents = true, takesMidi = true, useNoteEvents = true;
-    bool midiSent = false;                                  // since the last reconfiguration
+    bool passedThroughMidi = false;                         // since the last reconfiguration
 
     std::array<Note, MpeDecoder::maxNotes> notes;
 

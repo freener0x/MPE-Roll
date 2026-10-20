@@ -17,7 +17,9 @@
 #include <cstring>
 #include <limits>
 #include <map>
+#include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #if JUCE_LINUX || JUCE_BSD
@@ -46,6 +48,13 @@ namespace
     {
         AudioThreadScope() noexcept     { onClapAudioThread = true; }
         ~AudioThreadScope() noexcept    { onClapAudioThread = false; }
+    };
+
+    /** Releases a lock taken by hand, if it was. */
+    struct LockRelease
+    {
+        juce::SpinLock* lock = nullptr;
+        ~LockRelease()                  { if (lock != nullptr) lock->exit(); }
     };
 
     bool onMessageThread()
@@ -440,16 +449,29 @@ public:
     void processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override
     {
         const auto numSamples = buffer.getNumSamples();
-        const juce::SpinLock::ScopedTryLockType lock (processLock);
 
-        if (! lock.isLocked() || ! active.load() || numSamples > activeMaxFrames || numSamples <= 0)
+        // Marked before the lock, so a stand-in flush (see flushParametersNow) knows audio is back.
+        lastProcessTime = juce::Time::getMillisecondCounter();
+
+        // A stand-in flush only holds the lock briefly: wait a moment for it rather than lose
+        // this block and its notes.
+        auto locked = processLock.tryEnter();
+
+        for (int attempt = 0; ! locked && standingIn.load() && attempt < 1000; ++attempt)
+        {
+            std::this_thread::yield();
+            locked = processLock.tryEnter();
+        }
+
+        const LockRelease release { locked ? &processLock : nullptr };
+
+        if (! locked || ! active.load() || numSamples > activeMaxFrames || numSamples <= 0)
         {
             buffer.clear();
             return;
         }
 
         const AudioThreadScope audioThread;
-        lastProcessTime = juce::Time::getMillisecondCounter();
         flushRequested = false;     // process() gives the plugin the chance a flush would
 
         if (restartPending.load())
@@ -615,8 +637,9 @@ public:
         parametersPending = true;
 
         // An active plugin gets the change with the next audio block. Otherwise, or if audio has
-        // stopped, the message thread passes it on.
-        if (! active.load() || audioHasStalled())
+        // stopped, the message thread passes it on. (A change made on the host's audio thread is
+        // always followed by a block, so it never needs that.)
+        if (! active.load() || (onMessageThread() && audioHasStalled()))
             triggerAsyncUpdate();
     }
 
@@ -630,18 +653,7 @@ public:
             const auto rescanAll = (flags & CLAP_PARAM_RESCAN_ALL) != 0;
             const auto inactive = ! active.load();
 
-            // A rescan(ALL), which the plugin may only ask for while inactive, means it may have
-            // rebuilt its parameters: the old cookies are invalid, and any it no longer lists are
-            // gone. (JUCE's parameter list can't grow, so new ones show up when the synth is reloaded.)
-            if (rescanAll)
-            {
-                for (auto* p : clapParameters)
-                {
-                    p->forgetCookie();
-                    p->setGone (true);
-                }
-            }
-
+            std::unordered_set<ClapParameter*> listed;
             const auto count = params->count (plugin);
 
             for (uint32_t i = 0; i < count; ++i)
@@ -653,8 +665,26 @@ public:
                     if (auto* p = findParameter (info.id))
                     {
                         p->updateInfo (info, inactive);
-                        p->setGone (false);
+                        listed.insert (p);
                     }
+                }
+            }
+
+            // A rescan(ALL), which the plugin may only ask for while inactive, means it may have
+            // rebuilt its parameters: the old cookies are invalid (updateInfo has the new ones),
+            // and any it no longer lists are gone. Parameters it still lists are never marked
+            // gone, even for a moment. (JUCE's parameter list can't grow, so new ones show up
+            // when the synth is reloaded.)
+            if (rescanAll)
+            {
+                for (auto* p : clapParameters)
+                {
+                    const auto stillThere = listed.count (p) > 0;
+
+                    if (! stillThere || ! inactive)
+                        p->forgetCookie();
+
+                    p->setGone (! stillThere);
                 }
             }
 
@@ -750,6 +780,7 @@ private:
     int activeMaxFrames = 0;
     int64_t steadyTime = 0;
     std::atomic<juce::uint32> lastProcessTime { 0 };
+    std::atomic<bool> standingIn { false };         // the message thread is flushing in place of the audio thread
 
     // Notes.
     ClapNoteTranslator translator;
@@ -1217,13 +1248,24 @@ private:
         if (! audioHasStalled())
             return false;
 
-        const juce::SpinLock::ScopedTryLockType lock (processLock);
+        // Set before the lock is tried and cleared after it's released, so an audio thread that
+        // finds the lock taken knows to wait for it.
+        standingIn = true;
 
-        if (! lock.isLocked())
-            return false;
+        {
+            const juce::SpinLock::ScopedTryLockType lock (processLock);
 
-        const AudioThreadScope audioThread;
-        flushLocked();
+            if (! lock.isLocked())
+            {
+                standingIn = false;
+                return false;
+            }
+
+            const AudioThreadScope audioThread;
+            flushLocked();
+        }
+
+        standingIn = false;
         return true;
     }
 
@@ -1931,9 +1973,15 @@ namespace fdtable
 {
     using Users = std::vector<std::pair<ClapHostContext*, clap_posix_fd_flags_t>>;
 
-    std::map<int, Users>& table()
+    struct Entry
     {
-        static std::map<int, Users> fds;
+        Users users;
+        bool registeredWithJuce = false;
+    };
+
+    std::map<int, Entry>& table()
+    {
+        static std::map<int, Entry> fds;
         return fds;
     }
 
@@ -1954,26 +2002,37 @@ namespace fdtable
     void update (int fd)
     {
         auto& fds = table();
-        juce::LinuxEventLoop::unregisterFdCallback (fd);
         const auto found = fds.find (fd);
 
         if (found == fds.end())
             return;
 
-        if (found->second.empty())
+        auto& entry = found->second;
+
+        if (entry.registeredWithJuce)
+        {
+            juce::LinuxEventLoop::unregisterFdCallback (fd);
+            entry.registeredWithJuce = false;
+        }
+
+        clap_posix_fd_flags_t wanted = 0;
+
+        for (const auto& user : entry.users)
+            wanted |= user.second;
+
+        if (entry.users.empty())
         {
             fds.erase (found);
             return;
         }
 
-        clap_posix_fd_flags_t wanted = 0;
-
-        for (const auto& user : found->second)
-            wanted |= user.second;
+        if (pollEventsFor (wanted) == 0)
+            return;
 
         // The callback only carries the number: it looks the users up when it runs, so a
         // context that has gone in the meantime is never called.
         juce::LinuxEventLoop::registerFdCallback (fd, [] (int readyFd) { dispatch (readyFd); }, pollEventsFor (wanted));
+        entry.registeredWithJuce = true;
     }
 
     void dispatch (int fd)
@@ -1991,13 +2050,15 @@ namespace fdtable
 
         clap_posix_fd_flags_t happened = 0;
 
-        if ((query.revents & POLLIN) != 0)                              happened |= CLAP_POSIX_FD_READ;
+        // A hang-up also counts as readable, as poll() means it: reading then finds the end, so a
+        // plugin that only asked to read still learns the other end has closed.
+        if ((query.revents & (POLLIN | POLLHUP)) != 0)                  happened |= CLAP_POSIX_FD_READ;
         if ((query.revents & POLLOUT) != 0)                             happened |= CLAP_POSIX_FD_WRITE;
         if ((query.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0)      happened |= CLAP_POSIX_FD_ERROR;
 
         // A plugin may unregister (or a context go away) from inside on_fd: work from a copy, and
         // check each user is still there before calling it.
-        const auto users = found->second;
+        const auto users = found->second.users;
 
         for (const auto& [context, wanted] : users)
         {
@@ -2006,7 +2067,8 @@ namespace fdtable
             if (now == table().end())
                 return;
 
-            const auto stillThere = std::any_of (now->second.begin(), now->second.end(),
+            const auto& current = now->second.users;
+            const auto stillThere = std::any_of (current.begin(), current.end(),
                                                  [c = context] (const auto& u) { return u.first == c; });
 
             if (stillThere && (happened & wanted) != 0)
@@ -2021,7 +2083,7 @@ bool ClapHostContext::registerFd (int fd, clap_posix_fd_flags_t flags)
         return false;
 
     fds[fd] = flags;
-    fdtable::table()[fd].emplace_back (this, flags);
+    fdtable::table()[fd].users.emplace_back (this, flags);
     fdtable::update (fd);
     return true;
 }
@@ -2033,7 +2095,7 @@ bool ClapHostContext::modifyFd (int fd, clap_posix_fd_flags_t flags)
 
     fds[fd] = flags;
 
-    for (auto& user : fdtable::table()[fd])
+    for (auto& user : fdtable::table()[fd].users)
         if (user.first == this)
             user.second = flags;
 
@@ -2046,7 +2108,7 @@ bool ClapHostContext::unregisterFd (int fd)
     if (fds.erase (fd) == 0)
         return false;
 
-    auto& users = fdtable::table()[fd];
+    auto& users = fdtable::table()[fd].users;
     users.erase (std::remove_if (users.begin(), users.end(), [this] (const auto& u) { return u.first == this; }), users.end());
     fdtable::update (fd);
     return true;

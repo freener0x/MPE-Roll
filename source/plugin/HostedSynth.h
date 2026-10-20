@@ -8,6 +8,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <thread>
 
 namespace mperoll
@@ -39,6 +40,9 @@ public:
 
     /** The plugin formats this build can host, for showing to the user ("VST3, VST2 or CLAP"). */
     static juce::String describeHostedFormats();
+
+    /** Whether two descriptions are the same synth: same format and plugin ID, wherever installed. */
+    static bool isSameSynth (const juce::PluginDescription&, const juce::PluginDescription&);
 
     bool isLoaded() const;
     bool isLoading() const noexcept                     { return loading; }
@@ -181,6 +185,32 @@ private:
         InstanceGuard& guard;
     };
 
+    /** Locks the message thread, unless this thread is it (or already holds it). Taken before the
+        guard by anything that holds the guard while calling into the synth from another thread:
+        JUCE's VST3 host locks the message thread inside prepareToPlay and its state and text calls,
+        while install() holds the guard on the message thread, so the other order could deadlock.
+    */
+    struct MessageThreadLock
+    {
+        MessageThreadLock()
+        {
+            if (auto* mm = juce::MessageManager::getInstanceWithoutCreating(); mm != nullptr && ! mm->currentThreadHasLockedMessageManager())
+                lock.emplace();
+        }
+
+        std::optional<juce::MessageManagerLock> lock;
+    };
+
+    /** The host's playhead, moved on to where a piece of a long block starts. Audio thread. */
+    struct PieceHead final : public juce::AudioPlayHead
+    {
+        juce::Optional<PositionInfo> getPosition() const override;
+
+        juce::AudioPlayHead* source = nullptr;
+        int offset = 0;
+        double sampleRate = 44100.0;
+    };
+
     juce::ApplicationProperties appProperties;
     juce::AudioPluginFormatManager formatManager;
     juce::KnownPluginList knownPlugins;
@@ -194,6 +224,7 @@ private:
 
     juce::AudioBuffer<float> scratch;
     juce::MidiBuffer midiPiece;                         // audio thread: a long block's MIDI, one piece at a time
+    PieceHead pieceHead;                                // audio thread: and its transport position
     double sampleRate = 44100.0;
     int blockSize = 512;
     bool prepared = false;

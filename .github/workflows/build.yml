@@ -66,14 +66,14 @@ jobs:
           cp -R "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" "MPE Roll/"
           cp -R "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" "MPE Roll/"
           cp -R "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app" "MPE Roll/"
-          ditto -c -k --keepParent "MPE Roll" MPE-Roll-macOS.zip
-          ditto -x -k MPE-Roll-macOS.zip unzipped
+          ditto -c -k --keepParent "MPE Roll" MPE-Roll-bundles.zip
+          ditto -x -k MPE-Roll-bundles.zip unzipped
           test -x "unzipped/MPE Roll/MPE Roll.app/Contents/MacOS/MPE Roll"
 
       - uses: actions/upload-artifact@v4
         with:
           name: MPE-Roll-macOS
-          path: MPE-Roll-macOS.zip
+          path: MPE-Roll-bundles.zip
           compression-level: 0
 
   linux:
