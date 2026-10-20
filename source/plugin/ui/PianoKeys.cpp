@@ -30,7 +30,7 @@ void PianoKeys::paint (juce::Graphics& g)
         const bool black = juce::MidiMessage::isMidiNoteBlack (key);
         const auto keyArea = juce::Rectangle<float> (0.0f, y, black ? w * 0.62f : w, view.rowHeight);
 
-        auto colour = black ? juce::Colour (0xff23252b) : juce::Colour (0xffd9dce2);
+        auto colour = black ? Theme::blackKey : Theme::whiteKey;
 
         if (key == heldKey)
             colour = Theme::note;
@@ -38,9 +38,16 @@ void PianoKeys::paint (juce::Graphics& g)
         g.setColour (colour);
         g.fillRect (keyArea.reduced (0.0f, 0.5f));
 
+        // Where two white keys meet (E-F, B-C), a line between them, which light skins need.
+        if (! black && ! juce::MidiMessage::isMidiNoteBlack (key + 1))
+        {
+            g.setColour (Theme::outline);
+            g.fillRect (0.0f, y - 0.5f, w, 1.0f);
+        }
+
         if (! black && key % 12 == 0)
         {
-            g.setColour (juce::Colour (0xff4a4f59));
+            g.setColour (Theme::keyLabel);
             g.setFont (juce::FontOptions (juce::jmin (11.0f, view.rowHeight - 1.0f)));
             g.drawText (juce::MidiMessage::getMidiNoteName (key, true, true, 5),
                         keyArea.withTrimmedRight (4.0f), juce::Justification::centredRight, false);

@@ -108,7 +108,20 @@ Loading a different synth reassigns the slots.
 - **Zoom/scroll:** Ctrl+wheel zooms time, Alt+wheel zooms keys, Shift+wheel scrolls sideways. Drag
   the green handle on the ruler to change the clip length.
 - **Keys:** ↑/↓ transpose (Shift: octave), ←/→ nudge, Q quantizes, Ctrl+C/X/V, Ctrl+D or Ctrl+B
-  duplicates, Ctrl+Z / Ctrl+Y undo and redo.
+  duplicates, Ctrl+Z / Ctrl+Y undo and redo. E, B and G pick the Edit, Paint and Glide tools.
+
+### Skins and background
+
+*MPE settings › Look*:
+- **Skin:** ten looks to pick from: MPE Roll, FL Studio, Midnight, Synthwave, Solarized, Paper (light),
+  Forest, Ember, Ocean and High contrast.
+- **Colours:** every colour of the skin (grid rows and lines, notes, selected notes, glide, pressure,
+  timbre, text, buttons, keys...) has a swatch. Click it to pick your own; it changes as you drag.
+  *Back to the skin's colours* undoes your changes. Picking another skin starts from its colours.
+- **Background picture:** *Choose a picture...* puts a PNG, JPEG or GIF behind the grid and the
+  expression lane, scaled to cover them. *Picture strength* sets how much of it shows through.
+
+The look is kept on this computer and shared by every MPE Roll window, in every project.
 
 ### Two ways to play clips
 

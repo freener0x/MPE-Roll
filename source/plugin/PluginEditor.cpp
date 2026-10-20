@@ -103,6 +103,7 @@ MpeRollEditor::MpeRollEditor (MpeRollProcessor& p)
     view.addListener (this);
     document.addChangeListener (this);
     document.getUndoManager().addChangeListener (this);
+    skins->addChangeListener (this);
     rollProcessor.onStatusChanged = [safe = juce::Component::SafePointer<MpeRollEditor> (this)]
     {
         if (safe != nullptr)
@@ -130,6 +131,7 @@ MpeRollEditor::~MpeRollEditor()
     stopTimer();
     rollProcessor.onStatusChanged = nullptr;
     toolbar.midiButton.removeMouseListener (midiDragListener.get());
+    skins->removeChangeListener (this);
     document.getUndoManager().removeChangeListener (this);
     document.removeChangeListener (this);
     view.removeListener (this);
@@ -378,8 +380,17 @@ void MpeRollEditor::timerCallback()
     }
 }
 
-void MpeRollEditor::changeListenerCallback (juce::ChangeBroadcaster*)
+void MpeRollEditor::changeListenerCallback (juce::ChangeBroadcaster* source)
 {
+    if (source == &skins.getObject())
+    {
+        // The skin has changed Theme's colours: everything takes them up and is drawn again.
+        lookAndFeel.applyTheme();
+        sendLookAndFeelChange();
+        repaint();
+        return;
+    }
+
     if (document.getEditSlot() != lastEditSlot)
     {
         lastEditSlot = document.getEditSlot();

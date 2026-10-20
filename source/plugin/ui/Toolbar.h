@@ -13,6 +13,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void lookAndFeelChanged() override;
 
     static constexpr int rowHeight = 32;
     static constexpr int preferredHeight = rowHeight * 2 + 6;

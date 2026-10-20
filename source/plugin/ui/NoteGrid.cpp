@@ -149,6 +149,14 @@ void NoteGrid::paintBackground (juce::Graphics& g, const MpeClip& clip) const
         }
     }
 
+    // The background picture, over the rows and under the lines and notes.
+    if (const auto picture = skins->getBackgroundFor (getLocalBounds()); picture.isValid())
+    {
+        g.setOpacity (skins->getBackgroundStrength());
+        g.drawImageAt (picture, 0, 0);
+        g.setOpacity (1.0f);
+    }
+
     const auto startBeat = view.scrollBeat;
     const auto endBeat = view.xToBeat (w);
 
@@ -192,7 +200,7 @@ void NoteGrid::paintNote (juce::Graphics& g, const MpeNote& n, bool selected, bo
 
     g.setColour (fill);
     g.fillRoundedRectangle (r, 2.5f);
-    g.setColour (selected ? juce::Colours::white : fill.darker (0.7f));
+    g.setColour (selected ? Theme::text : fill.darker (0.7f));
     g.drawRoundedRectangle (r, 2.5f, selected ? 1.5f : 1.0f);
 
     const auto& lanes = n.lanes;
@@ -222,7 +230,7 @@ void NoteGrid::paintNote (juce::Graphics& g, const MpeNote& n, bool selected, bo
 
     if (r.getWidth() > 30.0f && view.rowHeight >= 11.0f)
     {
-        g.setColour (juce::Colours::black.withAlpha (0.75f));
+        g.setColour (Theme::noteText);
         g.setFont (juce::FontOptions (juce::jmin (12.0f, view.rowHeight - 2.0f)));
         g.drawText (keyName (n.key), r.reduced (4.0f, 0.0f), juce::Justification::centredLeft, false);
     }

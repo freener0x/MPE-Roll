@@ -2,6 +2,7 @@
 //
 //   MpeRollHarness snapshot <out.png> [width height]   renders the editor with a demo clip
 //   MpeRollHarness settings <out.png>                   renders the MPE settings panel
+//   MpeRollHarness skins <folder>                       renders the editor in every skin, and a sheet of them
 //   MpeRollHarness render <synth.vst3> <out.wav>        plays a test clip through a hosted synth and
 //                                                       checks that per-note glides reach it
 //   MpeRollHarness selftest                             live input, recording, state, note trigger, undo
@@ -117,6 +118,16 @@ bool writePng (const juce::Image& image, const juce::File& file)
     return out.openedOk() && png.writeImageToStream (image, out);
 }
 
+template <typename ComponentType>
+ComponentType* findChild (juce::Component& parent)
+{
+    for (auto* child : parent.getChildren())
+        if (auto* match = dynamic_cast<ComponentType*> (child))
+            return match;
+
+    return nullptr;
+}
+
 int snapshot (const juce::File& target, int width, int height)
 {
     MpeRollProcessor processor;
@@ -138,7 +149,7 @@ int snapshot (const juce::File& target, int width, int height)
     return ok ? 0 : 1;
 }
 
-int settingsSnapshot (const juce::File& target)
+int settingsSnapshot (const juce::File& target, const juce::String& openSections)
 {
     MpeRollProcessor processor;
     MpeLookAndFeel lookAndFeel;
@@ -147,6 +158,17 @@ int settingsSnapshot (const juce::File& target)
     {
         SettingsPanel panel (processor);
         panel.setSize (460, 980);
+
+        // Given section names (comma-separated), only those are open.
+        if (auto* sections = findChild<juce::PropertyPanel> (panel); sections != nullptr && openSections.isNotEmpty())
+        {
+            const auto wanted = juce::StringArray::fromTokens (openSections, ",", "");
+            const auto names = sections->getSectionNames();
+
+            for (int i = 0; i < names.size(); ++i)
+                sections->setSectionOpen (i, wanted.contains (names[i]));
+        }
+
         juce::MessageManager::getInstance()->runDispatchLoopUntil (200);
         writePng (panel.createComponentSnapshot (panel.getLocalBounds(), true, 1.0f), target);
     }
@@ -154,6 +176,95 @@ int settingsSnapshot (const juce::File& target)
     juce::LookAndFeel::setDefaultLookAndFeel (nullptr);
     std::printf ("Wrote %s\n", target.getFullPathName().toRawUTF8());
     return 0;
+}
+
+/** A test picture: a gradient with diagonal stripes, so it's plain to see whether and how strongly it's drawn. */
+juce::Image testPicture()
+{
+    juce::Image image (juce::Image::RGB, 320, 200, true);
+    juce::Graphics g (image);
+    g.setGradientFill (juce::ColourGradient (juce::Colour (0xff2a6cc4), 0.0f, 0.0f, juce::Colour (0xffc4462a), 320.0f, 200.0f, false));
+    g.fillAll();
+    g.setColour (juce::Colours::white.withAlpha (0.5f));
+
+    for (int x = -200; x < 320; x += 40)
+        g.drawLine ((float) x, 200.0f, (float) x + 200.0f, 0.0f, 8.0f);
+
+    return image;
+}
+
+/** Renders the editor in every skin, once more with a background picture, and a sheet of them all. */
+int skinsSnapshots (const juce::File& folder)
+{
+    folder.createDirectory();
+    juce::SharedResourcePointer<SkinManager> skins;
+    const auto look = folder.getChildFile ("look.settings");
+    look.deleteFile();
+    skins->useSettingsFile (look);
+
+    MpeRollProcessor processor;
+    auto& document = processor.getDocument();
+    document.replaceClip (0, makeDemoClip(), "Demo");
+
+    for (const auto& n : document.getEditClip().notes)
+        if (n.key == 62 || n.key == 67)
+            document.selection.insert (n.id);
+
+    std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditorAndMakeActive());
+    editor->setSize (1200, 760);
+    auto& mm = *juce::MessageManager::getInstance();
+    mm.runDispatchLoopUntil (300);
+
+    const auto& presets = presetSkins();
+    constexpr int thumbWidth = 600, thumbHeight = 380, columns = 2;
+    const auto count = (int) presets.size() + 1;
+    juce::Image sheet (juce::Image::RGB, thumbWidth * columns, thumbHeight * ((count + columns - 1) / columns), true);
+    juce::Graphics sheetGraphics (sheet);
+    sheetGraphics.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+
+    for (int i = 0; i < count; ++i)
+    {
+        const auto withPicture = i == (int) presets.size();
+
+        if (withPicture)
+        {
+            const auto pictureFile = folder.getChildFile ("picture.png");
+            writePng (testPicture(), pictureFile);
+            skins->setPreset (0);
+            skins->setBackgroundFile (pictureFile);
+            skins->setBackgroundStrength (0.4f);
+        }
+        else
+        {
+            skins->setPreset (i);
+        }
+
+        mm.runDispatchLoopUntil (100);
+        const auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
+        const auto name = withPicture ? juce::String ("MPE Roll with a picture") : presets[(size_t) i].name;
+        writePng (image, folder.getChildFile ("skin-" + juce::String (i + 1).paddedLeft ('0', 2) + "-"
+                                              + name.toLowerCase().replaceCharacter (' ', '-') + ".png"));
+
+        juce::Rectangle<int> cell ((i % columns) * thumbWidth, (i / columns) * thumbHeight, thumbWidth, thumbHeight);
+        sheetGraphics.drawImage (image, cell.toFloat(), juce::RectanglePlacement::stretchToFit);
+        const auto label = cell.removeFromBottom (26).removeFromLeft (230);
+        sheetGraphics.setColour (juce::Colours::black.withAlpha (0.7f));
+        sheetGraphics.fillRect (label);
+        sheetGraphics.setColour (juce::Colours::white);
+        sheetGraphics.setFont (juce::FontOptions (16.0f, juce::Font::bold));
+        sheetGraphics.drawText (juce::String (i + 1) + ". " + name, label.reduced (8, 0), juce::Justification::centredLeft);
+    }
+
+    const auto sheetFile = folder.getChildFile ("skins.png");
+    const auto ok = writePng (sheet, sheetFile);
+
+    skins->clearBackground();
+    skins->setPreset (0);
+    skins->flush();
+    processor.editorBeingDeleted (editor.get());
+    editor.reset();
+    std::printf ("%s %s\n", ok ? "Wrote" : "Failed to write", sheetFile.getFullPathName().toRawUTF8());
+    return ok ? 0 : 1;
 }
 
 //==============================================================================
@@ -864,15 +975,6 @@ int clapDialectTest (const juce::File& synthFile)
 }
 
 //==============================================================================
-template <typename ComponentType>
-ComponentType* findChild (juce::Component& parent)
-{
-    for (auto* child : parent.getChildren())
-        if (auto* match = dynamic_cast<ComponentType*> (child))
-            return match;
-
-    return nullptr;
-}
 
 /** Drives a component with synthetic mouse gestures. */
 void gesture (juce::Component& target, juce::Point<float> from, juce::Point<float> to,
@@ -1125,6 +1227,58 @@ int uiTest()
         editor->removeFromDesktop();
     }
 
+    std::printf ("Skins\n");
+    {
+        auto& mm = *juce::MessageManager::getInstance();
+        juce::SharedResourcePointer<SkinManager> skins;
+        const auto lookFile = juce::File::createTempFile (".settings");
+        skins->useSettingsFile (lookFile);
+
+        const auto& presets = presetSkins();
+        check (presets.size() == 10, "there are ten skins");
+
+        skins->setPreset (5);
+        mm.runDispatchLoopUntil (50);
+        check (Theme::rowWhite == presets[5].colours[(size_t) SkinRole::gridWhiteRows], "picking a skin recolours the grid");
+        check (editor->getLookAndFeel().findColour (juce::TextButton::buttonColourId) == presets[5].colours[(size_t) SkinRole::buttons],
+               "and the editor's buttons");
+
+        skins->setColour (SkinRole::notes, juce::Colours::red);
+        check (Theme::note == juce::Colours::red && skins->hasCustomColours(), "a colour of your own goes on top of the skin");
+
+        const auto pictureFile = juce::File::createTempFile (".png");
+        writePng (testPicture(), pictureFile);
+        check (skins->setBackgroundFile (pictureFile) && skins->getBackgroundFor ({ 0, 0, 200, 100 }).getWidth() == 200,
+               "a picture can go behind the grid, scaled to cover it");
+        skins->setBackgroundStrength (0.6f);
+
+        const auto notAPicture = juce::File::createTempFile (".png");
+        notAPicture.replaceWithText ("not a picture");
+        check (! skins->setBackgroundFile (notAPicture) && ! skins->hasBackground(), "a file that isn't a picture is turned down");
+        skins->setBackgroundFile (pictureFile);
+        skins->flush();
+
+        {
+            SkinManager other;
+            other.useSettingsFile (lookFile);
+            check (other.getPreset() == 5 && other.getColour (SkinRole::notes) == juce::Colours::red
+                       && other.getBackgroundFile() == pictureFile && std::abs (other.getBackgroundStrength() - 0.6f) < 1.0e-6f,
+                   "the look is kept, for every MPE Roll on the computer");
+        }
+
+        skins->setPreset (5);
+        check (! skins->hasCustomColours() && Theme::note == presets[5].colours[(size_t) SkinRole::notes],
+               "picking a skin again starts from its own colours");
+
+        skins->clearBackground();
+        skins->setPreset (0);
+        skins->flush();
+        mm.runDispatchLoopUntil (50);
+
+        for (const auto& f : { lookFile, pictureFile, notAPicture })
+            f.deleteFile();
+    }
+
     processor.editorBeingDeleted (editor.get());
     editor.reset();
     std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
@@ -1336,7 +1490,10 @@ int main (int argc, char** argv)
                          args.size() >= 4 ? args[3].getIntValue() : 760);
 
     if (args.size() >= 2 && args[0] == "settings")
-        return settingsSnapshot (cwd.getChildFile (args[1]));
+        return settingsSnapshot (cwd.getChildFile (args[1]), args.size() >= 3 ? args[2] : juce::String());
+
+    if (args.size() >= 2 && args[0] == "skins")
+        return skinsSnapshots (cwd.getChildFile (args[1]));
 
     if (args.size() >= 3 && args[0] == "render")
         return render (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]));
@@ -1362,6 +1519,7 @@ int main (int argc, char** argv)
 
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
+                 "  MpeRollHarness skins <folder>\n"
                  "  MpeRollHarness render <synth.vst3> <out.wav>\n"
                  "  MpeRollHarness selftest\n"
                  "  MpeRollHarness uitest\n"

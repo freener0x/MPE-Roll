@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Skins.h"
 #include "ViewState.h"
 #include "plugin/PluginProcessor.h"
 
@@ -39,6 +40,7 @@ public:
     void mouseUp (const juce::MouseEvent&) override;
     void mouseDoubleClick (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+    void lookAndFeelChanged() override;
 
     void setTarget (Target newTarget, int newController = 0);
     juce::String getTargetName() const;
@@ -48,6 +50,7 @@ public:
 private:
     ClipDocument& document;
     ViewState& view;
+    juce::SharedResourcePointer<SkinManager> skins;
 
     Target target = Target::notePressure;
     int controller = 10;

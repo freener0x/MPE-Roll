@@ -251,6 +251,11 @@ void ExpressionLane::updateHeader()
     resized();
 }
 
+void ExpressionLane::lookAndFeelChanged()
+{
+    hint.setColour (juce::Label::textColourId, Theme::textDim);
+}
+
 void ExpressionLane::changeListenerCallback (juce::ChangeBroadcaster*)
 {
     if (! draggingRate)
@@ -289,6 +294,13 @@ void ExpressionLane::paint (juce::Graphics& g)
 
     g.setColour (Theme::rowWhite);
     g.fillRect (plot);
+
+    if (const auto picture = skins->getBackgroundFor (plot.toNearestInt()); picture.isValid())
+    {
+        g.setOpacity (skins->getBackgroundStrength());
+        g.drawImageAt (picture, juce::roundToInt (plot.getX()), juce::roundToInt (plot.getY()));
+        g.setOpacity (1.0f);
+    }
 
     // Scale.
     g.setFont (juce::FontOptions (10.5f));

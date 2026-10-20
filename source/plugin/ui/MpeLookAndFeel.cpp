@@ -4,17 +4,22 @@ namespace mperoll
 {
 
 MpeLookAndFeel::MpeLookAndFeel()
-    : LookAndFeel_V4 (juce::LookAndFeel_V4::ColourScheme {
-          Theme::panel,          // windowBackground
-          Theme::background,     // widgetBackground
-          Theme::panelLight,     // menuBackground
-          Theme::outline,        // outline
-          Theme::text,           // defaultText
-          Theme::panelLight,     // defaultFill
-          juce::Colours::white,  // highlightedText
-          Theme::loopRegion,     // highlightedFill
-          Theme::text })         // menuText
 {
+    applyTheme();
+}
+
+void MpeLookAndFeel::applyTheme()
+{
+    setColourScheme ({ Theme::panel,          // windowBackground
+                       Theme::background,     // widgetBackground
+                       Theme::panelLight,     // menuBackground
+                       Theme::outline,        // outline
+                       Theme::text,           // defaultText
+                       Theme::panelLight,     // defaultFill
+                       juce::Colours::white,  // highlightedText
+                       Theme::loopRegion,     // highlightedFill
+                       Theme::text });        // menuText
+
     setColour (juce::TextButton::buttonColourId, Theme::panelLight);
     setColour (juce::TextButton::buttonOnColourId, Theme::loopRegion);
     setColour (juce::TextButton::textColourOffId, Theme::text);
@@ -34,6 +39,16 @@ MpeLookAndFeel::MpeLookAndFeel()
     setColour (juce::Slider::trackColourId, Theme::loopRegion);
     setColour (juce::Slider::backgroundColourId, Theme::panelLight);
     setColour (juce::ToggleButton::tickColourId, Theme::note);
+    setColour (juce::ToggleButton::textColourId, Theme::text);
+    setColour (juce::TextEditor::backgroundColourId, Theme::background);
+    setColour (juce::TextEditor::textColourId, Theme::text);
+    setColour (juce::TextEditor::outlineColourId, Theme::outline);
+    setColour (juce::Slider::textBoxTextColourId, Theme::text);
+    setColour (juce::Slider::textBoxOutlineColourId, Theme::outline);
+    setColour (juce::BooleanPropertyComponent::backgroundColourId, Theme::panelLight);
+    setColour (juce::BooleanPropertyComponent::outlineColourId, Theme::outline);
+    setColour (juce::TooltipWindow::textColourId, Theme::text);
+    setColour (juce::TooltipWindow::outlineColourId, Theme::outline);
 }
 
 void MpeLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,

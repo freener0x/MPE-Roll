@@ -76,9 +76,78 @@ namespace
 
         void refresh() override     { label.setText (text(), juce::dontSendNotification); }
 
+        void lookAndFeelChanged() override
+        {
+            label.setColour (juce::Label::textColourId, Theme::textDim);
+        }
+
     private:
         std::function<juce::String()> text;
         juce::Label label;
+    };
+
+    /** A colour picker that changes one of the skin's colours as it moves. It owns its link to the
+        skin, so it can outlive the settings panel that opened it.
+    */
+    class SkinColourPicker : public juce::ColourSelector,
+                             private juce::ChangeListener
+    {
+    public:
+        explicit SkinColourPicker (SkinRole r)
+            : ColourSelector (ColourSelector::showColourAtTop | ColourSelector::showSliders | ColourSelector::showColourspace),
+              role (r)
+        {
+            setCurrentColour (skins->getColour (role), juce::dontSendNotification);
+            addChangeListener (this);
+            setSize (300, 320);
+        }
+
+        ~SkinColourPicker() override
+        {
+            removeChangeListener (this);
+        }
+
+    private:
+        void changeListenerCallback (juce::ChangeBroadcaster*) override
+        {
+            skins->setColour (role, getCurrentColour());
+        }
+
+        juce::SharedResourcePointer<SkinManager> skins;
+        SkinRole role;
+    };
+
+    /** One of the skin's colours: a swatch that opens a picker. */
+    class ColourProp : public juce::PropertyComponent
+    {
+    public:
+        ColourProp (SkinManager& s, SkinRole r) : PropertyComponent (skinRoleName (r), 26), skins (s), role (r)
+        {
+            swatch.onClick = [this] { pick(); };
+            swatch.setTooltip ("Pick a colour");
+            addAndMakeVisible (swatch);
+            refresh();
+        }
+
+        void refresh() override
+        {
+            const auto colour = skins.getColour (role);
+            swatch.setColour (juce::TextButton::buttonColourId, colour);
+            swatch.setColour (juce::TextButton::textColourOffId, colour.contrasting (0.8f));
+            swatch.setButtonText ("#" + colour.toDisplayString (false));
+        }
+
+    private:
+        SkinManager& skins;
+        SkinRole role;
+        juce::TextButton swatch;
+
+        void pick()
+        {
+            auto* top = getTopLevelComponent();
+            juce::CallOutBox::launchAsynchronously (std::make_unique<SkinColourPicker> (role),
+                                                    top->getLocalArea (&swatch, swatch.getLocalBounds()), top);
+        }
     };
 
     class ActionProp : public juce::ButtonPropertyComponent
@@ -257,13 +326,51 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     window.add (new InfoProp ("Window", [this] { return WindowDrawing::describe (*this); }));
     panel.addSection ("Window", window, false);
 
+    // The look: a skin, the user's own colours on top of it, and a picture behind the grid. Kept for
+    // every MPE Roll on this computer.
+    Comps look;
+    juce::StringArray skinNames;
+
+    for (const auto& s : presetSkins())
+        skinNames.add (s.name);
+
+    look.add (new ChoiceProp ("Skin", skinNames,
+        [this] { return skins->getPreset(); },
+        [this] (int i) { skins->setPreset (i); }));
+    look.add (new InfoProp ("Colours", [this]
+    {
+        return skins->hasCustomColours() ? juce::String ("Some are your own (see Colours below).")
+                                         : juce::String ("The skin's own. Change any of them under Colours below.");
+    }));
+    look.add (new ActionProp ("Your colours", "Back to the skin's colours", [this] { skins->resetColours(); }));
+    look.add (new InfoProp ("Background picture", [this]
+    {
+        return skins->hasBackground() ? skins->getBackgroundFile().getFileName()
+                                      : juce::String ("None. Pick one to show it behind the grid.");
+    }));
+    look.add (new ActionProp ("Picture", "Choose a picture...", [this] { skins->chooseBackground(); }));
+    look.add (new ActionProp ("Remove picture", "Remove the picture", [this] { skins->clearBackground(); }));
+    look.add (new NumberProp ("Picture strength (%)", 0, 100, 1,
+        [this] { return std::round (skins->getBackgroundStrength() * 100.0); },
+        [this] (double v) { skins->setBackgroundStrength ((float) (v / 100.0)); }));
+    panel.addSection ("Look", look, false);
+
+    Comps colours;
+
+    for (int role = 0; role < numSkinRoles; ++role)
+        colours.add (new ColourProp (skins.getObject(), (SkinRole) role));
+
+    panel.addSection ("Colours", colours, false);
+
     addAndMakeVisible (panel);
     document.addChangeListener (this);
+    skins->addChangeListener (this);
     setSize (460, 640);
 }
 
 SettingsPanel::~SettingsPanel()
 {
+    skins->removeChangeListener (this);
     document.removeChangeListener (this);
 }
 
@@ -277,6 +384,7 @@ void SettingsPanel::edit (const std::function<void (EngineSettings&)>& change)
 void SettingsPanel::changeListenerCallback (juce::ChangeBroadcaster*)
 {
     panel.refreshAll();
+    repaint();
 }
 
 void SettingsPanel::paint (juce::Graphics& g)

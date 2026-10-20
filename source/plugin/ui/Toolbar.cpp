@@ -106,6 +106,12 @@ Toolbar::Toolbar()
     status.setJustificationType (juce::Justification::centredRight);
 }
 
+void Toolbar::lookAndFeelChanged()
+{
+    recordButton.setColour (juce::TextButton::buttonOnColourId, Theme::record.darker (0.3f));
+    status.setColour (juce::Label::textColourId, Theme::textDim);
+}
+
 void Toolbar::paint (juce::Graphics& g)
 {
     g.fillAll (Theme::panel);

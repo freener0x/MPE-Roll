@@ -5,6 +5,7 @@
 #include "ui/MpeLookAndFeel.h"
 #include "ui/NoteGrid.h"
 #include "ui/PianoKeys.h"
+#include "ui/Skins.h"
 #include "ui/TimeRuler.h"
 #include "ui/Toolbar.h"
 #include "ui/ViewState.h"
@@ -38,6 +39,7 @@ private:
 
     MpeRollProcessor& rollProcessor;
     ClipDocument& document;
+    juce::SharedResourcePointer<SkinManager> skins;     // before the look and feel, which takes up its colours
     MpeLookAndFeel lookAndFeel;
     ViewState view;
 

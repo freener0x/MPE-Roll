@@ -1,11 +1,12 @@
 #pragma once
 
+#include "Skins.h"
 #include "plugin/PluginProcessor.h"
 
 namespace mperoll
 {
 
-/** MPE output, input and playback settings, shown in a call-out from the toolbar. */
+/** MPE output, input and playback settings, plus the window's look, shown in a call-out from the toolbar. */
 class SettingsPanel : public juce::Component,
                       private juce::ChangeListener
 {
@@ -19,6 +20,7 @@ public:
 private:
     MpeRollProcessor& processor;
     ClipDocument& document;
+    juce::SharedResourcePointer<SkinManager> skins;
     juce::PropertyPanel panel;
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;

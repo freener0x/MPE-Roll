@@ -65,6 +65,7 @@ and a plain-MIDI mode for synths that don't do MPE.
 - Undo/redo, copy/paste, duplicate (Ctrl+D/B), quantize (Q), transpose (↑/↓), nudge (←/→).
 - 16 clip slots. Each plays in sync with FL (**Follow FL**) or is launched by notes from FL's piano
   roll (**Note trigger**: C0 plays slot 1, C#0 slot 2...).
+- **Ten skins**, any colour of them changeable, and a background picture of your own behind the grid.
 
 **Your synth, any format**
 - Hosts VST3, VST2 and CLAP instruments (plus AU on macOS), with a plugin scanner and a crash-safe

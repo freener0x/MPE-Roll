@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Skins.h"
 #include "ViewState.h"
 #include "plugin/PluginProcessor.h"
 
@@ -63,6 +64,7 @@ private:
     MpeRollProcessor& processor;
     ClipDocument& document;
     ViewState& view;
+    juce::SharedResourcePointer<SkinManager> skins;
 
     DragMode dragMode = DragMode::none;
     std::vector<Original> originals;

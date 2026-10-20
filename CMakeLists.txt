@@ -71,6 +71,7 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/ui/TimeRuler.cpp
     source/plugin/ui/Toolbar.cpp
     source/plugin/ui/SettingsPanel.cpp
+    source/plugin/ui/Skins.cpp
     source/plugin/ui/WindowDrawing.cpp)
 
 set(MPEROLL_CLAP_SOURCES "")
