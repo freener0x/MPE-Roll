@@ -87,6 +87,7 @@ private:
     bool glideStarted = false, glideSnapped = false;
     double glideLastTime = 0.0;
     float glideLastValue = 0.0f;
+    double glidePressTime = 0.0;                // free: where the pen went down, so a drag back scoops
     ExpressionCurve glideOriginal;              // the note's glide before this drag
     double glideAnchorTime = 0.0;               // snapped: where the glide starts...
     float glideAnchorValue = 0.0f;              // ...and the pitch it starts from

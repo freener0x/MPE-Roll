@@ -667,6 +667,7 @@ void NoteGrid::startGlide (const MpeNote& n, juce::Point<float> position, bool s
     glideStarted = false;
     glideSnapped = snapped;
     glideOriginal = n.lanes.pitch;
+    glidePressTime = juce::jlimit (0.0, n.length, view.xToBeat (position.x) - n.start);
 
     // A snapped glide starts on the grid, from wherever the note's pitch is at that point.
     glideAnchorTime = juce::jlimit (0.0, n.length, view.snapRound (view.xToBeat (position.x), false) - n.start);
@@ -717,14 +718,19 @@ void NoteGrid::drawGlide (juce::Point<float> position)
 
     if (! glideStarted)
     {
-        if (curve.isEmpty() && t > 1.0e-6)
-            curve.addPoint (0.0, 0.0f);
-
         curve.addPoint (t, value);
         glideStarted = true;
     }
     else
     {
+        // As with snap: drawn forwards from inside the note, the glide leaves the note's own pitch,
+        // held from the start; drawn back towards where it was pressed, it scoops into that pitch
+        // instead. So the start is only pinned once the pen has gone right of the press, and never
+        // left of it (the first point is still at the press or later).
+        if (glideOriginal.isEmpty() && glidePressTime > 1.0e-6 && t > glidePressTime + 1.0e-6
+             && ! curve.isEmpty() && curve.getPoints().front().beat >= glidePressTime - 1.0e-9)
+            curve.addPoint (0.0, 0.0f);
+
         curve.replaceRange (std::min (glideLastTime, t), std::max (glideLastTime, t),
                             { { glideLastTime, glideLastValue }, { t, value } });
     }

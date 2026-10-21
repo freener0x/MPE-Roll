@@ -96,7 +96,8 @@ in to GitHub), pick the latest successful **Build** run, and download **MPE-Roll
 **MPE-Roll-macOS** under *Artifacts*. The Windows download contains:
 - `MPE Roll.vst3`, the VST3 plugin: copy the whole folder to `C:\Program Files\Common Files\VST3`.
 - `MPE Roll.dll`, the same plugin as VST2: put it in a VST plugin folder that FL Studio scans (the
-  folders are listed under *Options › Manage plugins*). Install either one, or both.
+  folders are listed under *Options › Manage plugins*). Install either one, or both; used together in
+  one project, each keeps its own list of scanned synths and the last to save it wins.
 - `MPE Roll Scanner.exe`: MPE Roll checks plugins with it in a separate process, so a plugin that
   crashes while MPE Roll scans for synths can't take FL Studio down. The `.vst3` folder already
   holds a copy; put this one next to `MPE Roll.dll` (unless the `.vst3` is installed too), and

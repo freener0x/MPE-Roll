@@ -130,6 +130,12 @@ HostedSynth::SharedSettings::SharedSettings()
 HostedSynth::SharedSettings::~SharedSettings()
 {
     knownPlugins.removeChangeListener (this);
+
+    // The list only announces a change with a message, which never arrives when FL deletes the last
+    // MPE Roll in the middle of a scan: write what it holds now, for the settings file to save as it
+    // goes. Nothing is written if the list hasn't changed.
+    if (auto xml = knownPlugins.createXml())
+        settings->setValue ("knownPlugins", xml.get());
 }
 
 void HostedSynth::SharedSettings::useSettingsFile (const juce::File& file)
@@ -250,7 +256,7 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
         });
 }
 
-void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
+void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone, std::function<void()> onChecked)
 {
     stopCheck();
     const auto generation = ++loadGeneration;
@@ -267,7 +273,7 @@ void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
     if (formatNames.isEmpty() || PluginScanner::findExecutable() == juce::File())
     {
         juce::OwnedArray<juce::PluginDescription> found;
-        finishLoadFromFile (file, PluginScanner::Outcome::unavailable, found, std::move (onDone));
+        finishLoadFromFile (file, PluginScanner::Outcome::unavailable, found, std::move (onDone), onChecked);
         return;
     }
 
@@ -278,7 +284,7 @@ void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
     loading = true;
     checkCancelled = std::make_shared<std::atomic<bool>> (false);
 
-    checkThread = std::thread ([this, file, path, formatNames, generation, onDone,
+    checkThread = std::thread ([this, file, path, formatNames, generation, onDone, onChecked,
                                 cancelled = checkCancelled, alive = std::weak_ptr<int> (lifetime)]
     {
         auto found = std::make_shared<juce::OwnedArray<juce::PluginDescription>>();
@@ -293,18 +299,19 @@ void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
                 break;
         }
 
-        juce::MessageManager::callAsync ([this, file, found, outcome, generation, onDone, alive]
+        juce::MessageManager::callAsync ([this, file, found, outcome, generation, onDone, onChecked, alive]
         {
             if (alive.expired() || generation != loadGeneration)
                 return;
 
-            finishLoadFromFile (file, outcome, *found, onDone);
+            finishLoadFromFile (file, outcome, *found, onDone, onChecked);
         });
     });
 }
 
 void HostedSynth::finishLoadFromFile (const juce::File& file, PluginScanner::Outcome outcome,
-                                      juce::OwnedArray<juce::PluginDescription>& found, LoadCallback onDone)
+                                      juce::OwnedArray<juce::PluginDescription>& found, LoadCallback onDone,
+                                      const std::function<void()>& onChecked)
 {
     loading = false;
 
@@ -350,6 +357,9 @@ void HostedSynth::finishLoadFromFile (const juce::File& file, PluginScanner::Out
     // menu, so the others can be picked from there.
     for (auto* d : found)
         knownPlugins.addType (*d);
+
+    if (onChecked)
+        onChecked();
 
     load (*chosen, std::move (onDone));
 }
@@ -915,6 +925,7 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
     // The same synth is already here (wherever it was installed when saved): just give it the state.
     if (instance != nullptr && description != nullptr && isSameSynth (*description, desc))
     {
+        stopCheck();        // a Load plugin file... check still running would otherwise keep its scanner going
         ++loadGeneration;   // a load still in flight would otherwise replace it
         loading = false;
         unresolvedState.reset();

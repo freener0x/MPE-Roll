@@ -32,7 +32,12 @@ public:
     using LoadCallback = std::function<void (const juce::String& error)>;
 
     void load (const juce::PluginDescription& description, LoadCallback onDone = {});
-    void loadFromFile (const juce::File& file, LoadCallback onDone = {});
+
+    /** Loads the first instrument in a plugin file, once the scanner has looked at it. onChecked is
+        called when the check has passed, right before the synth is loaded: loading can take a while
+        and holds up the message thread, so a status line should change there.
+    */
+    void loadFromFile (const juce::File& file, LoadCallback onDone = {}, std::function<void()> onChecked = {});
     void unload();
 
     /** File patterns for the plugin formats this build can host, for a file chooser. */
@@ -306,7 +311,8 @@ private:
 
     void install (std::unique_ptr<juce::AudioPluginInstance> newInstance, const juce::PluginDescription& desc);
     std::unique_ptr<juce::AudioPluginInstance> takeInstance();
-    void finishLoadFromFile (const juce::File&, PluginScanner::Outcome, juce::OwnedArray<juce::PluginDescription>& found, LoadCallback);
+    void finishLoadFromFile (const juce::File&, PluginScanner::Outcome, juce::OwnedArray<juce::PluginDescription>& found,
+                             LoadCallback, const std::function<void()>& onChecked);
     void stopCheck();
     void configure (juce::AudioPluginInstance& plugin);
     void countHeldNotes (const juce::MidiBuffer&) noexcept;

@@ -62,7 +62,7 @@ private:
     bool updatingToolbar = false;
     juce::String transientStatus;
     juce::uint32 transientStatusTime = 0;
-    juce::ScopedMessageBox silenceBox;
+    juce::Component::SafePointer<juce::AlertWindow> silenceAlert;   // the "No sound from ..." box, while it's open
 
     void timerCallback() override;
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
@@ -74,6 +74,7 @@ private:
     void updateScrollBars();
     void scrollToContent();
     void setStatus (const juce::String& message);
+    void showStatusNow (const juce::String& message);
     juce::String describeOutput() const;
 
     void showSynthMenu();

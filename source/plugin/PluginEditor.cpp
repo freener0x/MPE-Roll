@@ -140,6 +140,10 @@ MpeRollEditor::~MpeRollEditor()
         box->exitModalState (0);
     }
 
+    // The "No sound from ..." box: closed, it keeps MPE, so nothing is changed on the way out.
+    if (silenceAlert != nullptr)
+        silenceAlert->exitModalState (0);
+
     stopTimer();
     rollProcessor.onStatusChanged = nullptr;
     toolbar.midiButton.removeMouseListener (midiDragListener.get());
@@ -351,6 +355,16 @@ void MpeRollEditor::setStatus (const juce::String& message)
     refreshToolbar();
 }
 
+void MpeRollEditor::showStatusNow (const juce::String& message)
+{
+    // For right before a call that holds up the message thread, like loading a synth: the window
+    // puts repaints off until the message thread is free, so the status would be painted too late.
+    setStatus (message);
+
+    if (auto* peer = getPeer())
+        peer->performAnyPendingRepaintsNow();
+}
+
 //==============================================================================
 void MpeRollEditor::timerCallback()
 {
@@ -524,7 +538,7 @@ void MpeRollEditor::showSynthMenu()
 
 void MpeRollEditor::loadSynth (const juce::PluginDescription& description)
 {
-    setStatus ("Loading " + description.name + "...");
+    showStatusNow ("Loading " + description.name + "...");
 
     rollProcessor.getSynth().load (description, [safe = juce::Component::SafePointer<MpeRollEditor> (this), description]
                                             (const juce::String& error)
@@ -575,26 +589,24 @@ void MpeRollEditor::warnSynthSilent()
                          "Or play the synth with Plain MIDI on one channel, where only the newest note gets glides, "
                          "pressure and timbre.";
 
-    // JUCE gives the first button Return and reports it as 1, the second Escape and 0. Keeping MPE
-    // comes first, so a reflex Return changes nothing.
-    const auto options = juce::MessageBoxOptions()
-                             .withIconType (juce::MessageBoxIconType::WarningIcon)
-                             .withTitle ("No sound from " + name)
-                             .withMessage (message)
-                             .withButton ("Keep MPE")
-                             .withButton ("Use Plain MIDI")
-                             .withAssociatedComponent (this);
+    // Only the Use Plain MIDI button changes the project. Keep MPE takes Return and Escape both, and
+    // closing the box counts as Keep MPE too, so a reflex key or a closed window changes nothing.
+    // (JUCE's own two-button box would give Escape and the close button to the second button.)
+    auto* alert = new juce::AlertWindow ("No sound from " + name, message, juce::MessageBoxIconType::WarningIcon, this);
+    alert->addButton ("Keep MPE", 0, juce::KeyPress (juce::KeyPress::returnKey), juce::KeyPress (juce::KeyPress::escapeKey));
+    alert->addButton ("Use Plain MIDI", 1);
+    silenceAlert = alert;
 
-    silenceBox = juce::AlertWindow::showScopedAsync (options, [safe = juce::Component::SafePointer<MpeRollEditor> (this), name] (int result)
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([safe = juce::Component::SafePointer<MpeRollEditor> (this), name] (int result)
     {
-        if (safe == nullptr || result != 0)
+        if (safe == nullptr || result != 1)
             return;
 
         auto settings = safe->document.getSettings();
         settings.output.mode = OutputSettings::Mode::singleChannel;
         safe->document.setSettings (settings);
         safe->setStatus ("Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
-    });
+    }), true);
 }
 
 void MpeRollEditor::showPluginScanner()
@@ -646,6 +658,12 @@ void MpeRollEditor::browseForPlugin()
                 safe->setStatus (safe->describeLoaded (file.getFileNameWithoutExtension()));
 
             safe->rollProcessor.requestConfiguration();
+        },
+        [safe, file]
+        {
+            // Loading the synth itself holds up the message thread, so the status has to change now.
+            if (safe != nullptr)
+                safe->showStatusNow ("Loading " + file.getFileNameWithoutExtension() + "...");
         });
     });
 }

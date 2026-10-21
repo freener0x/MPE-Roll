@@ -746,8 +746,6 @@ void sharedSettingsChecks (Check& check)
 {
     std::printf ("Every MPE Roll in the process shares the computer's settings\n");
     const auto file = juce::File::createTempFile (".settings");
-    HostedSynth first;
-    first.useSettingsFile (file);
 
     juce::PluginDescription scanned;
     scanned.name = "Scanned Elsewhere";
@@ -756,30 +754,63 @@ void sharedSettingsChecks (Check& check)
     scanned.uniqueId = 0x5ca11ed;
     scanned.isInstrument = true;
 
+    // The names of the plugins the settings file lists right now.
+    const auto savedNames = [&file]
     {
-        HostedSynth second;
-        second.getKnownPlugins().addType (scanned);
-        const auto types = first.getKnownPlugins().getTypes();
-        check (types.size() == 1 && types[0].name == scanned.name, "a plugin scanned in one MPE Roll is listed in the others");
+        juce::PropertiesFile settings (file, {});
+        juce::KnownPluginList saved;
+        juce::StringArray names;
 
-        WindowDrawing::setMode (second.getUserSettings(), WindowDrawing::Mode::software);
-        check (WindowDrawing::getMode (first.getUserSettings()) == WindowDrawing::Mode::software, "and so is a Window drawing choice");
-        juce::MessageManager::getInstance()->runDispatchLoopUntil (50);     // the list's change message, which saves it
+        if (auto xml = settings.getXmlValue ("knownPlugins"))
+            saved.recreateFromXml (*xml);
+
+        for (const auto& type : saved.getTypes())
+            names.add (type.name);
+
+        return names;
+    };
+
+    {
+        HostedSynth first;
+        first.useSettingsFile (file);
+
+        {
+            HostedSynth second;
+            second.getKnownPlugins().addType (scanned);
+            const auto types = first.getKnownPlugins().getTypes();
+            check (types.size() == 1 && types[0].name == scanned.name, "a plugin scanned in one MPE Roll is listed in the others");
+
+            WindowDrawing::setMode (second.getUserSettings(), WindowDrawing::Mode::software);
+            check (WindowDrawing::getMode (first.getUserSettings()) == WindowDrawing::Mode::software, "and so is a Window drawing choice");
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (50);     // the list's change message, which saves it
+        }
+
+        // The MPE Roll left saving its settings after the other has gone mustn't write an older list back.
+        first.getUserSettings()->setValue ("checked", true);
+        first.getUserSettings()->saveIfNeeded();
+
+        juce::PropertiesFile settings (file, {});
+        check (savedNames() == juce::StringArray { scanned.name }, "and is still in the settings file once that MPE Roll has gone");
+        check (WindowDrawing::getMode (&settings) == WindowDrawing::Mode::software, "with the Window drawing choice");
     }
 
-    // The MPE Roll left saving its settings after the other has gone mustn't write an older list back.
-    first.getUserSettings()->setValue ("checked", true);
-    first.getUserSettings()->saveIfNeeded();
+    std::printf ("The last MPE Roll to go saves what a scan found after the list's last change message\n");
+    auto late = scanned;
+    late.name = "Found Last";
+    late.fileOrIdentifier = "/plugins/Found Last.vst3";
+    late.uniqueId = 0x1a7e;
 
-    juce::PropertiesFile settings (file, {});
-    juce::KnownPluginList saved;
+    {
+        // As FL deleting the last MPE Roll (closing the project, say) while a scan is still finding
+        // plugins: the list announces each find with a message, and the last ones' never arrive. The
+        // message loop isn't run here, as it wouldn't be then. This is the only MPE Roll in the
+        // process, so the settings are let go with it.
+        HostedSynth last;
+        last.useSettingsFile (file);
+        last.getKnownPlugins().addType (late);
+    }
 
-    if (auto xml = settings.getXmlValue ("knownPlugins"))
-        saved.recreateFromXml (*xml);
-
-    check (saved.getNumTypes() == 1 && saved.getTypes()[0].name == scanned.name,
-           "and is still in the settings file once that MPE Roll has gone");
-    check (WindowDrawing::getMode (&settings) == WindowDrawing::Mode::software, "with the Window drawing choice");
+    check (savedNames() == juce::StringArray { scanned.name, late.name }, "the settings file lists the plugin found last");
     file.deleteFile();
 }
 
@@ -789,7 +820,9 @@ int selfTest()
     FakePlayHead playHead;
     double ppq = 0.0;
 
-    MpeRollProcessor processor;
+    // Let go before the settings checks: some need the last MPE Roll in the process to go.
+    auto processorHolder = std::make_unique<MpeRollProcessor>();
+    auto& processor = *processorHolder;
     processor.setPlayHead (&playHead);
     processor.setRateAndBufferSizeDetails (48000.0, 512);
     processor.prepareToPlay (48000.0, 512);
@@ -937,9 +970,10 @@ int selfTest()
         check (document.getClip (3) == before, "undo restores the clip");
     }
 
+    processor.releaseResources();
+    processorHolder.reset();
     sharedSettingsChecks (check);
 
-    processor.releaseResources();
     std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
     return check.failures == 0 ? 0 : 1;
 }
@@ -1177,6 +1211,104 @@ void silenceWatchChecks (Check& check, const juce::File& synthFile)
     }
 }
 
+/** The "No sound from ..." box the editor shows for the warning. Only its Use Plain MIDI button may
+    change the project: Return and Escape both keep MPE, as closing the box does.
+*/
+void silenceAlertChecks (Check& check, const juce::File& synthFile)
+{
+    if (synthFile.hasFileExtension ("clap"))     // played with note expressions, so never warned about
+        return;
+
+    std::printf ("Only the box's Use Plain MIDI button switches the project to Plain MIDI\n");
+    ignoreXErrors();
+    auto& mm = *juce::MessageManager::getInstance();
+    SilenceProbe probe (synthFile, OutputSettings::Mode::mpe, true);
+    check (probe.loaded, "the synth loads");
+
+    if (! probe.loaded)
+        return;
+
+    std::unique_ptr<juce::AudioProcessorEditor> editor (probe.processor.createEditorAndMakeActive());
+    editor->setSize (1200, 760);
+
+    const auto findBox = []() -> juce::AlertWindow*
+    {
+        auto& desktop = juce::Desktop::getInstance();
+
+        for (int i = 0; i < desktop.getNumComponents(); ++i)
+            if (auto* box = dynamic_cast<juce::AlertWindow*> (desktop.getComponent (i)))
+                if (box->getName().startsWith ("No sound from"))
+                    return box;
+
+        return nullptr;
+    };
+
+    // Plays the synth into the warning, which the editor's timer turns into the box.
+    const auto provoke = [&]() -> juce::AlertWindow*
+    {
+        probe.hold (60, 14.0);
+
+        for (int i = 0; i < 20 && findBox() == nullptr; ++i)
+            mm.runDispatchLoopUntil (50);
+
+        return findBox();
+    };
+
+    // The warning comes once per synth loaded or given a project's state: given its own state back,
+    // the synth is listened to afresh.
+    const auto listenAgain = [&]
+    {
+        juce::MemoryBlock state;
+        probe.processor.getStateInformation (state);
+        probe.processor.setStateInformation (state.getData(), (int) state.getSize());
+        mm.runDispatchLoopUntil (50);
+    };
+
+    const auto mode = [&] { return probe.processor.getDocument().getSettings().output.mode; };
+
+    // As the window's peer hands a key on (the key handler is the component's).
+    const auto press = [&mm] (juce::Component& window, int key)
+    {
+        window.keyPressed (juce::KeyPress (key));
+        mm.runDispatchLoopUntil (100);
+    };
+
+    auto* box = provoke();
+    check (box != nullptr, "the warning opens the box");
+
+    if (box != nullptr)
+    {
+        press (*box, juce::KeyPress::escapeKey);
+        check (findBox() == nullptr && mode() == OutputSettings::Mode::mpe, "Escape closes it and keeps MPE");
+    }
+
+    listenAgain();
+    box = provoke();
+    check (box != nullptr, "the box comes back for a synth given its state again");
+
+    if (box != nullptr)
+    {
+        press (*box, juce::KeyPress::returnKey);
+        check (findBox() == nullptr && mode() == OutputSettings::Mode::mpe, "Return closes it and keeps MPE too");
+    }
+
+    listenAgain();
+    box = provoke();
+
+    if (box != nullptr)
+    {
+        if (auto* button = box->getButton ("Use Plain MIDI"))
+            button->triggerClick();
+
+        mm.runDispatchLoopUntil (100);
+        check (findBox() == nullptr && mode() == OutputSettings::Mode::singleChannel, "Use Plain MIDI switches the project to Plain MIDI");
+    }
+
+    probe.processor.editorBeingDeleted (editor.get());
+    editor.reset();
+    mm.runDispatchLoopUntil (50);
+}
+
 /** A synth loaded while a clip plays (in place of another, or where there was none) must get the
     zone lanes' values, which the encoder otherwise sends once and then only as they change.
 */
@@ -1379,6 +1511,7 @@ int parameterTest (const juce::File& synthFile)
     }
 
     silenceWatchChecks (check, synthFile);
+    silenceAlertChecks (check, synthFile);
 
     synthReloadChecks (check, processor, playHead, synthFile);
 
@@ -1593,6 +1726,43 @@ void editorUiChecks (Check& check)
                        "dragged back from where it was pressed, a snapped glide scoops straight into the note's pitch there");
                 check (std::abs (scoop.valueAt (0.0, 0.0f) - 2.0f) < 1.0e-6f && std::abs (scoop.valueAt (0.25, 0.0f) - 2.0f) < 1.0e-6f,
                        "holding the pen's pitch from the note's start rather than rising to it");
+            }
+
+            // The same drawn freely, with Alt held: the scoop comes out the same way, in the pen's own shape.
+            const auto doubleClick = [&] (juce::Point<float> where)
+            {
+                const auto now = juce::Time::getCurrentTime();
+                grid->mouseDoubleClick (juce::MouseEvent (juce::Desktop::getInstance().getMainMouseSource(), where, juce::ModifierKeys(),
+                                                          1.0f, 0.0f, 0.0f, 0.0f, 0.0f, grid, grid, now, where, now, 2, false));
+            };
+            const juce::ModifierKeys alt (juce::ModifierKeys::leftButtonModifier | juce::ModifierKeys::altModifier);
+
+            doubleClick (at (2.5, 60.0f));
+            check (clip().notes.size() == 1 && clip().notes[0].lanes.pitch.isEmpty(), "double-click clears the glide");
+            gesture (*grid, at (2.97, 60.0f), at (2.5, 62.0f), alt);
+
+            if (clip().notes.size() == 1)
+            {
+                const auto& scoop = clip().notes[0].lanes.pitch;
+                const auto& points = scoop.getPoints();
+                check (points.size() >= 2
+                           && std::abs (points.front().beat - 0.5) < 1.0e-4 && std::abs (points.front().value - 2.0f) < 1.0e-3f
+                           && std::abs (points.back().beat - 0.97) < 1.0e-4 && std::abs (points.back().value) < 1.0e-3f,
+                       "drawn freely with Alt held, a glide dragged back scoops into the note's pitch where it was pressed");
+                check (std::abs (scoop.valueAt (0.0, 0.0f) - 2.0f) < 1.0e-3f && std::abs (scoop.valueAt (0.25, 0.0f) - 2.0f) < 1.0e-3f,
+                       "holding the pen's pitch from the note's start");
+            }
+
+            // Drawn forwards from inside the note, the note's own pitch is held up to where it was pressed.
+            doubleClick (at (2.5, 60.0f));
+            gesture (*grid, at (2.5, 60.4f), at (2.97, 62.0f), alt);
+
+            if (clip().notes.size() == 1)
+            {
+                const auto& glide = clip().notes[0].lanes.pitch;
+                check (! glide.isEmpty() && std::abs (glide.valueAt (0.0, 9.0f)) < 1.0e-3f && std::abs (glide.valueAt (0.5, 9.0f) - 0.4f) < 1.0e-3f
+                           && std::abs (glide.valueAt (0.97, 0.0f) - 2.0f) < 1.0e-3f,
+                       "drawn forwards from inside the note, it leaves the note's own pitch, held from the start");
             }
 
             std::printf ("Paint tool pointer\n");
@@ -2108,12 +2278,12 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
     {
         HostedSynth synth;
         juce::String error = "(no answer)";
-        bool answered = false;
-        synth.loadFromFile (crashing, [&] (const juce::String& e) { error = e; answered = true; });
+        bool answered = false, checked = false;
+        synth.loadFromFile (crashing, [&] (const juce::String& e) { error = e; answered = true; }, [&checked] { checked = true; });
         check (! answered && synth.isLoading(), "the check runs on a thread of its own, so FL's window isn't held up");
         waitUntil (answered, 30000);
         check (error.contains ("crashed"), "the user is told it crashed");
-        check (! synth.isLoaded() && ! synth.isLoading(), "and nothing is loaded");
+        check (! synth.isLoaded() && ! synth.isLoading() && ! checked, "and nothing is loaded, or said to be loading");
     }
 
     std::printf ("A check that's still running stops when the synth goes, or another load starts\n");
@@ -2131,13 +2301,47 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
         check (! answered, "and the check doesn't answer afterwards");
 
         HostedSynth synth;
-        bool first = false, second = false;
+        bool first = false, second = false, checkedBeforeLoading = false;
         juce::String error;
         synth.loadFromFile (hanging, [&first] (const juce::String&) { first = true; });
-        synth.loadFromFile (synthFile, [&] (const juce::String& e) { error = e; second = true; });
+        synth.loadFromFile (synthFile, [&] (const juce::String& e) { error = e; second = true; },
+                            [&] { checkedBeforeLoading = ! second && ! synth.isLoaded(); });
         waitUntil (second, 30000);
         check (second && error.isEmpty() && synth.isLoaded(), "a second Load plugin file... loads its synth");
+        check (checkedBeforeLoading, "saying when the check is over and the loading starts (the status goes from Checking to Loading)");
         check (! first, "and the first never answers");
+
+        // A project giving the loaded synth its state (FL does on opening a project, or when the plugin
+        // is bridged) while a check is stuck in a plugin: the check and its scanner stop then too, as
+        // they do when another load starts. The scanner's job folder is there for as long as it runs.
+        const auto scanFolders = []
+        {
+            return juce::File::getSpecialLocation (juce::File::tempDirectory)
+                       .findChildFiles (juce::File::findDirectories, false, "MPE Roll scan *").size();
+        };
+
+        const auto foldersBefore = scanFolders();
+        bool third = false;
+        synth.loadFromFile (hanging, [&third] (const juce::String&) { third = true; });
+        const auto end = juce::Time::getMillisecondCounterHiRes() + 5000.0;
+
+        while (scanFolders() == foldersBefore && juce::Time::getMillisecondCounterHiRes() < end)
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
+
+        check (scanFolders() == foldersBefore + 1 && synth.isLoading(), "a check stuck in a plugin has its scanner running");
+
+        if (auto saved = synth.saveState())
+            synth.restoreState (*saved);
+
+        // The folder goes with the check; a moment's grace for the file system to let it go.
+        const auto stopEnd = juce::Time::getMillisecondCounterHiRes() + 2000.0;
+
+        while (scanFolders() != foldersBefore && juce::Time::getMillisecondCounterHiRes() < stopEnd)
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
+
+        check (scanFolders() == foldersBefore && ! synth.isLoading(), "a project giving the loaded synth its state stops the check, scanner and all");
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (200);
+        check (! third && synth.isLoaded(), "the check never answers, and the synth stays");
     }
 
     std::printf ("A scanner ends by itself when MPE Roll has gone, or its time is long up\n");
