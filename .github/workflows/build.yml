@@ -5,14 +5,53 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      macos:
+        description: Build the macOS bundles as well
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Runner minutes are paid for, so a push that only touches documentation builds nothing, and the
+  # macOS bundles (ten minutes of allowance for each real minute) are built on request (Run workflow)
+  # and for pushes to main rather than for every pull request push.
+  changes:
+    name: What changed
+    runs-on: ubuntu-24.04
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Did anything but documentation change?
+        id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          code=true
+          # A pull request opening, a new branch, a force-push or a manual run has no earlier commit
+          # to compare with, so everything is built.
+          if [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            changed=$(git diff --name-only "$BEFORE" "$AFTER")
+            printf 'Changed since %s:\n%s\n' "$BEFORE" "$changed"
+            if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qvE '(^|/)[^/]*\.md$|^docs/|^LICENSE'; then
+              code=false
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Build the code: $code"
+
   windows:
     name: Windows (VST3, Standalone)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: windows-latest
     defaults:
       run:
@@ -102,6 +141,11 @@ jobs:
 
   macos:
     name: macOS (VST3, AU, Standalone)
+    needs: changes
+    # macOS minutes count ten to one against the allowance: built on request, and for main.
+    if: >-
+      needs.changes.outputs.code == 'true'
+      && ((github.event_name == 'workflow_dispatch' && inputs.macos) || github.event_name == 'push')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -140,6 +184,8 @@ jobs:
 
   linux:
     name: Linux (tests and end-to-end harness)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
