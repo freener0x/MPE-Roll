@@ -1258,6 +1258,18 @@ void silenceAlertChecks (Check& check, const juce::File& synthFile)
         return nullptr;
     };
 
+    const auto boxCount = []
+    {
+        int count = 0;
+        auto& desktop = juce::Desktop::getInstance();
+
+        for (int i = 0; i < desktop.getNumComponents(); ++i)
+            if (auto* box = dynamic_cast<juce::AlertWindow*> (desktop.getComponent (i)))
+                count += box->getName().startsWith ("No sound from") ? 1 : 0;
+
+        return count;
+    };
+
     // Plays the synth into the warning, which the editor's timer turns into the box.
     const auto provoke = [&]() -> juce::AlertWindow*
     {
@@ -1305,6 +1317,22 @@ void silenceAlertChecks (Check& check, const juce::File& synthFile)
     {
         press (*box, juce::KeyPress::returnKey);
         check (findBox() == nullptr && mode() == OutputSettings::Mode::mpe, "Return closes it and keeps MPE too");
+    }
+
+    // A synth given its state again while the box is open (as FL sending a project's state again)
+    // is listened to afresh and can warn again: the editor keeps the open box rather than putting
+    // a second one over it, which closing the editor wouldn't take down.
+    listenAgain();
+    box = provoke();
+
+    if (box != nullptr)
+    {
+        listenAgain();
+        provoke();                          // returns at once, a box being up...
+        mm.runDispatchLoopUntil (300);      // ...so give the editor's timer the new warning
+        check (boxCount() == 1, "warned again while the box is open, the editor keeps that box rather than stacking another");
+        press (*box, juce::KeyPress::escapeKey);
+        check (findBox() == nullptr && mode() == OutputSettings::Mode::mpe, "and Escape closes it as before");
     }
 
     listenAgain();
@@ -1778,6 +1806,19 @@ void editorUiChecks (Check& check)
                 check (! glide.isEmpty() && std::abs (glide.valueAt (0.0, 9.0f)) < 1.0e-3f && std::abs (glide.valueAt (0.5, 9.0f) - 0.4f) < 1.0e-3f
                            && std::abs (glide.valueAt (0.97, 0.0f) - 2.0f) < 1.0e-3f,
                        "drawn forwards from inside the note, it leaves the note's own pitch, held from the start");
+            }
+
+            // Pressed 0.4 st above the note's pitch and let go without moving, or slipping a pixel either
+            // way as clicks do: the point under the pen would otherwise be the whole note's pitch.
+            for (const int slip : { 0, 1, -1 })
+            {
+                doubleClick (at (2.5, 60.0f));
+                gesture (*grid, at (2.5, 60.4f), at (2.5, 60.4f).translated ((float) slip, 0.0f), alt);
+
+                if (clip().notes.size() == 1)
+                    check (clip().notes[0].lanes.pitch.isEmpty(),
+                           "an Alt-click on a note without a glide draws nothing, leaving the note at its own pitch"
+                               + (slip == 0 ? juce::String() : " (slipping " + juce::String (slip) + " px)"));
             }
 
             std::printf ("Paint tool pointer\n");

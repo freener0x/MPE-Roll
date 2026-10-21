@@ -573,6 +573,9 @@ juce::String MpeRollEditor::describeLoaded (const juce::String& name) const
 
 void MpeRollEditor::warnSynthSilent()
 {
+    if (silenceAlert != nullptr)
+        return;     // one box is already asking
+
     auto& synth = rollProcessor.getSynth();
     const auto& output = document.getSettings().output;
 

@@ -805,8 +805,20 @@ void NoteGrid::mouseDrag (const juce::MouseEvent& e)
     }
 }
 
-void NoteGrid::mouseUp (const juce::MouseEvent&)
+void NoteGrid::mouseUp (const juce::MouseEvent& e)
 {
+    // A free glide pressed on a note without one and let go where it was pressed leaves the point
+    // under the pen, which would be the whole note's pitch: detuned by up to half a semitone. A
+    // click draws nothing, as a snapped one lands on the note's own pitch. The pointer's travel
+    // tells a click from a drag, since a click usually slips a pixel or two.
+    if (dragMode == DragMode::glide && ! glideSnapped && glideOriginal.isEmpty()
+         && e.position.getDistanceFrom (downPos) < 4.0f)
+        if (auto* n = document.editClip().findNote (glideNote))
+        {
+            n->lanes.pitch = glideOriginal;
+            document.changed();
+        }
+
     if (dragMode != DragMode::none && dragMode != DragMode::marquee)
         document.endEdit();
 
