@@ -142,8 +142,10 @@ public:
         const auto shouldCancel = [this] { return threadShouldExit(); };
         error = options.format == Format::mp3 ? writeMp3 (audio, options.sampleRate, target, options.mp3Kbps, options.title, shouldCancel)
                                               : writeWav (audio, options.sampleRate, target, options.wavBits, shouldCancel);
+        written = error.isEmpty();
 
-        if (threadShouldExit())
+        // A cancel that lands now comes too late: the file is finished, so it's checked and reported like any other.
+        if (! written && threadShouldExit())
             return;
 
         if (error.isEmpty() && peakOf (audio, 0, audio.getNumSamples()) < silence)
@@ -153,7 +155,10 @@ public:
 
     void threadComplete (bool userPressedCancel) override
     {
-        finish (userPressedCancel ? juce::String (cancelledMessage) : error);
+        // The progress window counts any Cancel the thread was still running for, including one pressed
+        // just as the file was finished: that file is kept, and the export reports it. The thread has
+        // been waited for by now, so written and error are settled.
+        finish (userPressedCancel && ! written ? juce::String (cancelledMessage) : error);
     }
 
 private:
@@ -165,6 +170,7 @@ private:
     Options options;
     std::function<void (const juce::String&)> done;
     juce::String error;
+    bool written = false;   // the file is at the target
 
     void start (const juce::XmlElement& synthState)
     {

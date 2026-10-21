@@ -50,8 +50,9 @@ namespace AudioExport
                                      const std::function<bool (double)>& progress = {});
 
     /** These return an error message, or an empty string when the file was written. shouldCancel,
-        if given, is asked now and then while writing: once it says yes, nothing is written (a file
-        already at the target is left as it was) and the message is "Export cancelled.".
+        if given, is asked now and then while writing, up to the moment the file takes the target's
+        place: once it says yes, nothing is written (a file already at the target is left as it was)
+        and the message is "Export cancelled.". A cancel after that is too late to undo the file.
     */
     juce::String writeWav (const juce::AudioBuffer<float>&, double sampleRate, const juce::File&, int bitsPerSample,
                            const std::function<bool()>& shouldCancel = {});
@@ -86,8 +87,9 @@ namespace AudioExport
 
     /** The whole export, with a progress window: copies the loaded synth, renders the clip with the
         project's output settings and writes the file. done gets an error message, or an empty
-        string; it isn't called if the processor goes away first, which ends the export. Message
-        thread.
+        string; it isn't called if the processor goes away first, which ends the export. Cancel
+        gives "Export cancelled." and leaves no file, unless the file was already finished when it
+        was pressed: then the file is kept and reported as exported. Message thread.
     */
     void exportClip (MpeRollProcessor&, const MpeClip&, const juce::File& target, const Options&,
                      std::function<void (const juce::String& error)> done);

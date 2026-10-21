@@ -448,6 +448,43 @@ public:
                                    { return msg.isControllerOfType (1) && msg.getControllerValue() == 0 && msg.getChannel() == channel; }), 1);
         }
 
+        beginTest ("Single channel mode: controllers a note's lanes set return to rest when settings change");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+            const auto controller = [] (int cc, int value)
+            {
+                return [cc, value] (const juce::MidiMessage& msg) { return msg.isControllerOfType (cc) && (value < 0 || msg.getControllerValue() == value); };
+            };
+
+            enc.prepareNote (out, 0, 1, 60);
+            enc.setController (out, 0, 1, 11, 0.1f);    // an Expression lane at 10%, and a Brightness lane
+            enc.setController (out, 0, 1, 74, 1.0f);
+            enc.startNote (out, 0, 1, 0.5f);
+            out.clear();
+
+            // As applySettings does it. Switching to MPE, channel 1 becomes the zone master, so what the
+            // lanes left on it would apply to every note.
+            enc.stopAllNotes (out, 0);
+            enc.resetControllers (out, 0);
+            const auto m = collect (out);
+            expectEquals (countIf (m, controller (11, -1)), 1);
+            expectEquals (countIf (m, controller (11, 127)), 1, "Expression is back at full");
+            expectEquals (countIf (m, controller (74, 64)), 1, "and the timbre at its default");
+            expect (m.back().message.getChannel() == 1);
+
+            enc.setSettings (s);
+            enc.forgetZoneValues();
+            out.clear();
+
+            enc.prepareNote (out, 0, 2, 62);
+            enc.startNote (out, 0, 2, 0.5f);
+            expectEquals (countIf (collect (out), controller (11, -1)), 0, "the lanes were forgotten with the reset: nothing to put back");
+        }
+
         beginTest ("Single channel mode: timbre follows the newest note only once a note has used it");
         {
             OutputSettings s;
@@ -636,6 +673,59 @@ public:
             m = collect (out);
             expectEquals (countIf (m, brightness (64)), 1, "a note without brightness gets the default back");
             expect (m.back().message.isNoteOn());
+        }
+
+        beginTest ("Single channel mode: a note taking the channel back brings its own lanes' values");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+            const auto controller = [] (int cc, int value)
+            {
+                return [cc, value] (const juce::MidiMessage& msg) { return msg.isControllerOfType (cc) && (value < 0 || msg.getControllerValue() == value); };
+            };
+
+            // B holds an Expression lane at 90%; A on top rolls its own to 10%, then lets go.
+            enc.prepareNote (out, 0, 1, 60);
+            enc.setController (out, 0, 1, 11, 0.9f);
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.prepareNote (out, 0, 2, 64);
+            enc.setController (out, 0, 2, 11, 0.1f);
+            enc.startNote (out, 0, 2, 0.5f);
+            out.clear();
+
+            enc.stopNote (out, 0, 2, 0.5f);
+            auto m = collect (out);
+            expectEquals (countIf (m, controller (11, -1)), 1);
+            expectEquals (countIf (m, controller (11, MpeEncoder::toSevenBit (0.9f))), 1, "B's own Expression is back, not A's");
+            out.clear();
+
+            // Played live, B's lanes move while A leads: nothing is sent until B takes the channel back.
+            // Its Brightness lane is its timbre, and stands where A's timbre was rather than the default.
+            enc.prepareNote (out, 0, 3, 64);
+            enc.setTimbre (out, 0, 3, 0.25f);
+            enc.startNote (out, 0, 3, 0.5f);
+            out.clear();
+            enc.setController (out, 0, 1, 11, 0.6f);
+            enc.setController (out, 0, 1, 74, 1.0f);
+            expect (out.isEmpty(), "a note that isn't the newest doesn't speak for the channel");
+
+            enc.stopNote (out, 0, 3, 0.5f);
+            m = collect (out);
+            expectEquals (countIf (m, controller (11, -1)), 1);
+            expectEquals (countIf (m, controller (11, MpeEncoder::toSevenBit (0.6f))), 1, "where B's lane moved to while A led");
+            expectEquals (countIf (m, controller (74, -1)), 1);
+            expectEquals (countIf (m, controller (74, 127)), 1, "B's Brightness lane, not the default timbre");
+            out.clear();
+
+            enc.stopNote (out, 0, 1, 0.5f);
+            enc.prepareNote (out, 0, 4, 62);
+            enc.startNote (out, 0, 4, 0.5f);
+            m = collect (out);
+            expectEquals (countIf (m, controller (11, 127)), 1, "the next note, without lanes, gets Expression back");
+            expectEquals (countIf (m, controller (74, 64)), 1, "and the default timbre");
         }
 
         beginTest ("After forgetting zone values, an unchanged zone value is sent again");

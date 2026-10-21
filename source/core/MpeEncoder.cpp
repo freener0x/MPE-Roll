@@ -482,12 +482,28 @@ void MpeEncoder::resetControllers (juce::MidiBuffer& out, int samplePos)
     zonePitch = 0.0f;
     zonePressure = 0.0f;
     tailPitch = tailPressure = 0.0f;
-    timbreFromNote = false;
 
     // Called before settings change: a controller carrying pressure may not carry it from now on,
     // so it goes back to its own rest value (Expression to full) rather than staying where pressure left it.
     const auto pressureController = settings.pressureTarget == OutputSettings::PressureTarget::controller
                                         ? settings.pressureController : -1;
+
+    // Likewise what the last note's lanes left on the single channel, which may be a zone master from
+    // now on: its Expression, pan or timbre go back to their usual values, as the next note would put them.
+    if (timbreFromNote || noteControllers[(size_t) settings.timbreController])
+        sendTimbre (out, samplePos, settings.singleChannel, settings.defaultTimbre, false);
+
+    for (int cc = 0; cc < 128; ++cc)
+    {
+        if (! noteControllers[(size_t) cc]
+            || cc == settings.timbreController || cc == settings.timbreLsbController || cc == pressureController)
+            continue;
+
+        sendController (out, samplePos, settings.singleChannel, cc, toSevenBit (defaultControllerValue (cc)), false);
+    }
+
+    noteControllers.reset();
+    timbreFromNote = false;
 
     for (int ch = 1; ch <= 16; ++ch)
     {
@@ -619,9 +635,11 @@ void MpeEncoder::setController (juce::MidiBuffer& out, int samplePos, Handle han
         return;
 
     v->ownControllers.set ((size_t) controller);
+    v->ownValues[(size_t) controller] = (int8_t) toSevenBit (value);
 
     if (isSingleChannelMode())
     {
+        // Not the newest note: the value is kept for when the note takes the channel over.
         if (! isLead (*v))
             return;
 
@@ -705,12 +723,22 @@ void MpeEncoder::sendLeadValues (juce::MidiBuffer& out, int samplePos)
     if (! lead->ownControllers[(size_t) settings.timbreController])
         sendSingleChannelTimbre (out, samplePos);
 
-    if (noteControllers.none())
-        return;
-
     for (int cc = 0; cc < 128; ++cc)
     {
-        if (! noteControllers[(size_t) cc] || lead->ownControllers[(size_t) cc]
+        if (lead->ownControllers[(size_t) cc])
+        {
+            // Its own lane's value, which wasn't sent if the lane moved while another note led the channel.
+            // Nothing is repeated: a value the channel already has is deduplicated.
+            sendController (out, samplePos, settings.singleChannel, cc, lead->ownValues[(size_t) cc], false);
+            noteControllers.set ((size_t) cc);
+
+            if (cc == settings.timbreController)
+                timbreFromNote = true;
+
+            continue;
+        }
+
+        if (! noteControllers[(size_t) cc]
             || cc == settings.timbreController || cc == settings.timbreLsbController || cc == pressureController)
             continue;
 

@@ -57,7 +57,9 @@ public:
     /** Sends note-offs for every sounding or prepared note. */
     void stopAllNotes (juce::MidiBuffer& out, int samplePos);
 
-    /** Returns pitch bend, pressure and pedals to their rest positions on every channel. */
+    /** Returns pitch bend, pressure and pedals to their rest positions on every channel, and the
+        controllers notes' lanes have set on the single channel to their usual values.
+    */
     void resetControllers (juce::MidiBuffer& out, int samplePos);
 
     /** Returns the zone-wide (master channel) pitch bend, pressure and pedals to rest, leaving notes alone. */
@@ -92,6 +94,7 @@ private:
         float pressure = 0.0f;
         float timbre = 0.5f;
         std::bitset<128> ownControllers;    // controllers this note's own lanes have set
+        std::array<int8_t, 128> ownValues {};   // their last values, for when the note takes over the single channel
     };
 
     struct ChannelState

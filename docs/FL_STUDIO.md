@@ -225,7 +225,8 @@ needs checking in a real FL install.
   24-bit WAV at FL's sample rate, or a 320 kbps MP3 at 48 kHz or below, as MP3 goes no higher (a
   project at 88.2 or 96 kHz gives a 44.1 or 48 kHz MP3). The synth playing live isn't interrupted, and the
   file opens in your file browser when it's done. Big sample libraries take a moment to load the copy.
-  Cancel stops the export and leaves no file behind. To render with FL's own mixer and effects, use
+  Cancel stops the export and leaves no file behind, unless the file had just been finished when you
+  pressed it: then it's kept and opens as usual. To render with FL's own mixer and effects, use
   FL's *Export* as usual instead.
 - **File ▾ › Import:** reads any MIDI file. MPE files keep their per-note expression; plain
   files import as notes with zone-wide pitch bend and controllers. You can also drop a `.mid` file
