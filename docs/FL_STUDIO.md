@@ -3,8 +3,9 @@
 FL Studio's piano roll can't send per-note expression to plugins. MPE Roll gets around that by being
 the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted inside it.
 
-> These steps follow Image-Line's documentation and user reports. MPE Roll hasn't been checked inside
-> FL Studio yet. If something here doesn't match what you see, please open an issue.
+> These steps follow Image-Line's documentation and user reports. MPE Roll has been checked inside
+> FL Studio 26.1.7 on Windows 11 with Analog Lab and Omnisphere 3 (section 7); the rest hasn't been
+> tried hands-on yet. If something here doesn't match what you see, please open an issue.
 
 ## 1. Install
 
@@ -243,17 +244,18 @@ needs checking in a real FL install.
 
 ## 7. Notes on particular synths
 
-These come from the makers' documentation and user reports, and from a first test of Analog Lab in
-MPE Roll in FL Studio 26.1.7 (it loads and plays; zone-wide lanes work, per-note ones need *Plain
-MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path doesn't apply.
+These come from the makers' documentation and user reports, and from tests of both synths in MPE
+Roll in FL Studio 26.1.7 on Windows 11: Analog Lab loads and plays (zone-wide lanes work, per-note
+ones need *Plain MIDI* as below), and Omnisphere 3's VST3 plays over MPE once MPE is on in its System
+page. Neither synth comes as CLAP, so the CLAP note-expression path doesn't apply.
 
 **Spectrasonics Omnisphere**
 - Authorize it once in its standalone app or directly in FL before loading it inside MPE Roll.
 - A parameter only reaches MPE Roll's *Synth* slots after you right-click it in Omnisphere and choose
   **Enable Host Automation**.
-- **Omnisphere 3** has MPE (3.0.1c and later include MPE fixes). It's off until you turn it on, and
-  until then Omnisphere's Part 1 only hears MIDI channel 1, where MPE Roll sends no notes, so it
-  stays silent. MPE Roll points this out once it has played Omnisphere three seconds of notes, short
+- **Omnisphere 3** has MPE (3.0.1c and later include MPE fixes), and plays over MPE in MPE Roll once
+  it's on (checked with the VST3 in FL 26.1.7). It's off until you turn it on, and until then
+  Omnisphere's Part 1 only hears MIDI channel 1, where MPE Roll sends no notes, so it stays silent. MPE Roll points this out once it has played Omnisphere three seconds of notes, short
   or long, without a sound (after giving it ten seconds to load its sounds) and offers *Use Plain
   MIDI*; *Keep MPE* is the default. Its status line keeps saying *No sound from Omnisphere yet* until
   it hears it.

@@ -178,10 +178,13 @@ synth's channel, run it from the Scripts menu:
 
 ## Known limitations
 
-- **Not yet tested inside FL Studio.** Development and testing so far ran on Linux. FL-specific
-  behaviour (MIDI port routing, the script bridge's fine-pitch units, slide notes carrying Mod X/Y
-  ramps) follows Image-Line's documentation and forum reports, not hands-on checks. Please open an
-  issue with what you find.
+- **Lightly tested inside FL Studio.** In FL Studio 26.1.7 on Windows 11, MPE Roll loads in the
+  Channel Rack and plays Arturia Analog Lab (zone-wide lanes; per-note lanes with *Plain MIDI*) and
+  Spectrasonics Omnisphere 3 over MPE once MPE is on in Omnisphere's System page; the standalone app
+  loads synths, clicks land where they're aimed after the window is reopened, and a scan that meets
+  FL's own plugins says they can't be hosted. Everything else about FL (MIDI port routing, the script
+  bridge's fine-pitch units, slide notes carrying Mod X/Y ramps) follows Image-Line's documentation
+  and forum reports, not hands-on checks. Please open an issue with what you find.
 - The fine-pitch unit FL uses in scripts isn't confirmed. The generated script uses tenths of a
   semitone; if glides land at the wrong pitch, change `PITCHOFS_PER_SEMITONE` at the top of the
   script to `100`.
