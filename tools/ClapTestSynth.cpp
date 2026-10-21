@@ -335,6 +335,21 @@ const clap_plugin_state_t state
     }
 };
 
+// How many times a host set an instance to render offline, as MPE Roll does the synth copy an export plays.
+std::atomic<int> offlineRenders { 0 };
+
+const clap_plugin_render_t render
+{
+    [] (const clap_plugin_t*) { return false; },
+    [] (const clap_plugin_t*, clap_plugin_render_mode mode)
+    {
+        if (mode == CLAP_RENDER_OFFLINE)
+            ++offlineRenders;
+
+        return true;
+    }
+};
+
 //==============================================================================
 // Live instances, newest last: the test hooks act on the newest.
 std::mutex liveLock;
@@ -432,6 +447,7 @@ const clap_plugin_t* createPlugin (const clap_host_t* host)
         if (std::strcmp (id, CLAP_EXT_NOTE_PORTS) == 0)     return &notePorts;
         if (std::strcmp (id, CLAP_EXT_PARAMS) == 0)         return &params;
         if (std::strcmp (id, CLAP_EXT_STATE) == 0)          return &state;
+        if (std::strcmp (id, CLAP_EXT_RENDER) == 0)         return &render;
         return nullptr;
     };
     p.on_main_thread = [] (const clap_plugin_t*) {};
@@ -511,6 +527,19 @@ extern "C" CLAP_EXPORT int mperoll_test_synth_current_cookies()
 {
     auto* synth = newestInstance();
     return synth != nullptr ? synth->currentCookies.load() : -1;
+}
+
+/** How many instances exist right now. */
+extern "C" CLAP_EXPORT int mperoll_test_synth_live_instances()
+{
+    const std::lock_guard lock (liveLock);
+    return (int) live.size();
+}
+
+/** How many times an instance was set to render offline. */
+extern "C" CLAP_EXPORT int mperoll_test_synth_offline_renders()
+{
+    return offlineRenders.load();
 }
 
 extern "C" CLAP_EXPORT const clap_plugin_entry_t clap_entry

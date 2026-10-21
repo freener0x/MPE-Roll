@@ -9,6 +9,7 @@
  #include <lame.h>
 #endif
 
+#include <algorithm>
 #include <cmath>
 
 namespace mperoll::AudioExport
@@ -19,6 +20,7 @@ namespace
     constexpr double leadInSeconds = 0.25;      // the synth runs a moment before the clip starts, to settle
     constexpr float silence = 1.0e-4f;          // -80 dBFS
     constexpr double quietEnough = 0.3;         // seconds of silence after the last note that end the tail
+    const char* const cancelledMessage = "Export cancelled.";
 
     /** The transport the synth sees: playing at the export's tempo from the clip's start, in 4/4. */
     struct RenderHead final : juce::AudioPlayHead
@@ -56,9 +58,16 @@ namespace
         return peak;
     }
 
-    /** Writes through a temporary file, so a failed export never leaves half a file behind. */
+    bool cancelled (const std::function<bool()>& shouldCancel)
+    {
+        return shouldCancel != nullptr && shouldCancel();
+    }
+
+    /** Writes through a temporary file, so a failed or cancelled export never leaves half a file
+        behind, and a file already at the target only makes way for a finished one.
+    */
     template <typename WriteFn>
-    juce::String writeVia (const juce::File& target, WriteFn&& write)
+    juce::String writeVia (const juce::File& target, const std::function<bool()>& shouldCancel, WriteFn&& write)
     {
         if (! target.getParentDirectory().createDirectory())
             return "Couldn't make the folder " + target.getParentDirectory().getFullPathName();
@@ -66,78 +75,159 @@ namespace
         juce::TemporaryFile temp (target);
         auto error = write (temp.getFile());
 
+        if (error.isEmpty() && cancelled (shouldCancel))
+            return cancelledMessage;
+
         if (error.isEmpty() && ! temp.overwriteTargetFileWithTemporary())
             error = "Couldn't write " + target.getFullPathName() + ". Is it open in another program?";
 
         return error;
     }
+}
 
-    /** Plays the export: copies of the clip and settings, the synth copy, and a progress window. */
-    class ExportJob final : public juce::ThreadWithProgressWindow
+//==============================================================================
+/** One export: copies of the clip and settings, the synth copy, the thread that plays it and its
+    progress window. Owned by the processor's Jobs from the moment it's made until it has reported
+    back, or the processor goes.
+*/
+class Job final : public juce::ThreadWithProgressWindow
+{
+public:
+    /** Makes a job owned by jobs and starts it: the synth copy loads, then the thread plays the clip. */
+    static void launch (Jobs& jobs, const juce::XmlElement& synthState, MpeClip c, OutputSettings o, juce::File t,
+                        Options opts, std::function<void (const juce::String&)> d)
     {
-    public:
-        ExportJob (std::unique_ptr<HostedSynth> s, MpeClip c, OutputSettings o, juce::File t, Options opts,
-                   std::function<void (const juce::String&)> d)
-            : ThreadWithProgressWindow ("Exporting audio", true, true, 10000, "Cancel"),
-              synth (std::move (s)), clip (std::move (c)), output (o), target (std::move (t)), options (std::move (opts)),
-              done (std::move (d))
+        auto job = std::make_unique<Job> (jobs, std::move (c), o, std::move (t), std::move (opts), std::move (d));
+        auto& started = *job;
+        jobs.running.push_back (std::move (job));
+        started.start (synthState);
+    }
+
+    // Cancel waits for the thread (-1) rather than killing it after a while: killed inside the synth
+    // copy, it would leave the copy marked in use, and closing the copy would then wait forever on
+    // FL's message thread. The thread checks for a cancel often, so the wait is short.
+    Job (Jobs& jobs, MpeClip c, OutputSettings o, juce::File t, Options opts, std::function<void (const juce::String&)> d)
+        : ThreadWithProgressWindow ("Exporting audio", true, true, -1, "Cancel"),
+          owner (jobs), clip (std::move (c)), output (o), target (std::move (t)), options (std::move (opts)), done (std::move (d))
+    {
+    }
+
+    ~Job() override
+    {
+        // Before the synth copy goes: the thread may be inside it.
+        stopThread (-1);
+    }
+
+    void run() override
+    {
+        const auto audio = render (clip, output, synth, options, [this] (double p)
         {
-            prepareForRender (*synth, options);
-            setStatusMessage ("Playing the clip through " + synth->getName() + "...");
+            setProgress (p * 0.9);
+            return ! threadShouldExit();
+        });
+
+        if (threadShouldExit())
+            return;
+
+        if (audio.getNumSamples() == 0)
+        {
+            error = "Nothing was rendered.";
+            return;
         }
 
-        void run() override
-        {
-            const auto audio = render (clip, output, *synth, options, [this] (double p)
-            {
-                setProgress (p * 0.9);
-                return ! threadShouldExit();
-            });
+        setStatusMessage ("Writing " + target.getFileName() + "...");
+        setProgress (0.95);
 
-            if (threadShouldExit())
+        // Cancel pressed while the file is written: it's dropped, not left half done in the target's place.
+        const auto shouldCancel = [this] { return threadShouldExit(); };
+        error = options.format == Format::mp3 ? writeMp3 (audio, options.sampleRate, target, options.mp3Kbps, options.title, shouldCancel)
+                                              : writeWav (audio, options.sampleRate, target, options.wavBits, shouldCancel);
+
+        if (threadShouldExit())
+            return;
+
+        if (error.isEmpty() && peakOf (audio, 0, audio.getNumSamples()) < silence)
+            error = "The file was written, but it's silent: " + synth.getName() + " made no sound while the clip played. "
+                    "Check that it plays from MPE Roll's keyboard, and its MPE or MIDI channel setup.";
+    }
+
+    void threadComplete (bool userPressedCancel) override
+    {
+        finish (userPressedCancel ? juce::String (cancelledMessage) : error);
+    }
+
+private:
+    Jobs& owner;
+    HostedSynth synth;
+    MpeClip clip;
+    OutputSettings output;
+    juce::File target;
+    Options options;
+    std::function<void (const juce::String&)> done;
+    juce::String error;
+
+    void start (const juce::XmlElement& synthState)
+    {
+        // A second copy of the synth, with the same sound, plays the export so the one playing live
+        // isn't disturbed. It loads like any synth, which can take a while for big sample libraries.
+        synth.restoreState (synthState, [this, alive = std::weak_ptr<int> (owner.lifetime)] (const juce::String& loadError)
+        {
+            if (alive.expired())
                 return;
 
-            if (audio.getNumSamples() == 0)
+            if (loadError.isNotEmpty() || ! synth.isLoaded())
             {
-                error = "Nothing was rendered.";
+                finish ("A copy of the synth couldn't be loaded for the export. " + loadError);
                 return;
             }
 
-            setStatusMessage ("Writing " + target.getFileName() + "...");
-            setProgress (0.95);
+            prepareForRender (synth, options);
+            setStatusMessage ("Playing the clip through " + synth.getName() + "...");
+            launchThread();
+        });
+    }
 
-            error = options.format == Format::mp3 ? writeMp3 (audio, options.sampleRate, target, options.mp3Kbps, options.title)
-                                                  : writeWav (audio, options.sampleRate, target, options.wavBits);
-
-            if (error.isEmpty() && peakOf (audio, 0, audio.getNumSamples()) < silence)
-                error = "The file was written, but it's silent: " + synth->getName() + " made no sound while the clip played. "
-                        "Check that it plays from MPE Roll's keyboard, and its MPE or MIDI channel setup.";
-        }
-
-        void threadComplete (bool userPressedCancel) override
+    /** Reports back and has the owner delete this job, once whatever called us (the progress
+        window's timer, or the synth copy's own loading) has finished with it.
+    */
+    void finish (const juce::String& outcome)
+    {
+        juce::MessageManager::callAsync ([this, outcome, alive = std::weak_ptr<int> (owner.lifetime)]
         {
+            if (alive.expired())    // the processor went, and took this job with it
+                return;
+
             auto callback = std::move (done);
-            const auto outcome = userPressedCancel ? juce::String ("Export cancelled.") : error;
+            owner.remove (*this);
 
-            // The window is finished with this object only once this returns.
-            juce::MessageManager::callAsync ([this, callback, outcome]
-            {
-                delete this;
+            if (callback)
+                callback (outcome);
+        });
+    }
+};
 
-                if (callback)
-                    callback (outcome);
-            });
-        }
+//==============================================================================
+Jobs::Jobs() = default;
 
-    private:
-        std::unique_ptr<HostedSynth> synth;
-        MpeClip clip;
-        OutputSettings output;
-        juce::File target;
-        Options options;
-        std::function<void (const juce::String&)> done;
-        juce::String error;
-    };
+Jobs::~Jobs()
+{
+    // Every job is told to stop before any is waited for, so they wind down together. Deleting a
+    // job waits for its thread, then frees its synth copy and progress window.
+    for (auto& job : running)
+        job->signalThreadShouldExit();
+
+    running.clear();
+}
+
+int Jobs::getNumRunning() const noexcept
+{
+    return (int) running.size();
+}
+
+void Jobs::remove (Job& job)
+{
+    running.erase (std::remove_if (running.begin(), running.end(), [&] (const auto& j) { return j.get() == &job; }),
+                   running.end());
 }
 
 bool canWriteMp3()
@@ -147,8 +237,9 @@ bool canWriteMp3()
 
 void prepareForRender (HostedSynth& synth, const Options& options)
 {
-    synth.prepare (renderRate (options), renderBlockSize (options));
+    // Offline first: a synth is told how it's run as it's prepared (a VST3 synth in setupProcessing).
     synth.setNonRealtime (true);
+    synth.prepare (renderRate (options), renderBlockSize (options));
 }
 
 juce::AudioBuffer<float> render (const MpeClip& clip, const OutputSettings& output, HostedSynth& synth, const Options& options,
@@ -269,9 +360,10 @@ juce::AudioBuffer<float> render (const MpeClip& clip, const OutputSettings& outp
     return trimmed;
 }
 
-juce::String writeWav (const juce::AudioBuffer<float>& audio, double sampleRate, const juce::File& target, int bitsPerSample)
+juce::String writeWav (const juce::AudioBuffer<float>& audio, double sampleRate, const juce::File& target, int bitsPerSample,
+                       const std::function<bool()>& shouldCancel)
 {
-    return writeVia (target, [&] (const juce::File& file) -> juce::String
+    return writeVia (target, shouldCancel, [&] (const juce::File& file) -> juce::String
     {
         std::unique_ptr<juce::OutputStream> stream (file.createOutputStream());
 
@@ -286,18 +378,27 @@ juce::String writeWav (const juce::AudioBuffer<float>& audio, double sampleRate,
         if (writer == nullptr)
             return "Couldn't write a " + juce::String (bitsPerSample) + "-bit WAV file at " + juce::String (sampleRate) + " Hz.";
 
-        if (! writer->writeFromAudioSampleBuffer (audio, 0, audio.getNumSamples()))
-            return "Couldn't write all of " + target.getFullPathName() + ". Is the disk full?";
+        // In pieces, so a cancel is seen part way through a long file.
+        constexpr int chunk = 1 << 16;
+
+        for (int pos = 0; pos < audio.getNumSamples(); pos += chunk)
+        {
+            if (cancelled (shouldCancel))
+                return cancelledMessage;
+
+            if (! writer->writeFromAudioSampleBuffer (audio, pos, juce::jmin (chunk, audio.getNumSamples() - pos)))
+                return "Couldn't write all of " + target.getFullPathName() + ". Is the disk full?";
+        }
 
         return {};
     });
 }
 
 juce::String writeMp3 (const juce::AudioBuffer<float>& audio, double sampleRate, const juce::File& target, int kbps,
-                       [[maybe_unused]] const juce::String& title)
+                       [[maybe_unused]] const juce::String& title, const std::function<bool()>& shouldCancel)
 {
    #if MPEROLL_MP3
-    return writeVia (target, [&] (const juce::File& file) -> juce::String
+    return writeVia (target, shouldCancel, [&] (const juce::File& file) -> juce::String
     {
         auto* lame = lame_init();
 
@@ -336,6 +437,9 @@ juce::String writeMp3 (const juce::AudioBuffer<float>& audio, double sampleRate,
 
         for (int pos = 0; pos < audio.getNumSamples(); pos += chunk)
         {
+            if (cancelled (shouldCancel))
+                return cancelledMessage;
+
             const auto length = juce::jmin (chunk, audio.getNumSamples() - pos);
             const auto bytes = lame_encode_buffer_ieee_float (lame, left + pos, right + pos, length,
                                                               encoded.data(), (int) encoded.size());
@@ -365,7 +469,7 @@ juce::String writeMp3 (const juce::AudioBuffer<float>& audio, double sampleRate,
         return out.getStatus().wasOk() ? juce::String() : "Couldn't write all of " + target.getFullPathName();
     });
    #else
-    juce::ignoreUnused (audio, sampleRate, target, kbps);
+    juce::ignoreUnused (audio, sampleRate, target, kbps, shouldCancel);
     return "This build of MPE Roll can't write MP3 files. Export a WAV file instead.";
    #endif
 }
@@ -389,25 +493,8 @@ void exportClip (MpeRollProcessor& processor, const MpeClip& clip, const juce::F
         return;
     }
 
-    // A second copy of the synth, with the same sound, plays the export so the one playing live
-    // isn't disturbed. It loads like any synth, which can take a while for big sample libraries.
-    auto copy = std::make_shared<std::unique_ptr<HostedSynth>> (std::make_unique<HostedSynth>());
-    auto* synth = copy->get();
-    const auto output = processor.getDocument().getSettings().output;
-
-    synth->restoreState (*state, [copy, clip, output, target, options, done = std::move (done)] (const juce::String& error) mutable
-    {
-        if (error.isNotEmpty() || *copy == nullptr || ! (*copy)->isLoaded())
-        {
-            // This runs inside the copy's own loading, so it's let go of only afterwards.
-            juce::MessageManager::callAsync ([copy] {});
-            done ("A copy of the synth couldn't be loaded for the export. " + error);
-            return;
-        }
-
-        auto* job = new ExportJob (std::move (*copy), std::move (clip), output, target, options, std::move (done));
-        job->launchThread();
-    });
+    Job::launch (processor.getExportJobs(), *state, clip, processor.getDocument().getSettings().output, target, options,
+                 std::move (done));
 }
 
 } // namespace mperoll::AudioExport

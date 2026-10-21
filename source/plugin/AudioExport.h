@@ -4,6 +4,10 @@
 #include "core/MpeClip.h"
 #include "core/MpeSettings.h"
 
+#include <functional>
+#include <memory>
+#include <vector>
+
 namespace mperoll
 {
 class MpeRollProcessor;
@@ -32,7 +36,7 @@ namespace AudioExport
         juce::String title;
     };
 
-    /** Gets the synth ready for render(): its rate and block size, and offline quality. Message
+    /** Gets the synth ready for render(): offline quality, then its rate and block size. Message
         thread (VST3 synths must be prepared there).
     */
     void prepareForRender (HostedSynth&, const Options&);
@@ -45,14 +49,45 @@ namespace AudioExport
     juce::AudioBuffer<float> render (const MpeClip&, const OutputSettings&, HostedSynth&, const Options&,
                                      const std::function<bool (double)>& progress = {});
 
-    /** These return an error message, or an empty string when the file was written. */
-    juce::String writeWav (const juce::AudioBuffer<float>&, double sampleRate, const juce::File&, int bitsPerSample);
+    /** These return an error message, or an empty string when the file was written. shouldCancel,
+        if given, is asked now and then while writing: once it says yes, nothing is written (a file
+        already at the target is left as it was) and the message is "Export cancelled.".
+    */
+    juce::String writeWav (const juce::AudioBuffer<float>&, double sampleRate, const juce::File&, int bitsPerSample,
+                           const std::function<bool()>& shouldCancel = {});
     juce::String writeMp3 (const juce::AudioBuffer<float>&, double sampleRate, const juce::File&, int kbps,
-                           const juce::String& title);
+                           const juce::String& title, const std::function<bool()>& shouldCancel = {});
+
+    class Job;
+
+    /** The exports an MPE Roll instance has running: each a thread playing a copy of the synth,
+        under a progress window. The instance owns them through this, so when it goes (FL removing
+        the plugin, or closing the project) every export is stopped and waited for first, rather
+        than running on with its owner gone and, if that was the last plugin, JUCE shut down under it.
+    */
+    class Jobs
+    {
+    public:
+        Jobs();
+        ~Jobs();
+
+        int getNumRunning() const noexcept;
+
+    private:
+        friend class Job;
+
+        void remove (Job&);
+
+        std::vector<std::unique_ptr<Job>> running;
+        std::shared_ptr<int> lifetime = std::make_shared<int> (0);   // lets a job's deferred steps see that we're gone
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Jobs)
+    };
 
     /** The whole export, with a progress window: copies the loaded synth, renders the clip with the
         project's output settings and writes the file. done gets an error message, or an empty
-        string. Message thread.
+        string; it isn't called if the processor goes away first, which ends the export. Message
+        thread.
     */
     void exportClip (MpeRollProcessor&, const MpeClip&, const juce::File& target, const Options&,
                      std::function<void (const juce::String& error)> done);

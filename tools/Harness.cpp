@@ -338,6 +338,110 @@ double sineFrequency (const juce::AudioBuffer<float>& audio, int from, int to, d
 }
 
 /** Exports a clip as WAV and MP3 through a copy of the synth, the way the File menu does, and reads both back. */
+bool loadSynth (MpeRollProcessor&, const juce::File&);   // further down
+
+/** Checks for the export fixes: a cancel while the file is written, the plugin going mid-export,
+    and (CLAP) the synth copy being told it renders offline.
+*/
+void exportFixChecks (Check& check, const juce::File& synthFile, const juce::File& folder, double sampleRate)
+{
+    auto& mm = *juce::MessageManager::getInstance();
+
+    std::printf ("Cancelling while the file is written\n");
+    {
+        // Three seconds of noise: long enough to be written in several pieces.
+        juce::AudioBuffer<float> audio (2, (int) (3.0 * sampleRate));
+        juce::Random random (1);
+
+        for (int ch = 0; ch < audio.getNumChannels(); ++ch)
+            for (int i = 0; i < audio.getNumSamples(); ++i)
+                audio.setSample (ch, i, random.nextFloat() * 0.2f - 0.1f);
+
+        auto cancelPartWay = [&] (const juce::File& file, auto&& write)
+        {
+            file.replaceWithText ("what was there before");
+            const auto filesBefore = folder.getNumberOfChildFiles (juce::File::findFiles);
+            int asked = 0;
+
+            // Cancelled the second time it asks: after the first piece.
+            const auto result = write (file, [&] { return ++asked > 1; });
+
+            check (result == "Export cancelled.", file.getFileExtension() + ": the export says it was cancelled, not: " + result);
+            check (file.loadFileAsString() == "what was there before", "the file that was there is left as it was");
+            check (folder.getNumberOfChildFiles (juce::File::findFiles) == filesBefore, "and no temporary file is left behind");
+        };
+
+        cancelPartWay (folder.getChildFile ("cancelled.wav"), [&] (const juce::File& file, const std::function<bool()>& cancel)
+        {
+            return AudioExport::writeWav (audio, sampleRate, file, 24, cancel);
+        });
+
+        if (AudioExport::canWriteMp3())
+            cancelPartWay (folder.getChildFile ("cancelled.mp3"), [&] (const juce::File& file, const std::function<bool()>& cancel)
+            {
+                return AudioExport::writeMp3 (audio, sampleRate, file, 320, "Cancelled", cancel);
+            });
+    }
+
+    // The CLAP test synth counts its instances, and how many times one was set to render offline.
+    juce::DynamicLibrary hooks;
+    using Count = int (*)();
+    Count liveInstances = nullptr, offlineRenders = nullptr;
+
+    if (synthFile.hasFileExtension ("clap") && hooks.open (synthFile.getFullPathName()))
+    {
+        liveInstances = (Count) hooks.getFunction ("mperoll_test_synth_live_instances");
+        offlineRenders = (Count) hooks.getFunction ("mperoll_test_synth_offline_renders");
+    }
+
+    if (offlineRenders != nullptr)
+    {
+        std::printf ("The synth copy renders offline\n");
+        check (offlineRenders() > 0, "a copy of the CLAP synth was told it renders offline");
+    }
+
+    std::printf ("Removing MPE Roll while an export runs\n");
+    {
+        const auto abandoned = folder.getChildFile ("abandoned.wav");
+        abandoned.deleteFile();
+        const auto instancesBefore = liveInstances != nullptr ? liveInstances() : 0;
+        bool reported = false;
+
+        {
+            MpeRollProcessor other;
+            other.setRateAndBufferSizeDetails (sampleRate, 512);
+            other.prepareToPlay (sampleRate, 512);
+
+            if (loadSynth (other, synthFile))
+            {
+                // Two minutes of one note in the smallest blocks: still playing when the plugin goes.
+                MpeClip clip;
+                clip.length = 240.0;
+                clip.looping = false;
+                clip.addNote (note (60, 0.0, 240.0, 0.8f));
+
+                AudioExport::Options options;
+                options.sampleRate = sampleRate;
+                options.blockSize = 16;
+                AudioExport::exportClip (other, clip, abandoned, options, [&] (const juce::String&) { reported = true; });
+                check (other.getExportJobs().getNumRunning() == 1, "the export is one of the plugin's jobs");
+
+                // Time for the synth copy to load and start playing.
+                for (int i = 0; i < 10; ++i)
+                    mm.runDispatchLoopUntil (50);
+            }
+
+            other.releaseResources();
+        }
+
+        mm.runDispatchLoopUntil (200);
+        check (! reported && ! abandoned.existsAsFile(), "the export ends with the plugin, reporting and writing nothing");
+
+        if (liveInstances != nullptr)
+            check (liveInstances() == instancesBefore, "the synth copy is gone with it");
+    }
+}
+
 int exportTest (const juce::File& synthFile, const juce::File& folder)
 {
     Check check;
@@ -445,6 +549,7 @@ int exportTest (const juce::File& synthFile, const juce::File& folder)
        #endif
     }
 
+    exportFixChecks (check, synthFile, folder, sampleRate);
     check (processor.getSynth().isLoaded(), "the synth playing live is still there");
 
     processor.releaseResources();
@@ -926,6 +1031,54 @@ std::optional<bool> warnsOfSilence (const juce::File& synthFile, OutputSettings:
     return warned;
 }
 
+/** A synth loaded while a clip plays (in place of another, or where there was none) must get the
+    zone lanes' values, which the encoder otherwise sends once and then only as they change.
+*/
+void synthReloadChecks (Check& check, MpeRollProcessor& processor, FakePlayHead& playHead, const juce::File& synthFile)
+{
+    std::printf ("A synth loaded while a clip plays gets the zone lanes' values\n");
+
+    // One note under a mod wheel lane that never moves.
+    MpeClip clip;
+    clip.length = 4.0;
+    clip.addNote (note (60, 0.0, 4.0, 0.8f));
+    clip.zone.get (LaneId::cc (1)) = { { 0.0, 0.5f } };
+    processor.getDocument().replaceClip (0, clip, "Zone lane");
+
+    auto modWheelIn = [] (const std::vector<juce::MidiMessage>& out)
+    {
+        for (const auto& m : out)
+            if (m.isController() && m.getControllerNumber() == 1 && m.getControllerValue() == MpeEncoder::toSevenBit (0.5f))
+                return true;
+
+        return false;
+    };
+
+    double ppq = 0.0;
+
+    auto playBlocks = [&] (int count)
+    {
+        bool seen = false;
+
+        for (int block = 0; block < count; ++block)
+            seen |= modWheelIn (runBlock (processor, playHead, ppq));
+
+        return seen;
+    };
+
+    playHead.playing = true;
+    check (playBlocks (4), "the lane's value is sent as the clip starts");
+    check (! playBlocks (4), "and not again while it stays the same");
+
+    if (loadSynth (processor, synthFile))
+        check (playBlocks (4), "a synth loaded in its place gets the value too");
+    else
+        check (false, "the synth loads again");
+
+    playHead.playing = false;
+    runBlock (processor, playHead, ppq);
+}
+
 int parameterTest (const juce::File& synthFile)
 {
     Check check;
@@ -1090,6 +1243,8 @@ int parameterTest (const juce::File& synthFile)
         check (warnsOfSilence (synthFile, OutputSettings::Mode::singleChannel, true) == false,
                "nor a silent one played with Plain MIDI");
     }
+
+    synthReloadChecks (check, processor, playHead, synthFile);
 
     processor.releaseResources();
     std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);

@@ -78,7 +78,7 @@ MpeRollProcessor::MpeRollProcessor()
     {
         synthParameters.synthChanged();
         updateLatency();
-        configurationRequested = true;
+        synthChanged = true;
 
         if (onStatusChanged)
             onStatusChanged();
@@ -244,6 +244,17 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
         }
 
         followPlaying = playing;
+    }
+
+    // A synth just loaded (or given new state by a project) has heard none of the zone lanes, whose
+    // values are otherwise sent once and then only as they change. What was playing is stopped and
+    // picked up again, and the values sent so far are forgotten, so every lane reaches it now.
+    if (synthChanged.exchange (false))
+    {
+        player.stop (encoder, synthMidi, 0);
+        encoder.stopAllNotes (synthMidi, 0);
+        encoder.forgetZoneValues();
+        needsConfiguration = true;
     }
 
     if (configurationRequested.exchange (false))

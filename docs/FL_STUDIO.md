@@ -199,10 +199,12 @@ needs checking in a real FL install.
 ## 6. MIDI files and other plugins
 
 - **File ▾ › Export audio as WAV / MP3:** plays the clip once through a copy of your synth (same
-  plugin, same sound) faster than real time and writes it, release tail included, as a 24-bit WAV
-  or a 320 kbps MP3 at FL's tempo and sample rate. The synth playing live isn't interrupted, and the
+  plugin, same sound) faster than real time and writes it, release tail included, at FL's tempo: a
+  24-bit WAV at FL's sample rate, or a 320 kbps MP3 at 48 kHz or below, as MP3 goes no higher (a
+  project at 88.2 or 96 kHz gives a 44.1 or 48 kHz MP3). The synth playing live isn't interrupted, and the
   file opens in your file browser when it's done. Big sample libraries take a moment to load the copy.
-  To render with FL's own mixer and effects, use FL's *Export* as usual instead.
+  Cancel stops the export and leaves no file behind. To render with FL's own mixer and effects, use
+  FL's *Export* as usual instead.
 - **File ▾ › Import:** reads any MIDI file. MPE files keep their per-note expression; plain
   files import as notes with zone-wide pitch bend and controllers. You can also drop a `.mid` file
   onto MPE Roll.

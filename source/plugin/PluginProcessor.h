@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AudioExport.h"
 #include "ClipDocument.h"
 #include "HostedSynth.h"
 #include "SynthParameters.h"
@@ -58,6 +59,9 @@ public:
     ClipDocument& getDocument() noexcept                { return document; }
     HostedSynth& getSynth() noexcept                    { return synth; }
     SynthParameterBank& getSynthParameters() noexcept   { return synthParameters; }
+
+    /** The audio exports running from this instance; they end with it. */
+    AudioExport::Jobs& getExportJobs() noexcept         { return exportJobs; }
 
     /** Plays a note on the hosted synth from the UI (piano keys, note previews). */
     void auditionNote (int key, float velocity, bool isNoteOn);
@@ -128,6 +132,7 @@ private:
     ClipDocument document;
     HostedSynth synth;
     SynthParameterBank synthParameters { *this, synth };   // after the synth: it detaches first on destruction
+    AudioExport::Jobs exportJobs;                           // exports end with this instance: each is stopped and waited for
     std::shared_ptr<int> lifetime = std::make_shared<int> (0);
 
     // Audio thread state.
@@ -142,6 +147,7 @@ private:
     PlaybackSettings::Mode lastPlaybackMode = PlaybackSettings::Mode::followHost;
     bool needsConfiguration = true;
     std::atomic<bool> configurationRequested { true };
+    std::atomic<bool> synthChanged { false };               // a synth was loaded, unloaded or given new state
     bool followPlaying = false;
     double expectedBeat = 0.0;
     int playingSlot = -1;

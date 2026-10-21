@@ -351,6 +351,7 @@ public:
         tail = extension<clap_plugin_tail_t> (CLAP_EXT_TAIL);
         notePorts = extension<clap_plugin_note_ports_t> (CLAP_EXT_NOTE_PORTS);
         gui = extension<clap_plugin_gui_t> (CLAP_EXT_GUI);
+        render = extension<clap_plugin_render_t> (CLAP_EXT_RENDER);
 
         description.numInputChannels = 0;
         description.numOutputChannels = mainOutput >= 0 ? (int) outputPorts[(size_t) mainOutput] : 0;
@@ -759,6 +760,7 @@ private:
     const clap_plugin_tail_t* tail = nullptr;
     const clap_plugin_note_ports_t* notePorts = nullptr;
     const clap_plugin_gui_t* gui = nullptr;
+    const clap_plugin_render_t* render = nullptr;
 
     // Parameters: fixed once built, so the audio thread can look them up without locking.
     std::vector<ClapParameter*> clapParameters;
@@ -987,6 +989,11 @@ private:
     void activateLocked (double sampleRate, int maxFrames)
     {
         prepareAudioBuffers (maxFrames);
+
+        // Whether it plays live or renders offline (an audio export), told before it's activated as
+        // a VST3 synth is told in setupProcessing.
+        if (render != nullptr && render->set != nullptr)
+            render->set (plugin, isNonRealtime() ? CLAP_RENDER_OFFLINE : CLAP_RENDER_REALTIME);
 
         if (! plugin->activate (plugin, sampleRate, 1, (uint32_t) maxFrames))
             return;
