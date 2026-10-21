@@ -29,6 +29,7 @@ struct Options
     float rampTolerance = 0.04f;            // 0..1; smaller = more Mod X / Mod Y steps
     double minSlideLength = 1.0 / 64.0;     // beats
     int maxSlidesPerNote = 48;
+    int maxSlidesPerVibratoNote = 1000;     // vibrato needs two slides a cycle on top, up to this many in all
     bool bakeZonePitch = true;              // fold master-channel pitch bend into every note
     bool applySustainPedal = true;          // extend notes while the zone's CC64 is held
     double tempoBpm = 120.0;                // vibrato is in Hz, so baking it into slides needs the tempo
@@ -51,7 +52,8 @@ struct FlNote
     int key = 60;
     float strike = 0.8f, lift = 0.5f, pan = 0.5f;
     float initialPitch = 0.0f;
-    float initialPressure = 0.0f, averagePressure = 0.0f, peakPressure = 0.0f;
+    float initialPressure = 0.0f, averagePressure = 0.0f;
+    float peakPressure = -1.0f;             // -1 if the note has no pressure lane
     float initialTimbre = 0.5f, averageTimbre = 0.5f;
     int colour = 0;
     std::vector<Slide> slides;

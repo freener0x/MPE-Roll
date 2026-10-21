@@ -524,6 +524,120 @@ public:
                                    { return m.isControllerOfType (10) && m.getControllerValue() == 64; }), 1);
         }
 
+        beginTest ("A note's own lane on the timbre or pressure controller isn't overwritten at its Note On");
+        {
+            MpeEncoder enc;
+            juce::MidiBuffer out;
+            enc.prepareNote (out, 0, 1, 60);
+            enc.setController (out, 0, 1, 74, 1.0f);
+            enc.startNote (out, 0, 1, 0.5f);
+            auto m = collect (out);
+            expect (m.back().message.isNoteOn());
+            expectEquals (countIf (m, [] (const juce::MidiMessage& msg) { return msg.isControllerOfType (74); }), 1);
+            expectEquals (countIf (m, [] (const juce::MidiMessage& msg)
+                                   { return msg.isControllerOfType (74) && msg.getControllerValue() == 127; }), 1,
+                          "the Brightness lane's value stands, not the default timbre");
+
+            OutputSettings s;
+            s.pressureTarget = OutputSettings::PressureTarget::controller;
+            s.pressureController = 11;
+            MpeEncoder cc;
+            cc.setSettings (s);
+            out.clear();
+            cc.prepareNote (out, 0, 1, 60);
+            cc.setController (out, 0, 1, 11, 0.2f);
+            cc.startNote (out, 0, 1, 0.5f);
+            m = collect (out);
+            expectEquals (countIf (m, [] (const juce::MidiMessage& msg) { return msg.isControllerOfType (11); }), 1);
+            expectEquals (countIf (m, [] (const juce::MidiMessage& msg)
+                                   { return msg.isControllerOfType (11) && msg.getControllerValue() == MpeEncoder::toSevenBit (0.2f); }), 1,
+                          "the Expression lane's value stands, not zero pressure");
+        }
+
+        beginTest ("Single channel mode: a note's controller lanes don't stay on for the next note");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+            const auto expression = [] (int value)
+            {
+                return [value] (const juce::MidiMessage& msg) { return msg.isControllerOfType (11) && (value < 0 || msg.getControllerValue() == value); };
+            };
+
+            enc.prepareNote (out, 0, 1, 60);
+            enc.setController (out, 0, 1, 11, 0.1f);    // an Expression lane at 10%
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.stopNote (out, 0, 1, 0.5f);
+            out.clear();
+
+            enc.prepareNote (out, 0, 2, 62);            // no lane of its own
+            enc.startNote (out, 0, 2, 0.5f);
+            auto m = collect (out);
+            expect (m.back().message.isNoteOn());
+            expectEquals (countIf (m, expression (127)), 1, "expression is back at full before the Note On");
+            out.clear();
+
+            enc.prepareNote (out, 0, 3, 64);            // a pan lane, while note 2 is held
+            enc.setController (out, 0, 3, 10, 1.0f);
+            enc.startNote (out, 0, 3, 0.5f);
+            out.clear();
+            enc.stopNote (out, 0, 3, 0.5f);
+            expectEquals (countIf (collect (out), [] (const juce::MidiMessage& msg)
+                                   { return msg.isControllerOfType (10) && msg.getControllerValue() == 64; }), 1,
+                          "the note taking the channel back doesn't inherit the pan");
+            out.clear();
+
+            enc.prepareNote (out, 0, 4, 65);            // its own Expression lane is left alone
+            enc.setController (out, 0, 4, 11, 0.5f);
+            enc.startNote (out, 0, 4, 0.5f);
+            m = collect (out);
+            expectEquals (countIf (m, expression (-1)), 1);
+            expectEquals (countIf (m, expression (MpeEncoder::toSevenBit (0.5f))), 1);
+            out.clear();
+
+            enc.setZoneController (out, 0, 11, 0.7f);   // a zone lane takes the controller over: notes leave it be
+            out.clear();
+            enc.prepareNote (out, 0, 5, 67);
+            enc.startNote (out, 0, 5, 0.5f);
+            expectEquals (countIf (collect (out), expression (-1)), 0);
+        }
+
+        beginTest ("Single channel mode: a Brightness (CC74) lane counts as the note's timbre");
+        {
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+            const auto brightness = [] (int value)
+            {
+                return [value] (const juce::MidiMessage& msg) { return msg.isControllerOfType (74) && (value < 0 || msg.getControllerValue() == value); };
+            };
+
+            enc.prepareNote (out, 0, 1, 60);
+            enc.setTimbre (out, 0, 1, 0.5f);
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.stopNote (out, 0, 1, 0.5f);
+            out.clear();
+
+            enc.prepareNote (out, 0, 2, 62);
+            enc.setController (out, 0, 2, 74, 1.0f);
+            enc.startNote (out, 0, 2, 0.5f);
+            auto m = collect (out);
+            expectEquals (countIf (m, brightness (-1)), 1);
+            expectEquals (countIf (m, brightness (127)), 1, "the lane's value isn't followed by the default timbre");
+            enc.stopNote (out, 0, 2, 0.5f);
+            out.clear();
+
+            enc.prepareNote (out, 0, 3, 64);
+            enc.startNote (out, 0, 3, 0.5f);
+            m = collect (out);
+            expectEquals (countIf (m, brightness (64)), 1, "a note without brightness gets the default back");
+            expect (m.back().message.isNoteOn());
+        }
+
         beginTest ("After forgetting zone values, an unchanged zone value is sent again");
         {
             MpeEncoder enc;

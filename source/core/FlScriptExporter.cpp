@@ -4,6 +4,8 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <limits>
+#include <utility>
 
 namespace mperoll::FlScriptExporter
 {
@@ -38,23 +40,65 @@ namespace
         }
     }
 
-    /** Vibrato isn't piecewise linear: sample it often enough for the slides to follow its shape. */
-    void addVibratoTimes (std::vector<double>& times, const ExpressionCurve& depth, double offset, double length,
-                          double cycleBeats)
+    /** Where a vibrato lane has any depth in a note, in beats from the note start. Empty (to <= from) if nowhere. */
+    std::pair<double, double> vibratoStretch (const ExpressionCurve& depth, double offset, double length)
     {
-        if (depth.isEmpty() || depth.maxValue (0.0f) <= 0.0f || cycleBeats <= 0.0)
-            return;
+        if (depth.isEmpty() || depth.maxValue (0.0f) <= 0.0f)
+            return { 0.0, 0.0 };
 
         // A curve holds its first value before its first point and its last value after its last.
         const auto& first = depth.getPoints().front();
         const auto& last = depth.getPoints().back();
-        const auto from = first.value > 0.0f ? 0.0 : std::max (0.0, first.beat - offset);
-        const auto to = last.value > 0.0f ? length : std::min (length, last.beat - offset);
-        const auto step = cycleBeats / 8.0;
+        return { first.value > 0.0f ? 0.0 : std::max (0.0, first.beat - offset),
+                 last.value > 0.0f ? length : std::min (length, last.beat - offset) };
+    }
 
-        for (auto t = from; t < to && times.size() < 100'000; t += step)
+    /** The shallowest the vibrato gets in a note where it has any depth, in semitones. 0 if it has none. */
+    float shallowestVibrato (const ExpressionCurve& depth, double offset, double length)
+    {
+        auto shallowest = 0.0f;
+
+        auto consider = [&shallowest] (float value)
+        {
+            if (value > 0.0f && (shallowest <= 0.0f || value < shallowest))
+                shallowest = value;
+        };
+
+        consider (depth.valueAt (offset, 0.0f));
+        consider (depth.valueAt (offset + length, 0.0f));
+
+        for (const auto& p : depth.getPoints())
+            if (p.beat > offset && p.beat < offset + length)
+                consider (p.value);
+
+        return shallowest * maxVibratoDepth;
+    }
+
+    /** Vibrato isn't piecewise linear: sample it often enough for the slides to follow its shape.
+        The samples fall on a grid that includes every peak and trough, a quarter and three quarters
+        of the way through each cycle. With two a cycle, they are just the peaks and troughs.
+    */
+    void addVibratoTimes (std::vector<double>& times, const ExpressionCurve& depth, double offset, double length,
+                          double cycleBeats, int perCycle)
+    {
+        const auto [from, to] = vibratoStretch (depth, offset, length);
+
+        if (to <= from || cycleBeats <= 0.0 || perCycle <= 0)
+            return;
+
+        // The phase is counted from the clip start for zone lanes (offset is the note start), as it's played.
+        auto index = std::ceil (((offset + from) / cycleBeats - 0.25) * perCycle);
+
+        for (;; ++index)
+        {
+            const auto t = (index / perCycle + 0.25) * cycleBeats - offset;
+
+            if (t >= to || times.size() >= 100'000)
+                break;
+
             if (t > 0.0)
                 times.push_back (t);
+        }
     }
 
     template <typename Fn>
@@ -113,32 +157,71 @@ namespace
 
         // Pitch: the note's own glide plus (optionally) the zone-wide bend. Both are piecewise linear,
         // so sampling at the union of their breakpoints is exact. Vibrato is sampled densely on top.
-        std::vector<double> pitchTimes { 0.0, length };
-        addTimes (pitchTimes, lanes.pitch, 0.0, length);
-
         const auto secondsPerBeat = 60.0 / std::max (1.0, options.tempoBpm);
         const auto cycleBeats = 1.0 / (clip.vibratoRate * secondsPerBeat);
-        addVibratoTimes (pitchTimes, lanes.vibrato, 0.0, length, cycleBeats);
 
-        if (options.bakeZonePitch)
+        auto pitchTimes = [&] (int vibratoPerCycle)
         {
-            addTimes (pitchTimes, clip.zone.pitch, note.start, length);
-            addVibratoTimes (pitchTimes, clip.zone.vibrato, note.start, length, cycleBeats);
-        }
-
-        auto pitchAt = [&] (double t)
-        {
-            auto value = lanes.pitch.valueAt (t, 0.0f)
-                       + vibratoOffset (lanes.vibrato.valueAt (t, 0.0f), t / cycleBeats);
+            std::vector<double> times { 0.0, length };
+            addTimes (times, lanes.pitch, 0.0, length);
+            addVibratoTimes (times, lanes.vibrato, 0.0, length, cycleBeats, vibratoPerCycle);
 
             if (options.bakeZonePitch)
-                value += clip.zone.pitch.valueAt (note.start + t, 0.0f)
-                       + vibratoOffset (clip.zone.vibrato.valueAt (note.start + t, 0.0f), (note.start + t) / cycleBeats);
+            {
+                addTimes (times, clip.zone.pitch, note.start, length);
+                addVibratoTimes (times, clip.zone.vibrato, note.start, length, cycleBeats, vibratoPerCycle);
+            }
+
+            return times;
+        };
+
+        // How much vibrato the note has: the slides need one up to each peak and one down to each trough.
+        auto vibratoCycles = 0.0;
+        auto shallowest = 0.0f;
+
+        auto addVibrato = [&] (const ExpressionCurve& depth, double offset)
+        {
+            const auto [from, to] = vibratoStretch (depth, offset, length);
+
+            if (to <= from)
+                return;
+
+            vibratoCycles += (to - from) / cycleBeats;
+            const auto depthHere = shallowestVibrato (depth, offset, length);
+
+            if (depthHere > 0.0f && (shallowest <= 0.0f || depthHere < shallowest))
+                shallowest = depthHere;
+        };
+
+        addVibrato (lanes.vibrato, 0.0);
+
+        if (options.bakeZonePitch)
+            addVibrato (clip.zone.vibrato, note.start);
+
+        const bool hasVibrato = vibratoCycles > 0.0;
+
+        // At the end the vibrato rests, as it does when MPE Roll plays the note, so the release rings at
+        // the glide's pitch rather than wherever the last swing stopped.
+        auto pitchAt = [&] (double t)
+        {
+            const bool atEnd = t >= length;
+            auto value = lanes.pitch.valueAt (t, 0.0f);
+
+            if (! atEnd)
+                value += vibratoOffset (lanes.vibrato.valueAt (t, 0.0f), t / cycleBeats);
+
+            if (options.bakeZonePitch)
+            {
+                value += clip.zone.pitch.valueAt (note.start + t, 0.0f);
+
+                if (! atEnd)
+                    value += vibratoOffset (clip.zone.vibrato.valueAt (note.start + t, 0.0f), (note.start + t) / cycleBeats);
+            }
 
             return value;
         };
 
-        const auto rawPitch = sampleCurve (pitchTimes, pitchAt);
+        auto rawPitch = sampleCurve (pitchTimes (8), pitchAt);
 
         std::vector<double> pressureTimes { 0.0, length };
         addTimes (pressureTimes, lanes.pressure, 0.0, length);
@@ -148,14 +231,20 @@ namespace
         addTimes (timbreTimes, lanes.timbre, 0.0, length);
         const auto rawTimbre = sampleCurve (timbreTimes, [&] (double t) { return lanes.timbre.valueAt (t, 0.5f); });
 
+        // Vibrato gets a slide up and a slide down each cycle on top of the usual budget, up to a limit
+        // that keeps a very long note from flooding the piano roll.
+        auto budget = options.maxSlidesPerNote;
+
+        if (hasVibrato && budget > 0)
+            budget = std::max (budget, std::min (options.maxSlidesPerVibratoNote,
+                                                 budget + 2 * (int) std::ceil (std::min (vibratoCycles, 1.0e6))));
+
         auto glideTolerance = options.glideTolerance;
         auto rampTolerance = options.rampTolerance;
         ExpressionCurve pitch, pressure, timbre;
         std::vector<double> times;
 
-        // Relax the tolerances a little to fit the slide budget, then thin out evenly. Relaxing further
-        // would flatten fast movements (vibrato) away entirely.
-        for (int attempt = 0; attempt < 4; ++attempt)
+        auto fitsBudget = [&]
         {
             pitch = rawPitch;
             pressure = rawPressure;
@@ -165,21 +254,44 @@ namespace
             timbre.simplify (rampTolerance);
 
             times = breakpoints (pitch, pressure, timbre, length, options.minSlideLength);
+            return budget <= 0 || (int) times.size() <= budget;
+        };
 
-            if ((int) times.size() <= options.maxSlidesPerNote)
+        // Vibrato that doesn't fit sampled finely gives up the points between its peaks and troughs.
+        if (hasVibrato && ! fitsBudget())
+            rawPitch = sampleCurve (pitchTimes (2), pitchAt);
+
+        // Relax the tolerances a little to fit the slide budget, then thin out evenly. The glide tolerance
+        // stays under half the vibrato's depth, or the vibrato would be flattened away entirely.
+        const auto glideLimit = shallowest > 0.0f ? std::max (glideTolerance, shallowest * 0.5f)
+                                                  : std::numeric_limits<float>::max();
+
+        for (int attempt = 0; attempt < 4; ++attempt)
+        {
+            if (fitsBudget())
                 break;
 
-            glideTolerance *= 2.0f;
+            glideTolerance = std::min (glideTolerance * 2.0f, glideLimit);
             rampTolerance *= 2.0f;
         }
 
-        if ((int) times.size() > options.maxSlidesPerNote && options.maxSlidesPerNote > 0)
+        // Still too many: thin out evenly. With vibrato, whole peak-and-trough pairs go, so what's left
+        // still swings both ways at its depth instead of turning into slow swings or none.
+        if (budget > 0 && (int) times.size() > budget)
         {
             std::vector<double> decimated;
-            const auto step = (double) times.size() / (double) options.maxSlidesPerNote;
+            const auto groupSize = hasVibrato ? 2 : 1;
+            const auto numGroups = (times.size() + (size_t) groupSize - 1) / (size_t) groupSize;
+            const auto groupsToKeep = (size_t) std::max (1, budget / groupSize);
+            const auto step = (double) numGroups / (double) groupsToKeep;
 
-            for (int i = 1; i <= options.maxSlidesPerNote; ++i)
-                decimated.push_back (times[(size_t) std::min ((double) times.size() - 1.0, std::ceil (i * step) - 1.0)]);
+            for (size_t i = 1; i <= groupsToKeep; ++i)
+            {
+                const auto group = (size_t) std::min ((double) numGroups - 1.0, std::ceil ((double) i * step) - 1.0);
+
+                for (auto j = group * (size_t) groupSize; j < std::min (times.size(), (group + 1) * (size_t) groupSize); ++j)
+                    decimated.push_back (times[j]);
+            }
 
             decimated.erase (std::unique (decimated.begin(), decimated.end()), decimated.end());
             times = std::move (decimated);
@@ -189,7 +301,7 @@ namespace
         fl.initialPressure = pressure.valueAt (0.0, 0.0f);
         fl.initialTimbre = timbre.valueAt (0.0, 0.5f);
         fl.averagePressure = lanes.pressure.averageOver (0.0, length, 0.0f);
-        fl.peakPressure = lanes.pressure.maxValue (0.0f);
+        fl.peakPressure = lanes.pressure.maxValue (-1.0f);
         fl.averageTimbre = lanes.timbre.averageOver (0.0, length, 0.5f);
 
         if (const auto* pan = lanes.find (LaneId::cc (10)); pan != nullptr && ! pan->isEmpty())
@@ -263,6 +375,7 @@ namespace
           << "PITCHOFS_PER_SEMITONE = 10\n\n"
           << "# (start, length, key, velocity, release, pan, initial pitch, pressure initial/average/peak,\n"
           << "#  timbre initial/average, colour, slides). Times in beats, pitch in semitones from the key.\n"
+          << "# Peak pressure is -1 for a note without pressure.\n"
           << "# Each slide: (offset, length, pitch, pressure, timbre, pitch_moves).\n"
           << "NOTES = [\n";
 
@@ -360,7 +473,7 @@ def apply(form):
         note.pitchofs = fine
         note.time = _ticks(start)
         note.length = max(1, _ticks(start + length) - note.time)
-        note.velocity = _clamp(pr_peak if pressure_mode == 2 else velocity, 0.0, 1.0)
+        note.velocity = _clamp(pr_peak if pressure_mode == 2 and pr_peak >= 0 else velocity, 0.0, 1.0)
         note.release = _clamp(release, 0.0, 1.0)
         note.pan = _clamp(pan, 0.0, 1.0)
         note.color = colour

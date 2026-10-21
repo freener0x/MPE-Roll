@@ -247,11 +247,7 @@ void MpeEncoder::releaseVoice (juce::MidiBuffer& out, int samplePos, Voice& v, f
     v = Voice {};
 
     if (wasLead && numActive > 0)
-    {
-        sendSingleChannelPitch (out, samplePos, false);
-        sendSingleChannelPressure (out, samplePos, false);
-        sendSingleChannelTimbre (out, samplePos);
-    }
+        sendLeadValues (out, samplePos);
 }
 
 int MpeEncoder::chooseMemberChannel (juce::MidiBuffer& out, int samplePos, int zone, int key)
@@ -405,6 +401,7 @@ void MpeEncoder::prepareNote (juce::MidiBuffer& out, int samplePos, Handle handl
     voice->pitch = 0.0f;
     voice->pressure = 0.0f;
     voice->timbre = settings.defaultTimbre;
+    voice->ownControllers.reset();
     tailPitch = tailPressure = 0.0f;
 
     activeList[(size_t) numActive++] = (int) (voice - voices.data());
@@ -422,27 +419,28 @@ void MpeEncoder::startNote (juce::MidiBuffer& out, int samplePos, Handle handle,
 
     if (isSingleChannelMode())
     {
-        sendSingleChannelPitch (out, samplePos, false);
-        sendSingleChannelPressure (out, samplePos, false);
-        sendSingleChannelTimbre (out, samplePos);
+        sendLeadValues (out, samplePos);
     }
     else if (st.numVoices == 1)
     {
         // This note owns its channel: make sure nothing left over from the previous note leaks into it.
+        // A lane of its own on the timbre or pressure controller has already sent its value.
+        const bool pressureOnController = settings.pressureTarget == OutputSettings::PressureTarget::controller;
+
         if (! st.pitchTouched)
             sendPitchBend (out, samplePos, ch, pitchBendCentre, true);
 
-        if (! st.timbreTouched)
+        if (! st.timbreTouched && ! st.controllersTouched[(size_t) settings.timbreController])
             sendTimbre (out, samplePos, ch, settings.defaultTimbre, true);
 
-        if (! st.pressureTouched)
+        if (! st.pressureTouched && ! (pressureOnController && st.controllersTouched[(size_t) settings.pressureController]))
             sendNotePressure (out, samplePos, *v, 0.0f, true);
 
         for (int cc = 0; cc < 128; ++cc)
         {
             if (st.controllers[(size_t) cc] < 0 || st.controllersTouched[(size_t) cc]
                 || cc == settings.timbreController || cc == settings.timbreLsbController
-                || (settings.pressureTarget == OutputSettings::PressureTarget::controller && cc == settings.pressureController))
+                || (pressureOnController && cc == settings.pressureController))
                 continue;
 
             sendController (out, samplePos, ch, cc, toSevenBit (defaultControllerValue (cc)), false);
@@ -617,8 +615,22 @@ void MpeEncoder::setController (juce::MidiBuffer& out, int samplePos, Handle han
 
     auto* v = findVoice (handle);
 
-    if (v == nullptr || (isSingleChannelMode() && ! isLead (*v)))
+    if (v == nullptr)
         return;
+
+    v->ownControllers.set ((size_t) controller);
+
+    if (isSingleChannelMode())
+    {
+        if (! isLead (*v))
+            return;
+
+        // The next note to take over the channel puts it back, unless it has a lane for it too.
+        noteControllers.set ((size_t) controller);
+
+        if (controller == settings.timbreController)
+            timbreFromNote = true;
+    }
 
     sendController (out, samplePos, v->channel, controller, toSevenBit (value), ! v->started);
     channels[(size_t) v->channel].controllersTouched.set ((size_t) controller);
@@ -660,11 +672,53 @@ void MpeEncoder::setZoneController (juce::MidiBuffer& out, int samplePos, int co
     if (isReservedController (controller))
         return;
 
+    // In single channel mode a zone lane drives the controller now, so notes leave it alone.
+    noteControllers.reset ((size_t) controller);
+
+    if (isSingleChannelMode() && controller == settings.timbreController)
+        timbreFromNote = false;
+
     const auto v7 = toSevenBit (value);
     forEachZoneMaster ([&] (int ch) { sendController (out, samplePos, ch, controller, v7, false); });
 }
 
 //==============================================================================
+void MpeEncoder::sendLeadValues (juce::MidiBuffer& out, int samplePos)
+{
+    // The newest note has taken over the single channel. It brings its own pitch, pressure and timbre,
+    // except where a lane of its own on that controller sets it, and returns controllers that only an
+    // earlier note's lanes had set to their usual values, so one note's volume or pan doesn't stay on
+    // the next.
+    const auto* lead = leadVoice();
+
+    if (lead == nullptr)
+        return;
+
+    const auto pressureController = settings.pressureTarget == OutputSettings::PressureTarget::controller
+                                        ? settings.pressureController : -1;
+
+    sendSingleChannelPitch (out, samplePos, false);
+
+    if (pressureController < 0 || ! lead->ownControllers[(size_t) pressureController])
+        sendSingleChannelPressure (out, samplePos, false);
+
+    if (! lead->ownControllers[(size_t) settings.timbreController])
+        sendSingleChannelTimbre (out, samplePos);
+
+    if (noteControllers.none())
+        return;
+
+    for (int cc = 0; cc < 128; ++cc)
+    {
+        if (! noteControllers[(size_t) cc] || lead->ownControllers[(size_t) cc]
+            || cc == settings.timbreController || cc == settings.timbreLsbController || cc == pressureController)
+            continue;
+
+        sendController (out, samplePos, settings.singleChannel, cc, toSevenBit (defaultControllerValue (cc)), false);
+        noteControllers.reset ((size_t) cc);
+    }
+}
+
 void MpeEncoder::sendSingleChannelPitch (juce::MidiBuffer& out, int samplePos, bool force)
 {
     const auto* lead = leadVoice();
@@ -779,6 +833,10 @@ void MpeEncoder::sendController (juce::MidiBuffer& out, int samplePos, int chann
 
     out.addEvent (juce::MidiMessage::controllerEvent (channel, controller, value), samplePos);
     st.controllers[(size_t) controller] = (int8_t) value;
+
+    // A controller lane on the timbre controller: the next timbre must be sent even if it's unchanged.
+    if (controller == settings.timbreController || controller == settings.timbreLsbController)
+        st.timbre = -1;
 }
 
 void MpeEncoder::sendTimbre (juce::MidiBuffer& out, int samplePos, int channel, float value, bool force)

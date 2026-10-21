@@ -100,11 +100,16 @@ Loading a different synth reassigns the slots.
   straight line, *Erase* removes points. Edits apply to the selected notes, or to every note under
   the pen if none are selected.
 - **Vibrato:** pick *Vibrato* in the lane menu and draw how deep it is, up to a semitone either way.
-  Ramp it up to have the vibrato come in late. MPE Roll plays it by wobbling each note's own pitch,
-  so it works with any synth, MPE or not, with no setup in the synth. The speed (in Hz, the same at
-  any tempo) is set next to the lane menu and applies to the whole clip. Notes with vibrato show a
-  wavy line. *Send to FL piano roll* turns it into slide notes. (The *Vibrato Rate / Depth*
-  controllers, CC76 to CC78, are different: they only do something if the synth maps them.)
+  Ramp it up to have the vibrato come in late. MPE Roll plays it by wobbling each note's own pitch
+  bend, so it needs the same setup as glides: the synth in MPE mode with its per-note bend range
+  matching MPE Roll's *Per-note bend range*, or *Plain MIDI* with *Zone bend range* matching the
+  synth, where only the newest note's vibrato is heard. For a synth without MPE, such as Analog Lab,
+  use *Plain MIDI* or the zone-wide *Vibrato* lane, which wobbles the master channel's pitch bend at
+  the zone range. When a note with vibrato ends, it lets go at its glide's pitch, so the release tail
+  rings in tune. The speed (in Hz, the same at any tempo) is set next to the lane menu and applies to
+  the whole clip. Notes with vibrato show a wavy line. *Send to FL piano roll* turns it into slide
+  notes. (The *Vibrato Rate / Depth* controllers, CC76 to CC78, are different: they only do something
+  if the synth maps them.)
 - **Zoom/scroll:** Ctrl+wheel zooms time, Alt+wheel zooms keys, Shift+wheel scrolls sideways. Drag
   the green handle on the ruler to change the clip length.
 - **Keys:** ↑/↓ transpose (Shift: octave), ←/→ nudge, Q quantizes, Ctrl+C/X/V, Ctrl+D or Ctrl+B
@@ -245,10 +250,10 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 - Arturia says Analog Lab itself isn't MPE compatible. (Their individual instruments, such as
   Pigments, are.) Set *Synth expects* to **Plain MIDI (one channel)**. In Analog Lab's Settings, set
   *MIDI Channel* to *All* or 1.
-- What to expect: left on MPE (MPE Roll's default), per-note glides are scaled for a 48-semitone
-  range and Analog Lab applies them with its own, usually 2, so they barely move; only the zone-wide
-  lanes work. With *Plain MIDI* the newest note's glide, pressure and timbre work, but every held note
-  follows them. Each note having its own takes a synth with MPE.
+- What to expect: left on MPE (MPE Roll's default), per-note glides and vibrato are scaled for a
+  48-semitone range and Analog Lab applies them with its own, usually 2, so they barely move; only
+  the zone-wide lanes work. With *Plain MIDI* the newest note's glide, vibrato, pressure and timbre
+  work, but every held note follows them. Each note having its own takes a synth with MPE.
 - Set *Zone bend range* to the preset's pitch-bend range (often 2). The newest note's glide bends the
   whole channel and stops at the edge of that range.
 - Analog Lab responds to channel aftertouch, not poly aftertouch, so keep *Pressure sent as* on
@@ -281,3 +286,4 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 | A CLAP synth plays but doesn't glide, press or brighten | It may not support CLAP note expressions. Turn off *CLAP note expressions* in *MPE settings* and turn on MPE in the synth instead. |
 | A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded and open their own window; MPE Roll says so. Please report synths whose window doesn't appear at all. |
 | An automation clip moves the wrong knob | The clip belongs to an MPE Roll slot, and slots are reassigned when you load a different synth. Re-link it with *Last tweaked*. |
+| Vibrato barely moves, or only on the newest note | Vibrato rides on the note's pitch bend, so it needs what glides need: MPE on in the synth with the bend ranges matching, or *Plain MIDI* with *Zone bend range* set to the synth's, where only the newest note's is heard. A synth without MPE can also take the zone-wide *Vibrato* lane. |

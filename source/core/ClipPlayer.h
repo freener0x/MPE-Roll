@@ -48,6 +48,8 @@ private:
         int key = 0;
         float lift = 0.5f;
         double vibratoPhase = 0.0;  // cycles, kept per note so tempo changes don't make it jump
+        bool vibrato = false;       // has a vibrato lane...
+        float glide = 0.0f;         // ...so this, its pitch without the vibrato, is where it lets go
     };
 
     uint32_t tag;
@@ -67,6 +69,7 @@ private:
                      int startSample, int numSamples, double loopEnd);
     void startNote (const MpeNote&, size_t index, double offsetInNote, double vibratoPhase,
                     MpeEncoder&, juce::MidiBuffer&, int samplePos);
+    void stopNote (const ActiveNote&, MpeEncoder&, juce::MidiBuffer&, int samplePos);
     void sendNoteExpression (const MpeNote&, MpeEncoder&, juce::MidiBuffer&, int samplePos, double offsetInNote,
                              double vibratoPhase);
     void removeActive (int position) noexcept;

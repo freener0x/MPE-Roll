@@ -291,6 +291,42 @@ public:
             expect (lateHighest > 2.7f && lateLowest < 1.3f, "swings around the glide by the end");
         }
 
+        beginTest ("A note with vibrato lets go at its glide pitch, so the release tail rings in tune");
+        {
+            MpeClip clip;
+            clip.vibratoRate = 4.0;
+            auto n = makeNote (60, 0.0, 1.125);     // 2.25 cycles: the vibrato is at its peak when the note ends
+            n.lanes.pitch = { { 0.0, 2.0f } };
+            n.lanes.vibrato = { { 0.0, 1.0f } };
+            clip.addNote (n);
+
+            Rig rig;
+            rig.player.setControlInterval (48);
+            rig.play (clip, 48000, 512, false);
+
+            int noteOffSample = -1, lastBendSample = -1;
+            float lastBend = 0.0f, bendBefore = 0.0f;
+
+            for (const auto& m : rig.messages)
+            {
+                if (m.message.isNoteOff())
+                    noteOffSample = m.sample;
+
+                if (m.message.isPitchWheel() && m.message.getChannel() != 1)
+                {
+                    expect (noteOffSample < 0, "nothing is sent after the Note Off");
+                    bendBefore = lastBend;
+                    lastBend = (float) (m.message.getPitchWheelValue() - 8192) / 8192.0f * 48.0f;
+                    lastBendSample = m.sample;
+                }
+            }
+
+            expectEquals (noteOffSample, 27000);
+            expectEquals (lastBendSample, noteOffSample);
+            expectWithinAbsoluteError (lastBend, 2.0f, 0.02f, "rests on the glide");
+            expect (bendBefore > 2.5f, "after swinging up by " + juce::String (bendBefore - 2.0f));
+        }
+
         beginTest ("Notes removed by an edit are stopped");
         {
             MpeClip clip;

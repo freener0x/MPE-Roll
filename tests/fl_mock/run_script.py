@@ -90,9 +90,10 @@ def main():
     notes, ns = run(path, {"Existing notes": 1}, existing=[existing])
     assert notes[0] is existing
 
-    # Pressure as velocity.
+    # Pressure as velocity: a note without a pressure lane keeps its strike velocity.
     notes, ns = run(path, {"Pressure": 2})
     assert abs([n for n in notes if n.number == 60 and not n.slide][0].velocity - 1.0) < 1e-6
+    assert abs([n for n in notes if n.number == 64 and not n.slide][0].velocity - 0.5) < 1e-6
 
     print("FL script OK: %d notes, %d slides" % (expected["notes"], expected["slides"]))
 

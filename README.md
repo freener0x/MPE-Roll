@@ -25,7 +25,7 @@ fine pitch and Mod X / Mod Y.
 | Strike (note-on velocity) | Note On velocity, optionally 14-bit with a CC88 prefix |
 | Lift (release velocity) | Note Off velocity, optionally 14-bit with a CC88 prefix |
 | Glide (pitch) | 14-bit pitch bend on the note's channel, any range up to ±96 semitones |
-| Vibrato (depth drawn per note, speed in Hz per clip) | Played by MPE Roll as part of the note's pitch bend, so any synth gets it |
+| Vibrato (depth drawn per note, speed in Hz per clip) | Played by MPE Roll as part of the note's pitch bend, so it needs the same bend range setup as glides (in Plain MIDI, the newest note's) |
 | Press (pressure) | Channel pressure, poly aftertouch or a CC of your choice |
 | Slide (timbre) | CC74 (or any CC), optionally 14-bit with an LSB controller |
 | Any other controller | That CC on the note's own channel: pan, volume, expression, vibrato rate/depth... |

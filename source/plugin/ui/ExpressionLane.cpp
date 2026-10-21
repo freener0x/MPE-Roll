@@ -779,7 +779,7 @@ void ExpressionLane::showLaneMenu()
     menu.addItem (idPitch, "Pitch glide", true, tick (Target::notePitch));
     menu.addItem (idPressure, "Pressure (press)", true, tick (Target::notePressure));
     menu.addItem (idTimbre, "Timbre (slide)", true, tick (Target::noteTimbre));
-    menu.addItem (idVibrato, "Vibrato (played by MPE Roll, any synth)", true, tick (Target::noteVibrato));
+    menu.addItem (idVibrato, "Vibrato (played by MPE Roll in the pitch bend)", true, tick (Target::noteVibrato));
 
     juce::PopupMenu noteControllers;
 

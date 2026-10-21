@@ -29,7 +29,7 @@ void ClipPlayer::removeActive (int position) noexcept
 void ClipPlayer::stop (MpeEncoder& encoder, juce::MidiBuffer& out, int samplePos)
 {
     for (int i = 0; i < numActive; ++i)
-        encoder.stopNote (out, samplePos, handleFor (active[(size_t) i].id), active[(size_t) i].lift);
+        stopNote (active[(size_t) i], encoder, out, samplePos);
 
     numActive = 0;
     needsChase = true;
@@ -68,7 +68,7 @@ void ClipPlayer::validateActiveNotes (const MpeClip& clip, MpeEncoder& encoder, 
 
         if (! found)
         {
-            encoder.stopNote (out, samplePos, handleFor (a.id), a.lift);
+            stopNote (a, encoder, out, samplePos);
             removeActive (i);
         }
     }
@@ -118,7 +118,7 @@ void ClipPlayer::renderBlock (const MpeClip& clip, MpeEncoder& encoder, juce::Mi
             const auto wrapPos = juce::jmin (sample, startSample + numSamples - 1);
 
             for (int i = 0; i < numActive; ++i)
-                encoder.stopNote (out, wrapPos, handleFor (active[(size_t) i].id), active[(size_t) i].lift);
+                stopNote (active[(size_t) i], encoder, out, wrapPos);
 
             numActive = 0;
             beat = 0.0;
@@ -181,9 +181,15 @@ void ClipPlayer::renderSpan (const MpeClip& clip, MpeEncoder& encoder, juce::Mid
         // Expression for everything already sounding.
         for (int i = 0; i < numActive; ++i)
         {
-            const auto& a = active[(size_t) i];
+            auto& a = active[(size_t) i];
             const auto& n = notes[a.index];
             sendNoteExpression (n, encoder, out, cs, bs - n.start, a.vibratoPhase);
+
+            if (! n.lanes.vibrato.isEmpty())
+            {
+                a.vibrato = true;
+                a.glide = n.lanes.pitch.valueAt (bs - n.start, 0.0f);
+            }
         }
 
         sendZoneExpression (clip, encoder, out, cs, bs);
@@ -191,12 +197,12 @@ void ClipPlayer::renderSpan (const MpeClip& clip, MpeEncoder& encoder, juce::Mid
         // Note offs.
         for (int i = numActive - 1; i >= 0; --i)
         {
-            const auto& n = notes[active[(size_t) i].index];
-            const auto end = effectiveEnd (n);
+            const auto& a = active[(size_t) i];
+            const auto end = effectiveEnd (notes[a.index]);
 
             if (end < be)
             {
-                encoder.stopNote (out, sampleFor (end), handleFor (n.id), n.lift);
+                stopNote (a, encoder, out, sampleFor (end));
                 removeActive (i);
             }
         }
@@ -225,7 +231,7 @@ void ClipPlayer::renderSpan (const MpeClip& clip, MpeEncoder& encoder, juce::Mid
 
             if (end < be)
             {
-                encoder.stopNote (out, std::max (pos, sampleFor (end)), handleFor (it->id), it->lift);
+                stopNote (active[(size_t) (numActive - 1)], encoder, out, std::max (pos, sampleFor (end)));
                 removeActive (numActive - 1);
             }
         }
@@ -252,7 +258,21 @@ void ClipPlayer::startNote (const MpeNote& note, size_t index, double offsetInNo
     sendNoteExpression (note, encoder, out, samplePos, offsetInNote, vibratoPhase);
     encoder.startNote (out, samplePos, handle, note.strike);
 
-    active[(size_t) numActive++] = { note.id, index, note.key, note.lift, vibratoPhase };
+    const bool vibrato = ! note.lanes.vibrato.isEmpty();
+    active[(size_t) numActive++] = { note.id, index, note.key, note.lift, vibratoPhase, vibrato,
+                                     vibrato ? note.lanes.pitch.valueAt (offsetInNote, 0.0f) : 0.0f };
+}
+
+void ClipPlayer::stopNote (const ActiveNote& a, MpeEncoder& encoder, juce::MidiBuffer& out, int samplePos)
+{
+    const auto handle = handleFor (a.id);
+
+    // Vibrato's last swing would stay on the channel and leave the release tail out of tune, by a
+    // different amount for every note. The note lets go at its glide's pitch instead.
+    if (a.vibrato)
+        encoder.setPitch (out, samplePos, handle, a.glide);
+
+    encoder.stopNote (out, samplePos, handle, a.lift);
 }
 
 void ClipPlayer::sendNoteExpression (const MpeNote& note, MpeEncoder& encoder, juce::MidiBuffer& out,

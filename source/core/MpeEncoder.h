@@ -91,6 +91,7 @@ private:
         float pitch = 0.0f;
         float pressure = 0.0f;
         float timbre = 0.5f;
+        std::bitset<128> ownControllers;    // controllers this note's own lanes have set
     };
 
     struct ChannelState
@@ -118,6 +119,7 @@ private:
     float zonePressure = 0.0f;                  // ...and, sent as channel pressure, zone and lead pressure
     float tailPitch = 0.0f, tailPressure = 0.0f; // the last released note's, standing in for a lead until the next note
     bool timbreFromNote = false;                // single channel's timbre was last set by a note, not the zone
+    std::bitset<128> noteControllers;           // single channel's controllers last set by a note's lane, not the zone
 
     bool isSingleChannelMode() const noexcept;
     bool combinesZonePressure() const noexcept;
@@ -133,6 +135,7 @@ private:
     bool isLead (const Voice&) const noexcept;
     const Voice* leadVoice() const noexcept;
 
+    void sendLeadValues (juce::MidiBuffer&, int samplePos);
     void sendSingleChannelPitch (juce::MidiBuffer&, int samplePos, bool force);
     void sendSingleChannelPressure (juce::MidiBuffer&, int samplePos, bool force);
     void sendSingleChannelTimbre (juce::MidiBuffer&, int samplePos);
