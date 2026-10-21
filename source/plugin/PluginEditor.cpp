@@ -555,23 +555,27 @@ void MpeRollEditor::warnSynthSilent()
         return;
 
     const auto name = synth.getName();
-    const auto message = name + " hasn't made a sound in the few seconds MPE Roll has been playing notes to it.\n\n"
+    const auto message = name + " hasn't made a sound in the last few seconds of notes MPE Roll has played to it.\n\n"
                          "MPE Roll plays each note on its own MIDI channel (" + output.zones.describeMemberChannels()
-                         + "). A synth that isn't in MPE mode usually listens on channel 1 only, so it hears none of them.\n\n"
-                         "Turn on MPE in " + name + " (in Omnisphere 3, on its System page), or play it with Plain MIDI "
-                         "on one channel, where only the newest note gets glides, pressure and timbre.";
+                         + "). A synth that isn't in MPE mode usually listens on channel 1 only, so it hears none of "
+                         "them. Or the synth may still be loading its sounds.\n\n"
+                         "To keep MPE, turn it on in " + name + " if it's off (in Omnisphere 3, on its System page). "
+                         "Or play the synth with Plain MIDI on one channel, where only the newest note gets glides, "
+                         "pressure and timbre.";
 
+    // JUCE gives the first button Return and reports it as 1, the second Escape and 0. Keeping MPE
+    // comes first, so a reflex Return changes nothing.
     const auto options = juce::MessageBoxOptions()
                              .withIconType (juce::MessageBoxIconType::WarningIcon)
                              .withTitle ("No sound from " + name)
                              .withMessage (message)
-                             .withButton ("Use Plain MIDI")
                              .withButton ("Keep MPE")
+                             .withButton ("Use Plain MIDI")
                              .withAssociatedComponent (this);
 
     silenceBox = juce::AlertWindow::showScopedAsync (options, [safe = juce::Component::SafePointer<MpeRollEditor> (this), name] (int result)
     {
-        if (safe == nullptr || result != 1)
+        if (safe == nullptr || result != 0)
             return;
 
         auto settings = safe->document.getSettings();

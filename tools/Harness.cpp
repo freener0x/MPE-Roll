@@ -738,6 +738,51 @@ std::vector<juce::MidiMessage> runBlock (MpeRollProcessor& processor, FakePlayHe
     return out;
 }
 
+/** The settings every MPE Roll on the computer shares, the scanned plugin list and the Window
+    drawing choice among them: one copy in the process, so a change in one MPE Roll is seen by the
+    others and kept when any of them saves.
+*/
+void sharedSettingsChecks (Check& check)
+{
+    std::printf ("Every MPE Roll in the process shares the computer's settings\n");
+    const auto file = juce::File::createTempFile (".settings");
+    HostedSynth first;
+    first.useSettingsFile (file);
+
+    juce::PluginDescription scanned;
+    scanned.name = "Scanned Elsewhere";
+    scanned.pluginFormatName = "VST3";
+    scanned.fileOrIdentifier = "/plugins/Scanned Elsewhere.vst3";
+    scanned.uniqueId = 0x5ca11ed;
+    scanned.isInstrument = true;
+
+    {
+        HostedSynth second;
+        second.getKnownPlugins().addType (scanned);
+        const auto types = first.getKnownPlugins().getTypes();
+        check (types.size() == 1 && types[0].name == scanned.name, "a plugin scanned in one MPE Roll is listed in the others");
+
+        WindowDrawing::setMode (second.getUserSettings(), WindowDrawing::Mode::software);
+        check (WindowDrawing::getMode (first.getUserSettings()) == WindowDrawing::Mode::software, "and so is a Window drawing choice");
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (50);     // the list's change message, which saves it
+    }
+
+    // The MPE Roll left saving its settings after the other has gone mustn't write an older list back.
+    first.getUserSettings()->setValue ("checked", true);
+    first.getUserSettings()->saveIfNeeded();
+
+    juce::PropertiesFile settings (file, {});
+    juce::KnownPluginList saved;
+
+    if (auto xml = settings.getXmlValue ("knownPlugins"))
+        saved.recreateFromXml (*xml);
+
+    check (saved.getNumTypes() == 1 && saved.getTypes()[0].name == scanned.name,
+           "and is still in the settings file once that MPE Roll has gone");
+    check (WindowDrawing::getMode (&settings) == WindowDrawing::Mode::software, "with the Window drawing choice");
+    file.deleteFile();
+}
+
 int selfTest()
 {
     Check check;
@@ -892,6 +937,8 @@ int selfTest()
         check (document.getClip (3) == before, "undo restores the clip");
     }
 
+    sharedSettingsChecks (check);
+
     processor.releaseResources();
     std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
     return check.failures == 0 ? 0 : 1;
@@ -997,38 +1044,137 @@ void clapSynthChecks (Check& check, MpeRollProcessor& processor, FakePlayHead& p
     }
 }
 
-/** Loads the synth afresh, plays it a note held for four seconds and says whether MPE Roll
-    warned that the synth made no sound. Empty if the synth didn't load.
+/** A processor with the synth loaded afresh, for playing it notes and asking whether MPE Roll
+    warned that it made no sound. Muting the synth stands in for one that isn't listening on MPE
+    Roll's channels.
+*/
+struct SilenceProbe
+{
+    SilenceProbe (const juce::File& synthFile, OutputSettings::Mode mode, bool muted)
+    {
+        playHead.playing = false;
+        processor.setPlayHead (&playHead);
+        processor.setRateAndBufferSizeDetails (48000.0, 512);
+        processor.prepareToPlay (48000.0, 512);
+        loaded = loadSynth (processor, synthFile);
+
+        auto settings = processor.getDocument().getSettings();
+        settings.output.mode = mode;
+        processor.getDocument().setSettings (settings);
+        mute (muted);
+    }
+
+    ~SilenceProbe()
+    {
+        processor.releaseResources();
+    }
+
+    void mute (bool muted)
+    {
+        for (int i = 0; processor.getSynth().withParameter (i, [muted] (juce::AudioProcessorParameter& p)
+                                                            { if (p.getName (64) == "Gain") p.setValue (muted ? 0.0f : 1.0f); }); ++i) {}
+    }
+
+    /** Plays a note for this long, then lets it go. */
+    void hold (int key, double seconds)
+    {
+        runBlock (processor, playHead, ppq, { { 0, juce::MidiMessage::noteOn (2, key, (juce::uint8) 100) } });
+        rest (seconds - 512.0 / 48000.0);
+        runBlock (processor, playHead, ppq, { { 0, juce::MidiMessage::noteOff (2, key) } });
+    }
+
+    /** Plays nothing for this long. */
+    void rest (double seconds)
+    {
+        for (int block = 0; block < juce::roundToInt (seconds * 48000.0 / 512.0); ++block)
+            runBlock (processor, playHead, ppq);
+    }
+
+    bool warned()
+    {
+        return processor.getSynth().takeSilenceWarning();
+    }
+
+    FakePlayHead playHead;
+    MpeRollProcessor processor;
+    double ppq = 0.0;
+    bool loaded = false;
+};
+
+/** Loads the synth afresh, plays it a note held for fourteen seconds (past the ten a new synth is
+    given to load) and says whether MPE Roll warned that the synth made no sound. Empty if the synth
+    didn't load.
 */
 std::optional<bool> warnsOfSilence (const juce::File& synthFile, OutputSettings::Mode mode, bool muted)
 {
-    FakePlayHead playHead;
-    playHead.playing = false;
-    MpeRollProcessor processor;
-    processor.setPlayHead (&playHead);
-    processor.setRateAndBufferSizeDetails (48000.0, 512);
-    processor.prepareToPlay (48000.0, 512);
+    SilenceProbe probe (synthFile, mode, muted);
 
-    if (! loadSynth (processor, synthFile))
+    if (! probe.loaded)
         return {};
 
-    auto settings = processor.getDocument().getSettings();
-    settings.output.mode = mode;
-    processor.getDocument().setSettings (settings);
+    probe.hold (60, 14.0);
+    return probe.warned();
+}
 
-    if (muted)
-        for (int i = 0; processor.getSynth().withParameter (i, [] (juce::AudioProcessorParameter& p)
-                                                            { if (p.getName (64) == "Gain") p.setValue (0.0f); }); ++i) {}
+/** The "No sound from ..." warning: given for a synth that stays silent over MPE, but not while it
+    may still be loading, not once it has sounded, and not for silence added up from short notes.
+*/
+void silenceWatchChecks (Check& check, const juce::File& synthFile)
+{
+    std::printf ("A synth that makes no sound over MPE is pointed out\n");
 
-    double ppq = 0.0;
-    runBlock (processor, playHead, ppq, { { 0, juce::MidiMessage::noteOn (2, 60, (juce::uint8) 100) } });
+    // A CLAP synth played with note expressions gets its notes whatever the channels.
+    const auto midiOnly = ! synthFile.hasFileExtension ("clap");
+    check (warnsOfSilence (synthFile, OutputSettings::Mode::mpe, true) == midiOnly,
+           midiOnly ? "a silent synth played over MPE is pointed out" : "not with note expressions");
+    check (warnsOfSilence (synthFile, OutputSettings::Mode::mpe, false) == false, "a synth that sounds isn't");
+    check (warnsOfSilence (synthFile, OutputSettings::Mode::singleChannel, true) == false,
+           "nor a silent one played with Plain MIDI");
 
-    for (int block = 0; block < 4 * 48000 / 512; ++block)
-        runBlock (processor, playHead, ppq);
+    if (! midiOnly)
+        return;
 
-    const auto warned = processor.getSynth().takeSilenceWarning();
-    processor.releaseResources();
-    return warned;
+    std::printf ("Not while it may still be loading, and not once it has sounded\n");
+    {
+        SilenceProbe probe (synthFile, OutputSettings::Mode::mpe, true);
+        probe.hold (60, 8.0);
+        check (probe.loaded && ! probe.warned(), "a synth silent for its first seconds is given time to load");
+
+        probe.rest (2.5);               // the grace is over
+        probe.hold (60, 2.0);           // four seconds of silent notes, but none held for three
+        probe.hold (62, 2.0);
+        check (! probe.warned(), "short notes don't add up to the warning");
+
+        probe.hold (60, 3.5);
+        check (probe.warned(), "a note held for three seconds without a sound does");
+    }
+
+    {
+        SilenceProbe probe (synthFile, OutputSettings::Mode::mpe, true);
+        probe.hold (60, 14.0);          // warned, but the warning hasn't been shown
+        probe.mute (false);
+        probe.hold (60, 0.5);
+        check (probe.loaded && ! probe.warned(), "a warning not shown yet is taken back once the synth sounds");
+    }
+
+    {
+        SilenceProbe probe (synthFile, OutputSettings::Mode::mpe, true);
+        probe.hold (60, 14.0);          // warned, but the warning hasn't been shown
+
+        juce::MemoryBlock state;
+        probe.processor.getStateInformation (state);
+        probe.processor.setStateInformation (state.getData(), (int) state.getSize());
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+
+        probe.hold (60, 5.0);
+        check (probe.loaded && ! probe.warned(), "a synth given a project's state gets the time to load again");
+
+        probe.rest (9.0);               // the grace is over, but nothing is held
+        check (! probe.warned(), "and silence with no note held doesn't count against it");
+
+        probe.hold (60, 3.5);
+        check (probe.warned(), "a note held for three seconds afterwards is pointed out as before");
+    }
 }
 
 /** A synth loaded while a clip plays (in place of another, or where there was none) must get the
@@ -1232,17 +1378,7 @@ int parameterTest (const juce::File& synthFile)
         }
     }
 
-    std::printf ("A synth that makes no sound over MPE is pointed out\n");
-    {
-        // Muting the synth stands in for one that isn't listening on MPE Roll's channels. A CLAP
-        // synth played with note expressions gets its notes whatever the channels.
-        const auto midiOnly = ! synthFile.hasFileExtension ("clap");
-        check (warnsOfSilence (synthFile, OutputSettings::Mode::mpe, true) == midiOnly,
-               midiOnly ? "a silent synth played over MPE is pointed out" : "not with note expressions");
-        check (warnsOfSilence (synthFile, OutputSettings::Mode::mpe, false) == false, "a synth that sounds isn't");
-        check (warnsOfSilence (synthFile, OutputSettings::Mode::singleChannel, true) == false,
-               "nor a silent one played with Plain MIDI");
-    }
+    silenceWatchChecks (check, synthFile);
 
     synthReloadChecks (check, processor, playHead, synthFile);
 

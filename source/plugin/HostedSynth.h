@@ -22,8 +22,7 @@ class ClapSynthControls;
     Loading, unloading and the editor window happen on the message thread. process() is called
     on the audio thread and never blocks: while a plugin is being swapped it outputs silence.
 */
-class HostedSynth : private juce::ChangeListener,
-                    private juce::AudioProcessorListener
+class HostedSynth : private juce::AudioProcessorListener
 {
 public:
     HostedSynth();
@@ -91,9 +90,10 @@ public:
     /** Whether these settings play the synth with CLAP note expressions rather than MIDI. Message thread. */
     bool playsNoteExpressions (const OutputSettings&) const;
 
-    /** True once per synth loaded if, since it was loaded, it has been played over MPE for a few
-        seconds without making a sound: most likely a synth that isn't in MPE mode and so only
-        listens on channel 1. Any thread.
+    /** True once per synth loaded (or given a project's state) if, after a few seconds' grace for
+        it to load its sounds, it has been played over MPE for three seconds on end without making
+        a sound: most likely a synth that isn't in MPE mode and so only listens on channel 1. A
+        sound before the warning is taken withdraws it. Any thread.
     */
     bool takeSilenceWarning() noexcept                  { return silenceWarning.exchange (false); }
 
@@ -110,8 +110,13 @@ public:
     //==============================================================================
     juce::AudioPluginFormatManager& getFormatManager() noexcept     { return formatManager; }
     juce::KnownPluginList& getKnownPlugins() noexcept               { return knownPlugins; }
-    juce::PropertiesFile* getUserSettings()                         { return appProperties.getUserSettings(); }
+    juce::PropertiesFile* getUserSettings()                         { return shared->getUserSettings(); }
     juce::File getDeadMansPedalFile();
+
+    /** For tests: from now on every MPE Roll in this process keeps its settings (and the plugin
+        list) in this file, starting from what's saved there.
+    */
+    void useSettingsFile (const juce::File&);
 
     /** Instrument types from the scanned plugin list. */
     juce::Array<juce::PluginDescription> getInstrumentTypes() const;
@@ -235,9 +240,31 @@ private:
         double sampleRate = 44100.0;
     };
 
-    juce::ApplicationProperties appProperties;
+    /** What every MPE Roll in the process shares: the computer's settings file ("MPE Roll.settings")
+        and the list of scanned plugins kept in it. There's one for all instances, so a scan in one
+        is seen by the others and none of them saves an older list over it. The list has its own
+        lock, so one instance may scan while another reads it.
+    */
+    struct SharedSettings : private juce::ChangeListener
+    {
+        SharedSettings();
+        ~SharedSettings() override;
+
+        juce::PropertiesFile* getUserSettings() const noexcept      { return settings.get(); }
+        void useSettingsFile (const juce::File&);
+
+        juce::KnownPluginList knownPlugins;
+
+    private:
+        std::unique_ptr<juce::PropertiesFile> settings;
+
+        void open (const juce::File&, const juce::PropertiesFile::Options&);
+        void changeListenerCallback (juce::ChangeBroadcaster*) override;
+    };
+
+    juce::SharedResourcePointer<SharedSettings> shared;     // first, so it outlives everything below
     juce::AudioPluginFormatManager formatManager;
-    juce::KnownPluginList knownPlugins;
+    juce::KnownPluginList& knownPlugins;                    // the shared list
 
     InstanceGuard guard;
     std::unique_ptr<juce::AudioPluginInstance> instance;
@@ -256,7 +283,8 @@ private:
     struct SilenceWatch
     {
         int heldNotes = 0;
-        double silentSeconds = 0.0;
+        double graceSeconds = 0.0;                      // of audio since it got its state: it may still be loading
+        double silentSeconds = 0.0;                     // of the notes held right now
         bool finished = false;                          // it was heard, or the warning was given
     };
 
@@ -283,7 +311,6 @@ private:
     void configure (juce::AudioPluginInstance& plugin);
     void countHeldNotes (const juce::MidiBuffer&) noexcept;
     void listenForSound (const juce::AudioBuffer<float>&) noexcept;
-    void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     void audioProcessorParameterChanged (juce::AudioProcessor*, int, float) override {}
     void audioProcessorChanged (juce::AudioProcessor*, const ChangeDetails&) override;

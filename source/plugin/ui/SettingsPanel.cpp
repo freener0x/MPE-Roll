@@ -309,16 +309,17 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
         [this] (double v) { edit ([v] (EngineSettings& e) { e.playback.controlIntervalMs = (float) v; }); }));
     panel.addSection ("Playback", playback);
 
-    // The editor's window. Kept with the computer's MPE Roll settings rather than the project.
+    // The editor's window. Kept with the computer's MPE Roll settings, which every MPE Roll in the
+    // process shares, rather than the project.
     Comps window;
-    auto* userSettings = processor.getSynth().getUserSettings();
+    auto userSettings = [this] { return processor.getSynth().getUserSettings(); };
 
     if (WindowDrawing::isChoiceAvailable())
         window.add (new ChoiceProp ("Window drawing", WindowDrawing::modeNames(),
-            [userSettings] { return (int) WindowDrawing::getMode (userSettings); },
+            [userSettings] { return (int) WindowDrawing::getMode (userSettings()); },
             [this, userSettings] (int i)
             {
-                WindowDrawing::setMode (userSettings, (WindowDrawing::Mode) i);
+                WindowDrawing::setMode (userSettings(), (WindowDrawing::Mode) i);
                 WindowDrawing::apply (*this, (WindowDrawing::Mode) i);
                 panel.refreshAll();
             }));

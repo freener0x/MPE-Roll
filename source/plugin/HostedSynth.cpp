@@ -112,7 +112,7 @@ private:
 };
 
 //==============================================================================
-HostedSynth::HostedSynth()
+HostedSynth::SharedSettings::SharedSettings()
 {
     juce::PropertiesFile::Options options;
     options.applicationName = "MPE Roll";
@@ -120,21 +120,56 @@ HostedSynth::HostedSynth()
     options.filenameSuffix = "settings";
     options.osxLibrarySubFolder = "Application Support";
     options.storageFormat = juce::PropertiesFile::storeAsXML;
-    appProperties.setStorageParameters (options);
+    open (options.getDefaultFile(), options);
 
+    // Scans look at each plugin file in the scanner process, so one that crashes can't take FL with it.
+    knownPlugins.setCustomScanner (std::make_unique<PluginScanner::OutOfProcessScanner>());
+    knownPlugins.addChangeListener (this);
+}
+
+HostedSynth::SharedSettings::~SharedSettings()
+{
+    knownPlugins.removeChangeListener (this);
+}
+
+void HostedSynth::SharedSettings::useSettingsFile (const juce::File& file)
+{
+    juce::PropertiesFile::Options options;
+    options.storageFormat = juce::PropertiesFile::storeAsXML;
+    open (file, options);
+}
+
+void HostedSynth::SharedSettings::open (const juce::File& file, const juce::PropertiesFile::Options& options)
+{
+    if (settings != nullptr)
+        settings->saveIfNeeded();
+
+    settings = std::make_unique<juce::PropertiesFile> (file, options);
+
+    if (auto xml = settings->getXmlValue ("knownPlugins"))
+        knownPlugins.recreateFromXml (*xml);
+    else
+        knownPlugins.clear();
+}
+
+void HostedSynth::SharedSettings::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    if (auto xml = knownPlugins.createXml())
+    {
+        settings->setValue ("knownPlugins", xml.get());
+        settings->saveIfNeeded();
+    }
+}
+
+//==============================================================================
+HostedSynth::HostedSynth()
+    : knownPlugins (shared->knownPlugins)
+{
     juce::addDefaultFormatsToManager (formatManager);
 
    #if MPEROLL_HOST_CLAP
     formatManager.addFormat (std::make_unique<ClapPluginFormat>());
    #endif
-
-    if (auto* settings = getUserSettings())
-        if (auto xml = settings->getXmlValue ("knownPlugins"))
-            knownPlugins.recreateFromXml (*xml);
-
-    // Scans look at each plugin file in the scanner process, so one that crashes can't take FL with it.
-    knownPlugins.setCustomScanner (std::make_unique<PluginScanner::OutOfProcessScanner>());
-    knownPlugins.addChangeListener (this);
 }
 
 HostedSynth::~HostedSynth()
@@ -147,7 +182,6 @@ HostedSynth::~HostedSynth()
     scanWindow.deleteAndZero();
     stopCheck();
     closeEditor();
-    knownPlugins.removeChangeListener (this);
 
     if (instance != nullptr)
         CrashReport::setActivity ("closing the synth " + getName());
@@ -163,16 +197,9 @@ juce::File HostedSynth::getDeadMansPedalFile()
     return juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("MPE Roll crashed plugins");
 }
 
-void HostedSynth::changeListenerCallback (juce::ChangeBroadcaster*)
+void HostedSynth::useSettingsFile (const juce::File& file)
 {
-    if (auto* settings = getUserSettings())
-    {
-        if (auto xml = knownPlugins.createXml())
-        {
-            settings->setValue ("knownPlugins", xml.get());
-            settings->saveIfNeeded();
-        }
-    }
+    shared->useSettingsFile (file);
 }
 
 juce::Array<juce::PluginDescription> HostedSynth::getInstrumentTypes() const
@@ -704,9 +731,8 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
 
 void HostedSynth::countHeldNotes (const juce::MidiBuffer& midi) noexcept
 {
-    if (silenceWatch.finished)
-        return;
-
+    // Counted even once the watch is finished: a project's state starts it again with the notes
+    // held at that moment.
     for (const auto metadata : midi)
     {
         const auto msg = metadata.getMessage();
@@ -717,6 +743,10 @@ void HostedSynth::countHeldNotes (const juce::MidiBuffer& midi) noexcept
             silenceWatch.heldNotes = juce::jmax (0, silenceWatch.heldNotes - 1);
         else if (msg.isAllNotesOff() || msg.isAllSoundOff())
             silenceWatch.heldNotes = 0;
+
+        // Only silence through one unbroken stretch of held notes counts, not short notes added up.
+        if (silenceWatch.heldNotes == 0)
+            silenceWatch.silentSeconds = 0.0;
     }
 }
 
@@ -724,15 +754,26 @@ void HostedSynth::listenForSound (const juce::AudioBuffer<float>& output) noexce
 {
     constexpr float silent = 3.0e-5f;               // -90 dB
     constexpr double secondsBeforeWarning = 3.0;    // of notes held, so a slow attack isn't taken for silence
+    constexpr double graceAfterLoad = 10.0;         // seconds after it got its state: a sample library may be loading
 
     auto& watch = silenceWatch;
+    const auto seconds = output.getNumSamples() / sampleRate;
+
+    // A sound settles it, and withdraws a warning that hasn't been shown yet: the user may have
+    // turned on MPE in the synth's own window while MPE Roll's was closed.
+    if (output.getMagnitude (0, output.getNumSamples()) > silent)
+    {
+        watch.finished = true;
+        silenceWarning = false;
+        return;
+    }
 
     if (watch.finished)
         return;
 
-    if (output.getMagnitude (0, output.getNumSamples()) > silent)
+    if (watch.graceSeconds < graceAfterLoad)
     {
-        watch.finished = true;
+        watch.graceSeconds += seconds;
         return;
     }
 
@@ -745,9 +786,12 @@ void HostedSynth::listenForSound (const juce::AudioBuffer<float>& output) noexce
    #endif
 
     if (watch.heldNotes == 0 || ! overMpe)
+    {
+        watch.silentSeconds = 0.0;
         return;
+    }
 
-    watch.silentSeconds += output.getNumSamples() / sampleRate;
+    watch.silentSeconds += seconds;
 
     if (watch.silentSeconds >= secondsBeforeWarning)
     {
@@ -876,7 +920,16 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
         unresolvedState.reset();
 
         if (state.getSize() > 0)
+        {
             instance->setStateInformation (state.getData(), (int) state.getSize());
+
+            // New state can mean new sounds to load: listen afresh, with the grace a new synth gets.
+            const ScopedExclusive exclusive (guard);
+            silenceWatch.graceSeconds = 0.0;
+            silenceWatch.silentSeconds = 0.0;
+            silenceWatch.finished = false;
+            silenceWarning = false;
+        }
 
         if (onPluginChanged)
             onPluginChanged();
