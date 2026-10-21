@@ -96,11 +96,16 @@ public:
     bool playsNoteExpressions (const OutputSettings&) const;
 
     /** True once per synth loaded (or given a project's state) if, after a few seconds' grace for
-        it to load its sounds, it has been played over MPE for three seconds on end without making
-        a sound: most likely a synth that isn't in MPE mode and so only listens on channel 1. A
-        sound before the warning is taken withdraws it. Any thread.
+        it to load its sounds, it has been played over MPE for three seconds of notes in all without
+        making a sound: most likely a synth that isn't in MPE mode and so only listens on channel 1.
+        A sound before the warning is taken withdraws it. Any thread.
     */
     bool takeSilenceWarning() noexcept                  { return silenceWarning.exchange (false); }
+
+    /** True from that warning until the synth is heard (or loaded, or given a project's state,
+        afresh): for a standing reminder where the box may have been missed. Any thread.
+    */
+    bool isSilentOverMpe() const noexcept               { return silentOverMpe.load(); }
 
     int getLatencySamples() const;
     double getTailLengthSeconds() const;
@@ -289,7 +294,7 @@ private:
     {
         int heldNotes = 0;
         double graceSeconds = 0.0;                      // of audio since it got its state: it may still be loading
-        double silentSeconds = 0.0;                     // of the notes held right now
+        double silentSeconds = 0.0;                     // of notes held, added up since it was last heard or given its state
         bool finished = false;                          // it was heard, or the warning was given
     };
 
@@ -298,6 +303,7 @@ private:
     PieceHead pieceHead;                                // audio thread: and its transport position
     SilenceWatch silenceWatch;
     std::atomic<bool> silenceWarning { false };
+    std::atomic<bool> silentOverMpe { false };         // the warning stands: nothing heard since
     double sampleRate = 44100.0;
     int blockSize = 512;
     bool prepared = false;

@@ -167,6 +167,23 @@ namespace
     }
 }
 
+bool isFlStudioNativePluginFile (const juce::String& path)
+{
+    // FL's own plugins live under its install folder, in Plugins\Fruity\Generators and Effects.
+    const auto p = path.replaceCharacter ('\\', '/');
+    return p.containsIgnoreCase ("/Plugins/Fruity/") || p.containsIgnoreCase ("/Image-Line/FL Studio");
+}
+
+juce::String describeFlStudioNativeFiles (const juce::StringArray& files)
+{
+    return juce::String (files.size() == 1 ? "This file is one of FL Studio's own plugins: "
+                                           : "These files are FL Studio's own plugins: ")
+         + files.joinIntoString (", ") + ".\n\n"
+           "Those come in Image-Line's own format, which only FL Studio can load, so MPE Roll can't host them "
+           "and has left them out of the scan. To play them with what you write in MPE Roll, use "
+           "File > Send to FL piano roll, which rebuilds the clip in FL's own piano roll.";
+}
+
 juce::String describeFailure (Outcome outcome, const juce::String& fileName)
 {
     switch (outcome)
@@ -196,6 +213,17 @@ bool OutOfProcessScanner::findPluginTypesFor (juce::AudioPluginFormat& format,
                                               juce::OwnedArray<juce::PluginDescription>& result,
                                               const juce::String& fileOrIdentifier)
 {
+    // FL's own plugins hold no VST or CLAP, so there's nothing to start a scanner for. Listed as
+    // failed they'd look broken, left out silently they'd look lost: so they're left out and named
+    // once the scan is over, with where to find them instead.
+    if (isFlStudioNativePluginFile (fileOrIdentifier))
+    {
+        const juce::ScopedLock lock (skippedLock);
+        flStudioNativeFiles.addIfNotAlreadyThere (juce::File::isAbsolutePath (fileOrIdentifier)
+                                                      ? juce::File (fileOrIdentifier).getFileName() : fileOrIdentifier);
+        return true;
+    }
+
     const auto outcome = findTypes (format.getName(), fileOrIdentifier, result, timeoutMs, [this] { return shouldExit(); });
 
     if (outcome == Outcome::unavailable)
@@ -238,6 +266,29 @@ bool OutOfProcessScanner::findPluginTypesFor (juce::AudioPluginFormat& format,
 void OutOfProcessScanner::scanFinished()
 {
     toldScannerOutdated = false;
+
+    juce::StringArray skipped;
+    {
+        const juce::ScopedLock lock (skippedLock);
+        skipped.swapWith (flStudioNativeFiles);
+    }
+
+    if (skipped.isEmpty())
+        return;
+
+    // Held by this scanner, like the out-of-date box, so it closes with it.
+    juce::MessageManager::callAsync ([box = std::weak_ptr<juce::ScopedMessageBox> (nativeBox), skipped]
+    {
+        if (auto held = box.lock())
+        {
+            const auto options = juce::MessageBoxOptions()
+                                     .withIconType (juce::MessageBoxIconType::InfoIcon)
+                                     .withTitle ("FL Studio's own plugins can't be hosted")
+                                     .withMessage (describeFlStudioNativeFiles (skipped))
+                                     .withButton ("OK");
+            *held = juce::AlertWindow::showScopedAsync (options, nullptr);
+        }
+    });
 }
 
 } // namespace mperoll::PluginScanner

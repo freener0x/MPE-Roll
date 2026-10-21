@@ -63,6 +63,7 @@ private:
     juce::String transientStatus;
     juce::uint32 transientStatusTime = 0;
     juce::Component::SafePointer<juce::AlertWindow> silenceAlert;   // the "No sound from ..." box, while it's open
+    bool showingSilentStatus = false;                               // the status line says the synth hasn't sounded
 
     void timerCallback() override;
     void changeListenerCallback (juce::ChangeBroadcaster*) override;

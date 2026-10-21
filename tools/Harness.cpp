@@ -1165,8 +1165,9 @@ std::optional<bool> warnsOfSilence (const juce::File& synthFile, OutputSettings:
     return probe.warned();
 }
 
-/** The "No sound from ..." warning: given for a synth that stays silent over MPE, but not while it
-    may still be loading, not once it has sounded, and not for silence added up from short notes.
+/** The "No sound from ..." warning: given once for a synth that stays silent over MPE, with short
+    notes adding up as one long one would, but not while it may still be loading and not once it
+    has sounded.
 */
 void silenceWatchChecks (Check& check, const juce::File& synthFile)
 {
@@ -1190,12 +1191,13 @@ void silenceWatchChecks (Check& check, const juce::File& synthFile)
         check (probe.loaded && ! probe.warned(), "a synth silent for its first seconds is given time to load");
 
         probe.rest (2.5);               // the grace is over
-        probe.hold (60, 2.0);           // four seconds of silent notes, but none held for three
+        probe.hold (60, 2.0);           // four seconds of silent notes, none held for three
         probe.hold (62, 2.0);
-        check (! probe.warned(), "short notes don't add up to the warning");
+        check (probe.warned(), "short notes add up to the warning: the synth heard none of them");
+        check (probe.processor.getSynth().isSilentOverMpe(), "and the synth is marked silent for the status line");
 
         probe.hold (60, 3.5);
-        check (probe.warned(), "a note held for three seconds without a sound does");
+        check (! probe.warned(), "the warning comes once");
     }
 
     {
@@ -1204,6 +1206,7 @@ void silenceWatchChecks (Check& check, const juce::File& synthFile)
         probe.mute (false);
         probe.hold (60, 0.5);
         check (probe.loaded && ! probe.warned(), "a warning not shown yet is taken back once the synth sounds");
+        check (! probe.processor.getSynth().isSilentOverMpe(), "and the mark for the status line goes with it");
     }
 
     {
@@ -1300,13 +1303,38 @@ void silenceAlertChecks (Check& check, const juce::File& synthFile)
         mm.runDispatchLoopUntil (100);
     };
 
+    // Whether a label somewhere in the editor (the toolbar's status line) starts with this.
+    const std::function<bool (juce::Component&, const juce::String&)> labelSays = [&labelSays] (juce::Component& c, const juce::String& start)
+    {
+        if (auto* label = dynamic_cast<juce::Label*> (&c))
+            if (label->getText().startsWith (start))
+                return true;
+
+        for (auto* child : c.getChildren())
+            if (labelSays (*child, start))
+                return true;
+
+        return false;
+    };
+
+    const auto statusSays = [&] (const juce::String& start)
+    {
+        mm.runDispatchLoopUntil (100);      // the editor's timer refreshes the status line
+        return labelSays (*editor, start);
+    };
+
+    check (! statusSays ("No sound from"), "the status line says nothing of it before the warning");
+
     auto* box = provoke();
     check (box != nullptr, "the warning opens the box");
 
     if (box != nullptr)
     {
+        check (box->isAlwaysOnTop(), "which stays above FL's window, as the synth's own window does");
+        check (statusSays ("No sound from"), "and the status line says so too");
         press (*box, juce::KeyPress::escapeKey);
         check (findBox() == nullptr && mode() == OutputSettings::Mode::mpe, "Escape closes it and keeps MPE");
+        check (statusSays ("No sound from"), "and the status line keeps saying so while nothing is heard");
     }
 
     listenAgain();
@@ -2313,6 +2341,35 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
         check (list.getBlacklistedFiles().isEmpty(), "so a scan doesn't set that file aside");
         list.scanAndAddFile (pathOf ("too old"), false, found, format);
         check (list.getBlacklistedFiles().isEmpty(), "nor the file an out-of-date scanner couldn't look at");
+
+        // One of FL's own plugins isn't looked at at all, and a box at the end of the scan says what it is.
+        const auto fruity = folder.getChildFile ("Image-Line/FL Studio 2025/Plugins/Fruity/Generators/Harmor/Harmor_x64.dll");
+        fruity.create();
+        found.clear();
+        list.scanAndAddFile (fruity.getFullPathName(), false, found, format);
+        check (found.isEmpty() && list.getBlacklistedFiles().isEmpty() && list.getNumTypes() == 0,
+               "one of FL's own plugins is left out of a scan without being set aside");
+
+        list.scanFinished();
+        const auto nativeBox = []() -> juce::AlertWindow*
+        {
+            auto& desktop = juce::Desktop::getInstance();
+
+            for (int i = 0; i < desktop.getNumComponents(); ++i)
+                if (auto* box = dynamic_cast<juce::AlertWindow*> (desktop.getComponent (i)))
+                    if (box->getName().startsWith ("FL Studio's own plugins"))
+                        return box;
+
+            return nullptr;
+        };
+
+        for (int i = 0; i < 20 && nativeBox() == nullptr; ++i)
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+
+        const auto said = PluginScanner::describeFlStudioNativeFiles ({ fruity.getFileName() });
+        check (nativeBox() != nullptr && said.contains ("Harmor_x64.dll") && said.contains ("Send to FL piano roll"),
+               "and the scan ends with a box naming it and where to find it instead");
+        folder.getChildFile ("Image-Line").deleteRecursively();
 
         // Load plugin file... only tries files that exist. Empty, so looking inside it here would find nothing.
         const juce::File tooOld (pathOf ("too old"));

@@ -320,6 +320,12 @@ void MpeRollEditor::refreshToolbar()
 
 juce::String MpeRollEditor::describeOutput() const
 {
+    // The "No sound from ..." box asks once. This stays until the synth is heard, for a box that
+    // went behind FL's window or was closed by reflex.
+    if (auto& synth = rollProcessor.getSynth(); synth.isSilentOverMpe() && synth.isLoaded())
+        return "No sound from " + synth.getName() + " yet: turn MPE on in it (Omnisphere 3: its System page), "
+               "or pick Plain MIDI in MPE settings";
+
     const auto& s = document.getSettings().output;
     const auto& clip = document.getEditClip();
     juce::String text;
@@ -390,6 +396,12 @@ void MpeRollEditor::timerCallback()
 
     if (rollProcessor.getSynth().takeSilenceWarning())
         warnSynthSilent();
+
+    if (rollProcessor.getSynth().isSilentOverMpe() != showingSilentStatus)
+    {
+        showingSilentStatus = ! showingSilentStatus;
+        refreshToolbar();
+    }
 
     if (toolbar.recordButton.getToggleState() != rollProcessor.isRecordArmed())
         toolbar.recordButton.setToggleState (rollProcessor.isRecordArmed(), juce::dontSendNotification);
@@ -600,6 +612,9 @@ void MpeRollEditor::warnSynthSilent()
     alert->addButton ("Use Plain MIDI", 1);
     silenceAlert = alert;
 
+    // Plugin windows aren't owned by the host's, so FL's window would otherwise cover the box.
+    alert->setAlwaysOnTop (true);
+
     alert->enterModalState (true, juce::ModalCallbackFunction::create ([safe = juce::Component::SafePointer<MpeRollEditor> (this), name] (int result)
     {
         if (safe == nullptr || result != 1)
@@ -610,6 +625,8 @@ void MpeRollEditor::warnSynthSilent()
         safe->document.setSettings (settings);
         safe->setStatus ("Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
     }), true);
+
+    alert->toFront (true);
 }
 
 void MpeRollEditor::showPluginScanner()

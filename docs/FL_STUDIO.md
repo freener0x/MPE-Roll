@@ -252,15 +252,22 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 - A parameter only reaches MPE Roll's *Synth* slots after you right-click it in Omnisphere and choose
   **Enable Host Automation**.
 - **Omnisphere 3** has MPE (3.0.1c and later include MPE fixes). It's off until you turn it on, and
-  until then Omnisphere only hears MIDI channel 1, where MPE Roll sends no notes, so it stays silent.
-  MPE Roll points this out once it has played Omnisphere notes for a few seconds without a sound
-  (after giving it ten seconds to load its sounds) and offers *Use Plain MIDI*; *Keep MPE* is the
-  default.
-  - Turn MPE on in its **System** page (the SYSTEM button in its header). Set its *MPE Pitch Bend
-    Range* to MPE Roll's *Per-note bend range* (48 by default). If Omnisphere doesn't offer 48, set
-    MPE Roll to a value it does offer; don't count on Omnisphere following MPE Roll's setup messages.
+  until then Omnisphere's Part 1 only hears MIDI channel 1, where MPE Roll sends no notes, so it
+  stays silent. MPE Roll points this out once it has played Omnisphere three seconds of notes, short
+  or long, without a sound (after giving it ten seconds to load its sounds) and offers *Use Plain
+  MIDI*; *Keep MPE* is the default. Its status line keeps saying *No sound from Omnisphere yet* until
+  it hears it.
+  - Turn MPE on in its **System** page (the SYSTEM button in its header), which has an MPE section.
+    Spectrasonics' manual: with MPE on, all 8 Parts are set to MIDI channel *Any*. Set its *MPE Pitch
+    Bend Range* to MPE Roll's *Per-note bend range* (48 by default). If Omnisphere doesn't offer 48,
+    set MPE Roll to a value it does offer; don't count on Omnisphere following MPE Roll's setup
+    messages.
   - Load the patch into **Part 1** only. With MPE on, every Part listens on all channels, so any
     other loaded Part plays as well.
+  - Still silent with MPE on? Watch Omnisphere's MIDI indicator while MPE Roll plays. If it stays
+    dark, Omnisphere isn't getting the notes at all: try the VST2 `Omnisphere.dll` with *Load plugin
+    file…*. If it lights, set *Lower zone channels* to 7 in *MPE settings*, so notes stay on channels
+    2–8, in case this version ignores channels 9–16.
   - Omnisphere's *MPE Y* is timbre (CC74) and *MPE Z* is pressure. Patches in the factory *MPE*
     category already use them. For other patches, route MPE Y or MPE Z yourself (right-click a
     control › *Modulate*). Keep *Pressure sent as* on **Channel pressure**.
@@ -305,7 +312,7 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 | Per-note lanes do nothing, zone-wide ones work | The synth isn't in MPE mode, or has none. Turn MPE on in the synth, or set *Synth expects* to *Plain MIDI*, where the newest note's expression drives the whole synth. |
 | MPE Roll crashes | The standalone app saves a report to `%APPDATA%\MPE Roll\Crash report.txt` and says so. In FL, FL's own crash message names the file that crashed. Please include either when you report it. |
 | No sound | Load a synth (*Load synth…*), and check that the synth itself makes sound in its own window. |
-| No sound from a loaded synth; "No sound from …" appears | The synth isn't in MPE mode, so it only listens on channel 1, and MPE Roll plays notes on channels 2–16; or it was still loading its sounds. Turn MPE on in the synth (Omnisphere 3: its *System* page), or click *Use Plain MIDI*. Only that button changes anything: *Keep MPE* takes Return and Escape both, and closing the box keeps MPE too. MPE Roll asks once each time a synth is loaded or a project is opened: it gives the synth ten seconds to load, then asks once a note has gone three seconds without a sound, and not at all if the synth has sounded first. *Synth is played with* in *MPE settings* shows the channels. |
+| No sound from a loaded synth; "No sound from …" appears | The synth isn't in MPE mode, so it only listens on channel 1, and MPE Roll plays notes on channels 2–16; or it was still loading its sounds. Turn MPE on in the synth (Omnisphere 3: its *System* page), or click *Use Plain MIDI*. Only that button changes anything: *Keep MPE* takes Return and Escape both, and closing the box keeps MPE too. MPE Roll asks once each time a synth is loaded or a project is opened: it gives the synth ten seconds to load, then asks once three seconds of notes, short or long, have gone without a sound, and not at all if the synth has sounded first. Until it hears the synth, the status line says *No sound from … yet* as well. *Synth is played with* in *MPE settings* shows the channels. |
 | Clicks, timing drift or CPU spikes | In MPE Roll's wrapper settings, turn on *Use fixed size buffers* (Troubleshooting tab). |
 | Mouse clicks land away from the pointer after reopening the window | In FL, MPE Roll draws its window in software (*MPE settings › Window › Window drawing: Automatic*), which avoids this. If it still happens, try the other *Window drawing* choices and tell us what the *Window* line next to it says. |
 | Glides are much too big or too small | The synth's MPE bend range doesn't match MPE Roll's *Per-note bend range* (48 by default). |
@@ -317,6 +324,6 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 | A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded and open their own window; MPE Roll says so. Please report synths whose window doesn't appear at all. |
 | An automation clip moves the wrong knob | The clip belongs to an MPE Roll slot, and slots are reassigned when you load a different synth. Re-link it with *Last tweaked*. |
 | Vibrato barely moves, or only on the newest note | Vibrato rides on the note's pitch bend, so it needs what glides need: MPE on in the synth with the bend ranges matching, or *Plain MIDI* with *Zone bend range* set to the synth's, where only the newest note's is heard. A synth without MPE can also take the zone-wide *Vibrato* lane. |
-| Harmor, Sytrus or another FL synth can't be scanned or loaded | FL's own synths come in Image-Line's format, which only FL can load, so a scan lists `Harmor_x64.dll` and the like as failed and *Load plugin file…* says what they are. Use *Send to FL piano roll* (section 5). Image-Line's separate VST versions, if you own one, load as ordinary VST2 synths with *Plain MIDI*. |
+| Harmor, Sytrus or another FL synth can't be scanned or loaded | FL's own synths come in Image-Line's format, which only FL can load, so a scan leaves `Harmor_x64.dll` and the like out and names them in a box when it's done, and *Load plugin file…* says what they are. Use *Send to FL piano roll* (section 5). Image-Line's separate VST versions, if you own one, load as ordinary VST2 synths with *Plain MIDI*. |
 | "The MPE Roll Scanner installed here is older than this MPE Roll" | The `MPE Roll Scanner.exe` next to `MPE Roll.dll` is from an older version, so it can't check plugins, and MPE Roll won't load them unchecked. Copy the scanner from the download that this MPE Roll came in (it's also inside the `.vst3` folder) over the old one. |
 | A synth scanned in one MPE Roll channel is missing from another's menu, or the scanned list is gone after a restart | Every MPE Roll of the same kind in FL shares one list and one settings file on this computer (`MPE Roll.settings`), so this shouldn't happen any more. Mixing `MPE Roll.vst3` and `MPE Roll.dll` in one project, a bridged (*Make bridged*) MPE Roll or the standalone app alongside can still overwrite the list: the last to save wins, and scanning again brings it back. If it happens otherwise, please tell us. |

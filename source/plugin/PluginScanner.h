@@ -102,10 +102,20 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
 /** Describes an outcome other than found, for showing to the user. */
 juce::String describeFailure (Outcome, const juce::String& fileName);
 
+/** Whether the path is one of FL Studio's own plugins (Harmor, Sytrus...), which live under FL's
+    install folder in Plugins\Fruity. They come in Image-Line's own format: there's no VST or CLAP in
+    them for a scan to find, and only FL can load them.
+*/
+bool isFlStudioNativePluginFile (const juce::String& path);
+
+/** What a scan says about the FL Studio plugins it left out: what they are, and where to find them instead. */
+juce::String describeFlStudioNativeFiles (const juce::StringArray& fileNames);
+
 /** For KnownPluginList: scans each file with findTypes. A file that crashes or hangs is reported as
     failed, so the list blacklists it. Without a scanner program, files are scanned in this process
     as before. With one that turns jobs down (Outcome::outdated), no file is looked at anywhere, and
-    the user is told so once per scan.
+    the user is told so once per scan. FL Studio's own plugins are left out without being looked at,
+    and named to the user once the scan is over, with where to find them instead.
 */
 class OutOfProcessScanner final : public juce::KnownPluginList::CustomScanner
 {
@@ -121,6 +131,10 @@ private:
     const int timeoutMs;
     std::atomic<bool> toldScannerOutdated { false };
     std::shared_ptr<juce::ScopedMessageBox> outdatedBox = std::make_shared<juce::ScopedMessageBox>();  // closes with this scanner
+
+    juce::CriticalSection skippedLock;
+    juce::StringArray flStudioNativeFiles;             // left out of this scan, for the box at its end
+    std::shared_ptr<juce::ScopedMessageBox> nativeBox = std::make_shared<juce::ScopedMessageBox>();
 };
 
 } // namespace mperoll::PluginScanner

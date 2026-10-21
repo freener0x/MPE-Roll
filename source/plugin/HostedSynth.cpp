@@ -378,9 +378,7 @@ void HostedSynth::stopCheck()
 
 bool HostedSynth::isFlStudioNativePlugin (const juce::File& file)
 {
-    // FL's own plugins live under its install folder, in Plugins\Fruity\Generators and Effects.
-    const auto path = file.getFullPathName().replaceCharacter ('\\', '/');
-    return path.containsIgnoreCase ("/Plugins/Fruity/") || path.containsIgnoreCase ("/Image-Line/FL Studio");
+    return PluginScanner::isFlStudioNativePluginFile (file.getFullPathName());
 }
 
 void HostedSynth::showScanWindow (juce::Colour background)
@@ -498,6 +496,7 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
         instance = std::move (newInstance);
         silenceWatch = {};
         silenceWarning = false;
+        silentOverMpe = false;
 
        #if MPEROLL_HOST_CLAP
         clapControls = dynamic_cast<ClapSynthControls*> (instance.get());
@@ -753,17 +752,13 @@ void HostedSynth::countHeldNotes (const juce::MidiBuffer& midi) noexcept
             silenceWatch.heldNotes = juce::jmax (0, silenceWatch.heldNotes - 1);
         else if (msg.isAllNotesOff() || msg.isAllSoundOff())
             silenceWatch.heldNotes = 0;
-
-        // Only silence through one unbroken stretch of held notes counts, not short notes added up.
-        if (silenceWatch.heldNotes == 0)
-            silenceWatch.silentSeconds = 0.0;
     }
 }
 
 void HostedSynth::listenForSound (const juce::AudioBuffer<float>& output) noexcept
 {
-    constexpr float silent = 3.0e-5f;               // -90 dB
-    constexpr double secondsBeforeWarning = 3.0;    // of notes held, so a slow attack isn't taken for silence
+    constexpr float silent = 1.0e-3f;               // -60 dB: a noise floor or hum isn't the synth sounding
+    constexpr double secondsBeforeWarning = 3.0;    // of notes held in all, so a slow attack isn't taken for silence
     constexpr double graceAfterLoad = 10.0;         // seconds after it got its state: a sample library may be loading
 
     auto& watch = silenceWatch;
@@ -775,6 +770,7 @@ void HostedSynth::listenForSound (const juce::AudioBuffer<float>& output) noexce
     {
         watch.finished = true;
         silenceWarning = false;
+        silentOverMpe = false;
         return;
     }
 
@@ -795,11 +791,16 @@ void HostedSynth::listenForSound (const juce::AudioBuffer<float>& output) noexce
         overMpe = false;
    #endif
 
-    if (watch.heldNotes == 0 || ! overMpe)
+    if (! overMpe)
     {
         watch.silentSeconds = 0.0;
         return;
     }
+
+    // Silence with no note held says nothing. Short notes add up: a synth that hears none of them
+    // is as silent through ten short notes as through one long one.
+    if (watch.heldNotes == 0)
+        return;
 
     watch.silentSeconds += seconds;
 
@@ -807,6 +808,7 @@ void HostedSynth::listenForSound (const juce::AudioBuffer<float>& output) noexce
     {
         watch.finished = true;
         silenceWarning = true;
+        silentOverMpe = true;
     }
 }
 
@@ -940,6 +942,7 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
             silenceWatch.silentSeconds = 0.0;
             silenceWatch.finished = false;
             silenceWarning = false;
+            silentOverMpe = false;
         }
 
         if (onPluginChanged)
