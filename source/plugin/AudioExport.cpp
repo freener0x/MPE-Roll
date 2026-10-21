@@ -10,6 +10,7 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace mperoll::AudioExport
@@ -122,7 +123,7 @@ public:
     {
         const auto audio = render (clip, output, synth, options, [this] (double p)
         {
-            setProgress (p * 0.9);
+            showProgress (p * 0.9);
             return ! threadShouldExit();
         });
 
@@ -136,7 +137,7 @@ public:
         }
 
         setStatusMessage ("Writing " + target.getFileName() + "...");
-        setProgress (0.95);
+        showProgress (0.95);
 
         // Cancel pressed while the file is written: it's dropped, not left half done in the target's place.
         const auto shouldCancel = [this] { return threadShouldExit(); };
@@ -161,6 +162,8 @@ public:
         finish (userPressedCancel && ! written ? juce::String (cancelledMessage) : error);
     }
 
+    double getProgress() const noexcept     { return progress.load(); }
+
 private:
     Jobs& owner;
     HostedSynth synth;
@@ -171,6 +174,14 @@ private:
     std::function<void (const juce::String&)> done;
     juce::String error;
     bool written = false;   // the file is at the target
+    std::atomic<double> progress { 0.0 };   // what the window shows, readable from the message thread
+
+    /** Moves the window's progress bar and remembers where it is, for Jobs::getProgress(). */
+    void showProgress (double p)
+    {
+        progress.store (p);
+        setProgress (p);
+    }
 
     void start (const juce::XmlElement& synthState)
     {
@@ -228,6 +239,11 @@ Jobs::~Jobs()
 int Jobs::getNumRunning() const noexcept
 {
     return (int) running.size();
+}
+
+double Jobs::getProgress (int index) const noexcept
+{
+    return juce::isPositiveAndBelow (index, (int) running.size()) ? running[(size_t) index]->getProgress() : 0.0;
 }
 
 void Jobs::remove (Job& job)

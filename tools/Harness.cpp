@@ -414,21 +414,36 @@ void exportFixChecks (Check& check, const juce::File& synthFile, const juce::Fil
 
             if (loadSynth (other, synthFile))
             {
-                // Two minutes of one note in the smallest blocks: still playing when the plugin goes.
+                // Five minutes of one note in the smallest blocks: far more than any build renders in
+                // the moment between seeing the export under way (below) and the plugin going, and
+                // the render's buffer for it is about 110 MB.
                 MpeClip clip;
-                clip.length = 240.0;
+                clip.length = 600.0;
                 clip.looping = false;
-                clip.addNote (note (60, 0.0, 240.0, 0.8f));
+                clip.addNote (note (60, 0.0, 600.0, 0.8f));
 
                 AudioExport::Options options;
                 options.sampleRate = sampleRate;
                 options.blockSize = 16;
                 AudioExport::exportClip (other, clip, abandoned, options, [&] (const juce::String&) { reported = true; });
-                check (other.getExportJobs().getNumRunning() == 1, "the export is one of the plugin's jobs");
+                auto& jobs = other.getExportJobs();
+                check (jobs.getNumRunning() == 1, "the export is one of the plugin's jobs");
 
-                // Time for the synth copy to load and start playing.
-                for (int i = 0; i < 10; ++i)
-                    mm.runDispatchLoopUntil (50);
+                // Wait for the render to be under way, not for a set time: how long the synth copy takes
+                // to load varies, and a Release build renders minutes of audio in well under a second,
+                // so a half-second wait once saw the export finish and the file written before the
+                // plugin went. Progress above 0 means the copy has loaded and is playing the clip;
+                // below 0.9, that the file isn't being written yet.
+                bool underWay = false;
+
+                for (int i = 0; i < 2000 && ! underWay && jobs.getNumRunning() == 1; ++i)
+                {
+                    mm.runDispatchLoopUntil (5);
+                    const auto progress = jobs.getProgress (0);
+                    underWay = progress > 0.0 && progress < 0.9;
+                }
+
+                check (underWay, "the export got under way: the synth copy loaded and started playing the clip");
             }
 
             other.releaseResources();

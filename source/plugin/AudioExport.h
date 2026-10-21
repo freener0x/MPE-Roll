@@ -74,6 +74,12 @@ namespace AudioExport
 
         int getNumRunning() const noexcept;
 
+        /** How far the running job at index has got, 0..1, as its window shows it: 0 until the synth
+            copy has loaded and started playing, under 0.9 while the clip renders, 0.95 while the
+            file is written. For checks that want to catch an export part way. Message thread.
+        */
+        double getProgress (int index) const noexcept;
+
     private:
         friend class Job;
 
