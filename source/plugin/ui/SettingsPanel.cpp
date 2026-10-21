@@ -371,8 +371,29 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
 
 SettingsPanel::~SettingsPanel()
 {
+    if (! detached)
+    {
+        skins->removeChangeListener (this);
+        document.removeChangeListener (this);
+    }
+}
+
+void SettingsPanel::detach()
+{
+    if (detached)
+        return;
+
+    detached = true;
     skins->removeChangeListener (this);
     document.removeChangeListener (this);
+    panel.clear();      // and with the properties go their callbacks into the processor and document
+}
+
+void SettingsPanel::parentHierarchyChanged()
+{
+    // The Window line can only say how the window is drawn once the panel is in one.
+    if (getPeer() != nullptr)
+        panel.refreshAll();
 }
 
 void SettingsPanel::edit (const std::function<void (EngineSettings&)>& change)

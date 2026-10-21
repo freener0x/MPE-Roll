@@ -129,7 +129,8 @@ Loading a different synth reassigns the slots.
   timbre, text, buttons, keys...) has a swatch. Click it to pick your own; it changes as you drag.
   *Back to the skin's colours* undoes your changes. Picking another skin starts from its colours.
 - **Background picture:** *Choose a picture...* puts a PNG, JPEG or GIF behind the grid and the
-  expression lane, scaled to cover them. *Picture strength* sets how much of it shows through.
+  expression lane, scaled to cover them. *Picture strength* sets how much of it shows through. A
+  file that can't be read as a picture is turned down, and the picture you had stays.
 
 The look is kept on this computer and shared by every MPE Roll window, in every project.
 

@@ -36,6 +36,7 @@ public:
     void mouseDoubleClick (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
     bool keyPressed (const juce::KeyPress&) override;
+    void lookAndFeelChanged() override;
 
     void setPlayhead (double beat, bool visible);
     void refreshRecording()                     { repaint(); }
@@ -65,6 +66,7 @@ private:
     ClipDocument& document;
     ViewState& view;
     juce::SharedResourcePointer<SkinManager> skins;
+    juce::MouseCursor brushCursor;              // the Paint tool's pointer, in the skin's colours
 
     DragMode dragMode = DragMode::none;
     std::vector<Original> originals;

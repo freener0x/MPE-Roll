@@ -16,12 +16,19 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void parentHierarchyChanged() override;
+
+    /** Cuts the panel off from the processor and its document. The call-out holding the panel is
+        deleted later, by the message loop, and the host may delete the processor before then; the
+        editor calls this on its way out. Afterwards the panel is empty and listens to nothing. */
+    void detach();
 
 private:
     MpeRollProcessor& processor;
     ClipDocument& document;
     juce::SharedResourcePointer<SkinManager> skins;
     juce::PropertyPanel panel;
+    bool detached = false;
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
     void edit (const std::function<void (EngineSettings&)>& change);

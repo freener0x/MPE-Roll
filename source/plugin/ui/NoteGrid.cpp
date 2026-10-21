@@ -45,10 +45,12 @@ namespace
         return juce::MidiMessage::getMidiNoteName (key, true, true, 5);
     }
 
-    /** A paintbrush pointer, its tip (the hot spot) at the bottom left. */
-    juce::MouseCursor brushCursor()
+    /** A paintbrush pointer in the skin's colours, its tip (the hot spot) at the bottom left. Drawn in
+        software: a native image would keep the window's graphics system alive until the plugin is
+        unloaded. */
+    juce::MouseCursor makeBrushCursor()
     {
-        juce::Image image (juce::Image::ARGB, 20, 20, true);
+        juce::Image image (juce::Image::ARGB, 20, 20, true, juce::SoftwareImageType());
         juce::Graphics g (image);
         juce::Path handle;
         handle.addLineSegment ({ 8.0f, 12.0f, 18.0f, 2.0f }, 3.0f);
@@ -72,7 +74,7 @@ namespace
 }
 
 NoteGrid::NoteGrid (MpeRollProcessor& p, ViewState& v)
-    : processor (p), document (p.getDocument()), view (v)
+    : processor (p), document (p.getDocument()), view (v), brushCursor (makeBrushCursor())
 {
     setWantsKeyboardFocus (true);
     view.addListener (this);
@@ -336,8 +338,7 @@ void NoteGrid::mouseMove (const juce::MouseEvent& e)
 
     if (view.tool == ViewState::Tool::paint)
     {
-        static const auto brush = brushCursor();
-        setMouseCursor (brush);
+        setMouseCursor (brushCursor);
         return;
     }
 
@@ -346,6 +347,15 @@ void NoteGrid::mouseMove (const juce::MouseEvent& e)
                                                    : juce::MouseCursor::DraggingHandCursor);
     else
         setMouseCursor (juce::MouseCursor::NormalCursor);
+}
+
+void NoteGrid::lookAndFeelChanged()
+{
+    // The skin has changed: the paintbrush takes up its colours.
+    brushCursor = makeBrushCursor();
+
+    if (view.tool == ViewState::Tool::paint)
+        setMouseCursor (brushCursor);
 }
 
 void NoteGrid::captureOriginals()
@@ -682,7 +692,10 @@ void NoteGrid::drawGlide (juce::Point<float> position)
 
         curve = glideOriginal;
 
-        if (curve.isEmpty() && std::min (t, glideAnchorTime) > 1.0e-6)
+        // Drawn forwards from inside the note, the glide leaves the note's own pitch, held from the
+        // start. Drawn back towards where it was pressed, it scoops into that pitch instead, so
+        // nothing is added before the pen: its pitch is what's held from the start.
+        if (curve.isEmpty() && glideAnchorTime > 1.0e-6 && t >= glideAnchorTime)
             curve.addPoint (0.0, 0.0f);
 
         if (std::abs (t - glideAnchorTime) < 1.0e-9)
@@ -693,8 +706,7 @@ void NoteGrid::drawGlide (juce::Point<float> position)
             curve.replaceRange (t, glideAnchorTime, { { t, value }, { glideAnchorTime, glideAnchorValue } });
 
         const auto semitones = juce::roundToInt (value);
-        glideLabel = (semitones > 0 ? "+" : "") + juce::String (semitones) + "  "
-                   + juce::MidiMessage::getMidiNoteName (n->key + semitones, true, true, 4);
+        glideLabel = (semitones > 0 ? "+" : "") + juce::String (semitones) + "  " + keyName (n->key + semitones);
         glideLabelPosition = { (float) view.beatToX (n->start + t), view.pitchToY ((float) n->key + value) };
         document.changed();
         return;

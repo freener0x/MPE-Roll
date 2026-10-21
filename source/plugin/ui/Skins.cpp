@@ -219,10 +219,18 @@ void SkinManager::loadBackground (const juce::File& file)
 
 bool SkinManager::setBackgroundFile (const juce::File& file)
 {
-    loadBackground (file);
+    // Only a picture that can be read takes the place of the one showing; a bad file changes nothing.
+    const auto picture = file.existsAsFile() ? juce::ImageFileFormat::loadFrom (file) : juce::Image();
+
+    if (! picture.isValid())
+        return false;
+
+    background = picture;
+    scaled.clear();
+    backgroundFile = file;
     save();
     apply();
-    return background.isValid();
+    return true;
 }
 
 void SkinManager::clearBackground()

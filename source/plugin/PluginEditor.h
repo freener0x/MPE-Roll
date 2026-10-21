@@ -53,6 +53,7 @@ private:
     std::unique_ptr<Splitter> splitter;
     std::unique_ptr<MidiDragListener> midiDragListener;
     std::unique_ptr<juce::FileChooser> chooser;
+    juce::Component::SafePointer<juce::CallOutBox> settingsBox;     // the MPE settings, while they're open
     juce::TooltipWindow tooltips { this, 700 };
 
     int laneHeight = 200;

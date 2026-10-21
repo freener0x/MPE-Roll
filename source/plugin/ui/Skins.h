@@ -58,7 +58,8 @@ public:
 
     const juce::File& getBackgroundFile() const noexcept    { return backgroundFile; }
 
-    /** Shows a picture behind the grid (PNG, JPEG or GIF). Returns false if it couldn't be read. */
+    /** Shows a picture behind the grid (PNG, JPEG or GIF). Returns false if it couldn't be read, in
+        which case the picture showing (if any) stays. */
     bool setBackgroundFile (const juce::File&);
     void clearBackground();
     bool hasBackground() const noexcept                     { return background.isValid(); }

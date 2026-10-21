@@ -128,6 +128,18 @@ MpeRollEditor::MpeRollEditor (MpeRollProcessor& p)
 
 MpeRollEditor::~MpeRollEditor()
 {
+    // The settings call-out is deleted later, by the message loop, and FL may delete the processor
+    // before then: cut its panel off from the processor now, and close it. (Not hidden: the editor
+    // has usually left the screen already, and hiding would hand it the keyboard focus.)
+    if (auto* box = settingsBox.getComponent())
+    {
+        for (auto* child : box->getChildren())
+            if (auto* panel = dynamic_cast<SettingsPanel*> (child))
+                panel->detach();
+
+        box->exitModalState (0);
+    }
+
     stopTimer();
     rollProcessor.onStatusChanged = nullptr;
     toolbar.midiButton.removeMouseListener (midiDragListener.get());
@@ -895,7 +907,7 @@ void MpeRollEditor::showSettings()
 {
     auto panel = std::make_unique<SettingsPanel> (rollProcessor);
     const auto area = toolbar.settingsButton.getBounds() + toolbar.getPosition();
-    juce::CallOutBox::launchAsynchronously (std::move (panel), area, this);
+    settingsBox = &juce::CallOutBox::launchAsynchronously (std::move (panel), area, this);
 }
 
 //==============================================================================

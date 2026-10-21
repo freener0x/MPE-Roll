@@ -1531,6 +1531,121 @@ void scannerUiTest (Check& check)
     }
 }
 
+/** The first label under a component whose text contains the given words. */
+juce::Label* findLabelSaying (juce::Component& parent, const juce::String& words)
+{
+    for (auto* child : parent.getChildren())
+    {
+        if (auto* label = dynamic_cast<juce::Label*> (child); label != nullptr && label->getText().contains (words))
+            return label;
+
+        if (auto* found = findLabelSaying (*child, words))
+            return found;
+    }
+
+    return nullptr;
+}
+
+/** The editor's UI: the glide tool dragged back from where it was pressed, the paintbrush pointer, and
+    the settings call-out's Window line and lifetime. Has an editor of its own, so it can take the
+    editor and the processor down with the settings open. */
+void editorUiChecks (Check& check)
+{
+    auto& mm = *juce::MessageManager::getInstance();
+    ignoreXErrors();
+    juce::SharedResourcePointer<SkinManager> skins;
+    const auto lookFile = juce::File::createTempFile (".settings");
+    skins->useSettingsFile (lookFile);
+    juce::Component::SafePointer<juce::CallOutBox> settingsBox;
+
+    {
+        MpeRollProcessor processor;
+        auto& document = processor.getDocument();
+        std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditorAndMakeActive());
+        editor->setSize (1200, 760);
+        mm.runDispatchLoopUntil (100);
+
+        auto* grid = findChild<NoteGrid> (*editor);
+        auto* bar = findChild<Toolbar> (*editor);
+        std::printf ("Glide tool, dragging back\n");
+        check (grid != nullptr && bar != nullptr, "the editor has a grid and a toolbar");
+
+        if (grid != nullptr && bar != nullptr)
+        {
+            const auto& view = grid->getView();
+            auto at = [&] (double beat, float pitch) { return juce::Point<float> ((float) view.beatToX (beat), view.pitchToY (pitch)); };
+            auto clip = [&]() -> const MpeClip& { return document.getEditClip(); };
+
+            gesture (*grid, at (2.03, 60.0f), at (2.03, 60.0f));
+            check (clip().notes.size() == 1 && clip().notes[0].lanes.pitch.isEmpty(), "a new note has no glide");
+
+            // Pressed on the grid at beat 3, a beat into the note, and dragged back to beat 2.5 and up 2 st.
+            grid->keyPressed (juce::KeyPress ('g'));
+            gesture (*grid, at (2.97, 60.0f), at (2.5, 62.0f));
+
+            if (clip().notes.size() == 1)
+            {
+                const auto& scoop = clip().notes[0].lanes.pitch;
+                const auto& points = scoop.getPoints();
+                check (points.size() == 2
+                           && std::abs (points[0].beat - 0.5) < 1.0e-9 && std::abs (points[0].value - 2.0f) < 1.0e-6f
+                           && std::abs (points[1].beat - 1.0) < 1.0e-9 && std::abs (points[1].value) < 1.0e-6f,
+                       "dragged back from where it was pressed, a snapped glide scoops straight into the note's pitch there");
+                check (std::abs (scoop.valueAt (0.0, 0.0f) - 2.0f) < 1.0e-6f && std::abs (scoop.valueAt (0.25, 0.0f) - 2.0f) < 1.0e-6f,
+                       "holding the pen's pitch from the note's start rather than rising to it");
+            }
+
+            std::printf ("Paint tool pointer\n");
+            {
+                grid->keyPressed (juce::KeyPress ('b'));
+                const auto now = juce::Time::getCurrentTime();
+                const juce::MouseEvent hover (juce::Desktop::getInstance().getMainMouseSource(), at (5.0, 60.0f), juce::ModifierKeys(),
+                                              1.0f, 0.0f, 0.0f, 0.0f, 0.0f, grid, grid, now, at (5.0, 60.0f), now, 0, false);
+                grid->mouseMove (hover);
+                const auto brush = grid->getMouseCursor();
+                check (brush != juce::MouseCursor::NormalCursor, "the Paint tool has a pointer of its own");
+
+                skins->setPreset (1);
+                mm.runDispatchLoopUntil (50);
+                grid->mouseMove (hover);
+                check (grid->getMouseCursor() != brush, "which is drawn again in a new skin's colours");
+                grid->keyPressed (juce::KeyPress ('e'));
+            }
+
+            std::printf ("The settings call-out\n");
+            editor->addToDesktop (0);
+            editor->setVisible (true);
+            mm.runDispatchLoopUntil (200);
+
+            bar->settingsButton.triggerClick();
+            mm.runDispatchLoopUntil (50);
+            settingsBox = findChild<juce::CallOutBox> (*editor);
+            check (settingsBox != nullptr, "the MPE settings button opens them in a call-out");
+
+            if (auto* box = settingsBox.getComponent())
+                check (findLabelSaying (*box, "scale, drawn by") != nullptr,
+                       "whose Window line says how the window is drawn from the moment it opens");
+
+            // As FL closing the window and then the plugin with the settings open, while a skin change
+            // (from another MPE Roll's settings) is still on its way: the call-out is deleted later, by
+            // the message loop, and must no longer reach the processor.
+            skins->setPreset (2);
+            editor->removeFromDesktop();
+        }
+
+        processor.editorBeingDeleted (editor.get());
+        editor.reset();
+    }
+
+    mm.runDispatchLoopUntil (100);
+    check (settingsBox == nullptr, "closing the window and the plugin with the settings open is safe, and the call-out goes");
+
+    skins->setPreset (0);
+    skins->flush();
+    mm.runDispatchLoopUntil (50);
+    lookFile.deleteFile();
+}
+
 int uiTest()
 {
     Check check;
@@ -1790,8 +1905,9 @@ int uiTest()
 
         const auto notAPicture = juce::File::createTempFile (".png");
         notAPicture.replaceWithText ("not a picture");
-        check (! skins->setBackgroundFile (notAPicture) && ! skins->hasBackground(), "a file that isn't a picture is turned down");
-        skins->setBackgroundFile (pictureFile);
+        check (! skins->setBackgroundFile (notAPicture) && skins->getBackgroundFile() == pictureFile
+                   && skins->getBackgroundFor ({ 0, 0, 200, 100 }).isValid(),
+               "a file that isn't a picture is turned down, and the picture showing stays");
         skins->flush();
 
         {
@@ -1816,6 +1932,7 @@ int uiTest()
     }
 
     scannerUiTest (check);
+    editorUiChecks (check);
 
     processor.editorBeingDeleted (editor.get());
     editor.reset();
