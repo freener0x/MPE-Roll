@@ -26,8 +26,15 @@ void MpeEncoder::ChannelState::clearValues() noexcept
     pitchTouched = pressureTouched = timbreTouched = false;
 }
 
+// The voices live on the heap, allocated once here, so an encoder itself stays small: with each
+// voice carrying its own controller values a full table is some 50 KB, and the unit tests hold
+// dozens of encoders as locals of one function, which overflowed the 1 MB main-thread stack on
+// Windows (MSVC gives every local its own slot). Nothing else allocates after construction.
 MpeEncoder::MpeEncoder()
+    : voices ((size_t) maxVoices)
 {
+    static_assert (sizeof (MpeEncoder) < 16384, "MpeEncoder should stay small enough to live on the stack");
+
     for (auto& c : channels)
         c.clearValues();
 }

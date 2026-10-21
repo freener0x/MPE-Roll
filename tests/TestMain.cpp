@@ -71,7 +71,18 @@ int main (int argc, char** argv)
     if (argc == 3 && juce::String (argv[1]) == "--write-fl-sample")
         return writeFlSample (juce::File::getCurrentWorkingDirectory().getChildFile (argv[2]));
 
-    juce::UnitTestRunner runner;
+    // Progress goes to stdout, flushed line by line, so a run that dies names the test it died in
+    // wherever it runs: the default Logger on Windows writes to the debugger only.
+    struct StdoutRunner final : juce::UnitTestRunner
+    {
+        void logMessage (const juce::String& message) override
+        {
+            std::printf ("%s\n", message.toRawUTF8());
+            std::fflush (stdout);
+        }
+    };
+
+    StdoutRunner runner;
     runner.setAssertOnFailure (false);
     runner.runTestsInCategory ("MPE Roll");
 

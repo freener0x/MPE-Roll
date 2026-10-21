@@ -7,6 +7,7 @@
 #include <array>
 #include <bitset>
 #include <cstdint>
+#include <vector>
 
 namespace mperoll
 {
@@ -113,7 +114,7 @@ private:
     };
 
     OutputSettings settings;
-    std::array<Voice, maxVoices> voices;
+    std::vector<Voice> voices;                  // maxVoices of them, kept on the heap: see the constructor
     std::array<int, maxVoices> activeList {};   // indices into voices
     int numActive = 0;
     std::array<ChannelState, 17> channels;      // 1-based

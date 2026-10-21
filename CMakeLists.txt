@@ -282,6 +282,13 @@ if(MPEROLL_BUILD_TESTS)
             juce::juce_recommended_config_flags
             juce::juce_recommended_warning_flags)
 
+    if(MSVC)
+        # Each test class is one function whose tests keep their encoders and translators as locals,
+        # and MSVC gives every local its own stack slot. Give the tests the 8 MB main-thread stack
+        # that macOS and Linux have, rather than Windows' 1 MB.
+        target_link_options(MpeRollTests PRIVATE /STACK:8388608)
+    endif()
+
     add_test(NAME core_unit_tests COMMAND MpeRollTests)
 
     find_package(Python3 COMPONENTS Interpreter)
