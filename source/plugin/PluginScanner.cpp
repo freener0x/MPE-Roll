@@ -1,5 +1,17 @@
 #include "PluginScanner.h"
 
+#if JUCE_WINDOWS
+ #ifndef NOMINMAX
+  #define NOMINMAX
+ #endif
+ #ifndef WIN32_LEAN_AND_MEAN
+  #define WIN32_LEAN_AND_MEAN
+ #endif
+ #include <windows.h>
+#else
+ #include <unistd.h>
+#endif
+
 namespace mperoll::PluginScanner
 {
 
@@ -65,6 +77,15 @@ void setExecutableForTesting (const juce::File& executable)
     useExecutableForTesting = executable != juce::File();
 }
 
+juce::int64 currentProcessId()
+{
+   #if JUCE_WINDOWS
+    return (juce::int64) GetCurrentProcessId();
+   #else
+    return (juce::int64) getpid();
+   #endif
+}
+
 //==============================================================================
 Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIdentifier,
                    juce::OwnedArray<juce::PluginDescription>& results, int timeoutMs,
@@ -76,8 +97,13 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
         return Outcome::unavailable;
 
     const JobFolder files;
+    Job job;
+    job.formatName = formatName;
+    job.fileOrIdentifier = fileOrIdentifier;
+    job.parentProcessId = currentProcessId();
+    job.timeoutMs = timeoutMs;
 
-    if (! files.job.replaceWithText (formatName + "\n" + fileOrIdentifier + "\n"))
+    if (! files.job.replaceWithText (job.toText()))
         return Outcome::unavailable;
 
     juce::ChildProcess process;
@@ -88,6 +114,8 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
 
     const auto startTime = juce::Time::getMillisecondCounterHiRes();
     const auto stop = [&process] { process.kill(); process.waitForProcessToFinish (1000); };
+    const auto ready = [&files] { return readyMarkerFor (files.job).exists(); };
+    const auto started = [&files] { return startedMarkerFor (files.job).exists(); };
 
     while (! process.waitForProcessToFinish (50))
     {
@@ -98,14 +126,18 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
         }
 
         const auto elapsed = juce::Time::getMillisecondCounterHiRes() - startTime;
-        const auto started = startedMarkerFor (files.job).exists();
 
-        if (elapsed > timeoutMs || (! started && elapsed > startTimeoutMs))
+        if (elapsed > timeoutMs || (! started() && elapsed > startTimeoutMs))
         {
             stop();
-            return started ? Outcome::timedOut : Outcome::unavailable;
+            return started() ? Outcome::timedOut : ready() ? Outcome::unavailable : Outcome::outdated;
         }
     }
+
+    // A scanner that left without reading the job is from another version of MPE Roll (it turns
+    // the job down) or is broken: either way, nothing can be said about the file.
+    if (! ready())
+        return Outcome::outdated;
 
     // Written in one go once the plugin has been looked at, so a scanner that went down after that
     // (in the plugin's clean-up code, say) still counts.
@@ -122,7 +154,17 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
         return Outcome::found;
     }
 
-    return startedMarkerFor (files.job).exists() ? Outcome::crashed : Outcome::unavailable;
+    return started() ? Outcome::crashed : Outcome::unavailable;
+}
+
+namespace
+{
+    juce::String describeOutdatedScanner (const juce::String& consequence)
+    {
+        return "The MPE Roll Scanner installed here is older than this MPE Roll (or isn't working), so "
+               + consequence + " Install the MPE Roll Scanner that came with this version of MPE Roll: it's inside "
+                 "the .vst3 folder, and goes next to MPE Roll.dll.";
+    }
 }
 
 juce::String describeFailure (Outcome outcome, const juce::String& fileName)
@@ -138,6 +180,8 @@ juce::String describeFailure (Outcome outcome, const juce::String& fileName)
             return "Checking " + fileName + " was cancelled.";
         case Outcome::unavailable:
             return "MPE Roll Scanner isn't installed, so " + fileName + " couldn't be checked first.";
+        case Outcome::outdated:
+            return describeOutdatedScanner (fileName + " couldn't be checked, and so wasn't loaded.");
         case Outcome::found:
             break;
     }
@@ -161,8 +205,39 @@ bool OutOfProcessScanner::findPluginTypesFor (juce::AudioPluginFormat& format,
         return true;
     }
 
+    if (outcome == Outcome::outdated)
+    {
+        // The scanner turned the job down, so the file wasn't looked at anywhere. Not here either:
+        // that's where a crashing plugin takes FL down. It isn't the file's fault, so it isn't set
+        // aside, and the user is told what's wrong once per scan. The box is held by this scanner, so
+        // it closes with it; if the scanner has gone by the time the message thread gets here (the
+        // synth was deleted mid-scan), the box isn't shown at all.
+        if (! toldScannerOutdated.exchange (true))
+        {
+            juce::MessageManager::callAsync ([box = std::weak_ptr<juce::ScopedMessageBox> (outdatedBox)]
+            {
+                if (auto held = box.lock())
+                {
+                    const auto options = juce::MessageBoxOptions()
+                                             .withIconType (juce::MessageBoxIconType::WarningIcon)
+                                             .withTitle ("MPE Roll Scanner is out of date")
+                                             .withMessage (describeOutdatedScanner ("plugins can't be checked, and this scan lists none."))
+                                             .withButton ("OK");
+                    *held = juce::AlertWindow::showScopedAsync (options, nullptr);
+                }
+            });
+        }
+
+        return true;
+    }
+
     // A file that crashed or hung is listed as failed.
     return outcome == Outcome::found || outcome == Outcome::cancelled;
+}
+
+void OutOfProcessScanner::scanFinished()
+{
+    toldScannerOutdated = false;
 }
 
 } // namespace mperoll::PluginScanner

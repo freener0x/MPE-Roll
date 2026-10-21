@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/MpeSettings.h"
+#include "PluginScanner.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
@@ -43,6 +44,17 @@ public:
 
     /** Whether two descriptions are the same synth: same format and plugin ID, wherever installed. */
     static bool isSameSynth (const juce::PluginDescription&, const juce::PluginDescription&);
+
+    /** Whether the file is one of FL Studio's own plugins (Harmor, Sytrus...), which come in
+        Image-Line's own format: only FL can load them, so loadFromFile finds nothing in them.
+    */
+    static bool isFlStudioNativePlugin (const juce::File&);
+
+    /** Opens the window for scanning plugins into the known list, or brings it to the front if it's
+        already open. The synth owns the window: it goes when the synth does, so a scan can't carry on
+        into a list and settings that have been deleted. Message thread.
+    */
+    void showScanWindow (juce::Colour background = juce::Colour (0xff1e1f22));
 
     bool isLoaded() const;
     bool isLoading() const noexcept                     { return loading; }
@@ -233,6 +245,12 @@ private:
     OutputSettings outputSettings;                      // audio thread
     std::unique_ptr<juce::PluginDescription> description;
     std::unique_ptr<EditorWindow> editorWindow;
+    juce::Component::SafePointer<juce::DialogWindow> scanWindow;
+
+    // loadFromFile checks the file in the scanner on this thread, so a plugin that hangs or shows a
+    // dialog there doesn't hold up the message thread. The flag stops the check early.
+    std::thread checkThread;
+    std::shared_ptr<std::atomic<bool>> checkCancelled;
 
     /** Audio thread: whether the synth has made a sound while notes were held over MPE. */
     struct SilenceWatch
@@ -260,6 +278,8 @@ private:
 
     void install (std::unique_ptr<juce::AudioPluginInstance> newInstance, const juce::PluginDescription& desc);
     std::unique_ptr<juce::AudioPluginInstance> takeInstance();
+    void finishLoadFromFile (const juce::File&, PluginScanner::Outcome, juce::OwnedArray<juce::PluginDescription>& found, LoadCallback);
+    void stopCheck();
     void configure (juce::AudioPluginInstance& plugin);
     void countHeldNotes (const juce::MidiBuffer&) noexcept;
     void listenForSound (const juce::AudioBuffer<float>&) noexcept;

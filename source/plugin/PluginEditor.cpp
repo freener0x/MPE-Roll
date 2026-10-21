@@ -583,17 +583,8 @@ void MpeRollEditor::warnSynthSilent()
 
 void MpeRollEditor::showPluginScanner()
 {
-    auto& synth = rollProcessor.getSynth();
-
-    juce::DialogWindow::LaunchOptions options;
-    options.content.setOwned (new juce::PluginListComponent (synth.getFormatManager(), synth.getKnownPlugins(),
-                                                             synth.getDeadMansPedalFile(), synth.getUserSettings(), true));
-    options.content->setSize (760, 520);
-    options.dialogTitle = "MPE Roll: scan for plugins";
-    options.dialogBackgroundColour = Theme::panel;
-    options.useNativeTitleBar = true;
-    options.resizable = true;
-    options.launchAsync();
+    // The synth owns the window, so it closes with the synth rather than scanning into one that's gone.
+    rollProcessor.getSynth().showScanWindow (Theme::panel);
 }
 
 void MpeRollEditor::browseForPlugin()
@@ -626,7 +617,8 @@ void MpeRollEditor::browseForPlugin()
         if (safe == nullptr || file == juce::File())
             return;
 
-        safe->setStatus ("Loading " + file.getFileName() + "...");
+        // The file is checked in the scanner first, which can take a moment.
+        safe->setStatus ("Checking " + file.getFileName() + "...");
         safe->rollProcessor.getSynth().loadFromFile (file, [safe, file] (const juce::String& error)
         {
             if (safe == nullptr)

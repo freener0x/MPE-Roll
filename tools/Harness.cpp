@@ -1339,6 +1339,62 @@ void gesture (juce::Component& target, juce::Point<float> from, juce::Point<floa
     target.mouseUp (event (to, from != to));
 }
 
+// The scanner's part of the editor: the scan window, and what Load plugin file... says of FL's own plugins.
+void scannerUiTest (Check& check)
+{
+    auto& mm = *juce::MessageManager::getInstance();
+    ignoreXErrors();
+
+    const auto scanWindows = []
+    {
+        int count = 0;
+        auto& desktop = juce::Desktop::getInstance();
+
+        for (int i = 0; i < desktop.getNumComponents(); ++i)
+            if (auto* window = dynamic_cast<juce::DialogWindow*> (desktop.getComponent (i)))
+                count += window->getName() == "MPE Roll: scan for plugins" ? 1 : 0;
+
+        return count;
+    };
+
+    std::printf ("The scan window\n");
+    {
+        auto processor = std::make_unique<MpeRollProcessor>();
+        processor->getSynth().showScanWindow();
+        mm.runDispatchLoopUntil (100);
+        check (scanWindows() == 1, "Scan for plugins... opens it");
+
+        processor->getSynth().showScanWindow();
+        mm.runDispatchLoopUntil (50);
+        check (scanWindows() == 1, "and brings it to the front the second time, instead of opening another");
+
+        // As FL deleting MPE Roll while it's open: the window scans into the synth's list and settings.
+        processor.reset();
+        mm.runDispatchLoopUntil (100);
+        check (scanWindows() == 0, "it goes with MPE Roll, so it can't scan into a synth that's gone");
+    }
+
+    std::printf ("FL Studio's own plugins\n");
+    {
+        const auto temp = juce::File::getSpecialLocation (juce::File::tempDirectory);
+        const auto harmor = temp.getChildFile ("Image-Line").getChildFile ("FL Studio 2024").getChildFile ("Plugins")
+                                .getChildFile ("Fruity").getChildFile ("Generators").getChildFile ("Harmor").getChildFile ("Harmor_x64.dll");
+        check (HostedSynth::isFlStudioNativePlugin (harmor), "a file under FL's Plugins\\Fruity folder is one");
+        check (! HostedSynth::isFlStudioNativePlugin (temp.getChildFile ("VST3").getChildFile ("Surge XT.vst3")), "a synth elsewhere isn't");
+
+        HostedSynth synth;
+        juce::String error;
+        bool answered = false;
+        synth.loadFromFile (harmor, [&] (const juce::String& e) { error = e; answered = true; });
+
+        for (int i = 0; i < 100 && ! answered; ++i)
+            mm.runDispatchLoopUntil (50);
+
+        check (answered && error.contains ("FL Studio's own") && error.contains ("Send to FL piano roll"),
+               "Load plugin file... says only FL can load it, and points to Send to FL piano roll");
+    }
+}
+
 int uiTest()
 {
     Check check;
@@ -1623,6 +1679,8 @@ int uiTest()
             f.deleteFile();
     }
 
+    scannerUiTest (check);
+
     processor.editorBeingDeleted (editor.get());
     editor.reset();
     std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
@@ -1631,29 +1689,39 @@ int uiTest()
 
 // Plugin files are looked at in the scanner process: a crash or hang there doesn't reach MPE Roll.
 // Stands in for MPE Roll Scanner when scantest runs the harness as one. It makes up a plugin named after
-// the file without loading anything. For a file named "never starts" it goes down before it gets to the
-// file, for "crashes" while it's looking, and for "crashes on the way out" once it has written what it
-// found, as a plugin does whose clean-up code crashes.
-int standInScanner (const juce::File& job)
+// the file without loading anything. For a file named "too old" it turns the job down without reading
+// it, as a scanner from another version of MPE Roll does; for "never starts" it goes down before it
+// gets to the file, for "crashes" while it's looking, and for "crashes on the way out" once it has
+// written what it found, as a plugin does whose clean-up code crashes.
+int standInScanner (const juce::File& jobFile)
 {
-    const auto lines = juce::StringArray::fromLines (job.loadFileAsString());
+    PluginScanner::Job job;
+
+    if (! PluginScanner::Job::parse (jobFile.loadFileAsString(), job))
+        return 1;
+
     juce::PluginDescription d;
-    d.pluginFormatName = lines[0];
-    d.fileOrIdentifier = lines[1];
+    d.pluginFormatName = job.formatName;
+    d.fileOrIdentifier = job.fileOrIdentifier;
     d.name = juce::File (d.fileOrIdentifier).getFileNameWithoutExtension();
     d.uniqueId = d.deprecatedUid = d.name.hashCode();
+
+    if (d.name == "too old")
+        std::_Exit (1);
+
+    PluginScanner::readyMarkerFor (jobFile).create();
 
     if (d.name == "never starts")
         std::_Exit (3);
 
-    PluginScanner::startedMarkerFor (job).create();
+    PluginScanner::startedMarkerFor (jobFile).create();
 
     if (d.name == "crashes")
         std::_Exit (3);
 
     juce::XmlElement list ("LIST");
     list.addChildElement (d.createXml().release());
-    PluginScanner::resultFileFor (job).replaceWithText (list.toString());
+    PluginScanner::resultFileFor (jobFile).replaceWithText (list.toString());
 
     if (d.name == "crashes on the way out")
         std::_Exit (3);
@@ -1665,11 +1733,21 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
 {
     Check check;
     PluginScanner::setExecutableForTesting (scanner);
+    ignoreXErrors();     // the scan window and the message box about an out-of-date scanner
 
     const auto formatOf = [] (const juce::File& f)
     {
         return f.hasFileExtension (".clap") ? juce::String ("CLAP")
              : f.hasFileExtension (".vst3") ? juce::String ("VST3") : juce::String ("VST");
+    };
+
+    // Load plugin file... answers on the message thread once its check is done.
+    const auto waitUntil = [] (const bool& flag, int ms)
+    {
+        const auto end = juce::Time::getMillisecondCounterHiRes() + ms;
+
+        while (! flag && juce::Time::getMillisecondCounterHiRes() < end)
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
     };
 
     std::printf ("The scanner looks inside a plugin file\n");
@@ -1746,22 +1824,149 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
                "one that crashes while it's looked at is reported");
         check (PluginScanner::findTypes ("VST3", pathOf ("never starts"), found, 10000) == PluginScanner::Outcome::unavailable,
                "a scanner that goes down before it gets to the file says nothing about the file");
+        check (PluginScanner::findTypes ("VST3", pathOf ("too old"), found, 10000) == PluginScanner::Outcome::outdated,
+               "one from another version of MPE Roll, which turns the job down, is reported as out of date");
 
         juce::KnownPluginList list;
         list.setCustomScanner (std::make_unique<PluginScanner::OutOfProcessScanner> (10000));
         juce::VST3PluginFormat format;      // only its name reaches the stand-in scanner
         list.scanAndAddFile (pathOf ("never starts"), false, found, format);
         check (list.getBlacklistedFiles().isEmpty(), "so a scan doesn't set that file aside");
+        list.scanAndAddFile (pathOf ("too old"), false, found, format);
+        check (list.getBlacklistedFiles().isEmpty(), "nor the file an out-of-date scanner couldn't look at");
+
+        // Load plugin file... only tries files that exist. Empty, so looking inside it here would find nothing.
+        const juce::File tooOld (pathOf ("too old"));
+        tooOld.create();
+        {
+            HostedSynth synth;
+            juce::String error;
+            bool answered = false;
+            synth.loadFromFile (tooOld, [&] (const juce::String& e) { error = e; answered = true; });
+            waitUntil (answered, 30000);
+            check (answered && error.contains ("older than this MPE Roll") && ! synth.isLoaded(),
+                   "Load plugin file... says the scanner is out of date, rather than looking inside the file here");
+        }
+        tooOld.deleteFile();
         PluginScanner::setExecutableForTesting (scanner);
     }
 
-    std::printf ("Loading a plugin file that crashes is refused, not fatal\n");
+    std::printf ("Load plugin file... checks the file off the message thread, and refuses one that crashes\n");
     {
         HostedSynth synth;
         juce::String error = "(no answer)";
-        synth.loadFromFile (crashing, [&error] (const juce::String& e) { error = e; });
+        bool answered = false;
+        synth.loadFromFile (crashing, [&] (const juce::String& e) { error = e; answered = true; });
+        check (! answered && synth.isLoading(), "the check runs on a thread of its own, so FL's window isn't held up");
+        waitUntil (answered, 30000);
         check (error.contains ("crashed"), "the user is told it crashed");
-        check (! synth.isLoaded(), "and nothing is loaded");
+        check (! synth.isLoaded() && ! synth.isLoading(), "and nothing is loaded");
+    }
+
+    std::printf ("A check that's still running stops when the synth goes, or another load starts\n");
+    {
+        bool answered = false;
+        const auto start = juce::Time::getMillisecondCounterHiRes();
+
+        {
+            HostedSynth synth;
+            synth.loadFromFile (hanging, [&answered] (const juce::String&) { answered = true; });
+        }
+
+        check (juce::Time::getMillisecondCounterHiRes() - start < 5000.0, "the synth is gone within moments of a check that's stuck in a plugin");
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (200);
+        check (! answered, "and the check doesn't answer afterwards");
+
+        HostedSynth synth;
+        bool first = false, second = false;
+        juce::String error;
+        synth.loadFromFile (hanging, [&first] (const juce::String&) { first = true; });
+        synth.loadFromFile (synthFile, [&] (const juce::String& e) { error = e; second = true; });
+        waitUntil (second, 30000);
+        check (second && error.isEmpty() && synth.isLoaded(), "a second Load plugin file... loads its synth");
+        check (! first, "and the first never answers");
+    }
+
+    std::printf ("A scanner ends by itself when MPE Roll has gone, or its time is long up\n");
+    {
+        // Started by hand, as MPE Roll would, then left alone: how long until it ends, or -1 if it didn't.
+        const auto runAlone = [&] (juce::int64 parentProcess, int timeoutMs) -> double
+        {
+            const auto folder = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                                    .getChildFile ("MPE Roll scan watchdog " + juce::Uuid().toDashedString());
+            folder.createDirectory();
+            const auto jobFile = folder.getChildFile ("job.txt");
+
+            PluginScanner::Job job;
+            job.formatName = "CLAP";
+            job.fileOrIdentifier = hanging.getFullPathName();
+            job.parentProcessId = parentProcess;
+            job.timeoutMs = timeoutMs;
+            jobFile.replaceWithText (job.toText());
+
+            juce::ChildProcess process;
+            const auto start = juce::Time::getMillisecondCounterHiRes();
+            double took = -1.0;
+
+            if (process.start (juce::StringArray { scanner.getFullPathName(), PluginScanner::scanArgument, jobFile.getFullPathName() }, 0))
+            {
+                if (process.waitForProcessToFinish (20000))
+                    took = juce::Time::getMillisecondCounterHiRes() - start;
+                else
+                    process.kill();
+            }
+
+            folder.deleteRecursively();
+            return took;
+        };
+
+        const auto noParent = runAlone (0x7fffffff, 60000);     // no process has this ID
+        check (noParent >= 0.0 && noParent < 10000.0, "at once when the process that started it isn't there");
+
+        const auto stuck = runAlone (PluginScanner::currentProcessId(), 1000);
+        check (stuck >= 1000.0 && stuck < 15000.0, "and once the job's time and a margin are up while it's stuck in a plugin");
+    }
+
+    std::printf ("Files dropped on the scan window are scanned on the scan's thread\n");
+    {
+        HostedSynth synth;
+        auto& known = synth.getKnownPlugins();
+
+        for (const auto& type : known.getTypes())       // from an earlier run, maybe
+            if (type.name == "MPE Roll Test Synth")
+                known.removeType (type);
+
+        synth.showScanWindow();
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+
+        juce::PluginListComponent* list = nullptr;
+        auto& desktop = juce::Desktop::getInstance();
+
+        for (int i = 0; i < desktop.getNumComponents(); ++i)
+            if (auto* window = dynamic_cast<juce::DialogWindow*> (desktop.getComponent (i)))
+                if (window->getName() == "MPE Roll: scan for plugins")
+                    list = dynamic_cast<juce::PluginListComponent*> (window->getContentComponent());
+
+        check (list != nullptr, "the scan window shows the plugin list");
+
+        if (list != nullptr)
+        {
+            juce::FileDragAndDropTarget& target = *list;
+            target.filesDropped (juce::StringArray { synthFile.getFullPathName() }, 0, 0);
+            check (list->isScanning(), "a drop starts a scan and comes back at once");
+
+            const auto end = juce::Time::getMillisecondCounterHiRes() + 30000.0;
+
+            while (list->isScanning() && juce::Time::getMillisecondCounterHiRes() < end)
+                juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
+
+            bool listed = false;
+
+            for (const auto& type : known.getTypes())
+                listed = listed || type.name == "MPE Roll Test Synth";
+
+            check (! list->isScanning() && listed, "and the synth is listed once the scan is done");
+        }
     }
 
     PluginScanner::setExecutableForTesting ({});

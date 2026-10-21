@@ -33,8 +33,10 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    at the end of the scan and skipped afterwards, and *Load plugin file…* refuses it with a message
    instead of crashing FL. Each file gets a scanner of its own, so nothing a plugin leaves behind
    can take the next file down with it. The scanner comes inside the `.vst3` folder; with the `.dll`, keep
-   `MPE Roll Scanner.exe` next to it. Without the scanner, plugins are looked at inside FL, where a
-   crashing one takes FL down.
+   `MPE Roll Scanner.exe` next to it, and replace it when you update MPE Roll: a scanner from an older
+   version can't check plugins, and MPE Roll says so rather than loading them unchecked. Without the
+   scanner, plugins are looked at inside FL, where a crashing one takes FL down. *Load plugin file…*
+   shows *Checking…* while the scanner looks at the file; FL stays responsive meanwhile.
 3. Click **Edit synth** to open the synth's own window.
 4. **Turn on MPE in the synth.** Most MPE-capable synths have an MPE switch in their settings or
    global menu. Set the synth's MPE pitch-bend range to **48 semitones**, or change MPE Roll's
@@ -166,9 +168,25 @@ it.
 
 ## 5. FL's native synths: Send to FL piano roll
 
-FLEX, Sytrus, Harmor, 3xOsc and the other native generators can't receive MPE. The closest they get
-to per-note expression is FL's own piano roll: slide notes, fine pitch, and the Mod X / Mod Y, pan
-and release note properties.
+FL Studio's own synths (Harmor, Sytrus, Toxic Biohazard, FLEX, 3xOsc and the rest) come in
+Image-Line's own plugin format, which no other host can load
+([Image-Line: native plugins](https://support.image-line.com/action/knowledgebase?ans=504)), and FL
+Studio installs only those native versions
+([Image-Line: no VST versions in the install](https://support.image-line.com/action/knowledgebase?ans=589)).
+So MPE Roll can't host them: *Load plugin file…* on `Harmor_x64.dll` says so, and a scan of FL's
+`Plugins\Fruity` folder lists them as files that failed to load.
+
+Image-Line used to sell separate VST versions of some of them (Harmor, Sytrus, Toxic Biohazard…) and
+stopped in 2021. If you bought a VST registration back then, you can still download and unlock it
+from your Image-Line account (*Account › Other Downloads* / *My Licenses*), and MPE Roll loads it as
+an ordinary VST2 synth. None of Image-Line's synths supports MPE, so set *Synth expects* to *Plain
+MIDI* for them ([Image-Line on MPE](https://support.image-line.com/action/knowledgebase?ans=506)).
+FLEX was never sold as a VST. Image-Line says it plans to release them as VSTs again, without a date
+([Image-Line: VST versions](https://support.image-line.com/action/knowledgebase?id=79&ans=494)).
+
+For everyone else, the way to play them from MPE Roll is FL's own piano roll. The native synths
+can't receive MPE; the closest they get to per-note expression is slide notes, fine pitch, and the
+Mod X / Mod Y, pan and release note properties, which *Send to FL piano roll* writes for you.
 
 1. Write or record the clip in MPE Roll, then click **Send to FL piano roll**.
 2. MPE Roll writes `MPE Roll Import.pyscript` to
@@ -289,3 +307,5 @@ MIDI* as below). Neither synth comes as CLAP, so the CLAP note-expression path d
 | A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded and open their own window; MPE Roll says so. Please report synths whose window doesn't appear at all. |
 | An automation clip moves the wrong knob | The clip belongs to an MPE Roll slot, and slots are reassigned when you load a different synth. Re-link it with *Last tweaked*. |
 | Vibrato barely moves, or only on the newest note | Vibrato rides on the note's pitch bend, so it needs what glides need: MPE on in the synth with the bend ranges matching, or *Plain MIDI* with *Zone bend range* set to the synth's, where only the newest note's is heard. A synth without MPE can also take the zone-wide *Vibrato* lane. |
+| Harmor, Sytrus or another FL synth can't be scanned or loaded | FL's own synths come in Image-Line's format, which only FL can load, so a scan lists `Harmor_x64.dll` and the like as failed and *Load plugin file…* says what they are. Use *Send to FL piano roll* (section 5). Image-Line's separate VST versions, if you own one, load as ordinary VST2 synths with *Plain MIDI*. |
+| "The MPE Roll Scanner installed here is older than this MPE Roll" | The `MPE Roll Scanner.exe` next to `MPE Roll.dll` is from an older version, so it can't check plugins, and MPE Roll won't load them unchecked. Copy the scanner from the download that this MPE Roll came in (it's also inside the `.vst3` folder) over the old one. |

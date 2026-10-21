@@ -99,7 +99,8 @@ in to GitHub), pick the latest successful **Build** run, and download **MPE-Roll
   folders are listed under *Options › Manage plugins*). Install either one, or both.
 - `MPE Roll Scanner.exe`: MPE Roll checks plugins with it in a separate process, so a plugin that
   crashes while MPE Roll scans for synths can't take FL Studio down. The `.vst3` folder already
-  holds a copy; put this one next to `MPE Roll.dll` (unless the `.vst3` is installed too).
+  holds a copy; put this one next to `MPE Roll.dll` (unless the `.vst3` is installed too), and
+  replace it whenever you update MPE Roll, since a scanner from another version can't check plugins.
 - `MPE Roll.exe`, the standalone app, with `MPE Roll.pdb` beside it. Keep the two together: if the
   app crashes, it saves a report to `%APPDATA%\MPE Roll\Crash report.txt`, and the `.pdb` lets the
   report name the code involved.

@@ -8,8 +8,10 @@
  #include "plugin/clap/ClapHosting.h"
 #endif
 
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <thread>
 
 #if JUCE_WINDOWS
  #ifndef NOMINMAX
@@ -24,6 +26,10 @@
  #ifdef _MSC_VER
   #pragma comment (lib, "shell32.lib")
  #endif
+#else
+ #include <cerrno>
+ #include <signal.h>
+ #include <unistd.h>
 #endif
 
 namespace
@@ -72,6 +78,39 @@ juce::StringArray arguments ([[maybe_unused]] int argc, [[maybe_unused]] char* a
     std::_Exit (0);
 }
 
+// Ends this process as soon as MPE Roll's has gone, or once the job's time plus a margin is up.
+// MPE Roll stops a scanner that takes too long, but can't once it has been closed (or has crashed),
+// and a scanner stuck inside a plugin would otherwise stay around for good. The main thread may be
+// stuck in the plugin, so the process is ended from here without waiting for it.
+void startWatchdog (const mperoll::PluginScanner::Job& job)
+{
+    const auto deadlineMs = juce::jmax (0, job.timeoutMs) + mperoll::PluginScanner::watchdogMarginMs;
+
+    std::thread ([parent = job.parentProcessId, deadlineMs]
+    {
+       #if JUCE_WINDOWS
+        if (auto* parentProcess = OpenProcess (SYNCHRONIZE, FALSE, (DWORD) parent))
+            WaitForSingleObject (parentProcess, (DWORD) deadlineMs);   // returns when MPE Roll ends, or at the deadline
+        else if (GetLastError() != ERROR_INVALID_PARAMETER)             // no such process means MPE Roll has gone already
+            Sleep ((DWORD) deadlineMs);                                 // can't watch it, so only the deadline applies
+
+        TerminateProcess (GetCurrentProcess(), 4);
+       #else
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds (deadlineMs);
+
+        while (std::chrono::steady_clock::now() < deadline)
+        {
+            if (parent > 0 && ::kill ((pid_t) parent, 0) != 0 && errno == ESRCH)
+                break;
+
+            std::this_thread::sleep_for (std::chrono::milliseconds (250));
+        }
+
+        std::_Exit (4);
+       #endif
+    }).detach();
+}
+
 } // namespace
 
 int main (int argc, char* argv[])
@@ -91,11 +130,16 @@ int main (int argc, char* argv[])
         return 1;
     }
 
-    const juce::File job (args[1]);
-    const auto lines = juce::StringArray::fromLines (job.loadFileAsString());
+    const juce::File jobFile (args[1]);
+    mperoll::PluginScanner::Job job;
 
-    if (lines.size() < 2)
+    // A job in another layout comes from another version of MPE Roll: leave without the ready
+    // marker, and that MPE Roll tells the user the two don't match.
+    if (! mperoll::PluginScanner::Job::parse (jobFile.loadFileAsString(), job))
         return 1;
+
+    mperoll::PluginScanner::readyMarkerFor (jobFile).create();
+    startWatchdog (job);
 
     // Plugins are loaded on the message thread, as they expect.
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -110,19 +154,19 @@ int main (int argc, char* argv[])
 
     for (auto* format : formats.getFormats())
     {
-        if (format->getName() != lines[0])
+        if (format->getName() != job.formatName)
             continue;
 
         // From here on, a crash or hang is the plugin's.
-        mperoll::PluginScanner::startedMarkerFor (job).create();
+        mperoll::PluginScanner::startedMarkerFor (jobFile).create();
 
         juce::OwnedArray<juce::PluginDescription> found;
-        format->findAllTypesForFile (found, lines[1]);
+        format->findAllTypesForFile (found, job.fileOrIdentifier);
 
         for (auto* description : found)
             list.addChildElement (description->createXml().release());
     }
 
-    mperoll::PluginScanner::resultFileFor (job).replaceWithText (list.toString());
+    mperoll::PluginScanner::resultFileFor (jobFile).replaceWithText (list.toString());
     leave();
 }

@@ -16,6 +16,52 @@ namespace
     {
         return d.name + " (" + d.pluginFormatName + ", " + d.fileOrIdentifier + ")";
     }
+
+    juce::String describeFlStudioNativePlugin (const juce::File& file)
+    {
+        return file.getFileName() + " is one of FL Studio's own plugins. Those come in Image-Line's own format, "
+               "which only FL Studio can load, so MPE Roll can't host it. To play it with what you write in MPE Roll, "
+               "use Send to FL piano roll instead, which turns the clip into notes for FL's piano roll.";
+    }
+
+    /** The scan window's list. Files dropped on it are scanned the way Options > Scan does: on the
+        scan's own thread, with its progress window and Cancel button. JUCE's list looks at them right
+        there on the message thread, which would hold up FL's window while the scanner waits on a plugin.
+    */
+    class ScanList final : public juce::PluginListComponent
+    {
+    public:
+        ScanList (juce::AudioPluginFormatManager& fm, juce::KnownPluginList& knownList, const juce::File& deadMansPedal,
+                  juce::PropertiesFile* settings)
+            : PluginListComponent (fm, knownList, deadMansPedal, settings, true), formats (fm)
+        {
+        }
+
+    private:
+        void filesDropped (const juce::StringArray& files, int, int) override
+        {
+            if (isScanning())
+                return;
+
+            // A scan is of one format at a time, so a drop of mixed formats scans the first one's files.
+            for (auto* format : formats.getFormats())
+            {
+                juce::StringArray matching;
+
+                for (const auto& file : files)
+                    if (format->fileMightContainThisPluginType (file))
+                        matching.add (file);
+
+                if (! matching.isEmpty())
+                {
+                    scanFor (*format, matching);
+                    return;
+                }
+            }
+        }
+
+        juce::AudioPluginFormatManager& formats;
+    };
 }
 
 class HostedSynth::EditorWindow : public juce::DocumentWindow
@@ -94,6 +140,12 @@ HostedSynth::HostedSynth()
 HostedSynth::~HostedSynth()
 {
     ++loadGeneration;
+
+    // First of all: the scan window shows this list, saves into these settings and scans with this
+    // scanner, so it mustn't outlive them (FL deletes MPE Roll with the window open when the channel
+    // goes or another project is opened). Deleting it ends a scan that's running.
+    scanWindow.deleteAndZero();
+    stopCheck();
     closeEditor();
     knownPlugins.removeChangeListener (this);
 
@@ -137,6 +189,7 @@ juce::Array<juce::PluginDescription> HostedSynth::getInstrumentTypes() const
 //==============================================================================
 void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone)
 {
+    stopCheck();
     const auto generation = ++loadGeneration;
     loading = true;
     CrashReport::setActivity ("loading the synth " + describe (desc));
@@ -172,36 +225,85 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
 
 void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
 {
-    juce::OwnedArray<juce::PluginDescription> found;
-    CrashReport::setActivity ("reading the plugin file " + file.getFullPathName());
+    stopCheck();
+    const auto generation = ++loadGeneration;
+    const auto path = file.getFullPathName();
+    CrashReport::setActivity ("reading the plugin file " + path);
+
+    juce::StringArray formatNames;
 
     for (auto* format : formatManager.getFormats())
+        if (format->fileMightContainThisPluginType (path))
+            formatNames.add (format->getName());
+
+    // Without the scanner, the file is looked at here, as before.
+    if (formatNames.isEmpty() || PluginScanner::findExecutable() == juce::File())
     {
-        if (! format->fileMightContainThisPluginType (file.getFullPathName()))
-            continue;
+        juce::OwnedArray<juce::PluginDescription> found;
+        finishLoadFromFile (file, PluginScanner::Outcome::unavailable, found, std::move (onDone));
+        return;
+    }
 
-        // Look inside it in the scanner process first: a plugin that crashes there isn't loaded here.
-        const auto outcome = PluginScanner::findTypes (format->getName(), file.getFullPathName(), found);
+    // Look inside it in the scanner process first: a plugin that crashes there isn't loaded here.
+    // On a thread of its own, since a plugin that hangs or shows a dialog there would otherwise
+    // hold up FL's window for the length of the timeout. The outcome comes back to the message
+    // thread, where the loading itself happens; a load started meanwhile makes it moot.
+    loading = true;
+    checkCancelled = std::make_shared<std::atomic<bool>> (false);
 
-        if (outcome == PluginScanner::Outcome::unavailable)
+    checkThread = std::thread ([this, file, path, formatNames, generation, onDone,
+                                cancelled = checkCancelled, alive = std::weak_ptr<int> (lifetime)]
+    {
+        auto found = std::make_shared<juce::OwnedArray<juce::PluginDescription>>();
+        auto outcome = PluginScanner::Outcome::found;
+
+        for (const auto& formatName : formatNames)
         {
-            format->findAllTypesForFile (found, file.getFullPathName());
+            outcome = PluginScanner::findTypes (formatName, path, *found, PluginScanner::defaultTimeoutMs,
+                                                [&cancelled] { return cancelled->load(); });
+
+            if (outcome != PluginScanner::Outcome::found)
+                break;
         }
-        else if (outcome != PluginScanner::Outcome::found)
+
+        juce::MessageManager::callAsync ([this, file, found, outcome, generation, onDone, alive]
         {
-            CrashReport::setActivity ("refused to load " + file.getFullPathName());
+            if (alive.expired() || generation != loadGeneration)
+                return;
 
-            if (onDone)
-                onDone (PluginScanner::describeFailure (outcome, file.getFileName()));
+            finishLoadFromFile (file, outcome, *found, onDone);
+        });
+    });
+}
 
-            return;
-        }
+void HostedSynth::finishLoadFromFile (const juce::File& file, PluginScanner::Outcome outcome,
+                                      juce::OwnedArray<juce::PluginDescription>& found, LoadCallback onDone)
+{
+    loading = false;
+
+    if (outcome == PluginScanner::Outcome::unavailable)
+    {
+        // No scanner, or one that went down before it got to the file: look inside it here.
+        for (auto* format : formatManager.getFormats())
+            if (format->fileMightContainThisPluginType (file.getFullPathName()))
+                format->findAllTypesForFile (found, file.getFullPathName());
+    }
+    else if (outcome != PluginScanner::Outcome::found)
+    {
+        CrashReport::setActivity ("refused to load " + file.getFullPathName());
+
+        if (onDone)
+            onDone (PluginScanner::describeFailure (outcome, file.getFileName()));
+
+        return;
     }
 
     if (found.isEmpty())
     {
+        // FL's own plugins have no VST entry point, so a scan finds nothing in them.
         if (onDone)
-            onDone ("No plugin was found in " + file.getFileName() + ".");
+            onDone (isFlStudioNativePlugin (file) ? describeFlStudioNativePlugin (file)
+                                                  : "No plugin was found in " + file.getFileName() + ".");
 
         return;
     }
@@ -223,6 +325,43 @@ void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone)
         knownPlugins.addType (*d);
 
     load (*chosen, std::move (onDone));
+}
+
+void HostedSynth::stopCheck()
+{
+    if (checkCancelled != nullptr)
+        *checkCancelled = true;
+
+    // Quick: the check notices the flag within moments and stops its scanner.
+    if (checkThread.joinable())
+        checkThread.join();
+
+    checkCancelled.reset();
+}
+
+bool HostedSynth::isFlStudioNativePlugin (const juce::File& file)
+{
+    // FL's own plugins live under its install folder, in Plugins\Fruity\Generators and Effects.
+    const auto path = file.getFullPathName().replaceCharacter ('\\', '/');
+    return path.containsIgnoreCase ("/Plugins/Fruity/") || path.containsIgnoreCase ("/Image-Line/FL Studio");
+}
+
+void HostedSynth::showScanWindow (juce::Colour background)
+{
+    if (scanWindow != nullptr)
+    {
+        scanWindow->toFront (true);
+        return;
+    }
+
+    juce::DialogWindow::LaunchOptions options;
+    options.content.setOwned (new ScanList (formatManager, knownPlugins, getDeadMansPedalFile(), getUserSettings()));
+    options.content->setSize (760, 520);
+    options.dialogTitle = "MPE Roll: scan for plugins";
+    options.dialogBackgroundColour = background;
+    options.useNativeTitleBar = true;
+    options.resizable = true;
+    scanWindow = options.launchAsync();
 }
 
 juce::String HostedSynth::getPluginFilePatterns()
@@ -347,6 +486,7 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
 
 void HostedSynth::unload()
 {
+    stopCheck();
     ++loadGeneration;
     loading = false;
     closeEditor();
