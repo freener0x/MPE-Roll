@@ -55,14 +55,23 @@ Configuration Message and pitch-bend ranges, each note's starting state sent *be
 and a plain-MIDI mode for synths that don't do MPE.
 
 **Editing**
-- FL-style note editing: click to add, drag to move or resize, right-click to delete, Ctrl-drag to
-  select, Shift-drag to duplicate, Alt to bypass snap.
-- **Paint tool (B):** drag to lay down a run of snapped notes, FL-style.
+- FL's piano roll tools, with FL's keys, on an icon toolbar (hover for the words): **Draw (P)**
+  click to add, drag to move or resize, right-click to delete, Ctrl-drag to select, Shift-drag to
+  duplicate, Alt to bypass snap; **Paint (B)** drags out a run of snapped notes; **Delete (D)**;
+  **Slice (C)** cuts a note where you click, or every note a vertical drag crosses, each note's
+  glide and expression cut with it; **Select (E)** boxes or clicks notes.
 - **Glide tool (G):** draw pitch bends straight onto notes. Glides snap to whole semitones and the
   grid (Alt draws freely).
+- **Tools menu, as in FL's piano roll and with FL's keys:** quantize (Alt+Q; Ctrl+Q quick), chop
+  (Alt+U; Ctrl+U quick), glue (Ctrl+G), arpeggiate (Alt+A), strum (Alt+S), flam (Alt+F), legato
+  (Ctrl+L), articulate (Alt+L), limit (Alt+K), flip (Alt+Y), randomize (Alt+R) and scale levels
+  (Alt+X). A tool's dialog previews on the clip as you change it, through the synth; Accept keeps it
+  as one undo step. With nothing selected a tool works on every note, as in FL.
 - **Expression lane:** draw, line or erase any of the lanes above, on selected notes or every note
   under the pen. The vibrato lane shows on the notes as a wavy line.
-- Undo/redo, copy/paste, duplicate (Ctrl+D/B), quantize (Q), transpose (↑/↓), nudge (←/→).
+- FL's editing keys: undo/redo, copy/paste, duplicate (Ctrl+B), deselect (Ctrl+D), invert the
+  selection (Shift+I), quick quantize (Ctrl+Q; Shift+Q starts only), discard lengths (Shift+D),
+  transpose (↑/↓ a semitone, Ctrl an octave), nudge (←/→).
 - 16 clip slots. Each plays in sync with FL (**Follow FL**) or is launched by notes from FL's piano
   roll (**Note trigger**: C0 plays slot 1, C#0 slot 2...).
 - **Ten skins**, any colour of them changeable, and a background picture of your own behind the grid.
@@ -220,6 +229,7 @@ source/core/      The MPE engine. Only needs juce_core/juce_audio_basics, so it'
   MidiFileIO        Standard MIDI File import/export
   FlScriptExporter  the FL Studio piano roll script bridge
   ControllerPresets setups for popular MPE controllers
+  NoteTools         FL's piano roll tools (chop, arpeggiate, strum, glue...) on notes and their curves
 source/plugin/    The plugin: processor, hosted synth, automation slots, document/undo, the editor UI.
   clap/             CLAP hosting: plugin format, instance, and the MPE to note expression translator
 tests/            Unit tests, plus a Python stand-in for FL's flpianoroll module that runs the

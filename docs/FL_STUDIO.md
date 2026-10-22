@@ -88,10 +88,20 @@ Loading a different synth reassigns the slots.
 
 ## 3. Write and play
 
-- **Add notes:** click in the grid. Drag to move, drag the right edge to resize. Right-click (or
-  right-drag) deletes.
-- **Selection:** Ctrl-drag to select, Ctrl-click to add or remove a note, Ctrl+A for everything.
-  Shift-drag duplicates.
+The tools are FL's piano roll tools, with FL's keys, on an icon toolbar: hover a button for its
+name and key.
+
+- **Draw tool (P), add notes:** click in the grid. Drag to move, drag the right edge to resize.
+  Right-click (or right-drag) deletes with any tool but Glide.
+- **Selection:** Ctrl-drag to select, Ctrl-click to add or remove a note, Ctrl+A for everything,
+  Ctrl+D for nothing. Shift-drag duplicates. The **Select tool (E)** does the same with a plain
+  drag: a box selects what it covers, a click selects just that note (Ctrl adds), and a click on
+  empty space selects nothing.
+- **Delete tool (D):** click or drag across notes to delete them.
+- **Slice tool (C):** click a note to cut it in two where you click, on the grid (Alt bypasses
+  snap), or press and drag up or down to draw a cut line across several notes and cut them all at
+  that beat. A note's glide, pressure, timbre and controller curves are cut with it, so each piece
+  keeps its own part and the sound carries on across the cut.
 - **Paint tool (B):** drag across the grid to lay down notes one after another, each as long as the
   last note you placed or resized, starting on the grid (hold **Alt** to start off the grid). Move up
   or down while dragging to change key. Start on an existing note to carry on in its rhythm and
@@ -101,8 +111,8 @@ Loading a different synth reassigns the slots.
   reach. With **Snap glide** on (the default), the glide is a straight line that lands on a whole
   semitone and starts and ends on the grid, and a label shows the interval and the note it lands on.
   Hold **Alt** to draw freely instead (or turn Snap glide off). Drag to the left of where you pressed
-  to scoop up or down into it. Right-drag erases, double-click clears. Press **E** to go back to
-  editing.
+  to scoop up or down into it. Right-drag erases, double-click clears. Press **P** to go back to
+  drawing.
 - **Expression lane** (bottom): pick a lane from the menu. Lanes include velocity, release, pitch,
   pressure and timbre, any per-note controller, and zone-wide pitch bend, pressure, timbre, sustain
   and other pedals and controllers. *Draw* replaces only the stretch you draw over, *Line* draws a
@@ -121,8 +131,40 @@ Loading a different synth reassigns the slots.
   if the synth maps them.)
 - **Zoom/scroll:** Ctrl+wheel zooms time, Alt+wheel zooms keys, Shift+wheel scrolls sideways. Drag
   the green handle on the ruler to change the clip length.
-- **Keys:** ↑/↓ transpose (Shift: octave), ←/→ nudge, Q quantizes, Ctrl+C/X/V, Ctrl+D or Ctrl+B
-  duplicates, Ctrl+Z / Ctrl+Y undo and redo. E, B and G pick the Edit, Paint and Glide tools.
+- **Keys, as in FL:** ↑/↓ (or Shift+↑/↓) transpose a semitone, Ctrl+↑/↓ an octave, ←/→ (or
+  Shift+←/→) nudge by the snap, Ctrl+C/X/V, Ctrl+B duplicates, Ctrl+D deselects, Shift+I inverts
+  the selection, Shift+D shrinks notes to the snap length, Ctrl+Q and Shift+Q quantize, Ctrl+Z /
+  Ctrl+Y undo and redo, Delete deletes. P, B, D, C and E pick the Draw, Paint, Delete, Slice and
+  Select tools, and G the Glide tool. (FL's Mute tool and muted notes aren't in MPE Roll.)
+
+### Tools: FL's piano roll tools
+
+The wrench button opens the same tools FL's piano roll has, with FL's keys. Each works on the
+selected notes, or on every note when nothing is selected, as in FL. A tool with a dialog previews
+its result on the clip as you change the settings (you hear it through the synth), and *Accept*
+(Return) keeps it as one undo step while *Cancel* (Escape, or a click elsewhere) puts the notes
+back. The quick versions apply a tool at once with the settings it was last used with.
+
+| Tool | Key | What it does |
+|---|---|---|
+| Quick quantize | Ctrl+Q | Lands note starts and ends on the grid (the snap value); Shift+Q lands starts only, as in FL |
+| Quantize... | Alt+Q | Grid, strength, starts and/or ends |
+| Quick chop | Ctrl+U | Cuts each note into pieces at the grid |
+| Chop... | Alt+U | Piece length and gate (how much of each piece sounds) |
+| Glue | Ctrl+G | Joins notes of one pitch that touch or overlap into one (the dialog adds a gap to close) |
+| Arpeggiate... | Alt+A | Each chord becomes a run of its notes: pattern (up, down, up and down, down and up, random), step, gate, range in octaves |
+| Strum... | Alt+S | Spreads each chord's notes in time: time between notes, direction, velocity fall, keep ends |
+| Flam... | Alt+F | A grace note (or several) just before each note: time, velocity, count |
+| Quick legato | Ctrl+L | Lengthens each note to where the next one starts (the dialog sets an overlap or gap) |
+| Articulate... | Alt+L | Scales note lengths (staccato below 100 %, legato above), with a minimum |
+| Limit... | Alt+K | Moves notes by octaves into a key range |
+| Flip... | Alt+Y | Mirrors pitches (vertical) or reverses time (horizontal) within the notes |
+| Randomize... | Alt+R | Shakes velocity, release, pressure, timbre, pitch, length and start by chance (the seed re-rolls) |
+| Scale levels... | Alt+X | Scales and offsets velocities, and scales pressure and timbre lanes |
+
+A note's glide and expression curves go with it through every tool: a chopped or sliced note's
+pieces each keep their part, a shortened note keeps what it still plays, and a reversed note's
+curves run backwards.
 
 ### Skins and background
 

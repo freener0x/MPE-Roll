@@ -89,7 +89,8 @@ set(MPEROLL_CORE_SOURCES
     source/core/ClipPlayer.cpp
     source/core/MidiFileIO.cpp
     source/core/FlScriptExporter.cpp
-    source/core/ControllerPresets.cpp)
+    source/core/ControllerPresets.cpp
+    source/core/NoteTools.cpp)
 
 set(MPEROLL_PLUGIN_SOURCES
     source/plugin/AudioExport.cpp
@@ -106,6 +107,8 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/ui/PianoKeys.cpp
     source/plugin/ui/TimeRuler.cpp
     source/plugin/ui/Toolbar.cpp
+    source/plugin/ui/Icons.cpp
+    source/plugin/ui/NoteToolDialog.cpp
     source/plugin/ui/SettingsPanel.cpp
     source/plugin/ui/Skins.cpp
     source/plugin/ui/WindowDrawing.cpp)
@@ -263,7 +266,8 @@ if(MPEROLL_BUILD_TESTS)
         tests/MpeDecoderTests.cpp
         tests/ClipPlayerTests.cpp
         tests/RoundTripTests.cpp
-        tests/FlScriptExporterTests.cpp)
+        tests/FlScriptExporterTests.cpp
+        tests/NoteToolsTests.cpp)
 
     if(MPEROLL_HOST_CLAP)
         target_sources(MpeRollTests PRIVATE

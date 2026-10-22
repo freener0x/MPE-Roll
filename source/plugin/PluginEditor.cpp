@@ -141,6 +141,9 @@ MpeRollEditor::~MpeRollEditor()
         box->exitModalState (0);
     }
 
+    // A tool's dialog likewise: its preview is withdrawn while the document is still here.
+    closeToolDialog (true);
+
     // The "No sound from ..." box: closed, it keeps MPE, so nothing is changed on the way out.
     if (silenceAlert != nullptr)
         silenceAlert->exitModalState (0);
@@ -198,6 +201,10 @@ void MpeRollEditor::parentHierarchyChanged()
 
 bool MpeRollEditor::keyPressed (const juce::KeyPress& key)
 {
+    // The Tools' keys (Alt+U for Chop, as in FL) reach here from the grid, which leaves them alone.
+    if (handleToolKey (key))
+        return true;
+
     return grid.keyPressed (key);
 }
 
@@ -249,10 +256,16 @@ void MpeRollEditor::wireToolbar()
     toolbar.recordButton.onClick = [this] { rollProcessor.setRecordArmed (toolbar.recordButton.getToggleState()); };
     toolbar.settingsButton.onClick = [this] { showSettings(); };
 
-    toolbar.editToolButton.onClick = [this] { view.tool = ViewState::Tool::edit; view.changed(); };
-    toolbar.paintToolButton.onClick = [this] { view.tool = ViewState::Tool::paint; view.changed(); };
-    toolbar.glideToolButton.onClick = [this] { view.tool = ViewState::Tool::glide; view.changed(); };
+    for (auto [button, tool] : { std::pair { &toolbar.drawToolButton, ViewState::Tool::edit },
+                                 std::pair { &toolbar.paintToolButton, ViewState::Tool::paint },
+                                 std::pair { &toolbar.eraseToolButton, ViewState::Tool::erase },
+                                 std::pair { &toolbar.sliceToolButton, ViewState::Tool::slice },
+                                 std::pair { &toolbar.selectToolButton, ViewState::Tool::select },
+                                 std::pair { &toolbar.glideToolButton, ViewState::Tool::glide } })
+        button->onClick = [this, tool] { view.tool = tool; view.changed(); };
+
     toolbar.glideSnapButton.onClick = [this] { view.snapGlide = toolbar.glideSnapButton.getToggleState(); view.changed(); };
+    toolbar.toolsButton.onClick = [this] { showToolsMenu(); };
 
     toolbar.snapBox.onChange = [this]
     {
@@ -306,10 +319,7 @@ void MpeRollEditor::refreshToolbar()
     toolbar.loopButton.setToggleState (clip.looping, juce::dontSendNotification);
     toolbar.modeBox.setSelectedId (settings.playback.mode == PlaybackSettings::Mode::noteTrigger ? 2 : 1, juce::dontSendNotification);
     toolbar.snapBox.setSelectedId (Toolbar::indexForSnap (view.snap) + 1, juce::dontSendNotification);
-    toolbar.editToolButton.setToggleState (view.tool == ViewState::Tool::edit, juce::dontSendNotification);
-    toolbar.paintToolButton.setToggleState (view.tool == ViewState::Tool::paint, juce::dontSendNotification);
-    toolbar.glideToolButton.setToggleState (view.tool == ViewState::Tool::glide, juce::dontSendNotification);
-    toolbar.glideSnapButton.setToggleState (view.snapGlide, juce::dontSendNotification);
+    syncToolButtons();
     toolbar.undoButton.setEnabled (document.getUndoManager().canUndo());
     toolbar.redoButton.setEnabled (document.getUndoManager().canRedo());
     toolbar.recordButton.setToggleState (rollProcessor.isRecordArmed(), juce::dontSendNotification);
@@ -448,11 +458,19 @@ void MpeRollEditor::viewChanged()
     updateScrollBars();
 
     const juce::ScopedValueSetter<bool> svs (updatingToolbar, true);
-    toolbar.editToolButton.setToggleState (view.tool == ViewState::Tool::edit, juce::dontSendNotification);
+    syncToolButtons();
+    toolbar.snapBox.setSelectedId (Toolbar::indexForSnap (view.snap) + 1, juce::dontSendNotification);
+}
+
+void MpeRollEditor::syncToolButtons()
+{
+    toolbar.drawToolButton.setToggleState (view.tool == ViewState::Tool::edit, juce::dontSendNotification);
     toolbar.paintToolButton.setToggleState (view.tool == ViewState::Tool::paint, juce::dontSendNotification);
+    toolbar.eraseToolButton.setToggleState (view.tool == ViewState::Tool::erase, juce::dontSendNotification);
+    toolbar.sliceToolButton.setToggleState (view.tool == ViewState::Tool::slice, juce::dontSendNotification);
+    toolbar.selectToolButton.setToggleState (view.tool == ViewState::Tool::select, juce::dontSendNotification);
     toolbar.glideToolButton.setToggleState (view.tool == ViewState::Tool::glide, juce::dontSendNotification);
     toolbar.glideSnapButton.setToggleState (view.snapGlide, juce::dontSendNotification);
-    toolbar.snapBox.setSelectedId (Toolbar::indexForSnap (view.snap) + 1, juce::dontSendNotification);
 }
 
 void MpeRollEditor::updateScrollBars()
@@ -955,6 +973,108 @@ void MpeRollEditor::showSettings()
     auto panel = std::make_unique<SettingsPanel> (rollProcessor);
     const auto area = toolbar.settingsButton.getBounds() + toolbar.getPosition();
     settingsBox = &juce::CallOutBox::launchAsynchronously (std::move (panel), area, this);
+}
+
+//==============================================================================
+bool MpeRollEditor::handleToolKey (const juce::KeyPress& key)
+{
+    for (const auto& tool : NoteToolDialog::all())
+    {
+        if (NoteToolDialog::matches (tool.quickKey, key))
+        {
+            applyTool (tool.kind);
+            return true;
+        }
+
+        if (NoteToolDialog::matches (tool.key, key))
+        {
+            openTool (tool.kind);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void MpeRollEditor::showToolsMenu()
+{
+    // FL's piano roll Tools menu: the quick version of a tool first, where there is one, then its dialog.
+    juce::PopupMenu menu;
+    const auto safe = juce::Component::SafePointer<MpeRollEditor> (this);
+    int id = 1;
+
+    for (const auto& tool : NoteToolDialog::all())
+    {
+        if (tool.quickKey.isValid())
+        {
+            juce::PopupMenu::Item quick ("Quick " + juce::String (tool.name).toLowerCase());
+            quick.itemID = id++;
+            quick.shortcutKeyDescription = NoteToolDialog::describeKey (tool.quickKey);
+            quick.action = [safe, kind = tool.kind] { if (safe != nullptr) safe->applyTool (kind); };
+            menu.addItem (quick);
+        }
+
+        juce::PopupMenu::Item item (juce::String (tool.name) + "...");
+        item.itemID = id++;
+        item.shortcutKeyDescription = NoteToolDialog::describeKey (tool.key);
+        item.action = [safe, kind = tool.kind] { if (safe != nullptr) safe->openTool (kind); };
+        menu.addItem (item);
+
+        if (tool.kind != NoteToolDialog::Kind::scaleLevels)
+            menu.addSeparator();
+    }
+
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.toolsButton));
+}
+
+void MpeRollEditor::applyTool (NoteToolDialog::Kind kind)
+{
+    closeToolDialog (false);
+
+    if (document.getEditClip().notes.empty())
+    {
+        setStatus ("Nothing for " + juce::String (NoteToolDialog::info (kind).name) + " to work on: this clip has no notes.");
+        return;
+    }
+
+    NoteToolDialog::applyNow (kind, document, view.snap > 0.0 ? view.snap : 0.25);
+    setStatus (juce::String (NoteToolDialog::info (kind).name) + " applied (Ctrl+Z undoes it).");
+}
+
+void MpeRollEditor::openTool (NoteToolDialog::Kind kind)
+{
+    closeToolDialog (false);
+
+    if (document.getEditClip().notes.empty())
+    {
+        setStatus ("Nothing for " + juce::String (NoteToolDialog::info (kind).name) + " to work on: this clip has no notes.");
+        return;
+    }
+
+    auto dialog = std::make_unique<NoteToolDialog> (kind, document, view.snap > 0.0 ? view.snap : 0.25);
+    dialog->onFinished = [safe = juce::Component::SafePointer<MpeRollEditor> (this)]
+    {
+        if (safe != nullptr)
+            if (auto* box = safe->toolsBox.getComponent())
+                box->dismiss();
+    };
+
+    const auto area = toolbar.toolsButton.getBounds() + toolbar.getPosition();
+    toolsBox = &juce::CallOutBox::launchAsynchronously (std::move (dialog), area, this);
+}
+
+void MpeRollEditor::closeToolDialog (bool detachFirst)
+{
+    if (auto* box = toolsBox.getComponent())
+    {
+        if (detachFirst)
+            for (auto* child : box->getChildren())
+                if (auto* dialog = dynamic_cast<NoteToolDialog*> (child))
+                    dialog->detach();
+
+        box->exitModalState (0);
+        toolsBox = nullptr;
+    }
 }
 
 //==============================================================================

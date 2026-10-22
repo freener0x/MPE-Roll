@@ -19,6 +19,7 @@
 #include "plugin/PluginEditor.h"
 #include "plugin/PluginProcessor.h"
 #include "plugin/PluginScanner.h"
+#include "plugin/ui/NoteToolDialog.h"
 #include "plugin/ui/SettingsPanel.h"
 #include "plugin/ui/Toolbar.h"
 #include "plugin/ui/WindowDrawing.h"
@@ -1864,7 +1865,7 @@ void editorUiChecks (Check& check)
                 mm.runDispatchLoopUntil (50);
                 grid->mouseMove (hover);
                 check (grid->getMouseCursor() != brush, "which is drawn again in a new skin's colours");
-                grid->keyPressed (juce::KeyPress ('e'));
+                grid->keyPressed (juce::KeyPress ('p'));
             }
 
             std::printf ("The settings call-out\n");
@@ -2024,7 +2025,7 @@ int uiTest()
         check (clip().notes.size() == before, "one undo takes the whole stroke away");
     }
 
-    grid->keyPressed (juce::KeyPress ('e'));
+    grid->keyPressed (juce::KeyPress ('p'));
 
     std::printf ("Expression lane\n");
     {
@@ -2070,8 +2071,8 @@ int uiTest()
     std::printf ("Selection, clipboard and undo\n");
     {
         grid->keyPressed (juce::KeyPress ('a', juce::ModifierKeys::commandModifier, 0));
-        grid->keyPressed (juce::KeyPress ('d', juce::ModifierKeys::commandModifier, 0));
-        check (clip().notes.size() == 2 && std::abs (clip().notes[1].start - 5.0) < 1.0e-9, "Ctrl+D duplicates after the selection");
+        grid->keyPressed (juce::KeyPress ('b', juce::ModifierKeys::commandModifier, 0));
+        check (clip().notes.size() == 2 && std::abs (clip().notes[1].start - 5.0) < 1.0e-9, "Ctrl+B duplicates after the selection (FL's key)");
 
         grid->keyPressed (juce::KeyPress (juce::KeyPress::upKey));
         check (clip().notes[1].key == 63, "Up transposes the selection");
@@ -2081,6 +2082,184 @@ int uiTest()
 
         document.getUndoManager().undo();
         check (clip().notes.size() == 2, "undo brings it back");
+    }
+
+    std::printf ("FL's tools and keys\n");
+    {
+        auto& mm = *juce::MessageManager::getInstance();
+        ignoreXErrors();
+
+        // A known clip: a C major chord two beats long at beat 8, and a lone note at beat 12 that
+        // glides up two semitones.
+        document.perform ("Test notes", [] (MpeClip& c)
+        {
+            c.notes.clear();
+
+            for (int key : { 60, 64, 67 })
+            {
+                MpeNote n;
+                n.key = key;
+                n.start = 8.0;
+                n.length = 2.0;
+                c.addNote (n);
+            }
+
+            MpeNote lone;
+            lone.key = 72;
+            lone.start = 12.0;
+            lone.length = 1.0;
+            lone.lanes.pitch = ExpressionCurve ({ { 0.0, 0.0f }, { 1.0, 2.0f } });
+            c.addNote (lone);
+        });
+        document.selection.clear();
+        document.selectionChanged();
+
+        // Notes are kept sorted by start, so they're found by key here.
+        auto noteWithKey = [&] (int key) -> const MpeNote*
+        {
+            for (const auto& n : clip().notes)
+                if (n.key == key)
+                    return &n;
+
+            return nullptr;
+        };
+
+        // FL's two quick quantizes: Shift+Q lands starts on the grid, Ctrl+Q ends as well.
+        document.perform ("Off the grid", [] (MpeClip& c)
+        {
+            for (auto& n : c.notes)
+                if (n.key == 60)
+                {
+                    n.start = 8.1;
+                    n.length = 1.9;
+                }
+        });
+        grid->keyPressed (juce::KeyPress ('q', juce::ModifierKeys::shiftModifier, 0));
+        check (noteWithKey (60) != nullptr && std::abs (noteWithKey (60)->start - 8.0) < 1.0e-9
+                   && std::abs (noteWithKey (60)->length - 1.9) < 1.0e-9,
+               "Shift+Q quantizes starts, leaving lengths alone");
+        editor->keyPressed (juce::KeyPress ('q', juce::ModifierKeys::commandModifier, 0));
+        check (noteWithKey (60) != nullptr && std::abs (noteWithKey (60)->start - 8.0) < 1.0e-9
+                   && std::abs (noteWithKey (60)->length - 2.0) < 1.0e-9,
+               "Ctrl+Q quantizes ends too, as FL's quick quantize does");
+
+        grid->keyPressed (juce::KeyPress ('c'));
+        check (view.tool == ViewState::Tool::slice, "C picks the Slice tool, as in FL");
+        grid->keyPressed (juce::KeyPress ('d'));
+        check (view.tool == ViewState::Tool::erase, "D the Delete tool");
+        grid->keyPressed (juce::KeyPress ('e'));
+        check (view.tool == ViewState::Tool::select, "E the Select tool");
+        grid->keyPressed (juce::KeyPress ('b'));
+        check (view.tool == ViewState::Tool::paint, "B the Paint tool");
+        grid->keyPressed (juce::KeyPress ('p'));
+        check (view.tool == ViewState::Tool::edit, "P the Draw tool");
+
+        check (bar != nullptr && bar->drawToolButton.getToggleState() && ! bar->sliceToolButton.getToggleState(),
+               "and the toolbar's icon buttons follow");
+
+        // Slice: a click cuts the lone note at the snapped beat (12.53 lands on 12.5), the glide
+        // carrying on across the cut.
+        grid->keyPressed (juce::KeyPress ('c'));
+        gesture (*grid, at (12.53, 72.0f), at (12.53, 72.0f));
+        {
+            std::vector<const MpeNote*> pieces;
+
+            for (const auto& n : clip().notes)
+                if (n.key == 72)
+                    pieces.push_back (&n);
+
+            check (pieces.size() == 2 && std::abs (pieces[0]->length - 0.5) < 1.0e-9
+                       && std::abs (pieces[1]->start - 12.5) < 1.0e-9 && std::abs (pieces[1]->length - 0.5) < 1.0e-9,
+                   "a click with the Slice tool cuts the note in two at the snapped beat");
+            check (pieces.size() == 2
+                       && std::abs (pieces[0]->lanes.pitch.valueAt (0.5, 0.0f) - 1.0f) < 1.0e-5f
+                       && std::abs (pieces[1]->lanes.pitch.valueAt (0.0, 0.0f) - 1.0f) < 1.0e-5f
+                       && std::abs (pieces[1]->lanes.pitch.valueAt (0.5, 0.0f) - 2.0f) < 1.0e-5f,
+                   "and the glide carries on across the cut");
+        }
+
+        gesture (*grid, at (9.02, 68.0f), at (9.02, 59.0f));
+        check (clip().notes.size() == 8, "dragging a slice line down across the chord cuts every note it crosses");
+        document.getUndoManager().undo();
+        check (clip().notes.size() == 5, "as one undo step");
+
+        grid->keyPressed (juce::KeyPress ('d'));
+        gesture (*grid, at (12.2, 72.0f), at (12.2, 72.0f));
+        check (clip().notes.size() == 4, "the Delete tool removes the note under a click");
+
+        grid->keyPressed (juce::KeyPress ('e'));
+        gesture (*grid, at (7.5, 69.0f), at (10.5, 58.0f));
+        check (document.selection.size() == 3, "the Select tool's box selects the chord");
+        gesture (*grid, at (12.7, 72.0f), at (12.7, 72.0f));
+        check (document.selection.size() == 1 && clip().findNote (*document.selection.begin()) != nullptr
+                   && clip().findNote (*document.selection.begin())->key == 72,
+               "a click selects just that note");
+        gesture (*grid, at (14.0, 50.0f), at (14.0, 50.0f));
+        check (document.selection.empty(), "and a click on empty space selects nothing");
+
+        grid->keyPressed (juce::KeyPress ('i', juce::ModifierKeys::shiftModifier, 0));
+        check (document.selection.size() == 4, "Shift+I inverts the selection, as in FL");
+        grid->keyPressed (juce::KeyPress (juce::KeyPress::upKey, juce::ModifierKeys::commandModifier, 0));
+        check (noteWithKey (60) == nullptr && noteWithKey (76) != nullptr && noteWithKey (84) != nullptr,
+               "Ctrl+Up transposes an octave, as in FL");
+        document.getUndoManager().undo();
+        grid->keyPressed (juce::KeyPress ('i', juce::ModifierKeys::shiftModifier, 0));
+        check (document.selection.empty(), "and again puts it back");
+
+        // The Tools' keys reach the editor. Nothing selected: every note is worked on, as in FL.
+        editor->keyPressed (juce::KeyPress ('u', juce::ModifierKeys::commandModifier, 0));
+        check (clip().notes.size() == 3 * 8 + 2, "Ctrl+U quick-chops every note at the grid when nothing is selected");
+        document.getUndoManager().undo();
+        check (clip().notes.size() == 4, "in one undo step");
+
+        editor->keyPressed (juce::KeyPress ('l', juce::ModifierKeys::commandModifier, 0));
+        check (std::all_of (clip().notes.begin(), clip().notes.end(),
+                            [] (const MpeNote& n) { return n.key == 72 || std::abs (n.length - 4.5) < 1.0e-9; }),
+               "Ctrl+L quick legato lengthens the chord to where the next note starts");
+        document.getUndoManager().undo();
+
+        // Alt+A opens the Arpeggiate dialog, which previews on the clip: Escape puts the notes
+        // back and leaves nothing to undo, Return keeps the result as one undo step.
+        editor->addToDesktop (0);
+        editor->setVisible (true);
+        mm.runDispatchLoopUntil (100);
+        const auto undoBefore = document.getUndoManager().getUndoDescription();
+
+        auto openDialog = [&]() -> NoteToolDialog*
+        {
+            editor->keyPressed (juce::KeyPress ('a', juce::ModifierKeys::altModifier, 0));
+            mm.runDispatchLoopUntil (100);
+            auto* box = findChild<juce::CallOutBox> (*editor);
+            return box != nullptr ? findChild<NoteToolDialog> (*box) : nullptr;
+        };
+
+        auto* dialog = openDialog();
+        check (dialog != nullptr, "Alt+A opens the Arpeggiate dialog in a call-out");
+        check (clip().notes.size() == 10, "which previews the arpeggio on the clip: eight steps for the chord, two for the lone note");
+
+        if (dialog != nullptr)
+        {
+            dialog->keyPressed (juce::KeyPress (juce::KeyPress::escapeKey));
+            mm.runDispatchLoopUntil (100);
+        }
+
+        check (clip().notes.size() == 4 && document.getUndoManager().getUndoDescription() == undoBefore,
+               "Escape puts the notes back and leaves nothing to undo");
+
+        dialog = openDialog();
+
+        if (dialog != nullptr)
+        {
+            dialog->keyPressed (juce::KeyPress (juce::KeyPress::returnKey));
+            mm.runDispatchLoopUntil (100);
+        }
+
+        check (clip().notes.size() == 10 && document.getUndoManager().getUndoDescription() == "Arpeggiate",
+               "Return keeps the arpeggio as one undo step");
+        document.getUndoManager().undo();
+        check (clip().notes.size() == 4, "which undoes it whole");
+        editor->removeFromDesktop();
+        grid->keyPressed (juce::KeyPress ('p'));
     }
 
     std::printf ("The editor's window\n");

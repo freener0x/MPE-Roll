@@ -11,7 +11,8 @@ namespace mperoll
 class ViewState
 {
 public:
-    enum class Tool { edit, paint, glide };
+    /** The cursor tools, FL Studio's plus Glide: edit is FL's Draw. */
+    enum class Tool { edit, paint, erase, slice, select, glide };
 
     struct Listener
     {

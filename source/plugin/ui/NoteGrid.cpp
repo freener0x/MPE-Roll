@@ -1,5 +1,7 @@
 #include "NoteGrid.h"
+#include "Icons.h"
 #include "MpeLookAndFeel.h"
+#include "core/NoteTools.h"
 
 namespace mperoll
 {
@@ -45,37 +47,12 @@ namespace
         return juce::MidiMessage::getMidiNoteName (key, true, true, 5);
     }
 
-    /** A paintbrush pointer in the skin's colours, its tip (the hot spot) at the bottom left. Drawn in
-        software: a native image would keep the window's graphics system alive until the plugin is
-        unloaded. */
-    juce::MouseCursor makeBrushCursor()
-    {
-        juce::Image image (juce::Image::ARGB, 20, 20, true, juce::SoftwareImageType());
-        juce::Graphics g (image);
-        juce::Path handle;
-        handle.addLineSegment ({ 8.0f, 12.0f, 18.0f, 2.0f }, 3.0f);
-        juce::Path bristles;
-        bristles.startNewSubPath (1.0f, 19.0f);
-        bristles.quadraticTo (2.0f, 12.0f, 7.0f, 10.0f);
-        bristles.lineTo (10.0f, 13.0f);
-        bristles.quadraticTo (8.0f, 18.0f, 1.0f, 19.0f);
-        bristles.closeSubPath();
-
-        for (auto [path, colour] : { std::pair { &handle, Theme::text }, std::pair { &bristles, Theme::note } })
-        {
-            g.setColour (juce::Colours::black);
-            g.strokePath (*path, juce::PathStrokeType (2.0f));
-            g.setColour (colour);
-            g.fillPath (*path);
-        }
-
-        return { image, 1, 18 };
-    }
 }
 
 NoteGrid::NoteGrid (MpeRollProcessor& p, ViewState& v)
-    : processor (p), document (p.getDocument()), view (v), brushCursor (makeBrushCursor())
+    : processor (p), document (p.getDocument()), view (v)
 {
+    makeCursors();
     setWantsKeyboardFocus (true);
     view.addListener (this);
     document.addChangeListener (this);
@@ -308,6 +285,19 @@ void NoteGrid::paint (juce::Graphics& g)
         g.drawRect (marquee, 1.0f);
     }
 
+    if (dragMode == DragMode::slice)
+    {
+        // The cut line, across the keys the pointer has been dragged over, at the snapped beat.
+        const auto x = (float) view.beatToX (sliceBeat);
+        const auto top = view.keyToY (sliceHighKey);
+        const auto bottom = view.keyToY (sliceLowKey) + view.rowHeight;
+        g.setColour (Theme::text.withAlpha (0.9f));
+        g.fillRect (x - 0.75f, top, 1.5f, bottom - top);
+        g.setColour (Theme::glide);
+        g.fillEllipse (x - 3.0f, top - 3.0f, 6.0f, 6.0f);
+        g.fillEllipse (x - 3.0f, bottom - 3.0f, 6.0f, 6.0f);
+    }
+
     if (dragMode == DragMode::glide && glideLabel.isNotEmpty())
     {
         const juce::Font font (juce::FontOptions (12.0f, juce::Font::bold));
@@ -328,18 +318,25 @@ void NoteGrid::paint (juce::Graphics& g)
 }
 
 //==============================================================================
+void NoteGrid::makeCursors()
+{
+    // Each tool's pointer in the skin's colours, its hot spot where the tool acts: the brush's tip,
+    // the eraser's rubber end, the scissors' blades.
+    brushCursor = makeIconCursor (Icon::paint, { 3.0f, 21.0f }, Theme::text, Theme::note);
+    eraserCursor = makeIconCursor (Icon::erase, { 3.5f, 15.5f }, Theme::text, Theme::note);
+    scissorsCursor = makeIconCursor (Icon::slice, { 21.0f, 12.0f }, Theme::text, Theme::note);
+}
+
 void NoteGrid::mouseMove (const juce::MouseEvent& e)
 {
-    if (view.tool == ViewState::Tool::glide)
+    switch (view.tool)
     {
-        setMouseCursor (juce::MouseCursor::CrosshairCursor);
-        return;
-    }
-
-    if (view.tool == ViewState::Tool::paint)
-    {
-        setMouseCursor (brushCursor);
-        return;
+        case ViewState::Tool::glide:    setMouseCursor (juce::MouseCursor::CrosshairCursor); return;
+        case ViewState::Tool::paint:    setMouseCursor (brushCursor); return;
+        case ViewState::Tool::erase:    setMouseCursor (eraserCursor); return;
+        case ViewState::Tool::slice:    setMouseCursor (scissorsCursor); return;
+        case ViewState::Tool::select:   setMouseCursor (juce::MouseCursor::NormalCursor); return;
+        case ViewState::Tool::edit:     break;
     }
 
     if (auto* n = noteAt (e.position))
@@ -351,11 +348,15 @@ void NoteGrid::mouseMove (const juce::MouseEvent& e)
 
 void NoteGrid::lookAndFeelChanged()
 {
-    // The skin has changed: the paintbrush takes up its colours.
-    brushCursor = makeBrushCursor();
+    // The skin has changed: the tools' pointers take up its colours.
+    makeCursors();
 
     if (view.tool == ViewState::Tool::paint)
         setMouseCursor (brushCursor);
+    else if (view.tool == ViewState::Tool::erase)
+        setMouseCursor (eraserCursor);
+    else if (view.tool == ViewState::Tool::slice)
+        setMouseCursor (scissorsCursor);
 }
 
 void NoteGrid::captureOriginals()
@@ -434,7 +435,20 @@ void NoteGrid::mouseDown (const juce::MouseEvent& e)
         return;
     }
 
-    if (e.mods.isPopupMenu())
+    if (view.tool == ViewState::Tool::slice && ! e.mods.isPopupMenu())
+    {
+        beginSlice (e);
+        return;
+    }
+
+    if (view.tool == ViewState::Tool::select && ! e.mods.isPopupMenu())
+    {
+        beginSelect (e);
+        return;
+    }
+
+    // The right button deletes with any tool but Glide; the Delete tool does it with the left.
+    if (e.mods.isPopupMenu() || view.tool == ViewState::Tool::erase)
     {
         dragMode = DragMode::erase;
         document.beginEdit ("Delete notes");
@@ -784,6 +798,7 @@ void NoteGrid::mouseDrag (const juce::MouseEvent& e)
         case DragMode::paint:       paintTo (e.position, false); break;
         case DragMode::glide:       drawGlide (e.position); break;
         case DragMode::glideErase:  eraseGlide (e.position); break;
+        case DragMode::slice:       dragSlice (e); break;
 
         case DragMode::marquee:
         {
@@ -819,7 +834,9 @@ void NoteGrid::mouseUp (const juce::MouseEvent& e)
             document.changed();
         }
 
-    if (dragMode != DragMode::none && dragMode != DragMode::marquee)
+    if (dragMode == DragMode::slice)
+        finishSlice (e);
+    else if (dragMode != DragMode::none && dragMode != DragMode::marquee)
         document.endEdit();
 
     stopAudition();
@@ -879,8 +896,8 @@ bool NoteGrid::keyPressed (const juce::KeyPress& key)
             case 'c': copySelection(); return true;
             case 'x': cutSelection(); return true;
             case 'v': paste(); return true;
-            case 'b':
-            case 'd': duplicateSelection(); return true;
+            case 'b': duplicateSelection(); return true;
+            case 'd': deselectAll(); return true;
             case 'z':
                 if (mods.isShiftDown())
                     document.getUndoManager().redo();
@@ -892,8 +909,22 @@ bool NoteGrid::keyPressed (const juce::KeyPress& key)
         }
     }
 
-    if (code == juce::KeyPress::upKey)      { transposeSelection (mods.isShiftDown() ? 12 : 1); return true; }
-    if (code == juce::KeyPress::downKey)    { transposeSelection (mods.isShiftDown() ? -12 : -1); return true; }
+    // FL's Shift keys: Shift+Q lands starts on the grid, lengths left alone (Ctrl+Q, the editor's,
+    // lands ends too); Shift+I inverts the selection; Shift+D discards lengths.
+    if (mods.isShiftDown() && ! mods.isAltDown() && ! mods.isCommandDown())
+    {
+        switch (letter)
+        {
+            case 'q': quantizeSelection(); return true;
+            case 'i': invertSelection(); return true;
+            case 'd': discardLengths(); return true;
+            default: break;
+        }
+    }
+
+    // Arrows as in FL: Shift+Up/Down a semitone, Ctrl+Up/Down an octave (plain arrows go a semitone too).
+    if (code == juce::KeyPress::upKey)      { transposeSelection (mods.isCommandDown() ? 12 : 1); return true; }
+    if (code == juce::KeyPress::downKey)    { transposeSelection (mods.isCommandDown() ? -12 : -1); return true; }
     if (code == juce::KeyPress::leftKey)    { nudgeSelection (-view.nudgeStep()); return true; }
     if (code == juce::KeyPress::rightKey)   { nudgeSelection (view.nudgeStep()); return true; }
 
@@ -901,9 +932,12 @@ bool NoteGrid::keyPressed (const juce::KeyPress& key)
     {
         switch (letter)
         {
-            case 'q': quantizeSelection(); return true;
-            case 'e': view.tool = ViewState::Tool::edit; view.changed(); return true;
+            // FL Studio's tool keys, and G for the glide tool.
+            case 'p': view.tool = ViewState::Tool::edit; view.changed(); return true;
             case 'b': view.tool = ViewState::Tool::paint; view.changed(); return true;
+            case 'd': view.tool = ViewState::Tool::erase; view.changed(); return true;
+            case 'c': view.tool = ViewState::Tool::slice; view.changed(); return true;
+            case 'e': view.tool = ViewState::Tool::select; view.changed(); return true;
             case 'g': view.tool = ViewState::Tool::glide; view.changed(); return true;
             default: break;
         }
@@ -920,6 +954,126 @@ void NoteGrid::selectAll()
         document.selection.insert (n.id);
 
     document.selectionChanged();
+}
+
+void NoteGrid::deselectAll()
+{
+    if (document.selection.empty())
+        return;
+
+    document.selection.clear();
+    document.selectionChanged();
+}
+
+void NoteGrid::invertSelection()
+{
+    std::set<uint32_t> inverted;
+
+    for (const auto& n : document.getEditClip().notes)
+        if (document.selection.count (n.id) == 0)
+            inverted.insert (n.id);
+
+    document.selection = inverted;
+    document.selectionChanged();
+}
+
+void NoteGrid::discardLengths()
+{
+    // FL's Shift+D: the notes shrink to the snap length (every note when nothing is selected).
+    const auto ids = document.selection;
+    const auto length = view.nudgeStep();
+
+    document.perform ("Discard lengths", [&] (MpeClip& clip)
+    {
+        for (auto& n : clip.notes)
+        {
+            if (ids.empty() || ids.count (n.id) > 0)
+            {
+                n.length = length;
+
+                for (auto* lane : { &n.lanes.pitch, &n.lanes.pressure, &n.lanes.timbre, &n.lanes.vibrato })
+                    lane->trimTo (0.0, length);
+
+                for (auto& c : n.lanes.controllers)
+                    c.curve.trimTo (0.0, length);
+            }
+        }
+    });
+}
+
+//==============================================================================
+void NoteGrid::beginSlice (const juce::MouseEvent& e)
+{
+    sliceBeat = juce::jmax (0.0, view.snapRound (view.xToBeat (e.position.x), e.mods.isAltDown()));
+    sliceLowKey = sliceHighKey = juce::jlimit (0, 127, view.yToKey (e.position.y));
+    const auto* n = noteAt (e.position);
+    sliceClickNote = n != nullptr ? n->id : 0;
+    dragMode = DragMode::slice;
+    repaint();
+}
+
+void NoteGrid::dragSlice (const juce::MouseEvent& e)
+{
+    const auto key = juce::jlimit (0, 127, view.yToKey (e.position.y));
+    const auto downKey = juce::jlimit (0, 127, view.yToKey (downPos.y));
+    sliceLowKey = juce::jmin (key, downKey);
+    sliceHighKey = juce::jmax (key, downKey);
+    repaint();
+}
+
+void NoteGrid::finishSlice (const juce::MouseEvent& e)
+{
+    // A drag cuts every note its line crossed; a click cuts the note under it. A cut lands strictly
+    // inside a note, so a note the (snapped) beat only touches is left whole.
+    const bool dragged = sliceLowKey != sliceHighKey || std::abs (e.position.y - downPos.y) >= view.rowHeight;
+    const auto& clip = document.getEditClip();
+    std::set<uint32_t> ids;
+
+    auto crosses = [this] (const MpeNote& n) { return n.start < sliceBeat && sliceBeat < n.end(); };
+
+    if (dragged)
+    {
+        for (const auto& n : clip.notes)
+            if (n.key >= sliceLowKey && n.key <= sliceHighKey && crosses (n))
+                ids.insert (n.id);
+    }
+    else if (auto* n = clip.findNote (sliceClickNote); n != nullptr && crosses (*n))
+    {
+        ids.insert (n->id);
+    }
+
+    if (ids.empty())
+        return;
+
+    const auto beat = sliceBeat;
+    document.perform ("Slice notes", [&ids, beat] (MpeClip& c) { notetools::sliceAt (c, ids, beat); });
+}
+
+void NoteGrid::beginSelect (const juce::MouseEvent& e)
+{
+    // A click picks the note under it (Ctrl or Shift adds it to, or takes it from, the selection);
+    // on empty space it clears the selection; a drag from either grows a box.
+    auto& selection = document.selection;
+    const bool adding = e.mods.isCommandDown() || e.mods.isShiftDown();
+
+    if (auto* n = noteAt (e.position))
+    {
+        if (adding && selection.count (n->id) > 0)
+            selection.erase (n->id);
+        else if (adding)
+            selection.insert (n->id);
+        else
+            selection = { n->id };
+    }
+    else if (! adding)
+    {
+        selection.clear();
+    }
+
+    document.selectionChanged();
+    dragMode = DragMode::marquee;
+    marqueeBase = selection;
+    marquee = {};
 }
 
 void NoteGrid::deleteSelection()

@@ -5,6 +5,7 @@
 #include "ui/ExpressionLane.h"
 #include "ui/MpeLookAndFeel.h"
 #include "ui/NoteGrid.h"
+#include "ui/NoteToolDialog.h"
 #include "ui/PianoKeys.h"
 #include "ui/Skins.h"
 #include "ui/TimeRuler.h"
@@ -54,6 +55,7 @@ private:
     std::unique_ptr<MidiDragListener> midiDragListener;
     std::unique_ptr<juce::FileChooser> chooser;
     juce::Component::SafePointer<juce::CallOutBox> settingsBox;     // the MPE settings, while they're open
+    juce::Component::SafePointer<juce::CallOutBox> toolsBox;        // a tool's dialog, while it's open
     juce::TooltipWindow tooltips { this, 700 };
 
     int laneHeight = 200;
@@ -72,6 +74,12 @@ private:
 
     void wireToolbar();
     void refreshToolbar();
+    void syncToolButtons();
+    bool handleToolKey (const juce::KeyPress&);
+    void showToolsMenu();
+    void openTool (NoteToolDialog::Kind);
+    void applyTool (NoteToolDialog::Kind);
+    void closeToolDialog (bool detachFirst);
     void updateScrollBars();
     void scrollToContent();
     void setStatus (const juce::String& message);
