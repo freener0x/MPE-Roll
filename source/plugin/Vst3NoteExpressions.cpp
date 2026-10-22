@@ -251,6 +251,8 @@ void Vst3NoteExpressions::convert (bool onChannelOne) noexcept
                 break;
         }
     }
+   #else
+    juce::ignoreUnused (onChannelOne);
    #endif
 }
 
