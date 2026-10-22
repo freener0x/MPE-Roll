@@ -312,7 +312,8 @@ once MPE is on in its System page. Neither synth comes as CLAP, so the CLAP note
 doesn't apply.
 
 MPE in popular synths (from the makers' manuals and support pages, October 2026). MPE Roll knows
-these, and says the same in *MPE settings*. Set the synth's per-note bend range to **48**, MPE
+these, and says the same in *MPE settings*. [MPE_SYNTHS.md](MPE_SYNTHS.md) has the full list, with
+sources. Set the synth's per-note bend range to **48**, MPE
 Roll's *Per-note bend range*, or change MPE Roll's to match.
 
 | Synth | MPE | Where to turn it on |

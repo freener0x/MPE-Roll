@@ -8,7 +8,7 @@ namespace mperoll
 {
 
 /** What MPE Roll knows about a particular synth's MPE: whether it has any, and how to turn it on.
-    From the makers' manuals and support pages, checked in October 2026; see docs/FL_STUDIO.md.
+    From docs/synths.json, which also makes docs/MPE_SYNTHS.md (tools/make_synth_list.py).
 */
 struct SynthProfile
 {
@@ -22,8 +22,12 @@ struct SynthProfile
     juce::String name;      // as the user knows it: "Serum 2"
     Mpe mpe = Mpe::needsSwitch;
     juce::String advice;    // what to do in the synth, in a sentence or two
+    bool certain = true;    // false for one whose maker never mentions MPE: it most likely has none
 
-    /** Which synth a description is, if MPE Roll knows it. Matched on the name and maker. */
+    /** "has no MPE", or "most likely has no MPE" when its maker just never mentions any. */
+    juce::String describeNone() const   { return certain ? "has no MPE" : "most likely has no MPE"; }
+
+    /** Which synth a description is, if MPE Roll knows it. Matched on the name, maker and version. */
     static std::optional<SynthProfile> find (const juce::PluginDescription&);
 };
 

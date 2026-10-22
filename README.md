@@ -62,7 +62,7 @@ Pigments and the other Arturia instruments, Omnisphere, Vital, Diva, Phase Plant
 Equator2, Cherry Audio, SWAM, Expressive E), *MPE settings* and the status line say where the
 synth's MPE switch is. For ones without MPE (Analog Lab, ZENOLOGY and the Roland Cloud instruments,
 Massive X, Kontakt, Sylenth1, Spire, Zebra2, Omnisphere 2, Waves), MPE Roll offers *Plain MIDI*
-when you load them.
+when you load them. [docs/MPE_SYNTHS.md](docs/MPE_SYNTHS.md) lists them all, with sources.
 
 **Zone-wide (master channel) lanes:** pitch bend with its own range, pressure, timbre and any
 controller, including the sustain, sostenuto, soft, legato and hold pedals.
@@ -260,7 +260,9 @@ tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUC
                   that maps pitch bend on channel 1 only and takes note expressions. Needs
                   -DMPEROLL_BUILD_DEV_TOOLS=ON.
                   make_donate_page.py writes DONATE.md, docs/donate.html, the QR codes and
-                  .github/FUNDING.yml from docs/donate.json.
+                  .github/FUNDING.yml from docs/donate.json. make_synth_list.py writes
+                  docs/MPE_SYNTHS.md and source/plugin/KnownSynths.h, the synths MPE Roll knows the
+                  MPE of, from docs/synths.json (CI checks they match).
 third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
 third_party/lame/ The build configuration for the LAME MP3 encoder (LAME itself is downloaded).
 cmake/            Fixes and additions applied to the downloaded JUCE: an empty VST3 MIDI mapping, the

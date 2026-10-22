@@ -48,6 +48,11 @@ jobs:
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "Build the code: $code"
 
+      # docs/MPE_SYNTHS.md and the plugin's list of synths are made from docs/synths.json, so a change
+      # to one without the other shows here, documentation-only pushes included.
+      - name: The synth list matches docs/synths.json
+        run: python3 tools/make_synth_list.py --check
+
   windows:
     name: Windows (VST3, Standalone)
     needs: changes

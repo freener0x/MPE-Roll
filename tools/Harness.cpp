@@ -2201,6 +2201,15 @@ void synthProfileChecks (Check& check)
     check (find ("Vital", "Vital Audio").has_value() && find ("Surge XT", "Surge Synth Team")->mpe == Mpe::followsSetup
                && ! find ("MPE Roll Test Synth", "Glowing Pancake").has_value(),
            "Vital and Surge XT, and nothing for a synth it doesn't know");
+
+    // What the list says for any instrument of a maker goes by the instrument's own name; and a maker
+    // matched exactly ("Waves") isn't one whose name merely starts the same.
+    const auto newArturia = find ("Brand New V", "Arturia"), waves = find ("Some Synth", "Waves");
+    const auto cherry = find ("CA2600", "Cherry Audio");
+    check (newArturia.has_value() && newArturia->name == "Brand New V" && ! find ("Brand New V", "").has_value()
+               && cherry.has_value() && cherry->name == "CA2600" && cherry->mpe == Mpe::none
+               && waves.has_value() && waves->mpe == Mpe::none && ! find ("Some Synth", "Wavesfactory").has_value(),
+           "a maker's whole range by the synth's own name, and exact makers");
 }
 
 int uiTest()

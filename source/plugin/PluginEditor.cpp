@@ -624,7 +624,8 @@ juce::String MpeRollEditor::describeLoaded (const juce::String& name) const
     const auto profile = synth.getProfile();
 
     if (profile.has_value() && profile->mpe == SynthProfile::Mpe::none)
-        return "Loaded " + name + ". " + profile->name + " has no MPE: set Synth expects to Plain MIDI in MPE settings.";
+        return "Loaded " + name + ". " + profile->name + " " + profile->describeNone()
+             + ": set Synth expects to Plain MIDI in MPE settings.";
 
     if (synth.getVst3Support().midiMissesNotes())
         return "Loaded " + name + ". MPE can't reach its notes one by one (see MPE settings): set Synth expects to Plain MIDI.";
@@ -656,7 +657,7 @@ void MpeRollEditor::offerPlainMidi()
     if (profile.has_value() && profile->mpe == SynthProfile::Mpe::none)
     {
         why = profile->advice.upToLastOccurrenceOf ("Set Synth expects", false, false).trim();
-        title = name + " has no MPE";
+        title = name + " " + profile->describeNone();
     }
     else if (vst3.midiMissesNotes() && ! (vst3.takesTuning() && Vst3NoteExpressions::isAvailable()))
     {
