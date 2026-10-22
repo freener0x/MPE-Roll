@@ -92,6 +92,7 @@ private:
     void loadSynth (const juce::PluginDescription&);
     juce::String describeLoaded (const juce::String& synthName) const;
     void warnSynthSilent();
+    void showLoadFailure (const juce::String& error, const juce::PluginDescription* plugin);
 
     void showMidiMenu();
     void importMidi();

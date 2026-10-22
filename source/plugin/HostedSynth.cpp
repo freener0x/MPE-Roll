@@ -1,6 +1,8 @@
 #include "HostedSynth.h"
 #include "CrashReport.h"
+#include "PluginLog.h"
 #include "PluginScanner.h"
+#include "ui/WindowPlacement.h"
 
 #if MPEROLL_HOST_CLAP
  #include "clap/ClapHosting.h"
@@ -67,7 +69,7 @@ namespace
 class HostedSynth::EditorWindow : public juce::DocumentWindow
 {
 public:
-    EditorWindow (juce::AudioPluginInstance& p, std::function<void()> onClose)
+    EditorWindow (juce::AudioPluginInstance& p, const juce::Component* near, std::function<void()> onClose)
         : DocumentWindow (p.getName(), juce::Colour (0xff1e1f22),
                           DocumentWindow::closeButton | DocumentWindow::minimiseButton),
           plugin (p),
@@ -88,8 +90,35 @@ public:
 
         // Plugin windows aren't owned by the host's window, so keep the synth from hiding behind it.
         setAlwaysOnTop (true);
-        centreWithSize (getWidth(), getHeight());
+
+        // On the display MPE Roll is on, with the title bar inside its work area. JUCE would centre
+        // it on the main display whatever its size, and a synth taller than the screen then opens
+        // with its title bar above the top edge, where it can't be dragged or closed. Placed once
+        // with a typical frame, then again with the real one, once the window is on screen.
+        setBounds (WindowPlacement::place (getBounds(), WindowPlacement::frameOf (*this),
+                                           WindowPlacement::workAreaNear (near), isResizable(), true));
         setVisible (true);
+        WindowPlacement::keepOnScreen (*this, isResizable());
+    }
+
+    /** Back on the display MPE Roll is on, centred, and in front. */
+    void bringOnScreen (const juce::Component* near)
+    {
+        if (isMinimised())
+            setMinimised (false);
+
+        WindowPlacement::showOnDisplayOf (*this, near, isResizable());
+        toFront (true);
+    }
+
+    void childBoundsChanged (juce::Component* child) override
+    {
+        DocumentWindow::childBoundsChanged (child);
+
+        // The synth changed its own size (some do with a preset, or a zoom setting): keep the title
+        // bar where it can be reached. Not shrunk, as the synth chose that size.
+        if (isShowing())
+            WindowPlacement::keepOnScreen (*this, false);
     }
 
     ~EditorWindow() override
@@ -226,28 +255,35 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
     const auto generation = ++loadGeneration;
     loading = true;
     CrashReport::setActivity ("loading the synth " + describe (desc));
+    PluginLog::add ("Loading " + PluginLog::describe (desc) + " at " + juce::String (sampleRate) + " Hz, "
+                    + juce::String (blockSize) + " samples");
+    const auto started = juce::Time::getMillisecondCounterHiRes();
 
     formatManager.createPluginInstanceAsync (desc, sampleRate, blockSize,
-        [this, generation, desc, onDone, alive = std::weak_ptr<int> (lifetime)]
+        [this, generation, desc, onDone, started, alive = std::weak_ptr<int> (lifetime)]
         (std::unique_ptr<juce::AudioPluginInstance> plugin, const juce::String& error)
         {
             if (alive.expired() || generation != loadGeneration)
                 return;
 
             loading = false;
+            const auto took = juce::String (juce::roundToInt (juce::Time::getMillisecondCounterHiRes() - started)) + " ms";
 
             if (plugin == nullptr)
             {
                 CrashReport::setActivity ("failed to load the synth " + describe (desc));
+                const auto message = error.isNotEmpty() ? error : juce::String ("The plugin couldn't be loaded.");
+                PluginLog::add ("  failed after " + took + ": " + message);
 
                 if (onDone)
-                    onDone (error.isNotEmpty() ? error : juce::String ("The plugin couldn't be loaded."));
+                    onDone (message);
 
                 return;
             }
 
             CrashReport::setActivity ("setting up the synth " + describe (desc));
             install (std::move (plugin), desc);
+            PluginLog::add ("  loaded in " + took + ": " + describeSetup());
             CrashReport::renew();
             CrashReport::setActivity ("playing the synth " + describe (desc));
 
@@ -325,9 +361,11 @@ void HostedSynth::finishLoadFromFile (const juce::File& file, PluginScanner::Out
     else if (outcome != PluginScanner::Outcome::found)
     {
         CrashReport::setActivity ("refused to load " + file.getFullPathName());
+        const auto message = PluginScanner::describeFailure (outcome, file.getFileName());
+        PluginLog::add ("Checking " + file.getFullPathName() + " in the scanner: " + message);
 
         if (onDone)
-            onDone (PluginScanner::describeFailure (outcome, file.getFileName()));
+            onDone (message);
 
         return;
     }
@@ -335,12 +373,18 @@ void HostedSynth::finishLoadFromFile (const juce::File& file, PluginScanner::Out
     if (found.isEmpty())
     {
         // FL's own plugins have no VST entry point, so a scan finds nothing in them.
+        const auto message = isFlStudioNativePlugin (file) ? describeFlStudioNativePlugin (file)
+                                                           : "No plugin was found in " + file.getFileName() + ".";
+        PluginLog::add ("Checking " + file.getFullPathName() + ": " + message);
+
         if (onDone)
-            onDone (isFlStudioNativePlugin (file) ? describeFlStudioNativePlugin (file)
-                                                  : "No plugin was found in " + file.getFileName() + ".");
+            onDone (message);
 
         return;
     }
+
+    PluginLog::add ("Checked " + file.getFullPathName() + " in the scanner: " + juce::String (found.size())
+                    + (found.size() == 1 ? " plugin" : " plugins"));
 
     auto* chosen = found.getFirst();
 
@@ -596,7 +640,7 @@ juce::String HostedSynth::getMissingSynthName() const
     return {};
 }
 
-void HostedSynth::showEditor()
+void HostedSynth::showEditor (const juce::Component* near)
 {
     if (instance == nullptr)
         return;
@@ -604,12 +648,13 @@ void HostedSynth::showEditor()
     if (editorWindow != nullptr)
     {
         editorWindow->toFront (true);
+        WindowPlacement::keepOnScreen (*editorWindow, false);
         return;
     }
 
     CrashReport::setActivity ("opening the window of the synth " + getName());
 
-    editorWindow = std::make_unique<EditorWindow> (*instance, [this, alive = std::weak_ptr<int> (lifetime)]
+    editorWindow = std::make_unique<EditorWindow> (*instance, near, [this, alive = std::weak_ptr<int> (lifetime)]
     {
         // Deleting the window from inside its own callback isn't safe, so do it right after.
         juce::MessageManager::callAsync ([this, alive]
@@ -620,6 +665,14 @@ void HostedSynth::showEditor()
     });
 
     CrashReport::setActivity ("playing the synth " + getName() + ", with its window open");
+}
+
+void HostedSynth::bringEditorOnScreen (const juce::Component* near)
+{
+    if (editorWindow != nullptr)
+        editorWindow->bringOnScreen (near);
+    else
+        showEditor (near);
 }
 
 void HostedSynth::closeEditor()
@@ -858,6 +911,21 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
 
     return "MPE over MIDI" + via + ", notes on channels " + channels + ". Turn on MPE in the synth, "
            "or it may not hear them.";
+}
+
+juce::String HostedSynth::describeSetup() const
+{
+    if (instance == nullptr)
+        return {};
+
+    // What the log needs to tell why a synth plays wrongly or not at all.
+    juce::String s;
+    s << instance->getTotalNumInputChannels() << " in / " << instance->getTotalNumOutputChannels() << " out channels in "
+      << instance->getBusCount (false) << " output bus" << (instance->getBusCount (false) == 1 ? "" : "es")
+      << (instance->acceptsMidi() ? ", takes MIDI" : ", takes no MIDI")
+      << (instance->getPluginDescription().isInstrument ? ", an instrument" : ", not marked as an instrument")
+      << ", latency " << instance->getLatencySamples() << " samples";
+    return s;
 }
 
 bool HostedSynth::playsNoteExpressions (const OutputSettings& settings) const

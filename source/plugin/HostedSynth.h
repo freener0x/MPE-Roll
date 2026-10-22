@@ -71,7 +71,14 @@ public:
     /** What the loaded synth is, or nullptr when none is loaded. Message thread. */
     const juce::PluginDescription* getDescription() const   { return instance != nullptr ? description.get() : nullptr; }
 
-    void showEditor();
+    /** Opens the synth's window on the display `near` is on (MPE Roll's window), with its title bar
+        on screen; an open one comes to the front. */
+    void showEditor (const juce::Component* near = nullptr);
+
+    /** Puts the synth's window back on the display `near` is on, centred and in front (opening it if
+        it's closed): for a window that has gone off screen. */
+    void bringEditorOnScreen (const juce::Component* near = nullptr);
+
     void closeEditor();
     bool isEditorShowing() const noexcept               { return editorWindow != nullptr; }
 
@@ -94,6 +101,9 @@ public:
 
     /** Whether these settings play the synth with CLAP note expressions rather than MIDI. Message thread. */
     bool playsNoteExpressions (const OutputSettings&) const;
+
+    /** The loaded synth's channels, buses and MIDI input, in a line, for the plugin log. Message thread. */
+    juce::String describeSetup() const;
 
     /** True once per synth loaded (or given a project's state) if, after a few seconds' grace for
         it to load its sounds, it has been played over MPE for three seconds of notes in all without

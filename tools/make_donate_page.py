@@ -9,11 +9,13 @@ It writes, all of them committed so nobody needs this script to read them:
   docs/index.html      the front page of the GitHub Pages site (docs/ on the default branch)
   docs/donate/*.svg    the QR codes (a wallet URI such as bitcoin:<address>)
   .github/FUNDING.yml  the links behind the Sponsor button on the GitHub page
+  source/plugin/ui/DonateData.h
+                       the same details and QR codes for the plugin, which shows them in a window
+                       of its own (File > Support MPE Roll), so it needs no website at all
 
 Only plain links and QR codes: no payment widget or third-party script is ever involved, so the
 page is as private as the plugin. Empty values in donate.json are left out. "pageUrl" is where
-GitHub Pages serves docs/donate.html; the plugin opens the same address from source/plugin/Links.h,
-and this script stops if the two differ.
+GitHub Pages serves docs/donate.html.
 
 Needs the segno package (pip install segno). Run it from anywhere:
 
@@ -45,7 +47,7 @@ HTML_OUT = ROOT / "docs" / "donate.html"
 INDEX_OUT = ROOT / "docs" / "index.html"
 MD_OUT = ROOT / "DONATE.md"
 FUNDING_OUT = ROOT / ".github" / "FUNDING.yml"
-LINKS_HEADER = ROOT / "source" / "plugin" / "Links.h"
+PLUGIN_DATA_OUT = ROOT / "source" / "plugin" / "ui" / "DonateData.h"
 DONATE_MD_URL = f"{REPO_URL}/blob/main/DONATE.md"
 FL_GUIDE_URL = f"{REPO_URL}/blob/main/docs/FL_STUDIO.md"
 
@@ -85,15 +87,12 @@ def load_config() -> dict:
 
 
 def page_url(config: dict) -> str:
-    """Where the donation page is served, which the plugin must agree on; DONATE.md on GitHub if unset."""
+    """Where the donation page is served; DONATE.md on GitHub if unset."""
     url = clean(config.get("pageUrl"))
     if not url:
         return DONATE_MD_URL
     if not url.startswith("https://"):
         fail('"pageUrl" must be an https:// link')
-    if LINKS_HEADER.exists() and f'"{url}"' not in LINKS_HEADER.read_text(encoding="utf-8"):
-        fail(f'"pageUrl" is {url}, but {LINKS_HEADER.relative_to(ROOT).as_posix()} opens another address; '
-             "change both")
     return url
 
 
@@ -372,12 +371,13 @@ def render_markdown(links: list[dict], coins: list[dict], url: str) -> str:
             if coin["note"]:
                 out += [coin["note"], ""]
     out += ["---", ""]
+    out += [f"In the plugin, *File > Support MPE Roll* shows the same details, QR codes and copy buttons included, "
+            "in a window of its own.", ""]
     if url != DONATE_MD_URL:
-        out += [f"This page is also online, with copy buttons, at <{url}> (the plugin's *File > Support MPE "
-                "Roll* opens it).", ""]
-    out += ["The pages, the QR codes and `.github/FUNDING.yml` are made by `tools/make_donate_page.py` from "
-            "[docs/donate.json](docs/donate.json): change the JSON and run the script rather than editing them.",
-            ""]
+        out += [f"Once GitHub Pages is switched on for the repository, this page is also online at <{url}>.", ""]
+    out += ["The pages, the plugin's copy, the QR codes and `.github/FUNDING.yml` are made by "
+            "`tools/make_donate_page.py` from [docs/donate.json](docs/donate.json): change the JSON and run the "
+            "script rather than editing them.", ""]
     return "\n".join(out)
 
 
@@ -409,6 +409,47 @@ def write(path: Path, data: bytes | str) -> None:
     print(f"wrote {path.relative_to(ROOT).as_posix()}")
 
 
+# ---------------------------------------------------------------- source/plugin/ui/DonateData.h
+
+def cpp_string(text: str) -> str:
+    """A C++ string literal; the text must be plain ASCII, so it reads the same in every compiler."""
+    if not text.isascii():
+        fail(f"the plugin can only show plain ASCII text, which this isn't: {text!r}")
+    return json.dumps(text)
+
+
+def render_plugin_data(links: list[dict], coins: list[dict], svgs: dict[str, bytes]) -> str:
+    out = [
+        "#pragma once",
+        "",
+        "// Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file.",
+        "// The plugin's own copy of the donation details, shown by File > Support MPE Roll without the website.",
+        "",
+        "#include <array>",
+        "",
+        "namespace mperoll::donate",
+        "{",
+        "    struct Link { const char* name; const char* url; const char* note; };",
+        "    struct Coin { const char* id; const char* name; const char* address; const char* note; const char* qrSvg; };",
+        "",
+        f"    inline constexpr const char* lead = {cpp_string(LEAD)};",
+        "",
+        f"    inline constexpr std::array<Link, {len(links)}> links {{ {{",
+    ]
+    for link in links:
+        out.append(f"        {{ {cpp_string(link['name'])}, {cpp_string(link['url'])}, {cpp_string(link.get('note') or '')} }},")
+    out += ["    } };", "", f"    inline constexpr std::array<Coin, {len(coins)}> coins {{ {{"]
+    for coin in coins:
+        svg = svgs[coin["id"]].decode("ascii")
+        if ")svg\"" in svg:
+            fail("a QR code's drawing can't be put in a raw string")
+        out += [f"        {{ {cpp_string(coin['id'])}, {cpp_string(coin['name'])}, {cpp_string(coin['address'])}, "
+                f"{cpp_string(coin['note'] or '')},",
+                f"          R\"svg({svg.strip()})svg\" }},"]
+    out += ["    } };", "}", ""]
+    return "\n".join(out)
+
+
 def main() -> None:
     config = load_config()
     url = page_url(config)
@@ -427,6 +468,7 @@ def main() -> None:
     write(INDEX_OUT, render_index(url))
     write(MD_OUT, render_markdown(links, coins, url))
     write(FUNDING_OUT, render_funding(links, url))
+    write(PLUGIN_DATA_OUT, render_plugin_data(links, coins, svgs))
     print(f"{len(links)} payment link(s), {len(coins)} crypto address(es)")
 
 

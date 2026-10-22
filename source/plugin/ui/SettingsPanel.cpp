@@ -3,7 +3,7 @@
 #include "PropertyFields.h"
 #include "WindowDrawing.h"
 #include "core/ControllerPresets.h"
-#include "plugin/Links.h"
+#include "DonatePanel.h"
 
 namespace mperoll
 {
@@ -291,8 +291,9 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
 
     // MPE Roll is free; the donation page is a click away, below the settings.
     supportLink.setButtonText ("Support MPE Roll (donate)");
-    supportLink.setURL (juce::URL (links::donate));
-    supportLink.setTooltip ("Opens the donation page in your browser: Cash App, or crypto by QR code");
+    supportLink.setURL ({});
+    supportLink.setTooltip ("Shows how to donate: Cash App, or crypto by QR code");
+    supportLink.onClick = [this] { DonatePanel::show (findParentComponentOfClass<juce::Component>()); };
     supportLink.setJustificationType (juce::Justification::centredLeft);
     supportLink.setColour (juce::HyperlinkButton::textColourId, Theme::glide);
     addAndMakeVisible (supportLink);

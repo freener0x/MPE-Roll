@@ -19,8 +19,10 @@
 #include "plugin/PluginEditor.h"
 #include "plugin/PluginProcessor.h"
 #include "plugin/PluginScanner.h"
+#include "plugin/ui/DonatePanel.h"
 #include "plugin/ui/NoteToolDialog.h"
 #include "plugin/ui/SettingsPanel.h"
+#include "plugin/ui/WindowPlacement.h"
 #include "plugin/ui/Toolbar.h"
 #include "plugin/ui/WindowDrawing.h"
 
@@ -1445,6 +1447,43 @@ int parameterTest (const juce::File& synthFile)
     const auto& params = processor.getParameters();
     auto* hosted = processor.getSynth().getInstance();
 
+    std::printf ("The synth's window opens on screen\n");
+    {
+        auto& mm = *juce::MessageManager::getInstance();
+        ignoreXErrors();
+        auto& synth = processor.getSynth();
+        synth.showEditor (nullptr);
+        mm.runDispatchLoopUntil (200);
+
+        juce::DocumentWindow* window = nullptr;
+
+        for (int i = juce::Desktop::getInstance().getNumComponents(); --i >= 0;)
+            if (auto* w = dynamic_cast<juce::DocumentWindow*> (juce::Desktop::getInstance().getComponent (i)))
+                if (w->getName() == hosted->getName())
+                    window = w;
+
+        auto titleBarOnScreen = [&]
+        {
+            const auto work = WindowPlacement::workAreaNear (window);
+            const auto outer = WindowPlacement::frameOf (*window).addedTo (window->getBounds());
+            return work.contains (outer.getTopLeft()) && outer.getY() >= work.getY();
+        };
+
+        check (window != nullptr && titleBarOnScreen(), "with its title bar inside the display's work area");
+
+        if (window != nullptr)
+        {
+            // As a window dragged or grown off the top: the synth menu's item brings it back.
+            window->setTopLeftPosition (window->getX(), WindowPlacement::workAreaNear (window).getY() - 500);
+            synth.bringEditorOnScreen (nullptr);
+            mm.runDispatchLoopUntil (100);
+            check (titleBarOnScreen(), "and Bring the synth's window back on screen brings back one that went off the top");
+        }
+
+        synth.closeEditor();
+        mm.runDispatchLoopUntil (50);
+    }
+
     std::printf ("Synth parameters appear as MPE Roll parameters\n");
     check (params.size() == SynthParameterBank::numSlots, "MPE Roll offers a fixed set of automatable slots");
     check (params[0]->getName (64) == "Gain" && params[1]->getName (64) == "Tone", "slots take the synth's parameter names");
@@ -1885,10 +1924,49 @@ void editorUiChecks (Check& check)
 
                 auto* panel = findChild<SettingsPanel> (*box);
                 auto* link = panel != nullptr ? findChild<juce::HyperlinkButton> (*panel) : nullptr;
-                check (link != nullptr && link->getURL().toString (false) == juce::String (links::donate),
-                       "and a Support MPE Roll link at its foot opens the donation page");
                 check (link != nullptr && link->isShowing() && panel->getLocalBounds().contains (link->getBounds()),
-                       "which is in view below the settings");
+                       "a Support MPE Roll link is in view at the foot of the settings");
+
+                // It opens the donation details in MPE Roll itself, not a web page that may not be there.
+                if (link != nullptr)
+                {
+                    check (! link->getURL().isWellFormed(), "and leads to no web address");
+                    link->triggerClick();
+                    mm.runDispatchLoopUntil (100);
+                }
+
+                juce::DialogWindow* support = nullptr;
+
+                for (int i = juce::Desktop::getInstance().getNumComponents(); --i >= 0;)
+                    if (auto* window = dynamic_cast<juce::DialogWindow*> (juce::Desktop::getInstance().getComponent (i)))
+                        if (window->getName() == "Support MPE Roll")
+                            support = window;
+
+                auto* donatePanel = support != nullptr ? dynamic_cast<DonatePanel*> (support->getContentComponent()) : nullptr;
+                check (donatePanel != nullptr, "but opens a Support MPE Roll window of its own");
+
+                if (donatePanel != nullptr)
+                {
+                    check (donatePanel->getNumQrCodes() == 4, "with the four QR codes");
+                    check (donatePanel->getAddress ("BTC") == "bc1qw07yj62hae5nflfz6pwt8yyr57377adkclsy3t"
+                               && donatePanel->getAddress ("XMR").startsWith ("84L4Twd2DcNjHevR6qUzz"),
+                           "and the addresses from docs/donate.json");
+
+                    if (auto* copy = donatePanel->getCopyButton ("ETH"))
+                    {
+                        copy->triggerClick();       // posted, so let it through
+                        juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+                        check (juce::SystemClipboard::getTextFromClipboard() == "0x79Ff39eCD0D2520c5353e011ac1317C51dc2AC3A"
+                                   && copy->getButtonText().startsWith ("Copied"),
+                               "whose Copy button puts the address on the clipboard");
+                    }
+
+                    const auto work = WindowPlacement::workAreaNear (editor.get());
+                    const auto outer = WindowPlacement::frameOf (*support).addedTo (support->getBounds());
+                    check (work.contains (outer.getTopLeft()), "and which opens with its title bar on screen");
+                }
+
+                delete support;
             }
 
             // As FL closing the window and then the plugin with the settings open, while a skin change
@@ -2260,6 +2338,29 @@ int uiTest()
         check (clip().notes.size() == 4, "which undoes it whole");
         editor->removeFromDesktop();
         grid->keyPressed (juce::KeyPress ('p'));
+    }
+
+    std::printf ("Windows are placed on screen\n");
+    {
+        // A synth window taller than the screen, as the user saw: 1000 x 1400 on a 1920 x 1040 work
+        // area under a 31-pixel title bar.
+        const juce::Rectangle<int> work (0, 0, 1920, 1040), tall (0, 0, 1000, 1400);
+        const juce::BorderSize<int> frame (31, 8, 8, 8);
+
+        const auto fixed = WindowPlacement::place (tall, frame, work, false, true);
+        check (fixed.getY() == 31 && fixed.getWidth() == 1000 && fixed.getHeight() == 1400 && fixed.getX() == 460,
+               "a window too tall to fit keeps its size, with its title bar at the top of the screen");
+
+        const auto shrunk = WindowPlacement::place (tall, frame, work, true, true);
+        check (shrunk.getY() == 31 && shrunk.getBottom() == 1040 - 8 && shrunk.getWidth() == 1000,
+               "one that may be resized is shrunk to fit");
+
+        const auto second = WindowPlacement::place ({ 0, 0, 800, 600 }, frame, { 1920, 0, 1280, 984 }, false, true);
+        check (second.getX() == 1920 + 240 && second.getY() == 31 + (984 - 31 - 8 - 600) / 2,
+               "and a window is centred on the display it's put on, not the main one");
+
+        const auto off = WindowPlacement::place ({ -300, -200, 800, 600 }, frame, work, false, false);
+        check (off.getX() == 8 && off.getY() == 31, "one gone off the top left is brought back inside");
     }
 
     std::printf ("The editor's window\n");
@@ -2803,6 +2904,22 @@ int main (int argc, char** argv)
     if (args.size() >= 2 && args[0] == "skins")
         return skinsSnapshots (cwd.getChildFile (args[1]));
 
+    if (args.size() >= 2 && args[0] == "donate")
+    {
+        // The Support MPE Roll window's content, at twice the size, for its QR codes to be read back.
+        MpeLookAndFeel lookAndFeel;
+        juce::LookAndFeel::setDefaultLookAndFeel (&lookAndFeel);
+        bool ok = false;
+        {
+            DonatePanel panel;
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+            ok = writePng (panel.createComponentSnapshot (panel.getLocalBounds(), true, 2.0f), cwd.getChildFile (args[1]));
+        }
+        juce::LookAndFeel::setDefaultLookAndFeel (nullptr);
+        std::printf ("%s %s\n", ok ? "Wrote" : "Failed to write", cwd.getChildFile (args[1]).getFullPathName().toRawUTF8());
+        return ok ? 0 : 1;
+    }
+
     if (args.size() >= 3 && args[0] == "export")
     {
         ignoreXErrors();     // the progress window
@@ -2834,6 +2951,7 @@ int main (int argc, char** argv)
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
                  "  MpeRollHarness skins <folder>\n"
+                 "  MpeRollHarness donate <out.png>\n"
                  "  MpeRollHarness export <synth> <folder>\n"
                  "  MpeRollHarness render <synth.vst3> <out.wav>\n"
                  "  MpeRollHarness selftest\n"

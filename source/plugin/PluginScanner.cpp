@@ -1,4 +1,5 @@
 #include "PluginScanner.h"
+#include "PluginLog.h"
 
 #if JUCE_WINDOWS
  #ifndef NOMINMAX
@@ -224,7 +225,17 @@ bool OutOfProcessScanner::findPluginTypesFor (juce::AudioPluginFormat& format,
         return true;
     }
 
+    const auto started = juce::Time::getMillisecondCounterHiRes();
+    const auto before = result.size();
     const auto outcome = findTypes (format.getName(), fileOrIdentifier, result, timeoutMs, [this] { return shouldExit(); });
+    const auto took = juce::roundToInt ((juce::Time::getMillisecondCounterHiRes() - started) / 1000.0);
+
+    if (outcome == Outcome::found)
+        PluginLog::add ("Scan: " + fileOrIdentifier + ": " + juce::String (result.size() - before) + " plugin(s), "
+                        + juce::String (took) + " s");
+    else if (outcome != Outcome::cancelled)
+        PluginLog::add ("Scan: " + fileOrIdentifier + ": " + describeFailure (outcome, format.getName() + " file")
+                        + " (" + juce::String (took) + " s)");
 
     if (outcome == Outcome::unavailable)
     {

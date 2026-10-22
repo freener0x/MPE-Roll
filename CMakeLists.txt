@@ -99,6 +99,7 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/ClipDocument.cpp
     source/plugin/CrashReport.cpp
     source/plugin/HostedSynth.cpp
+    source/plugin/PluginLog.cpp
     source/plugin/PluginScanner.cpp
     source/plugin/SynthParameters.cpp
     source/plugin/ui/MpeLookAndFeel.cpp
@@ -108,6 +109,8 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/ui/TimeRuler.cpp
     source/plugin/ui/Toolbar.cpp
     source/plugin/ui/Icons.cpp
+    source/plugin/ui/WindowPlacement.cpp
+    source/plugin/ui/DonatePanel.cpp
     source/plugin/ui/NoteToolDialog.cpp
     source/plugin/ui/SettingsPanel.cpp
     source/plugin/ui/Skins.cpp

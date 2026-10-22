@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
-#include "Links.h"
+#include "PluginLog.h"
+#include "ui/DonatePanel.h"
 #include "core/FlScriptExporter.h"
 #include "core/MidiFileIO.h"
 #include "ui/SettingsPanel.h"
@@ -214,7 +215,7 @@ void MpeRollEditor::wireToolbar()
     auto& synth = rollProcessor.getSynth();
 
     toolbar.synthButton.onClick = [this] { showSynthMenu(); };
-    toolbar.showSynthButton.onClick = [&synth] { synth.showEditor(); };
+    toolbar.showSynthButton.onClick = [this, &synth] { synth.showEditor (this); };
 
     toolbar.slotBox.onChange = [this]
     {
@@ -534,7 +535,7 @@ void MpeRollEditor::showSynthMenu()
     const auto* instance = synth.getInstance();
     const auto currentId = instance != nullptr ? instance->getPluginDescription().createIdentifierString() : juce::String();
 
-    enum { scanId = -2, browseId = -3, unloadId = -4 };
+    enum { scanId = -2, browseId = -3, unloadId = -4, windowBackId = -5, logId = -6 };
 
     juce::PopupMenu menu;
 
@@ -548,7 +549,13 @@ void MpeRollEditor::showSynthMenu()
     menu.addItem (browseId, "Load plugin file...");
 
     if (synth.isLoaded())
+    {
+        menu.addItem (windowBackId, "Bring the synth's window back on screen");
         menu.addItem (unloadId, "Unload synth");
+    }
+
+    menu.addSeparator();
+    menu.addItem (logId, "Show the plugin log (what happened when synths loaded)");
 
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.synthButton),
                         [safe = juce::Component::SafePointer<MpeRollEditor> (this), types] (int result)
@@ -562,6 +569,10 @@ void MpeRollEditor::showSynthMenu()
             safe->browseForPlugin();
         else if (result == unloadId)
             safe->rollProcessor.getSynth().unload();
+        else if (result == windowBackId)
+            safe->rollProcessor.getSynth().bringEditorOnScreen (safe.getComponent());
+        else if (result == logId)
+            PluginLog::reveal();
         else if (const auto index = juce::KnownPluginList::getIndexChosenByMenu (types, result); index >= 0)
             safe->loadSynth (types[index]);
     });
@@ -580,7 +591,7 @@ void MpeRollEditor::loadSynth (const juce::PluginDescription& description)
         if (error.isNotEmpty())
         {
             safe->setStatus ("Couldn't load " + description.name);
-            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Couldn't load synth", error);
+            safe->showLoadFailure (error, &description);
             return;
         }
 
@@ -615,6 +626,8 @@ void MpeRollEditor::warnSynthSilent()
         return;
 
     const auto name = synth.getName();
+    PluginLog::add ("No sound from " + name + " over MPE on channels " + output.zones.describeMemberChannels());
+
     const auto message = name + " hasn't made a sound in the last few seconds of notes MPE Roll has played to it.\n\n"
                          "MPE Roll plays each note on its own MIDI channel (" + output.zones.describeMemberChannels()
                          + "). A synth that isn't in MPE mode usually listens on channel 1 only, so it hears none of "
@@ -643,6 +656,32 @@ void MpeRollEditor::warnSynthSilent()
         settings.output.mode = OutputSettings::Mode::singleChannel;
         safe->document.setSettings (settings);
         safe->setStatus ("Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
+    }), true);
+
+    alert->toFront (true);
+}
+
+void MpeRollEditor::showLoadFailure (const juce::String& error, const juce::PluginDescription* plugin)
+{
+    // With what to send along: the box can copy the details, and the plugin log has the rest.
+    const auto details = PluginLog::report (plugin, error);
+    auto* alert = new juce::AlertWindow ("Couldn't load " + (plugin != nullptr ? plugin->name : juce::String ("the synth")),
+                                         error + "\n\nCopy details puts what happened, and the end of MPE Roll's plugin log, "
+                                                 "on the clipboard, to paste into a message.",
+                                         juce::MessageBoxIconType::WarningIcon, this);
+    alert->addButton ("OK", 0, juce::KeyPress (juce::KeyPress::returnKey), juce::KeyPress (juce::KeyPress::escapeKey));
+    alert->addButton ("Copy details", 1);
+    alert->setAlwaysOnTop (true);
+
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([safe = juce::Component::SafePointer<MpeRollEditor> (this), details] (int result)
+    {
+        if (result != 1)
+            return;
+
+        juce::SystemClipboard::copyTextToClipboard (details);
+
+        if (safe != nullptr)
+            safe->setStatus ("The details are on the clipboard.");
     }), true);
 
     alert->toFront (true);
@@ -692,9 +731,16 @@ void MpeRollEditor::browseForPlugin()
                 return;
 
             if (error.isNotEmpty())
-                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Couldn't load synth", error);
+            {
+                juce::PluginDescription fileOnly;
+                fileOnly.name = file.getFileNameWithoutExtension();
+                fileOnly.fileOrIdentifier = file.getFullPathName();
+                safe->showLoadFailure (error, &fileOnly);
+            }
             else
+            {
                 safe->setStatus (safe->describeLoaded (file.getFileNameWithoutExtension()));
+            }
 
             safe->rollProcessor.requestConfiguration();
         },
@@ -731,14 +777,14 @@ void MpeRollEditor::showMidiMenu()
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.midiButton),
                         [safe = juce::Component::SafePointer<MpeRollEditor> (this)] (int result)
     {
-        if (result == 7)   // the browser, not the editor, so it needn't still be here
-        {
-            juce::URL (links::donate).launchInDefaultBrowser();
-            return;
-        }
-
         if (safe == nullptr)
             return;
+
+        if (result == 7)
+        {
+            DonatePanel::show (safe.getComponent());
+            return;
+        }
 
         if (result == 1)
             safe->importMidi();
