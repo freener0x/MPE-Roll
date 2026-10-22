@@ -1,0 +1,3 @@
+# The Sponsor button on the GitHub page. Made by tools/make_donate_page.py from docs/donate.json;
+# the button only takes links, so the crypto addresses are on DONATE.md.
+custom: ["https://cash.app/$freener", "https://github.com/freener0x/glowing-pancake/blob/main/DONATE.md"]

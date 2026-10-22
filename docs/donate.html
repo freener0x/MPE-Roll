@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Support MPE Roll</title>
+<!-- Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file. -->
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0f1114; --panel-2: #1f232a; --panel-3: #2a2f38; --line: #2a2f37; --line-strong: #3a414c;
+  --text: #e8eaed; --text-2: #b4bac4; --muted: #858d9a;
+  --accent: #ffab2e; --accent-ink: #1b1204; --focus: #79c0ff;
+  --radius-sm: 4px;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Segoe UI Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #fff4e0; --panel-2: #ffefd4; --panel-3: #ffe3b8; --line: #f1d6ad; --line-strong: #e2b97c;
+    --text: #3b2210; --text-2: #694529; --muted: #8d6a4b;
+    --accent: #e67700; --accent-ink: #ffffff; --focus: #1c7ed6;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--font-ui); }
+main { max-width: 720px; margin: 0 auto; padding: 40px 16px 56px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 10px; }
+h2 { font-size: 1.15rem; margin: 34px 0 12px; }
+h3 { font-size: 1rem; margin: 0 0 6px; }
+p { margin: 10px 0 0; }
+.lead { font-size: 1.08rem; color: var(--text-2); }
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.donate-links { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.donate-links li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.button-link {
+  display: inline-block; padding: 9px 16px; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none;
+}
+.button-link:hover { filter: brightness(1.08); }
+.coins { display: flex; flex-direction: column; gap: 16px; }
+.coin { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.coin img { width: 160px; height: 160px; background: #fff; border-radius: var(--radius-sm); }
+.coin > div { flex: 1 1 240px; min-width: 0; }
+.address {
+  display: block; max-width: 420px; overflow-wrap: anywhere; margin: 0 0 8px;
+  font-family: var(--font-mono); font-size: 0.88em; background: var(--panel-2); padding: 4px 8px; border-radius: 4px;
+}
+button {
+  font: inherit; color: var(--text); padding: 7px 12px; border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm); background: var(--panel-2); cursor: pointer; white-space: nowrap; line-height: 1.3;
+}
+button:hover { background: var(--panel-3); }
+footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--line); }
+footer a + a { margin-left: 14px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Support MPE Roll</h1>
+<p class="lead">MPE Roll is free and open source, with no ads and no tracking. If it helps you, a donation keeps it going.</p>
+<section>
+<h2>Send a donation</h2>
+<ul class="donate-links">
+<li><a class="button-link" href="https://cash.app/$freener" rel="noopener noreferrer" target="_blank">Cash App</a></li>
+</ul>
+<p class="muted small">These open the payment site in a new tab; nothing from this page is sent with them.</p>
+</section>
+<section>
+<h2>Crypto</h2>
+<div class="coins">
+<div class="coin">
+<img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNyAzNyI+PHRpdGxlPlFSIGNvZGUgZm9yIHRoZSBCaXRjb2luIChCVEMpIGFkZHJlc3M8L3RpdGxlPjxwYXRoIGZpbGw9IiNmZmYiIGQ9Ik0wIDBoMzd2MzdoLTM3eiIvPjxwYXRoIHN0cm9rZT0iIzAwMCIgZD0iTTIgMi41aDdtMiAwaDJtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDdtMSAwaDdtLTMzIDFoMW01IDBoMW0yIDBoMW0xIDBoMW0zIDBoMW0yIDBoMW0xIDBoMW01IDBoMW01IDBoMW0tMzMgMWgxbTEgMGgzbTEgMGgxbTEgMGgxbTEgMGgybTIgMGgxbTEgMGgxbTQgMGgzbTIgMGgxbTEgMGgzbTEgMGgxbS0zMyAxaDFtMSAwaDNtMSAwaDFtMSAwaDVtMiAwaDFtMiAwaDFtMyAwaDFtMSAwaDFtMSAwaDFtMSAwaDNtMSAwaDFtLTMzIDFoMW0xIDBoM20xIDBoMW0xIDBoMm0xIDBoMm0xIDBoM20zIDBoMm0xIDBoMW0yIDBoMW0xIDBoM20xIDBoMW0tMzMgMWgxbTUgMGgxbTEgMGgybTEgMGgybTYgMGgxbTEgMGgxbTQgMGgxbTUgMGgxbS0zMyAxaDdtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDdtLTI1IDFoNW0zIDBoMW0yIDBoM20xIDBoMm0tMjUgMWgxbTEgMGg1bTYgMGgybTEgMGg0bTMgMGgxbTIgMGg1bS0zMSAxaDFtMiAwaDJtMiAwaDRtMiAwaDJtMiAwaDFtMSAwaDJtMSAwaDJtMSAwaDNtMyAwaDJtLTMzIDFoNG0xIDBoMm00IDBoMW0xIDBoM20xIDBoMW0zIDBoMm00IDBoNW0tMjkgMWgxbTEgMGgxbTEgMGg0bTEgMGgybTMgMGgybTIgMGgxbTIgMGgzbTEgMGgzbS0zMCAxaDNtMiAwaDJtNCAwaDFtMSAwaDFtMSAwaDFtMiAwaDFtMiAwaDFtMSAwaDFtMyAwaDJtMiAwaDFtLTMzIDFoMm0yIDBoMm0xIDBoNm0yIDBoMW0yIDBoMW0yIDBoM20xIDBoM200IDBoMW0tMzIgMWgybTMgMGgzbTIgMGgxbTIgMGgzbTUgMGgxbTEgMGgxbTEgMGgxbTEgMGg0bS0zMiAxaDNtMiAwaDFtMyAwaDFtMiAwaDJtMSAwaDFtNSAwaDJtMyAwaDFtMiAwaDJtMSAwaDFtLTMzIDFoOG0xIDBoMW0xIDBoMm0yIDBoM200IDBoMW0yIDBoMW0xIDBoM20tMjkgMWgxbTMgMGgxbTEgMGgzbTIgMGgxbTEgMGgxbTEgMGgxbTEgMGg2bTIgMGgxbTIgMGg0bS0zMyAxaDNtMSAwaDFtMSAwaDJtMSAwaDNtMSAwaDFtMSAwaDFtMiAwaDFtNiAwaDFtNCAwaDFtLTMwIDFoMm0yIDBoMW01IDBoMm0zIDBoMW0yIDBoMW0xIDBoMm0xIDBoN20tMjggMWgxbTEgMGg0bTMgMGgybTEgMGgxbTIgMGgxbTMgMGgxbTEgMGgxbTMgMGgxbTIgMGgxbS0zMiAxaDJtMSAwaDFtMyAwaDJtMiAwaDFtMSAwaDVtNCAwaDJtMSAwaDNtNCAwaDFtLTMzIDFoMW0xIDBoMW0xIDBoMW0xIDBoMm00IDBoM20yIDBoMW0zIDBoMW03IDBoM20tMzIgMWgxbTIgMGgybTIgMGgxbTIgMGgxbTEgMGgzbTEgMGgxbTEgMGgxbTEgMGgzbTEgMGgxbTEgMGgxbTIgMGgybTEgMGgxbS0zMyAxaDFtMSAwaDFtMSAwaDVtMiAwaDRtMiAwaDFtMiAwaDFtMSAwaDFtMSAwaDZtLTIyIDFoMW0yIDBoMW0yIDBoMW0xIDBoNG0zIDBoMm0zIDBoMW0xIDBoM20tMzMgMWg3bTIgMGgxbTEgMGg1bTEgMGgxbTMgMGgxbTEgMGgybTEgMGgxbTEgMGgybTEgMGgxbS0zMiAxaDFtNSAwaDFtMSAwaDNtMSAwaDExbTEgMGgxbTMgMGg1bS0zMyAxaDFtMSAwaDNtMSAwaDFtMSAwaDVtMyAwaDFtMyAwaDFtMyAwaDVtMiAwaDFtLTMyIDFoMW0xIDBoM20xIDBoMW0xIDBoMm0xIDBoNW0yIDBoM20xIDBoMm0xIDBoMW0xIDBoMm0xIDBoM20tMzMgMWgxbTEgMGgzbTEgMGgxbTEgMGgybTEgMGgzbTEgMGgzbTIgMGgxbTMgMGgxbTEgMGgxbS0yNyAxaDFtNSAwaDFtMyAwaDJtMiAwaDJtMiAwaDJtMSAwaDFtMyAwaDFtMiAwaDFtMSAwaDFtLTMxIDFoN20xIDBoMW0yIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0yIDBoMW0yIDBoNG0xIDBoMm0xIDBoMSIvPjwvc3ZnPgo=" alt="QR code for the Bitcoin (BTC) address" width="160" height="160">
+<div>
+<h3>Bitcoin (BTC)</h3>
+<code class="address" id="address-btc">bc1qw07yj62hae5nflfz6pwt8yyr57377adkclsy3t</code>
+<button type="button" data-copy="bc1qw07yj62hae5nflfz6pwt8yyr57377adkclsy3t" data-target="address-btc">Copy address</button>
+</div>
+</div>
+<div class="coin">
+<img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNyAzNyI+PHRpdGxlPlFSIGNvZGUgZm9yIHRoZSBFdGhlcmV1bSAoRVRIKSBhZGRyZXNzPC90aXRsZT48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMCAwaDM3djM3aC0zN3oiLz48cGF0aCBzdHJva2U9IiMwMDAiIGQ9Ik0yIDIuNWg3bTMgMGgxbTEgMGgzbTIgMGgybTEgMGgybTQgMGg3bS0zMyAxaDFtNSAwaDFtNiAwaDVtMyAwaDJtMyAwaDFtNSAwaDFtLTMzIDFoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoM20zIDBoMm0yIDBoMW0yIDBoMW0xIDBoMW0xIDBoM20xIDBoMW0tMzMgMWgxbTEgMGgzbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgzbTUgMGgzbTEgMGgxbTEgMGgzbTEgMGgxbS0zMyAxaDFtMSAwaDNtMSAwaDFtMSAwaDFtMiAwaDJtMiAwaDFtMiAwaDFtMiAwaDFtMSAwaDFtMiAwaDFtMSAwaDNtMSAwaDFtLTMzIDFoMW01IDBoMW0xIDBoM20xIDBoMW0xIDBoM201IDBoMW0zIDBoMW01IDBoMW0tMzMgMWg3bTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGg3bS0yNSAxaDNtMyAwaDJtMiAwaDFtMiAwaDFtMiAwaDFtLTI1IDFoMW0xIDBoNW0yIDBoMm0xIDBoMm0xIDBoNG0xIDBoMW0xIDBoMW0zIDBoNW0tMjkgMWgxbTIgMGgxbTEgMGgxbTMgMGgybTEgMGgxbTQgMGgxbTEgMGgxbTEgMGgybTEgMGgxbTIgMGg0bS0zMSAxaDNtMSAwaDFtMyAwaDFtNCAwaDJtMSAwaDFtMTEgMGgxbS0yNyAxaDJtMyAwaDFtMiAwaDFtMSAwaDNtMyAwaDRtMSAwaDJtMiAwaDJtLTMxIDFoMW0xIDBoMW0yIDBoN20zIDBoMW0yIDBoMW05IDBoMW0tMjUgMWgxbTMgMGgybTEgMGgybTEgMGgzbTQgMGg3bTIgMGgzbS0zMSAxaDJtMiAwaDJtMSAwaDJtNiAwaDJtMSAwaDFtMSAwaDFtMiAwaDJtMiAwaDNtLTI4IDFoMW0zIDBoM20yIDBoMW0yIDBoMW0xIDBoMW0yIDBoMW0zIDBoMW0xIDBoMW0yIDBoMm0tMzIgMWgxbTEgMGgybTEgMGgybTEgMGgxbTEgMGgybTEgMGgxbTIgMGgzbTkgMGgybTEgMGgxbS0zMiAxaDJtMSAwaDFtMyAwaDFtMSAwaDFtMSAwaDJtNCAwaDFtMiAwaDdtNCAwaDJtLTMyIDFoMW0xIDBoMm0xIDBoM20yIDBoN20yIDBoMW0zIDBoMW01IDBoMW0tMjkgMWgxbTEgMGgxbTUgMGg0bTMgMGgzbTEgMGgxbTIgMGgybTMgMGgzbS0zMiAxaDJtMSAwaDJtMSAwaDFtMSAwaDFtMiAwaDZtNCAwaDNtNCAwaDFtMiAwaDFtLTMyIDFoMm0yIDBoMm0xIDBoMW0yIDBoMW00IDBoMW0yIDBoMW0xIDBoMm0xIDBoNW0yIDBoMW0xIDBoMW0tMzMgMWgxbTIgMGgxbTIgMGgzbTMgMGgxbTEgMGgzbTMgMGgxbTUgMGgxbTEgMGg0bS0zMiAxaDFtMSAwaDNtNCAwaDJtMSAwaDFtMiAwaDFtMyAwaDFtMSAwaDRtMSAwaDJtMSAwaDRtLTMzIDFoMW0yIDBoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMm0xIDBoMm01IDBoNW0tMjEgMWgxbTcgMGgxbTMgMGg1bTMgMGgzbTEgMGgxbS0zMyAxaDdtMiAwaDRtMiAwaDFtMiAwaDFtMSAwaDJtMSAwaDJtMSAwaDFtMSAwaDRtLTMyIDFoMW01IDBoMW0xIDBoNG0zIDBoMW00IDBoNW0zIDBoNW0tMzMgMWgxbTEgMGgzbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGg0bTIgMGgxbTEgMGgzbTEgMGg2bS0zMCAxaDFtMSAwaDNtMSAwaDFtMSAwaDFtMSAwaDJtMyAwaDJtMiAwaDFtNCAwaDFtMiAwaDJtMSAwaDNtLTMzIDFoMW0xIDBoM20xIDBoMW0xIDBoMW0xIDBoNW0yIDBoMm0xIDBoMm0yIDBoM20yIDBoMm0tMzEgMWgxbTUgMGgxbTIgMGgxbTEgMGgxbTIgMGgxbTEgMGgxbTEgMGgybTEgMGgybTEgMGgybTEgMGg0bS0zMSAxaDdtMSAwaDZtMiAwaDNtMyAwaDZtMyAwaDEiLz48L3N2Zz4K" alt="QR code for the Ethereum (ETH) address" width="160" height="160">
+<div>
+<h3>Ethereum (ETH)</h3>
+<code class="address" id="address-eth">0x79Ff39eCD0D2520c5353e011ac1317C51dc2AC3A</code>
+<button type="button" data-copy="0x79Ff39eCD0D2520c5353e011ac1317C51dc2AC3A" data-target="address-eth">Copy address</button>
+<p class="muted small">Network: Ethereum mainnet only. Sending on another network can lose the money.</p>
+</div>
+</div>
+<div class="coin">
+<img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNyAzNyI+PHRpdGxlPlFSIGNvZGUgZm9yIHRoZSBTb2xhbmEgKFNPTCkgYWRkcmVzczwvdGl0bGU+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTAgMGgzN3YzN2gtMzd6Ii8+PHBhdGggc3Ryb2tlPSIjMDAwIiBkPSJNMiAyLjVoN20yIDBoMW0xIDBoMW02IDBoMm0yIDBoMW0zIDBoN20tMzMgMWgxbTUgMGgxbTEgMGgybTIgMGgzbTEgMGgybTIgMGgxbTUgMGgxbTUgMGgxbS0zMyAxaDFtMSAwaDNtMSAwaDFtMSAwaDJtMSAwaDFtMSAwaDFtMSAwaDVtMSAwaDFtMSAwaDJtMSAwaDFtMSAwaDNtMSAwaDFtLTMzIDFoMW0xIDBoM20xIDBoMW0xIDBoMW0xIDBoMm04IDBoMm00IDBoMW0xIDBoM20xIDBoMW0tMzMgMWgxbTEgMGgzbTEgMGgxbTIgMGgybTEgMGgxbTIgMGgxbTIgMGgxbTQgMGgybTEgMGgxbTEgMGgzbTEgMGgxbS0zMyAxaDFtNSAwaDFtMiAwaDNtMiAwaDFtMSAwaDJtMyAwaDFtNCAwaDFtNSAwaDFtLTMzIDFoN20xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoN20tMjUgMWgybTQgMGgxbTMgMGgxbTMgMGgzbS0yNSAxaDFtNSAwaDFtMSAwaDNtMiAwaDRtMyAwaDFtMSAwaDFtMSAwaDNtMiAwaDNtLTMwIDFoMm0xIDBoMW0yIDBoMW0yIDBoMm02IDBoNW0xIDBoMW0yIDBoMm0xIDBoMm0tMzMgMWgxbTIgMGgxbTEgMGgzbTIgMGgxbTEgMGgxbTIgMGgxbTIgMGgxbTIgMGgxbTMgMGg1bTEgMGgxbS0zMiAxaDFtMSAwaDJtMSAwaDFtMSAwaDFtMSAwaDFtNCAwaDNtMyAwaDFtMyAwaDNtMSAwaDRtLTMxIDFoMm0xIDBoMW0xIDBoMW0zIDBoMTJtMSAwaDFtMiAwaDJtMSAwaDFtMiAwaDFtLTMzIDFoMm0yIDBoMm00IDBoMm0xIDBoMm0xIDBoMW05IDBoMm0xIDBoMm0xIDBoMW0tMzIgMWgxbTEgMGgxbTEgMGgzbTIgMGg0bTMgMGgxbTIgMGgzbTEgMGgybTIgMGgxbTIgMGgxbS0zMSAxaDFtNSAwaDJtNSAwaDJtMiAwaDNtMyAwaDJtMSAwaDVtLTMxIDFoMm0xIDBoMW0xIDBoNW01IDBoMm0zIDBoMm0yIDBoMW0yIDBoMm0tMzAgMWgxbTIgMGgxbTMgMGgybTIgMGgxbTEgMGgzbTEgMGgybTEgMGgxbTIgMGgxbTIgMGgxbTIgMGgxbTIgMGgxbS0zMyAxaDJtMyAwaDJtMSAwaDFtMSAwaDdtMiAwaDFtMSAwaDFtMSAwaDNtMiAwaDNtMSAwaDFtLTMzIDFoNG0xIDBoMW0xIDBoMW0xIDBoMW0yIDBoMm0xIDBoMW0xIDBoNG0zIDBoMW00IDBoM20tMzEgMWg0bTEgMGgzbTEgMGgybTEgMGg0bTMgMGg0bTEgMGgxbS0yNiAxaDFtMiAwaDNtMSAwaDJtMiAwaDJtMyAwaDVtMSAwaDJtMSAwaDRtMSAwaDJtLTMyIDFoMW0xIDBoMW0zIDBoMW0xIDBoMm0xIDBoM20xIDBoNG0yIDBoMW0zIDBoMW01IDBoMW0tMzIgMWgxbTMgMGgybTMgMGgxbTEgMGg0bTMgMGgxbTMgMGgxbTIgMGgxbTEgMGg2bS0zMyAxaDJtMiAwaDNtMiAwaDRtMiAwaDFtMSAwaDFtMSAwaDFtMiAwaDdtMSAwaDNtLTI1IDFoMW0yIDBoM20yIDBoMW0xIDBoM20xIDBoM20zIDBoMW0xIDBoM20tMzMgMWg3bTIgMGgxbTMgMGgxbTEgMGgybTEgMGgxbTEgMGgxbTEgMGgzbTEgMGgxbTEgMGgzbS0zMSAxaDFtNSAwaDFtNCAwaDNtMSAwaDJtNSAwaDFtMSAwaDFtMyAwaDRtLTMyIDFoMW0xIDBoM20xIDBoMW0yIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0yIDBoMW0xIDBoMW0xIDBoMW0xIDBoNW0yIDBoMW0tMzIgMWgxbTEgMGgzbTEgMGgxbTMgMGgxbTIgMGgybTEgMGgxbTIgMGgybTIgMGgzbTIgMGgxbTIgMGgybS0zMyAxaDFtMSAwaDNtMSAwaDFtNCAwaDJtMSAwaDFtMSAwaDFtMiAwaDRtMSAwaDNtMSAwaDJtMSAwaDJtLTMzIDFoMW01IDBoMW0zIDBoMm0xIDBoMW0xIDBoMm0yIDBoMm0xIDBoMm00IDBoM20tMzEgMWg3bTEgMGgxbTIgMGgxbTQgMGgzbTEgMGgxbTMgMGgxbTMgMGgxbTIgMGgxIi8+PC9zdmc+Cg==" alt="QR code for the Solana (SOL) address" width="160" height="160">
+<div>
+<h3>Solana (SOL)</h3>
+<code class="address" id="address-sol">7eE8qckeA15wD3FVjG3R6Uuw1eVrZmWohP5pS8hDFfp3</code>
+<button type="button" data-copy="7eE8qckeA15wD3FVjG3R6Uuw1eVrZmWohP5pS8hDFfp3" data-target="address-sol">Copy address</button>
+</div>
+</div>
+<div class="coin">
+<img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NSA0NSI+PHRpdGxlPlFSIGNvZGUgZm9yIHRoZSBNb25lcm8gKFhNUikgYWRkcmVzczwvdGl0bGU+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTAgMGg0NXY0NWgtNDV6Ii8+PHBhdGggc3Ryb2tlPSIjMDAwIiBkPSJNMiAyLjVoN20yIDBoM20xIDBoMW0xIDBoMm0xIDBoMW0zIDBoMW0yIDBoMW0yIDBoMm0xIDBoMW0yIDBoN20tNDEgMWgxbTUgMGgxbTEgMGgybTEgMGgxbTEgMGgzbTEgMGgxbTIgMGgxbTQgMGgybTIgMGgxbTQgMGgxbTUgMGgxbS00MSAxaDFtMSAwaDNtMSAwaDFtMSAwaDFtMSAwaDRtMyAwaDNtMSAwaDFtMSAwaDJtMSAwaDNtMSAwaDNtMSAwaDFtMSAwaDNtMSAwaDFtLTQxIDFoMW0xIDBoM20xIDBoMW0xIDBoMW0xIDBoNW0xIDBoMW00IDBoMm00IDBoNG0zIDBoMW0xIDBoM20xIDBoMW0tNDEgMWgxbTEgMGgzbTEgMGgxbTIgMGgxbTMgMGgybTEgMGgxbTEgMGgzbTEgMGgybTIgMGgxbTEgMGgxbTIgMGgybTEgMGgxbTEgMGgzbTEgMGgxbS00MSAxaDFtNSAwaDFtMiAwaDNtMSAwaDJtMSAwaDJtMiAwaDJtMiAwaDFtMSAwaDFtMSAwaDFtMyAwaDFtMSAwaDFtNSAwaDFtLTQxIDFoN20xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW0xIDBoN20tMzMgMWgybTEgMGgybTIgMGgybTEgMGgxbTEgMGgxbTIgMGgybTIgMGgybTEgMGgxbTEgMGgxbS0zMyAxaDFtNSAwaDFtMSAwaDVtMSAwaDFtMiAwaDFtMSAwaDdtNSAwaDRtMiAwaDNtLTM5IDFoMW0xIDBoMW0xIDBoMW0xIDBoM20yIDBoMW0xIDBoMW0xIDBoMW0yIDBoMm0xIDBoMm0xIDBoMW0xIDBoMW0xIDBoNG0yIDBoM20xIDBoMW0tMzggMWgxbTEgMGgxbTEgMGg0bTQgMGgxbTEgMGgxbTcgMGgxbTIgMGgybTEgMGgxbTIgMGgxbTMgMGgxbS0zNyAxaDFtMSAwaDFtMyAwaDVtMiAwaDJtMiAwaDJtMiAwaDJtMyAwaDJtNCAwaDJtMiAwaDFtMiAwaDFtLTM4IDFoMW0yIDBoMm0yIDBoMW0zIDBoNG0xIDBoMm0xIDBoMW00IDBoMW02IDBoNG0xIDBoMm0tMzcgMWgxbTQgMGgybTIgMGgxbTggMGgybTEgMGgybTEgMGgxbTMgMGgybTEgMGgybTEgMGgybS0zNyAxaDRtNCAwaDNtMSAwaDFtMSAwaDFtMyAwaDFtMiAwaDFtMiAwaDFtMiAwaDFtMiAwaDFtNCAwaDFtLTM3IDFoMW0xIDBoMW0yIDBoMm0xIDBoMW0xIDBoMm0yIDBoMW0zIDBoMW0zIDBoMW0xIDBoMW0xIDBoMW0xIDBoMW00IDBoMW0yIDBoM20tNDEgMWgxbTEgMGgxbTMgMGg0bTYgMGgybTQgMGg0bTYgMGgxbTIgMGgxbTEgMGgybTEgMGgxbS00MCAxaDFtMSAwaDFtNyAwaDFtMSAwaDFtMSAwaDFtNCAwaDFtMiAwaDFtMiAwaDFtMSAwaDFtMSAwaDNtMSAwaDNtMiAwaDJtLTQxIDFoNG0xIDBoNm0xIDBoMW0xIDBoMW0yIDBoM20xIDBoMW0xIDBoNm0xIDBoM20zIDBoM20xIDBoMW0tNDEgMWgybTUgMGgxbTMgMGgxbTIgMGgxbTEgMGgxbTIgMGgxbTMgMGgybTIgMGgxbTMgMGgybTIgMGgzbTIgMGgxbS00MSAxaDFtMyAwaDFtMSAwaDRtMSAwaDJtMiAwaDJtMSAwaDFtMiAwaDNtMiAwaDJtMSAwaDFtOSAwaDJtLTQxIDFoMW0zIDBoMW00IDBoMW0xIDBoNG0xIDBoMW0yIDBoMW0xIDBoMW00IDBoMm0xIDBoMW0xIDBoMW0yIDBoNW0tMzYgMWgxbTEgMGgzbTEwIDBoMW0xIDBoMm0yIDBoMm0xIDBoMW05IDBoMm0tMzkgMWgxbTIgMGgxbTEgMGgxbTEgMGgxbTEgMGgzbTQgMGgxbTIgMGgxbTQgMGgxbTIgMGgxbTIgMGgybTQgMGgybTIgMGgxbS00MSAxaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDJtMSAwaDFtMSAwaDJtMSAwaDJtMSAwaDFtNCAwaDJtNCAwaDFtMyAwaDJtMiAwaDFtMSAwaDFtLTQxIDFoMW0xIDBoM20yIDBoMm0xIDBoMW0xIDBoMW03IDBoMW02IDBoM20xIDBoMW0yIDBoNm0tNDAgMWgxbTMgMGgxbTEgMGgxbTEgMGgxbTEgMGgybTEgMGgxbTEgMGgxbTUgMGgybTIgMGgzbTIgMGgxbTIgMGgxbTMgMGgybS0zOSAxaDJtMyAwaDFtNSAwaDFtMyAwaDJtMiAwaDFtMyAwaDJtNiAwaDJtMSAwaDFtMSAwaDNtLTM4IDFoMW0xIDBoMW0yIDBoMm0zIDBoMW0yIDBoMm02IDBoMW0xIDBoMW0xIDBoMm0zIDBoM200IDBoMm0tNDAgMWgxbTEgMGgxbTYgMGgxbTMgMGgxbTEgMGgybTQgMGgxbTMgMGgxbTIgMGg0bTEgMGg0bTEgMGgxbS0zOSAxaDJtMSAwaDFtMSAwaDNtMSAwaDJtNiAwaDdtMSAwaDRtMSAwaDNtMiAwaDFtMSAwaDJtMSAwaDFtLTQxIDFoMW0xIDBoMm0xIDBoMW00IDBoMm0zIDBoMW0yIDBoMm00IDBoMW0xIDBoMm0yIDBoMW0yIDBoNW0xIDBoMm0tNDEgMWgxbTIgMGgxbTEgMGgybTIgMGg2bTcgMGgxbTIgMGgybTEgMGgxbTIgMGg2bTEgMGgxbS0zMSAxaDFtMSAwaDFtMiAwaDJtMSAwaDNtNiAwaDFtMSAwaDJtMyAwaDFtMyAwaDRtLTQwIDFoN20yIDBoMm0xIDBoMW0zIDBoMm0zIDBoMm0yIDBoM20xIDBoMW0xIDBoMm0xIDBoMW0xIDBoMW0xIDBoMW0tMzkgMWgxbTUgMGgxbTIgMGgxbTEgMGgxbTEgMGg4bTIgMGgxbTYgMGgzbTMgMGgybTEgMGgxbS00MCAxaDFtMSAwaDNtMSAwaDFtMiAwaDFtMSAwaDRtMiAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtNyAwaDZtMSAwaDFtMSAwaDFtLTQxIDFoMW0xIDBoM20xIDBoMW0yIDBoMm0xIDBoMW0yIDBoNG0xIDBoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMW02IDBoMW0xIDBoMW0tNDEgMWgxbTEgMGgzbTEgMGgxbTMgMGgxbTEgMGgxbTEgMGgzbTQgMGgybTMgMGgybTMgMGgxbTIgMGgzbTEgMGgxbS0zOSAxaDFtNSAwaDFtMyAwaDJtMiAwaDJtMSAwaDFtMiAwaDFtMiAwaDFtMiAwaDFtMyAwaDJtMSAwaDJtMiAwaDJtMSAwaDFtLTQxIDFoN20xIDBoM20xIDBoMW0yIDBoMm0yIDBoMm0xIDBoMW0xIDBoM20xIDBoMW0yIDBoMW0xIDBoMW0xIDBoMW0xIDBoMSIvPjwvc3ZnPgo=" alt="QR code for the Monero (XMR) address" width="160" height="160">
+<div>
+<h3>Monero (XMR)</h3>
+<code class="address" id="address-xmr">84L4Twd2DcNjHevR6qUzz8fnLDzmyyLZohwG8Zs5hSmtUWMPFRjdefvPJX2L89wZcahvCCgpBRwZRcP84V3vzHWPNqHx4TR</code>
+<button type="button" data-copy="84L4Twd2DcNjHevR6qUzz8fnLDzmyyLZohwG8Zs5hSmtUWMPFRjdefvPJX2L89wZcahvCCgpBRwZRcP84V3vzHWPNqHx4TR" data-target="address-xmr">Copy address</button>
+<p class="muted small">Private by design: your donation stays private too.</p>
+</div>
+</div>
+</div>
+</section>
+<footer class="muted small">
+<a href="https://github.com/freener0x/glowing-pancake">MPE Roll on GitHub</a>
+<a href="https://github.com/freener0x/glowing-pancake/blob/main/LICENSE">Source code (AGPL-3.0)</a>
+</footer>
+</main>
+<script>
+(function () {
+  var buttons = document.querySelectorAll('button[data-copy]');
+  Array.prototype.forEach.call(buttons, function (button) {
+    button.addEventListener('click', function () {
+      var text = button.getAttribute('data-copy');
+      var done = function () {
+        button.textContent = 'Copied \u2713';
+        setTimeout(function () { button.textContent = 'Copy address'; }, 2000);
+      };
+      var selectInstead = function () {
+        var code = document.getElementById(button.getAttribute('data-target'));
+        if (!code || !window.getSelection) return;
+        var range = document.createRange();
+        range.selectNodeContents(code);
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, selectInstead);
+      } else {
+        selectInstead();
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

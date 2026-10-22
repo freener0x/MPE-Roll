@@ -13,8 +13,8 @@ fine pitch and Mod X / Mod Y.
 
 > **Status:** early version. The MPE engine, MIDI files, recording and the FL script are covered by
 > automated tests, and every change is built and tested on Windows, macOS and Linux. The plugin is
-> checked end to end against VST3, VST2 and CLAP test synths. It has **not been tried inside FL
-> Studio yet**. See [Known limitations](#known-limitations).
+> checked end to end against VST3, VST2 and CLAP test synths. It has been **lightly tested inside FL
+> Studio** (26.1.7 on Windows 11); see [Known limitations](#known-limitations).
 
 ## What it does
 
@@ -226,6 +226,8 @@ tests/            Unit tests, plus a Python stand-in for FL's flpianoroll module
                   generated scripts.
 tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUCE), and CLAP
                   (plain CLAP API, pitch only from note expressions). Needs -DMPEROLL_BUILD_DEV_TOOLS=ON.
+                  make_donate_page.py writes DONATE.md, docs/donate.html, the QR codes and
+                  .github/FUNDING.yml from docs/donate.json.
 third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
 third_party/lame/ The build configuration for the LAME MP3 encoder (LAME itself is downloaded).
 cmake/            A fix applied to the downloaded JUCE.
@@ -236,6 +238,11 @@ and `uitest` exercise the full plugin, and `render <test synth> out.wav`, `param
 `clapdialect <test synth.clap>` check that per-note glides, parameter automation and CLAP note
 expressions reach a hosted synth, and `export <test synth> <folder>` exports a clip as WAV and MP3
 and reads both back. CI runs all of them.
+
+## Support MPE Roll
+
+MPE Roll is free and open source, with no ads and no tracking. If it helps you, a donation keeps it
+going: see [DONATE.md](DONATE.md) (Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code).
 
 ## License
 
