@@ -137,6 +137,9 @@ public:
 private:
     void scanFinished() override;
 
+    /** Keeps a plugin file that held nothing for the box at the end of the scan, if it can only be a plugin. */
+    void noteIfRefused (const juce::String& fileOrIdentifier, bool foundNothing);
+
     const int timeoutMs;
     std::atomic<bool> toldScannerOutdated { false };
     std::shared_ptr<juce::ScopedMessageBox> outdatedBox = std::make_shared<juce::ScopedMessageBox>();  // closes with this scanner

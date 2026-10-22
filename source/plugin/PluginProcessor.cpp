@@ -84,6 +84,15 @@ MpeRollProcessor::MpeRollProcessor()
             onStatusChanged();
     };
 
+    // The synth is played another way now (its own MPE switch changed): the zone lanes go again.
+    synth.onPlayingChanged = [this]
+    {
+        synthChanged = true;
+
+        if (onStatusChanged)
+            onStatusChanged();
+    };
+
     // Pass on what the synth tells its host (us), so FL hears it too.
     synth.onSynthReportedChange = [this] (const juce::AudioProcessorListener::ChangeDetails& details)
     {
@@ -103,6 +112,7 @@ MpeRollProcessor::~MpeRollProcessor()
     stopTimer();
     synth.onPluginRemoving = nullptr;
     synth.onPluginChanged = nullptr;
+    synth.onPlayingChanged = nullptr;
     synth.onSynthReportedChange = nullptr;
 }
 

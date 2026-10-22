@@ -100,15 +100,15 @@ std::optional<SynthProfile> SynthProfile::find (const juce::PluginDescription& d
     if (n.startsWith ("diva"))
         return SynthProfile { "Diva", Mpe::needsSwitch,
                               "Diva has MPE from 1.4.8, for polyphonic presets: set its Pitch Bend Up and Down to MPE. "
-                              "Its CLAP version needs nothing set up: MPE Roll plays it with CLAP note expressions." };
+                              "Its CLAP version needs nothing set up when Note expressions are on in MPE settings." };
 
     if (n.startsWith ("zebra2") || n.startsWith ("zebra 2"))
         return noMpe ("Zebra2", "Zebra2 has no MPE (Zebra 3 has).");
 
     if (n.startsWith ("zebra3") || n.startsWith ("zebra 3"))
         return SynthProfile { "Zebra 3", Mpe::needsSwitch,
-                              "Zebra 3 has MPE. Its CLAP version needs nothing set up: MPE Roll plays it with CLAP note "
-                              "expressions." };
+                              "Zebra 3 has MPE. Its CLAP version needs nothing set up when Note expressions are on in MPE "
+                              "settings." };
 
     // Kilohearts
     if (n.startsWith ("phase plant"))
@@ -136,7 +136,7 @@ std::optional<SynthProfile> SynthProfile::find (const juce::PluginDescription& d
     if (n.startsWith ("surge xt") || n == "surge")
         return SynthProfile { "Surge XT", Mpe::followsSetup,
                               "Surge XT turns MPE on by itself from MPE Roll's setup (MPE settings > Send MPE setup now, "
-                              "if it hasn't). Its CLAP version is played with CLAP note expressions." };
+                              "if it hasn't). Its CLAP version needs nothing set up when Note expressions are on." };
 
     if (n.startsWith ("equator"))
         return SynthProfile { name, Mpe::needsSwitch,

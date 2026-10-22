@@ -641,12 +641,19 @@ void HostedSynth::refreshVst3Support()
     if (support == vst3Support)
         return;
 
+    const auto changedWhilePlaying = vst3Support.isVst3;    // rather than just loaded
     vst3Support = support;
     vst3Expressions.setSupport (support);
 
     if (support.isVst3)
         PluginLog::add ("  " + getName() + ", " + support.describe()
-                        + (support.wantsNoteExpressions() ? "; MPE goes to it as VST3 note expressions" : ""));
+                        + (support.wantsNoteExpressions() && Vst3NoteExpressions::isAvailable()
+                               ? "; with note expressions on, MPE goes to it as VST3 note expressions" : ""));
+
+    // Played the other way now: what MPE Roll has sent the synth so far (zone values...) went the
+    // old way, so it's sent again.
+    if (changedWhilePlaying && onPlayingChanged)
+        onPlayingChanged();
 }
 
 void HostedSynth::audioProcessorChanged (juce::AudioProcessor*, const ChangeDetails& details)
@@ -878,8 +885,9 @@ void HostedSynth::listenForSound (const juce::AudioBuffer<float>& output) noexce
         return;
     }
 
-    // Only MPE over MIDI spreads notes over channels a synth may not be listening to.
-    auto overMpe = outputSettings.mode == OutputSettings::Mode::mpe;
+    // Only MPE over MIDI spreads notes over channels a synth may not be listening to. VST3 note
+    // expressions put every note on channel 1.
+    auto overMpe = outputSettings.mode == OutputSettings::Mode::mpe && ! vst3Expressions.isUsedWith (outputSettings);
 
    #if MPEROLL_HOST_CLAP
     if (clapControls != nullptr && clapControls->playsNoteExpressions (outputSettings))
@@ -969,7 +977,8 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
     if (vst3Support.midiMissesNotes())
         return mpe + "But this VST3 synth takes pitch bend " + vst3Support.describeBend()
              + ", so each note's glides can't reach it one by one"
-             + (vst3Support.takesTuning() ? juce::String (" (turn on Note expressions to play it with VST3 note expressions)") : juce::String())
+             + (vst3Support.takesTuning() && Vst3NoteExpressions::isAvailable()
+                    ? juce::String (" (turn on Note expressions to play it with VST3 note expressions)") : juce::String())
              + ". Set Synth expects to Plain MIDI, or load its VST2 or CLAP version if you have one.";
 
     if (profile.has_value())
@@ -980,7 +989,8 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
 
 std::optional<SynthProfile> HostedSynth::getProfile() const
 {
-    return description != nullptr && instance != nullptr ? SynthProfile::find (*description) : std::nullopt;
+    // What the loaded plugin says it is (its version, say), not what a scan or a project said.
+    return instance != nullptr ? SynthProfile::find (instance->getPluginDescription()) : std::nullopt;
 }
 
 juce::String HostedSynth::describeSetup() const
@@ -1077,13 +1087,17 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
         {
             instance->setStateInformation (state.getData(), (int) state.getSize());
 
-            // New state can mean new sounds to load: listen afresh, with the grace a new synth gets.
-            const ScopedExclusive exclusive (guard);
-            silenceWatch.graceSeconds = 0.0;
-            silenceWatch.silentSeconds = 0.0;
-            silenceWatch.finished = false;
-            silenceWarning = false;
-            silentOverMpe = false;
+            {
+                // New state can mean new sounds to load: listen afresh, with the grace a new synth gets.
+                const ScopedExclusive exclusive (guard);
+                silenceWatch.graceSeconds = 0.0;
+                silenceWatch.silentSeconds = 0.0;
+                silenceWatch.finished = false;
+                silenceWarning = false;
+                silentOverMpe = false;
+            }
+
+            refreshVst3Support();   // its own MPE switch may be in the state
         }
 
         if (onPluginChanged)
@@ -1117,7 +1131,10 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
     load (desc, [this, state, desc, onDone] (const juce::String& error)
     {
         if (error.isEmpty() && instance != nullptr && state.getSize() > 0)
+        {
             instance->setStateInformation (state.getData(), (int) state.getSize());
+            refreshVst3Support();   // its own MPE switch may be in the state, and decide how it's played
+        }
 
         if (onDone)
             onDone (error.isEmpty() ? error : desc.name + ": " + error);

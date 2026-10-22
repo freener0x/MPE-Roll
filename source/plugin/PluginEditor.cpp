@@ -619,13 +619,18 @@ juce::String MpeRollEditor::describeLoaded (const juce::String& name) const
     if (synth.playsNoteExpressions (output))
         return "Loaded " + name + (synth.getVst3Support().isVst3 ? ", played with VST3 note expressions" : "");
 
-    if (const auto profile = synth.getProfile())
-        return "Loaded " + name + ". " + (profile->mpe == SynthProfile::Mpe::none
-                                              ? profile->name + " has no MPE: set Synth expects to Plain MIDI in MPE settings."
-                                              : profile->advice);
+    // In the order MPE settings has it: no MPE at all, then MPE that can't reach its notes, then
+    // where its MPE switch is.
+    const auto profile = synth.getProfile();
+
+    if (profile.has_value() && profile->mpe == SynthProfile::Mpe::none)
+        return "Loaded " + name + ". " + profile->name + " has no MPE: set Synth expects to Plain MIDI in MPE settings.";
 
     if (synth.getVst3Support().midiMissesNotes())
         return "Loaded " + name + ". MPE can't reach its notes one by one (see MPE settings): set Synth expects to Plain MIDI.";
+
+    if (profile.has_value())
+        return "Loaded " + name + ". " + profile->advice;
 
     return "Loaded " + name + ". Turn on MPE in it; if it has no MPE mode, set Synth expects to Plain MIDI in MPE settings.";
 }
@@ -635,23 +640,35 @@ void MpeRollEditor::offerPlainMidi()
     auto& synth = rollProcessor.getSynth();
     const auto& output = document.getSettings().output;
 
-    if (mpeAdvice != nullptr || ! synth.isLoaded() || output.mode != OutputSettings::Mode::mpe || synth.playsNoteExpressions (output))
+    // One box at a time: the "No sound" box may be asking already.
+    if (mpeAdvice != nullptr || silenceAlert != nullptr || ! synth.isLoaded() || output.mode != OutputSettings::Mode::mpe
+        || synth.playsNoteExpressions (output))
         return;
 
     // Only for a synth that can't take each note's own expression, whatever is set in it: one
-    // MPE Roll knows has no MPE, or a VST3 that takes pitch bend on one channel and no note expressions.
+    // MPE Roll knows has no MPE, or a VST3 that takes pitch bend on one channel and no note
+    // expressions (that this build can send).
     const auto profile = synth.getProfile();
     const auto& vst3 = synth.getVst3Support();
     const auto name = synth.getName();
-    juce::String why;
+    juce::String why, title;
 
     if (profile.has_value() && profile->mpe == SynthProfile::Mpe::none)
+    {
         why = profile->advice.upToLastOccurrenceOf ("Set Synth expects", false, false).trim();
-    else if (vst3.midiMissesNotes() && ! vst3.takesTuning())
-        why = name + " takes pitch bend " + vst3.describeBend() + " and no VST3 note expressions, so MPE Roll can't reach "
-              "its notes one by one.";
+        title = name + " has no MPE";
+    }
+    else if (vst3.midiMissesNotes() && ! (vst3.takesTuning() && Vst3NoteExpressions::isAvailable()))
+    {
+        why = name + " takes pitch bend " + vst3.describeBend() + (vst3.takesTuning() ? juce::String() : " and no VST3 note expressions")
+              + ", so MPE Roll can't reach its notes one by one. If it has an MPE switch of its own, turning it on may "
+                "change that, and MPE settings would then say so.";
+        title = "MPE can't reach " + name + "'s notes";
+    }
     else
+    {
         return;
+    }
 
     PluginLog::add ("Offered Plain MIDI for " + name + ": " + why);
 
@@ -660,7 +677,7 @@ void MpeRollEditor::offerPlainMidi()
                          "timbre drive the synth.\n\nPlay " + name + " with Plain MIDI?";
 
     // Return takes the suggestion; Escape and closing the box keep MPE.
-    auto* alert = new juce::AlertWindow (name + " has no MPE", message, juce::MessageBoxIconType::QuestionIcon, this);
+    auto* alert = new juce::AlertWindow (title, message, juce::MessageBoxIconType::QuestionIcon, this);
     alert->addButton ("Use Plain MIDI", 1, juce::KeyPress (juce::KeyPress::returnKey));
     alert->addButton ("Keep MPE", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     mpeAdvice = alert;
@@ -682,8 +699,8 @@ void MpeRollEditor::offerPlainMidi()
 
 void MpeRollEditor::warnSynthSilent()
 {
-    if (silenceAlert != nullptr)
-        return;     // one box is already asking
+    if (silenceAlert != nullptr || mpeAdvice != nullptr)
+        return;     // one box is already asking (the status line keeps saying it hasn't been heard)
 
     auto& synth = rollProcessor.getSynth();
     const auto& output = document.getSettings().output;

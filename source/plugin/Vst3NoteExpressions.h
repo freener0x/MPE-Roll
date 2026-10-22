@@ -44,6 +44,16 @@ public:
     /** Whether notes go as note expressions with these settings. */
     bool isUsedWith (const OutputSettings&) const noexcept;
 
+    /** Whether this build can play VST3 note expressions at all: it uses the CLAP translator. */
+    static constexpr bool isAvailable() noexcept
+    {
+       #if MPEROLL_HOST_CLAP
+        return true;
+       #else
+        return false;
+       #endif
+    }
+
     /** Room for a block of this size. Not real-time safe. */
     void prepare (int maximumBlockSize);
 
@@ -75,7 +85,7 @@ private:
 
     void trackHeld (const juce::MidiBuffer&) noexcept;
     void endHeld (juce::MidiBuffer&) noexcept;
-    void convert() noexcept;
+    void convert (bool onChannelOne) noexcept;
     double valueFor (int expression, double clapValue) const noexcept;
 };
 

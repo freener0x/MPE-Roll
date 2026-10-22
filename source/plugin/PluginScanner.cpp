@@ -264,13 +264,7 @@ bool OutOfProcessScanner::findPluginTypesFor (juce::AudioPluginFormat& format,
     {
         PluginLog::add ("Scan: " + fileOrIdentifier + ": " + juce::String (result.size() - before) + " plugin(s), "
                         + juce::String (took) + " s");
-
-        if (result.size() == before && mightRefuseToStart (fileOrIdentifier))
-        {
-            const juce::ScopedLock lock (skippedLock);
-            refusedFiles.addIfNotAlreadyThere (juce::File::isAbsolutePath (fileOrIdentifier)
-                                                   ? juce::File (fileOrIdentifier).getFileName() : fileOrIdentifier);
-        }
+        noteIfRefused (fileOrIdentifier, result.size() == before);
     }
     else if (outcome != Outcome::cancelled)
         PluginLog::add ("Scan: " + fileOrIdentifier + ": " + describeFailure (outcome, format.getName() + " file")
@@ -280,6 +274,7 @@ bool OutOfProcessScanner::findPluginTypesFor (juce::AudioPluginFormat& format,
     {
         // No scanner program, or one that didn't get as far as the file: look in this process, as before.
         format.findAllTypesForFile (result, fileOrIdentifier);
+        noteIfRefused (fileOrIdentifier, result.size() == before);
         return true;
     }
 
@@ -311,6 +306,17 @@ bool OutOfProcessScanner::findPluginTypesFor (juce::AudioPluginFormat& format,
 
     // A file that crashed or hung is listed as failed.
     return outcome == Outcome::found || outcome == Outcome::cancelled;
+}
+
+void OutOfProcessScanner::noteIfRefused (const juce::String& fileOrIdentifier, bool foundNothing)
+{
+    if (! foundNothing || ! mightRefuseToStart (fileOrIdentifier))
+        return;
+
+    // Scans run on threads of their own.
+    const juce::ScopedLock lock (skippedLock);
+    refusedFiles.addIfNotAlreadyThere (juce::File::isAbsolutePath (fileOrIdentifier)
+                                           ? juce::File (fileOrIdentifier).getFileName() : fileOrIdentifier);
 }
 
 void OutOfProcessScanner::scanFinished()

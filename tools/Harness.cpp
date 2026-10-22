@@ -1815,6 +1815,49 @@ int vst3DialectTest (const juce::File& noteExpressionSynth, const juce::File& mi
     check (stopAndListen() < 1.0e-4f, "nor one held while they went off");
     setNoteExpressions (true);
 
+    std::printf ("A zone bend that went as MIDI doesn't stay on the synth once note expressions are back\n");
+    {
+        // A held C4 with the zone bent up a semitone. Over MIDI the synth takes the zone's bend on
+        // channel 1 (its global bend); with note expressions the bend is part of each note's tuning,
+        // so the global bend has to go back to rest, or the note sounds a whole tone up. (Here MPE
+        // Roll's own reset reaches the synth before the switch too; a switch the synth's own MPE
+        // switch causes has no such reset, which is why the switch itself puts the bend back.)
+        MpeClip clip;
+        clip.length = 8.0;
+        clip.addNote (note (60, 0.0, 8.0, 0.8f));
+        clip.zone.pitch = { { 0.0, 1.0f } };
+        processor.getDocument().replaceClip (0, clip, "Test");
+
+        setNoteExpressions (false);
+        playHead.playing = false;
+        double ppq = 0.0;
+        runBlock (processor, playHead, ppq);
+        playHead.playing = true;
+        playHead.ppq = 0.0;
+        play (0.0f, 20, false);
+        setNoteExpressions (true);
+
+        // 16 blocks: long enough to tell a semitone from a whole tone apart at this pitch.
+        juce::AudioBuffer<float> tail (1, 16 * 512);
+
+        for (int block = 0; block < 40; ++block)
+        {
+            juce::AudioBuffer<float> audio (2, 512);
+            juce::MidiBuffer midi;
+            processor.processBlock (audio, midi);
+            playHead.ppq += 512.0 / 48000.0 * 2.0;
+
+            if (block >= 24)
+                tail.copyFrom (0, (block - 24) * 512, audio, 0, 0, 512);
+        }
+
+        const auto bentUp = goertzel (tail.getReadPointer (0), tail.getNumSamples(), juce::MidiMessage::getMidiNoteInHertz (61), 48000.0);
+        const auto twice = goertzel (tail.getReadPointer (0), tail.getNumSamples(), juce::MidiMessage::getMidiNoteInHertz (62), 48000.0);
+        std::printf ("  C#4 %.4f, D4 %.4f\n", bentUp, twice);
+        check (bentUp > 0.005 && bentUp > 5.0 * twice, "the note sounds a semitone up (the zone's bend), not a whole tone");
+        stopAndListen();
+    }
+
     std::printf ("A VST3 synth that maps pitch bend on every channel keeps MPE over MIDI\n");
 
     if (! loadSynth (processor, midiSynth))

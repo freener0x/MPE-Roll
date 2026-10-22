@@ -90,15 +90,27 @@ juce::MidiBuffer& Vst3NoteExpressions::process (juce::MidiBuffer& midi, int numS
     translated.clear();
     events->clear();
 
-    // Notes that went out as MIDI are ended here: the translator only ends notes it started.
+    // Notes that went out as MIDI are ended here: the translator only ends notes it started. And
+    // the synth's channel bend and pressure go back to rest, as they won't be sent as MIDI again
+    // (zone bend and pressure become part of each note's tuning and pressure).
     if (use && ! translating)
+    {
         endHeld (translated);
+
+        for (int channel = 1; channel <= 16; ++channel)
+        {
+            const uint8_t bend[3] { (uint8_t) (0xe0 | (channel - 1)), 0x00, 0x40 };
+            const uint8_t pressure[2] { (uint8_t) (0xd0 | (channel - 1)), 0 };
+            translated.addEvent (bend, 3, 0);
+            translated.addEvent (pressure, 2, 0);
+        }
+    }
 
     // Going back to MIDI, the translator ends its notes and passes this block's MIDI on, once.
     translator->setOutputSettings (settings);
     translator->setDialects (use, true);
     translator->translate (midi, *events, numSamples);
-    convert();
+    convert (use);
 
     if (! use)
         trackHeld (midi);
@@ -168,9 +180,14 @@ double Vst3NoteExpressions::valueFor (int expression, double clapValue) const no
     return juce::jlimit (minimum[x].load(), maximum[x].load(), value);
 }
 
-void Vst3NoteExpressions::convert() noexcept
+void Vst3NoteExpressions::convert (bool onChannelOne) noexcept
 {
    #if MPEROLL_HOST_CLAP
+    // The last controller-type message passed on, to drop the copies the translator makes of a
+    // zone's controllers for each member channel once they're all on channel 1.
+    std::array<uint8_t, 3> lastMidi {};
+    int lastMidiTime = -1;
+
     for (uint32_t i = 0; i < events->size(); ++i)
     {
         const auto* header = events->get (i);
@@ -211,7 +228,22 @@ void Vst3NoteExpressions::convert() noexcept
             {
                 const auto& e = *reinterpret_cast<const clap_event_midi_t*> (header);
                 const auto size = juce::jlimit (1, 3, juce::MidiMessage::getMessageLengthFromFirstByte (e.data[0]));
-                translated.addEvent (e.data, size, time);
+                std::array<uint8_t, 3> data { e.data[0], e.data[1], e.data[2] };
+
+                // With every note on channel 1, so are the controllers (a zone's sustain pedal...),
+                // whichever zone they came from: a synth that only listens there hears them too.
+                if (onChannelOne && data[0] >= 0x80 && data[0] < 0xf0)
+                {
+                    data[0] = (uint8_t) (data[0] & 0xf0);
+
+                    if (time == lastMidiTime && data == lastMidi)
+                        break;
+
+                    lastMidi = data;
+                    lastMidiTime = time;
+                }
+
+                translated.addEvent (data.data(), size, time);
                 break;
             }
 

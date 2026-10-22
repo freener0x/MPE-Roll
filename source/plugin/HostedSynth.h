@@ -181,6 +181,10 @@ public:
     */
     std::function<void()> onPluginChanged;
 
+    /** Called on the message thread when the loaded synth is to be played another way (MPE over MIDI
+        or VST3 note expressions) after it said its MPE has changed, so everything is sent again. */
+    std::function<void()> onPlayingChanged;
+
     /** Called on the message thread just before a plugin instance is removed and deleted. */
     std::function<void (juce::AudioPluginInstance&)> onPluginRemoving;
 
