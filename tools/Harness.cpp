@@ -15,6 +15,7 @@
 //                                                       plugin files are looked at in the scanner process
 
 #include "plugin/CrashReport.h"
+#include "plugin/Links.h"
 #include "plugin/PluginEditor.h"
 #include "plugin/PluginProcessor.h"
 #include "plugin/PluginScanner.h"
@@ -1877,8 +1878,17 @@ void editorUiChecks (Check& check)
             check (settingsBox != nullptr, "the MPE settings button opens them in a call-out");
 
             if (auto* box = settingsBox.getComponent())
+            {
                 check (findLabelSaying (*box, "scale, drawn by") != nullptr,
                        "whose Window line says how the window is drawn from the moment it opens");
+
+                auto* panel = findChild<SettingsPanel> (*box);
+                auto* link = panel != nullptr ? findChild<juce::HyperlinkButton> (*panel) : nullptr;
+                check (link != nullptr && link->getURL().toString (false) == juce::String (links::donate),
+                       "and a Support MPE Roll link at its foot opens the donation page");
+                check (link != nullptr && link->isShowing() && panel->getLocalBounds().contains (link->getBounds()),
+                       "which is in view below the settings");
+            }
 
             // As FL closing the window and then the plugin with the settings open, while a skin change
             // (from another MPE Roll's settings) is still on its way: the call-out is deleted later, by

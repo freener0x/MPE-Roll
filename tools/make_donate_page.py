@@ -6,11 +6,14 @@ It writes, all of them committed so nobody needs this script to read them:
   DONATE.md            the page GitHub shows: links, QR codes as images, addresses in code blocks
   docs/donate.html     the same page as one self-contained file, with copy buttons; it works from
                        disk and on GitHub Pages, and loads nothing from anywhere else
+  docs/index.html      the front page of the GitHub Pages site (docs/ on the default branch)
   docs/donate/*.svg    the QR codes (a wallet URI such as bitcoin:<address>)
   .github/FUNDING.yml  the links behind the Sponsor button on the GitHub page
 
 Only plain links and QR codes: no payment widget or third-party script is ever involved, so the
-page is as private as the plugin. Empty values in donate.json are left out.
+page is as private as the plugin. Empty values in donate.json are left out. "pageUrl" is where
+GitHub Pages serves docs/donate.html; the plugin opens the same address from source/plugin/Links.h,
+and this script stops if the two differ.
 
 Needs the segno package (pip install segno). Run it from anywhere:
 
@@ -39,9 +42,12 @@ ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / "docs" / "donate.json"
 QR_DIR = ROOT / "docs" / "donate"
 HTML_OUT = ROOT / "docs" / "donate.html"
+INDEX_OUT = ROOT / "docs" / "index.html"
 MD_OUT = ROOT / "DONATE.md"
 FUNDING_OUT = ROOT / ".github" / "FUNDING.yml"
-DONATE_PAGE_URL = f"{REPO_URL}/blob/main/DONATE.md"
+LINKS_HEADER = ROOT / "source" / "plugin" / "Links.h"
+DONATE_MD_URL = f"{REPO_URL}/blob/main/DONATE.md"
+FL_GUIDE_URL = f"{REPO_URL}/blob/main/docs/FL_STUDIO.md"
 
 ADDRESS = re.compile(r"^[A-Za-z0-9:]{20,120}$")
 
@@ -76,6 +82,19 @@ def load_config() -> dict:
     if not isinstance(config.get("crypto", {}), dict):
         fail('"crypto" must be an object of coin: address')
     return config
+
+
+def page_url(config: dict) -> str:
+    """Where the donation page is served, which the plugin must agree on; DONATE.md on GitHub if unset."""
+    url = clean(config.get("pageUrl"))
+    if not url:
+        return DONATE_MD_URL
+    if not url.startswith("https://"):
+        fail('"pageUrl" must be an https:// link')
+    if LINKS_HEADER.exists() and f'"{url}"' not in LINKS_HEADER.read_text(encoding="utf-8"):
+        fail(f'"pageUrl" is {url}, but {LINKS_HEADER.relative_to(ROOT).as_posix()} opens another address; '
+             "change both")
+    return url
 
 
 def build_links(config: dict) -> list[dict]:
@@ -158,6 +177,7 @@ html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--font-ui); }
 main { max-width: 720px; margin: 0 auto; padding: 40px 16px 56px; }
 h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 10px; }
+section { margin-top: 24px; }
 h2 { font-size: 1.15rem; margin: 34px 0 12px; }
 h3 { font-size: 1rem; margin: 0 0 6px; }
 p { margin: 10px 0 0; }
@@ -286,9 +306,50 @@ def render_html(links: list[dict], coins: list[dict], svgs: dict[str, bytes]) ->
     return "\n".join(out) + "\n"
 
 
+def render_index(url: str) -> str:
+    """The front page of the Pages site: where to read, download and donate."""
+    e = html.escape
+    out = [
+        "<!doctype html>",
+        '<html lang="en">',
+        "<head>",
+        '<meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        '<meta name="color-scheme" content="dark light">',
+        f"<title>{e(PROJECT)}</title>",
+        "<!-- Made by tools/make_donate_page.py. Change the script, not this file. -->",
+        "<style>",
+        CSS.rstrip("\n"),
+        "</style>",
+        "</head>",
+        "<body>",
+        "<main>",
+        f"<h1>{e(PROJECT)}</h1>",
+        '<p class="lead">An MPE piano roll for FL Studio. Load your synth inside it, and every note gets its own '
+        "pitch glide, pressure and timbre. Free and open source.</p>",
+        "<section>",
+        '<ul class="donate-links">',
+        f'<li><a class="button-link" href="{e(REPO_URL)}">{e(PROJECT)} on GitHub</a>'
+        ' <span class="muted small">What it does, downloads, and the source code.</span></li>',
+        f'<li><a class="button-link" href="{e(FL_GUIDE_URL)}">Using it in FL Studio</a>'
+        ' <span class="muted small">Setup, routing, the native-synth bridge and troubleshooting.</span></li>',
+        f'<li><a class="button-link" href="{e(url.rsplit("/", 1)[-1])}">Support {e(PROJECT)}</a>'
+        ' <span class="muted small">Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code.</span></li>',
+        "</ul>",
+        "</section>",
+        '<footer class="muted small">',
+        f'<a href="{e(REPO_URL)}/blob/main/LICENSE">Source code (AGPL-3.0)</a>',
+        "</footer>",
+        "</main>",
+        "</body>",
+        "</html>",
+    ]
+    return "\n".join(out) + "\n"
+
+
 # ---------------------------------------------------------------- DONATE.md
 
-def render_markdown(links: list[dict], coins: list[dict]) -> str:
+def render_markdown(links: list[dict], coins: list[dict], url: str) -> str:
     out = [f"# Support {PROJECT}", "", LEAD, ""]
     if not links and not coins:
         out += [COMING_SOON, ""]
@@ -310,20 +371,22 @@ def render_markdown(links: list[dict], coins: list[dict]) -> str:
                     "```text", coin["address"], "```", ""]
             if coin["note"]:
                 out += [coin["note"], ""]
-    out += ["---", "",
-            "[docs/donate.html](docs/donate.html) is this page as one file with copy buttons; open it from a "
-            "checkout, or serve it with GitHub Pages. Both pages, the QR codes and `.github/FUNDING.yml` are "
-            "made by `tools/make_donate_page.py` from [docs/donate.json](docs/donate.json): change the JSON and "
-            "run the script rather than editing them.", ""]
+    out += ["---", ""]
+    if url != DONATE_MD_URL:
+        out += [f"This page is also online, with copy buttons, at <{url}> (the plugin's *File > Support MPE "
+                "Roll* opens it).", ""]
+    out += ["The pages, the QR codes and `.github/FUNDING.yml` are made by `tools/make_donate_page.py` from "
+            "[docs/donate.json](docs/donate.json): change the JSON and run the script rather than editing them.",
+            ""]
     return "\n".join(out)
 
 
 # ---------------------------------------------------------------- .github/FUNDING.yml
 
-def render_funding(links: list[dict]) -> str:
-    """GitHub's Sponsor button: it only takes links, so the crypto addresses stay on DONATE.md."""
+def render_funding(links: list[dict], url: str) -> str:
+    """GitHub's Sponsor button: it only takes links, so the crypto addresses stay on the donation page."""
     out = ["# The Sponsor button on the GitHub page. Made by tools/make_donate_page.py from docs/donate.json;",
-           "# the button only takes links, so the crypto addresses are on DONATE.md."]
+           "# the button only takes links, so the crypto addresses are on the donation page."]
     sponsors = [link for link in links if link["id"] == "github"]
     if sponsors:
         out.append("github: " + json.dumps([sponsors[0]["url"].rsplit("/", 1)[1]]))
@@ -331,7 +394,7 @@ def render_funding(links: list[dict]) -> str:
     if libera:
         out.append("liberapay: " + libera[0]["url"].rsplit("/", 1)[1])
     custom = [link["url"] for link in links if link["id"] not in ("github", "liberapay")]
-    custom = (custom + [DONATE_PAGE_URL])[:4]  # GitHub allows four custom links
+    custom = (custom + [url])[:4]  # GitHub allows four custom links
     out.append("custom: " + json.dumps(custom))
     return "\n".join(out) + "\n"
 
@@ -348,6 +411,7 @@ def write(path: Path, data: bytes | str) -> None:
 
 def main() -> None:
     config = load_config()
+    url = page_url(config)
     links = build_links(config)
     coins = build_coins(config)
 
@@ -360,8 +424,9 @@ def main() -> None:
         write(coin["file"], svgs[coin["id"]])
 
     write(HTML_OUT, render_html(links, coins, svgs))
-    write(MD_OUT, render_markdown(links, coins))
-    write(FUNDING_OUT, render_funding(links))
+    write(INDEX_OUT, render_index(url))
+    write(MD_OUT, render_markdown(links, coins, url))
+    write(FUNDING_OUT, render_funding(links, url))
     print(f"{len(links)} payment link(s), {len(coins)} crypto address(es)")
 
 

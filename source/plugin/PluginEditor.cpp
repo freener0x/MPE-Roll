@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "Links.h"
 #include "core/FlScriptExporter.h"
 #include "core/MidiFileIO.h"
 #include "ui/SettingsPanel.h"
@@ -706,10 +707,18 @@ void MpeRollEditor::showMidiMenu()
 
     menu.addSeparator();
     menu.addItem (3, "Tip: drag this button into FL to drop the clip as a MIDI file", false);
+    menu.addSeparator();
+    menu.addItem (7, "Support MPE Roll (donate)");
 
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.midiButton),
                         [safe = juce::Component::SafePointer<MpeRollEditor> (this)] (int result)
     {
+        if (result == 7)   // the browser, not the editor, so it needn't still be here
+        {
+            juce::URL (links::donate).launchInDefaultBrowser();
+            return;
+        }
+
         if (safe == nullptr)
             return;
 

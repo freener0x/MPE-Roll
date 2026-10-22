@@ -50,4 +50,6 @@ Private by design: your donation stays private too.
 
 ---
 
-[docs/donate.html](docs/donate.html) is this page as one file with copy buttons; open it from a checkout, or serve it with GitHub Pages. Both pages, the QR codes and `.github/FUNDING.yml` are made by `tools/make_donate_page.py` from [docs/donate.json](docs/donate.json): change the JSON and run the script rather than editing them.
+This page is also online, with copy buttons, at <https://freener0x.github.io/glowing-pancake/donate.html> (the plugin's *File > Support MPE Roll* opens it).
+
+The pages, the QR codes and `.github/FUNDING.yml` are made by `tools/make_donate_page.py` from [docs/donate.json](docs/donate.json): change the JSON and run the script rather than editing them.

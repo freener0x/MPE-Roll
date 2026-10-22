@@ -2,6 +2,7 @@
 #include "MpeLookAndFeel.h"
 #include "WindowDrawing.h"
 #include "core/ControllerPresets.h"
+#include "plugin/Links.h"
 
 namespace mperoll
 {
@@ -364,6 +365,15 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     panel.addSection ("Colours", colours, false);
 
     addAndMakeVisible (panel);
+
+    // MPE Roll is free; the donation page is a click away, below the settings.
+    supportLink.setButtonText ("Support MPE Roll (donate)");
+    supportLink.setURL (juce::URL (links::donate));
+    supportLink.setTooltip ("Opens the donation page in your browser: Cash App, or crypto by QR code");
+    supportLink.setJustificationType (juce::Justification::centredLeft);
+    supportLink.setColour (juce::HyperlinkButton::textColourId, Theme::glide);
+    addAndMakeVisible (supportLink);
+
     document.addChangeListener (this);
     skins->addChangeListener (this);
     setSize (460, 640);
@@ -406,6 +416,7 @@ void SettingsPanel::edit (const std::function<void (EngineSettings&)>& change)
 void SettingsPanel::changeListenerCallback (juce::ChangeBroadcaster*)
 {
     panel.refreshAll();
+    supportLink.setColour (juce::HyperlinkButton::textColourId, Theme::glide);   // the skin may have changed
     repaint();
 }
 
@@ -416,7 +427,9 @@ void SettingsPanel::paint (juce::Graphics& g)
 
 void SettingsPanel::resized()
 {
-    panel.setBounds (getLocalBounds().reduced (4));
+    auto area = getLocalBounds().reduced (4);
+    supportLink.setBounds (area.removeFromBottom (24).withTrimmedLeft (4));
+    panel.setBounds (area);
 }
 
 } // namespace mperoll

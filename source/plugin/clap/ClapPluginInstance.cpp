@@ -8,6 +8,7 @@
 #include "ClapHosting.h"
 #include "ClapModule.h"
 #include "ClapNoteTranslator.h"
+#include "plugin/Links.h"
 
 #include <juce_gui_extra/juce_gui_extra.h>
 
@@ -1902,7 +1903,7 @@ ClapHostContext::ClapHostContext()
     host.host_data = this;
     host.name = "MPE Roll";
     host.vendor = "Glowing Pancake";
-    host.url = "https://github.com/freener0x/glowing-pancake";
+    host.url = mperoll::links::repository;
     host.version = JucePlugin_VersionString;
     host.get_extension = hostcallbacks::getExtension;
 

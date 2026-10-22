@@ -242,7 +242,10 @@ and reads both back. CI runs all of them.
 ## Support MPE Roll
 
 MPE Roll is free and open source, with no ads and no tracking. If it helps you, a donation keeps it
-going: see [DONATE.md](DONATE.md) (Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code).
+going: see [DONATE.md](DONATE.md), or the same page online at
+<https://freener0x.github.io/glowing-pancake/donate.html> (Cash App, or Bitcoin, Ethereum, Solana
+and Monero by QR code). Inside the plugin it's *File > Support MPE Roll*, and a link at the foot of
+*MPE settings*.
 
 ## License
 

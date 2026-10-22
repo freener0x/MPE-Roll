@@ -28,6 +28,7 @@ private:
     ClipDocument& document;
     juce::SharedResourcePointer<SkinManager> skins;
     juce::PropertyPanel panel;
+    juce::HyperlinkButton supportLink;
     bool detached = false;
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;

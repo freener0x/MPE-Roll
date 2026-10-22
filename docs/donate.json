@@ -1,5 +1,6 @@
 {
-  "$comment": "Donation details for DONATE.md, docs/donate.html and .github/FUNDING.yml, all made by tools/make_donate_page.py. Empty values are left out.",
+  "$comment": "Donation details for DONATE.md, docs/donate.html, docs/index.html and .github/FUNDING.yml, all made by tools/make_donate_page.py. Empty values are left out. pageUrl is where GitHub Pages serves docs/donate.html; the plugin opens it too (source/plugin/Links.h).",
+  "pageUrl": "https://freener0x.github.io/glowing-pancake/donate.html",
   "cashApp": "$freener",
   "paypal": "",
   "checkout": "",
