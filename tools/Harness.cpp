@@ -1819,16 +1819,21 @@ int vst3DialectTest (const juce::File& noteExpressionSynth, const juce::File& mi
     {
         // A held C4 with the zone bent up a semitone. Over MIDI the synth takes the zone's bend on
         // channel 1 (its global bend); with note expressions the bend is part of each note's tuning,
-        // so the global bend has to go back to rest, or the note sounds a whole tone up. (Here MPE
-        // Roll's own reset reaches the synth before the switch too; a switch the synth's own MPE
-        // switch causes has no such reset, which is why the switch itself puts the bend back.)
+        // so the global bend has to go back to rest, or the note sounds a whole tone up. The synth
+        // is loaded afresh with note expressions off, so it has only ever been played over MIDI:
+        // MPE Roll's own reset at the switch goes into the translator (and is dropped there), so
+        // only the switch itself puts the bend back.
+        setNoteExpressions (false);
+
+        if (! loadSynth (processor, noteExpressionSynth))
+            return 1;
+
         MpeClip clip;
         clip.length = 8.0;
         clip.addNote (note (60, 0.0, 8.0, 0.8f));
         clip.zone.pitch = { { 0.0, 1.0f } };
         processor.getDocument().replaceClip (0, clip, "Test");
 
-        setNoteExpressions (false);
         playHead.playing = false;
         double ppq = 0.0;
         runBlock (processor, playHead, ppq);
@@ -2846,19 +2851,22 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
         list.scanAndAddFile (pathOf ("too old"), false, found, format);
         check (list.getBlacklistedFiles().isEmpty(), "nor the file an out-of-date scanner couldn't look at");
 
-        // One of FL's own plugins isn't looked at at all, and a box at the end of the scan says what it is.
+        // One of FL's own plugins isn't looked at at all, and a box at the end of the scan says what it
+        // is. A scan of its own, so nothing else from the scans above ends up in that box.
+        juce::KnownPluginList endList;
+        endList.setCustomScanner (std::make_unique<PluginScanner::OutOfProcessScanner> (10000));
         const auto fruity = folder.getChildFile ("Image-Line/FL Studio 2025/Plugins/Fruity/Generators/Harmor/Harmor_x64.dll");
         fruity.create();
         found.clear();
-        list.scanAndAddFile (fruity.getFullPathName(), false, found, format);
-        check (found.isEmpty() && list.getBlacklistedFiles().isEmpty() && list.getNumTypes() == 0,
+        endList.scanAndAddFile (fruity.getFullPathName(), false, found, format);
+        check (found.isEmpty() && endList.getBlacklistedFiles().isEmpty() && endList.getNumTypes() == 0,
                "one of FL's own plugins is left out of a scan without being set aside");
 
-        list.scanAndAddFile (pathOf ("won't start"), false, found, format);
-        check (found.isEmpty() && list.getBlacklistedFiles().isEmpty() && list.getNumTypes() == 0,
+        endList.scanAndAddFile (pathOf ("won't start"), false, found, format);
+        check (found.isEmpty() && endList.getBlacklistedFiles().isEmpty() && endList.getNumTypes() == 0,
                "a VST3 that won't start is left out without being set aside, so it's scanned again next time");
 
-        list.scanFinished();
+        endList.scanFinished();
         const auto endBox = []() -> juce::AlertWindow*
         {
             auto& desktop = juce::Desktop::getInstance();

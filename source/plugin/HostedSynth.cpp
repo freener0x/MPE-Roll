@@ -641,7 +641,13 @@ void HostedSynth::refreshVst3Support()
     if (support == vst3Support)
         return;
 
-    const auto changedWhilePlaying = vst3Support.isVst3;    // rather than just loaded
+    // Only what decides how the synth is played (not, say, which channels it maps CC74 on) is worth
+    // stopping and resending everything for, and only for a synth that was already playing.
+    const auto playedTheSameWay = support.midiMissesNotes() == vst3Support.midiMissesNotes()
+                               && support.takesTuning() == vst3Support.takesTuning()
+                               && support.typeIds == vst3Support.typeIds
+                               && support.scaled == vst3Support.scaled;
+    const auto changedWhilePlaying = vst3Support.isVst3 && ! playedTheSameWay;
     vst3Support = support;
     vst3Expressions.setSupport (support);
 
@@ -979,7 +985,8 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
              + ", so each note's glides can't reach it one by one"
              + (vst3Support.takesTuning() && Vst3NoteExpressions::isAvailable()
                     ? juce::String (" (turn on Note expressions to play it with VST3 note expressions)") : juce::String())
-             + ". Set Synth expects to Plain MIDI, or load its VST2 or CLAP version if you have one.";
+             + ". Set Synth expects to Plain MIDI, or load its "
+             + (Vst3NoteExpressions::isAvailable() ? "VST2 or CLAP" : "VST2") + " version if you have one.";
 
     if (profile.has_value())
         return mpe + profile->advice;
