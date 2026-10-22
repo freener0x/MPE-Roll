@@ -13,6 +13,7 @@ Which instruments for Windows have MPE, and where to turn it on: 24 instruments 
 - **No**: its maker says it has no MPE. In MPE Roll's *MPE settings*, set *Synth expects* to *Plain MIDI (one channel)*: the newest note's glides, pressure and timbre then drive it, and every held note follows them.
 - **Not mentioned**: its maker never mentions MPE for it, so it almost certainly has none. Use *Plain MIDI* as for **No**.
 - **Unclear**: the sources disagree. Try MPE first; if held notes bend together, use *Plain MIDI*.
+- **\***: not yet confirmed by a second, independent check.
 
 MPE Roll knows these instruments: when you load one, its status line and *MPE settings* say where its MPE switch is, and for one without MPE it offers to switch to *Plain MIDI*. A VST3 that takes VST3 note expressions, or a CLAP that takes CLAP note expressions, can get each note's expression that way, with nothing to set up in the instrument; *MPE settings › Synth is played with* says which way MPE Roll plays it. [FL_STUDIO.md](FL_STUDIO.md#7-notes-on-particular-synths) has more on some of them.
 

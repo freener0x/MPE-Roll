@@ -24,6 +24,7 @@ docs/synths.json holds "checked" (when the list was last checked, e.g. "October 
   advice            what MPE Roll says when it's loaded (needed for yes and limited)
   clapAdvice        added to the advice in builds that host CLAP plugins
   sources           [{url, says}]: where each claim comes from
+  checked           false when no second, independent check has confirmed it yet (default true)
   match             how the plugin recognises it; all optional:
                       names     the names it goes by in a host (default: its name), matched at the start;
                                 [""] for any instrument of its makers, which then goes by its own name
@@ -188,6 +189,7 @@ def render_page(checked: str, synths: list[dict]) -> str:
         "- **Not mentioned**: its maker never mentions MPE for it, so it almost certainly has none. Use "
         "*Plain MIDI* as for **No**.",
         "- **Unclear**: the sources disagree. Try MPE first; if held notes bend together, use *Plain MIDI*.",
+        "- **\\***: not yet confirmed by a second, independent check.",
         "",
         "MPE Roll knows these instruments: when you load one, its status line and *MPE settings* say where "
         "its MPE switch is, and for one without MPE it offers to switch to *Plain MIDI*. A VST3 that takes "
@@ -215,7 +217,7 @@ def render_page(checked: str, synths: list[dict]) -> str:
             out.append("| " + " | ".join([
                 cell(s["name"]),
                 cell(", ".join(s["formats"])),
-                MPE[s["mpe"]],
+                MPE[s["mpe"]] + ("" if s.get("checked", True) else " \\*"),
                 how_to(s),
                 cell(s.get("notes", "")),
                 source_links(s["sources"]),
@@ -243,7 +245,7 @@ def plugin_entry(s: dict) -> dict:
     if s["mpe"] in ("yes", "limited"):
         kind = "followsSetup" if s.get("followsSetup") else "yes"
         advice = s["advice"]
-    elif s["mpe"] == "no":
+    elif s["mpe"] == "no" and s.get("checked", True):
         kind = "no"
         advice = s.get("advice") or f"{s['name']} has no MPE."
         if s.get("instead"):
