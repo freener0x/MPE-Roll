@@ -2,6 +2,9 @@
 
 #include "core/MpeSettings.h"
 #include "PluginScanner.h"
+#include "SynthProfiles.h"
+#include "Vst3NoteExpressions.h"
+#include "Vst3Support.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
@@ -92,15 +95,26 @@ public:
     void process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, juce::AudioPlayHead* playHead);
 
     /** Audio thread, before process(): the MPE layout the MIDI is in. A CLAP synth uses it to turn
-        the MPE into CLAP note expressions.
+        the MPE into CLAP note expressions, and a VST3 synth that needs them into VST3 ones.
     */
     void setOutputSettings (const OutputSettings& settings) noexcept   { outputSettings = settings; }
 
     /** How the synth is played with these settings, for showing to the user. Message thread. */
     juce::String describeConnection (const OutputSettings&) const;
 
-    /** Whether these settings play the synth with CLAP note expressions rather than MIDI. Message thread. */
+    /** Whether these settings play the synth with CLAP or VST3 note expressions rather than MIDI. Message thread. */
     bool playsNoteExpressions (const OutputSettings&) const;
+
+    /** What MPE Roll knows about the loaded synth's MPE, if it's one it knows. Message thread. */
+    std::optional<SynthProfile> getProfile() const;
+
+    /** What the loaded VST3 synth takes of MPE (isVst3 is false for any other synth). Message thread. */
+    const Vst3Support& getVst3Support() const noexcept  { return vst3Support; }
+
+    /** Asks the loaded VST3 synth again what it takes of MPE, as its own MPE switch may have changed
+        it, and plays it accordingly. Done every few seconds while one is loaded. Message thread.
+    */
+    void refreshVst3Support();
 
     /** The loaded synth's channels, buses and MIDI input, in a line, for the plugin log. Message thread. */
     juce::String describeSetup() const;
@@ -324,6 +338,11 @@ private:
     // A synth from the project that hasn't loaded (yet). Saving keeps it, so a project opened on a
     // machine without that synth - or saved while it's still loading - doesn't forget it.
     std::unique_ptr<juce::XmlElement> unresolvedState;
+
+    // A VST3 synth MPE over MIDI can't reach note by note, played with note expressions instead.
+    Vst3NoteExpressions vst3Expressions;               // audio thread, but for what the synth takes
+    Vst3Support vst3Support;                            // message thread
+    juce::TimedCallback vst3Recheck { [this] { refreshVst3Support(); } };   // last: goes first
 
     void install (std::unique_ptr<juce::AudioPluginInstance> newInstance, const juce::PluginDescription& desc);
     std::unique_ptr<juce::AudioPluginInstance> takeInstance();

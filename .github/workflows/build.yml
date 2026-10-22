@@ -61,6 +61,7 @@ jobs:
       VST3_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3
       VST2_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST/MPE Roll Test Synth.dll
       CLAP_SYNTH: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap
+      NOTE_EXPRESSION_SYNTH: build/MpeRollVst3NoteExpressionTestSynth_artefacts/Release/MPE Roll Note Expression Test Synth.vst3
       SCANNER: build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe
       CRASHING_PLUGIN: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Crashing Test Plugin.clap
       HANGING_PLUGIN: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Hanging Test Plugin.clap
@@ -74,7 +75,7 @@ jobs:
         run: >
           cmake --build build --config Release --parallel --target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone
           MpeRollScanner MpeRollTests MpeRollHarness MpeRollTestSynth_VST3 MpeRollTestSynth_VST MpeRollClapTestSynth
-          MpeRollCrashingTestPlugin MpeRollHangingTestPlugin
+          MpeRollVst3NoteExpressionTestSynth MpeRollCrashingTestPlugin MpeRollHangingTestPlugin
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
@@ -101,6 +102,11 @@ jobs:
           "$HARNESS" params "$CLAP_SYNTH"
           "$HARNESS" render "$CLAP_SYNTH" render-clap.wav
           "$HARNESS" clapdialect "$CLAP_SYNTH"
+
+      - name: Hosted VST3 synth that takes MPE only as VST3 note expressions
+        run: |
+          "$HARNESS" render "$NOTE_EXPRESSION_SYNTH" render-vst3-note-expressions.wav
+          "$HARNESS" vst3dialect "$NOTE_EXPRESSION_SYNTH" "$VST3_SYNTH"
 
       - name: Export the clip as WAV and MP3 (VST3 synth)
         run: '"$HARNESS" export "$VST3_SYNTH" exported'
@@ -255,6 +261,20 @@ jobs:
         run: >
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness clapdialect
           "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"
+
+      # A VST3 synth that maps pitch bend on MIDI channel 1 only (JUCE's VST3 host drops MPE's bends on
+      # the other channels) but takes VST3 note expressions: its notes glide only if MPE Roll sends them.
+      - name: Render through a VST3 synth that takes MPE only as VST3 note expressions
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness render
+          "build/MpeRollVst3NoteExpressionTestSynth_artefacts/Release/MPE Roll Note Expression Test Synth.vst3"
+          render-vst3-note-expressions.wav
+
+      - name: VST3 note expressions, pressure, and switching them on and off
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness vst3dialect
+          "build/MpeRollVst3NoteExpressionTestSynth_artefacts/Release/MPE Roll Note Expression Test Synth.vst3"
+          "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
 
       - name: Export the clip as WAV and MP3 (VST3, VST2 and CLAP synths)
         run: |

@@ -102,6 +102,9 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/PluginLog.cpp
     source/plugin/PluginScanner.cpp
     source/plugin/SynthParameters.cpp
+    source/plugin/SynthProfiles.cpp
+    source/plugin/Vst3NoteExpressions.cpp
+    source/plugin/Vst3Support.cpp
     source/plugin/ui/MpeLookAndFeel.cpp
     source/plugin/ui/NoteGrid.cpp
     source/plugin/ui/ExpressionLane.cpp
@@ -372,6 +375,80 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         endforeach()
 
         target_compile_definitions(MpeRollHangingTestPlugin PRIVATE MPEROLL_TEST_PLUGIN_HANGS=1)
+    endif()
+
+    # A sine synth as a VST3 plugin written straight against the VST3 SDK's interfaces, not JUCE. It
+    # takes per-note pitch only from VST3 note expressions and maps pitch bend on MIDI channel 1 only,
+    # so (as JUCE's VST3 host drops MPE's bends on the other channels) it checks MPE Roll's MPE to VST3
+    # note expression path.
+    set(MPEROLL_NE_SYNTH_NAME "MPE Roll Note Expression Test Synth")
+    set(MPEROLL_NE_SYNTH_DIR "${CMAKE_CURRENT_BINARY_DIR}/MpeRollVst3NoteExpressionTestSynth_artefacts/$<CONFIG>")
+    add_library(MpeRollVst3NoteExpressionTestSynth MODULE tools/Vst3NoteExpressionTestSynth.cpp)
+    target_include_directories(MpeRollVst3NoteExpressionTestSynth SYSTEM PRIVATE
+        "${juce_SOURCE_DIR}/modules/juce_audio_processors_headless/format_types/VST3_SDK")
+    target_link_libraries(MpeRollVst3NoteExpressionTestSynth
+        PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+    set_target_properties(MpeRollVst3NoteExpressionTestSynth PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME "${MPEROLL_NE_SYNTH_NAME}"
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN TRUE)
+
+    # The binary goes where each platform's VST3 hosts look for it inside the .vst3 bundle.
+    if(APPLE)
+        # Contents/MacOS/<name>, with an Info.plist that makes it a loadable bundle.
+        file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/MpeRollVst3NoteExpressionTestSynth.plist" @ONLY CONTENT [[
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>     <string>English</string>
+    <key>CFBundleExecutable</key>            <string>@MPEROLL_NE_SYNTH_NAME@</string>
+    <key>CFBundleIdentifier</key>            <string>com.glowingpancake.mperollnoteexpressiontestsynth</string>
+    <key>CFBundleInfoDictionaryVersion</key> <string>6.0</string>
+    <key>CFBundleName</key>                  <string>@MPEROLL_NE_SYNTH_NAME@</string>
+    <key>CFBundlePackageType</key>           <string>BNDL</string>
+    <key>CFBundleShortVersionString</key>    <string>@PROJECT_VERSION@</string>
+    <key>CFBundleSignature</key>             <string>????</string>
+    <key>CFBundleVersion</key>               <string>@PROJECT_VERSION@</string>
+</dict>
+</plist>
+]])
+        set_target_properties(MpeRollVst3NoteExpressionTestSynth PROPERTIES
+            BUNDLE TRUE
+            BUNDLE_EXTENSION vst3
+            MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/MpeRollVst3NoteExpressionTestSynth.plist"
+            LIBRARY_OUTPUT_DIRECTORY "${MPEROLL_NE_SYNTH_DIR}")
+    elseif(WIN32)
+        # Contents/<arch>-win/<name>.vst3
+        if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "^(ARM64|arm64|aarch64)$")
+            set(MPEROLL_NE_SYNTH_ARCH arm64-win)
+        else()
+            set(MPEROLL_NE_SYNTH_ARCH x86_64-win)
+        endif()
+
+        set_target_properties(MpeRollVst3NoteExpressionTestSynth PROPERTIES
+            SUFFIX ".vst3"
+            LIBRARY_OUTPUT_DIRECTORY "${MPEROLL_NE_SYNTH_DIR}/${MPEROLL_NE_SYNTH_NAME}.vst3/Contents/${MPEROLL_NE_SYNTH_ARCH}")
+    else()
+        # Contents/<machine>-linux/<name>.so, <machine> as uname -m names it: where JUCE looks.
+        set(MPEROLL_NE_SYNTH_ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+
+        if(MPEROLL_NE_SYNTH_ARCH MATCHES "^(amd64|AMD64)$")
+            set(MPEROLL_NE_SYNTH_ARCH x86_64)
+        elseif(MPEROLL_NE_SYNTH_ARCH MATCHES "^(arm64|ARM64)$")
+            set(MPEROLL_NE_SYNTH_ARCH aarch64)
+        endif()
+
+        set_target_properties(MpeRollVst3NoteExpressionTestSynth PROPERTIES
+            SUFFIX ".so"
+            LIBRARY_OUTPUT_DIRECTORY "${MPEROLL_NE_SYNTH_DIR}/${MPEROLL_NE_SYNTH_NAME}.vst3/Contents/${MPEROLL_NE_SYNTH_ARCH}-linux")
+
+        # Only the entry points: libstdc++ gives std's templates default visibility, which clang keeps.
+        file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/MpeRollVst3NoteExpressionTestSynth.map"
+             CONTENT "{ global: GetPluginFactory; ModuleEntry; ModuleExit; local: *; };\n")
+        target_link_options(MpeRollVst3NoteExpressionTestSynth PRIVATE
+            "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/MpeRollVst3NoteExpressionTestSynth.map")
     endif()
 
     juce_add_console_app(MpeRollHarness PRODUCT_NAME "MpeRollHarness")

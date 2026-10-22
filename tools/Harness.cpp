@@ -607,6 +607,11 @@ int render (const juce::File& synthFile, const juce::File& target)
     processor.setRateAndBufferSizeDetails (sampleRate, blockSize);
     processor.prepareToPlay (sampleRate, blockSize);
 
+    if (const auto& vst3 = processor.getSynth().getVst3Support(); vst3.isVst3)
+        std::printf ("%s\n", vst3.describe().toRawUTF8());
+
+    std::printf ("Played as: %s\n", processor.getSynth().describeConnection (processor.getDocument().getSettings().output).toRawUTF8());
+
     // C4 glides up an octave between beats 0.5 and 1.5 while E4 holds still. Then A4 has MPE Roll's
     // vibrato: a semitone either way, five times a second.
     MpeClip clip;
@@ -1699,6 +1704,132 @@ int clapDialectTest (const juce::File& synthFile)
     return check.failures == 0 ? 0 : 1;
 }
 
+/** The VST3 note expression path, with a synth that maps pitch bend on MIDI channel 1 only and takes
+    tuning and pressure as note expressions (tools/Vst3NoteExpressionTestSynth.cpp), and a JUCE-built
+    one that maps every channel. The glides themselves are checked by render.
+*/
+int vst3DialectTest (const juce::File& noteExpressionSynth, const juce::File& midiSynth)
+{
+    Check check;
+    FakePlayHead playHead;
+    MpeRollProcessor processor;
+    processor.setPlayHead (&playHead);
+    processor.setRateAndBufferSizeDetails (48000.0, 512);
+    processor.prepareToPlay (48000.0, 512);
+
+    if (! loadSynth (processor, noteExpressionSynth))
+        return 1;
+
+    auto& synth = processor.getSynth();
+    const auto& support = synth.getVst3Support();
+    std::printf ("%s\n", support.describe().toRawUTF8());
+
+    std::printf ("MPE Roll asks a VST3 synth what it takes\n");
+    check (support.isVst3 && support.hasMidiMapping && support.channelsWithBend == 1 && ! support.ownBendOnMemberChannels,
+           "it sees pitch bend mapped on one MIDI channel only, so MPE over MIDI would miss the notes");
+    check (support.takesTuning() && support.typeIds[(size_t) Vst3Support::pressure] == 100000 && support.scaled[(size_t) Vst3Support::pressure],
+           "and that the synth takes tuning, and pressure as its own type through its physical UI mapping");
+    check (synth.playsNoteExpressions (processor.getDocument().getSettings().output)
+               && synth.describeConnection (processor.getDocument().getSettings().output).contains ("VST3 notes"),
+           "so it plays it with VST3 note expressions, and says so");
+
+    auto setNoteExpressions = [&] (bool on)
+    {
+        auto s = processor.getDocument().getSettings();
+        s.output.clapNoteExpressions = on;
+        processor.getDocument().setSettings (s);
+    };
+
+    // A note held for the whole clip, at a steady pressure.
+    auto play = [&] (float pressure, int blocks, bool fromStart = true)
+    {
+        if (fromStart)
+        {
+            MpeClip clip;
+            clip.length = 8.0;
+            auto held = note (60, 0.0, 8.0, 0.8f);
+            held.lanes.pressure = { { 0.0, pressure } };
+            clip.addNote (held);
+            processor.getDocument().replaceClip (0, clip, "Test");
+
+            playHead.playing = false;
+            double ppq = 0.0;
+            runBlock (processor, playHead, ppq);
+            playHead.playing = true;
+            playHead.ppq = 0.0;
+        }
+
+        float peak = 0.0f;
+
+        for (int block = 0; block < blocks; ++block)
+        {
+            juce::AudioBuffer<float> audio (2, 512);
+            juce::MidiBuffer midi;
+            processor.processBlock (audio, midi);
+            playHead.ppq += 512.0 / 48000.0 * 2.0;
+
+            if (block >= blocks / 2)
+                peak = std::max (peak, audio.getMagnitude (0, 512));
+        }
+
+        return peak;
+    };
+
+    auto stopAndListen = [&]
+    {
+        playHead.playing = false;
+        float peak = 0.0f;
+
+        for (int block = 0; block < 20; ++block)
+        {
+            juce::AudioBuffer<float> audio (2, 512);
+            juce::MidiBuffer midi;
+            processor.processBlock (audio, midi);
+
+            if (block >= 10)
+                peak = std::max (peak, audio.getMagnitude (0, 512));
+        }
+
+        playHead.playing = true;
+        return peak;
+    };
+
+    std::printf ("Each note's pressure reaches it as the synth's own pressure type\n");
+    const auto soft = play (0.0f, 20), hard = play (1.0f, 20);
+    std::printf ("  peak %.4f at no pressure, %.4f at full\n", soft, hard);
+    check (soft > 0.01f && hard > 3.0f * soft, "a note pressed fully is about four times louder, as the synth scales it");
+    check (stopAndListen() < 1.0e-4f, "and it ends when playback stops");
+
+    std::printf ("Switching note expressions off and on leaves no note behind\n");
+    setNoteExpressions (false);
+    check (! synth.playsNoteExpressions (processor.getDocument().getSettings().output)
+               && synth.describeConnection (processor.getDocument().getSettings().output).contains ("can't reach it one by one"),
+           "off, it's played with MPE over MIDI, and MPE Roll says the notes can't be reached one by one");
+    check (play (1.0f, 20) > 0.01f, "where it still plays (all at the same pitch bend)");
+    setNoteExpressions (true);
+    play (1.0f, 20, false);     // the note that went as MIDI is held while note expressions come back on
+    check (stopAndListen() < 1.0e-4f, "a note held while note expressions came on doesn't hang on");
+    play (1.0f, 20);
+    setNoteExpressions (false);
+    play (1.0f, 20, false);
+    check (stopAndListen() < 1.0e-4f, "nor one held while they went off");
+    setNoteExpressions (true);
+
+    std::printf ("A VST3 synth that maps pitch bend on every channel keeps MPE over MIDI\n");
+
+    if (! loadSynth (processor, midiSynth))
+        return 1;
+
+    std::printf ("%s\n", synth.getVst3Support().describe().toRawUTF8());
+    check (synth.getVst3Support().ownBendOnMemberChannels && ! synth.getVst3Support().midiMissesNotes()
+               && ! synth.playsNoteExpressions (processor.getDocument().getSettings().output),
+           "it sees each channel's own pitch bend, and plays it with MPE over MIDI");
+
+    processor.releaseResources();
+    std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
+    return check.failures == 0 ? 0 : 1;
+}
+
 //==============================================================================
 
 /** Drives a component with synthetic mouse gestures. */
@@ -1987,6 +2118,41 @@ void editorUiChecks (Check& check)
     skins->flush();
     mm.runDispatchLoopUntil (50);
     lookFile.deleteFile();
+}
+
+// What MPE Roll says about the MPE of synths it knows, matched on their names and makers.
+void synthProfileChecks (Check& check)
+{
+    std::printf ("Known synths are recognised, with where their MPE switch is\n");
+
+    const auto find = [] (const char* name, const char* maker, const char* version = "")
+    {
+        juce::PluginDescription d;
+        d.name = name;
+        d.manufacturerName = maker;
+        d.version = version;
+        return SynthProfile::find (d);
+    };
+
+    using Mpe = SynthProfile::Mpe;
+    const auto serum = find ("Serum", "Xfer Records"), serum2 = find ("Serum2", "Xfer Records");
+    check (serum.has_value() && serum->name == "Serum" && serum->mpe == Mpe::needsSwitch && serum->advice.contains ("MPE Enabled")
+               && serum2.has_value() && serum2->name == "Serum 2" && ! find ("Serum FX", "Xfer Records").has_value(),
+           "Serum and Serum 2, with their MPE Enabled switch, and not Serum FX");
+
+    const auto analogLab = find ("Analog Lab V", "Arturia"), zenology = find ("ZENOLOGY", "Roland");
+    check (analogLab.has_value() && analogLab->mpe == Mpe::none && analogLab->advice.contains ("Pigments")
+               && analogLab->advice.contains ("Plain MIDI") && zenology.has_value() && zenology->mpe == Mpe::none,
+           "Analog Lab and ZENOLOGY as having no MPE, with Plain MIDI to use instead");
+
+    const auto omni2 = find ("Omnisphere", "Spectrasonics", "2.8.6f"), omni3 = find ("Omnisphere", "Spectrasonics", "3.0.1c");
+    check (omni2.has_value() && omni2->mpe == Mpe::none && omni3.has_value() && omni3->mpe == Mpe::needsSwitch
+               && omni3->advice.contains ("System page"),
+           "Omnisphere 2 without MPE, and 3 with it on its System page");
+
+    check (find ("Vital", "Vital Audio").has_value() && find ("Surge XT", "Surge Synth Team")->mpe == Mpe::followsSetup
+               && ! find ("MPE Roll Test Synth", "Glowing Pancake").has_value(),
+           "Vital and Surge XT, and nothing for a synth it doesn't know");
 }
 
 int uiTest()
@@ -2477,6 +2643,7 @@ int uiTest()
 
     scannerUiTest (check);
     editorUiChecks (check);
+    synthProfileChecks (check);
 
     processor.editorBeingDeleted (editor.get());
     editor.reset();
@@ -2489,7 +2656,8 @@ int uiTest()
 // the file without loading anything. For a file named "too old" it turns the job down without reading
 // it, as a scanner from another version of MPE Roll does; for "never starts" it goes down before it
 // gets to the file, for "crashes" while it's looking, and for "crashes on the way out" once it has
-// written what it found, as a plugin does whose clean-up code crashes.
+// written what it found, as a plugin does whose clean-up code crashes. In "won't start" it finds
+// nothing, as JUCE does in a VST3 whose component won't initialise (an unauthorised plugin).
 int standInScanner (const juce::File& jobFile)
 {
     PluginScanner::Job job;
@@ -2517,7 +2685,10 @@ int standInScanner (const juce::File& jobFile)
         std::_Exit (3);
 
     juce::XmlElement list ("LIST");
-    list.addChildElement (d.createXml().release());
+
+    if (d.name != "won't start")
+        list.addChildElement (d.createXml().release());
+
     PluginScanner::resultFileFor (jobFile).replaceWithText (list.toString());
 
     if (d.name == "crashes on the way out")
@@ -2640,26 +2811,52 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
         check (found.isEmpty() && list.getBlacklistedFiles().isEmpty() && list.getNumTypes() == 0,
                "one of FL's own plugins is left out of a scan without being set aside");
 
+        list.scanAndAddFile (pathOf ("won't start"), false, found, format);
+        check (found.isEmpty() && list.getBlacklistedFiles().isEmpty() && list.getNumTypes() == 0,
+               "a VST3 that won't start is left out without being set aside, so it's scanned again next time");
+
         list.scanFinished();
-        const auto nativeBox = []() -> juce::AlertWindow*
+        const auto endBox = []() -> juce::AlertWindow*
         {
             auto& desktop = juce::Desktop::getInstance();
 
             for (int i = 0; i < desktop.getNumComponents(); ++i)
                 if (auto* box = dynamic_cast<juce::AlertWindow*> (desktop.getComponent (i)))
-                    if (box->getName().startsWith ("FL Studio's own plugins"))
+                    if (box->getName() == "Some plugins weren't added")
                         return box;
 
             return nullptr;
         };
 
-        for (int i = 0; i < 20 && nativeBox() == nullptr; ++i)
+        for (int i = 0; i < 20 && endBox() == nullptr; ++i)
             juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
 
         const auto said = PluginScanner::describeFlStudioNativeFiles ({ fruity.getFileName() });
-        check (nativeBox() != nullptr && said.contains ("Harmor_x64.dll") && said.contains ("Send to FL piano roll"),
-               "and the scan ends with a box naming it and where to find it instead");
+        check (endBox() != nullptr && said.contains ("Harmor_x64.dll") && said.contains ("Send to FL piano roll"),
+               "and the scan ends with a box naming FL's plugin and where to find it instead");
+
+        const auto refused = PluginScanner::describeRefusedToStart (juce::StringArray ("won't start.vst3"), true);
+        check (refused.contains ("won't start.vst3") && refused.contains ("authorised") && refused.contains ("Roland Cloud Manager"),
+               "and the plugin that didn't start, with what to check");
+
+        if (auto* box = endBox())
+            box->exitModalState (0);
+
         folder.getChildFile ("Image-Line").deleteRecursively();
+
+        // Load plugin file... on it says the same.
+        const juce::File wontStart (pathOf ("won't start"));
+        wontStart.create();
+        {
+            HostedSynth synth;
+            juce::String error;
+            bool answered = false;
+            synth.loadFromFile (wontStart, [&] (const juce::String& e) { error = e; answered = true; });
+            waitUntil (answered, 30000);
+            check (answered && error.contains ("didn't start") && error.contains ("authorised") && ! synth.isLoaded(),
+                   "Load plugin file... on a plugin that won't start says it may not be authorised");
+        }
+        wontStart.deleteFile();
 
         // Load plugin file... only tries files that exist. Empty, so looking inside it here would find nothing.
         const juce::File tooOld (pathOf ("too old"));
@@ -2941,6 +3138,9 @@ int main (int argc, char** argv)
     if (args.size() >= 2 && args[0] == "clapdialect")
         return clapDialectTest (cwd.getChildFile (args[1]));
 
+    if (args.size() >= 3 && args[0] == "vst3dialect")
+        return vst3DialectTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]));
+
     if (args.size() >= 2 && args[0] == "crashtest")
         return crashTest (cwd.getChildFile (args[1]), args.size() >= 3 && args[2] == "overflow");
 
@@ -2958,6 +3158,7 @@ int main (int argc, char** argv)
                  "  MpeRollHarness uitest\n"
                  "  MpeRollHarness params <synth.vst3>\n"
                  "  MpeRollHarness clapdialect <MPE Roll Test Synth.clap>\n"
+                 "  MpeRollHarness vst3dialect <MPE Roll Note Expression Test Synth.vst3> <MPE Roll Test Synth.vst3>\n"
                  "  MpeRollHarness crashtest <report.txt> [overflow]\n"
                  "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n");
     return 2;

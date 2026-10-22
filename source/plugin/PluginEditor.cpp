@@ -145,9 +145,13 @@ MpeRollEditor::~MpeRollEditor()
     // A tool's dialog likewise: its preview is withdrawn while the document is still here.
     closeToolDialog (true);
 
-    // The "No sound from ..." box: closed, it keeps MPE, so nothing is changed on the way out.
+    // The "No sound from ..." and "... has no MPE" boxes: closed, they keep MPE, so nothing is
+    // changed on the way out.
     if (silenceAlert != nullptr)
         silenceAlert->exitModalState (0);
+
+    if (mpeAdvice != nullptr)
+        mpeAdvice->exitModalState (0);
 
     stopTimer();
     rollProcessor.onStatusChanged = nullptr;
@@ -597,6 +601,7 @@ void MpeRollEditor::loadSynth (const juce::PluginDescription& description)
 
         safe->rollProcessor.requestConfiguration();
         safe->setStatus (safe->describeLoaded (description.name));
+        safe->offerPlainMidi();
     });
 
     refreshToolbar();
@@ -606,11 +611,73 @@ juce::String MpeRollEditor::describeLoaded (const juce::String& name) const
 {
     // A synth played with MPE over MIDI only gets per-note expression if it's in MPE mode.
     const auto& output = document.getSettings().output;
+    const auto& synth = rollProcessor.getSynth();
 
-    if (output.mode == OutputSettings::Mode::mpe && ! rollProcessor.getSynth().playsNoteExpressions (output))
-        return "Loaded " + name + ". Turn on MPE in it; if it has no MPE mode, set Synth expects to Plain MIDI in MPE settings.";
+    if (output.mode != OutputSettings::Mode::mpe)
+        return "Loaded " + name;
 
-    return "Loaded " + name;
+    if (synth.playsNoteExpressions (output))
+        return "Loaded " + name + (synth.getVst3Support().isVst3 ? ", played with VST3 note expressions" : "");
+
+    if (const auto profile = synth.getProfile())
+        return "Loaded " + name + ". " + (profile->mpe == SynthProfile::Mpe::none
+                                              ? profile->name + " has no MPE: set Synth expects to Plain MIDI in MPE settings."
+                                              : profile->advice);
+
+    if (synth.getVst3Support().midiMissesNotes())
+        return "Loaded " + name + ". MPE can't reach its notes one by one (see MPE settings): set Synth expects to Plain MIDI.";
+
+    return "Loaded " + name + ". Turn on MPE in it; if it has no MPE mode, set Synth expects to Plain MIDI in MPE settings.";
+}
+
+void MpeRollEditor::offerPlainMidi()
+{
+    auto& synth = rollProcessor.getSynth();
+    const auto& output = document.getSettings().output;
+
+    if (mpeAdvice != nullptr || ! synth.isLoaded() || output.mode != OutputSettings::Mode::mpe || synth.playsNoteExpressions (output))
+        return;
+
+    // Only for a synth that can't take each note's own expression, whatever is set in it: one
+    // MPE Roll knows has no MPE, or a VST3 that takes pitch bend on one channel and no note expressions.
+    const auto profile = synth.getProfile();
+    const auto& vst3 = synth.getVst3Support();
+    const auto name = synth.getName();
+    juce::String why;
+
+    if (profile.has_value() && profile->mpe == SynthProfile::Mpe::none)
+        why = profile->advice.upToLastOccurrenceOf ("Set Synth expects", false, false).trim();
+    else if (vst3.midiMissesNotes() && ! vst3.takesTuning())
+        why = name + " takes pitch bend " + vst3.describeBend() + " and no VST3 note expressions, so MPE Roll can't reach "
+              "its notes one by one.";
+    else
+        return;
+
+    PluginLog::add ("Offered Plain MIDI for " + name + ": " + why);
+
+    const auto message = why + "\n\nOver MPE, each note's own glides, pressure and timbre can't reach it: only the "
+                         "zone-wide lanes would. With Plain MIDI on one channel, the newest note's glides, pressure and "
+                         "timbre drive the synth.\n\nPlay " + name + " with Plain MIDI?";
+
+    // Return takes the suggestion; Escape and closing the box keep MPE.
+    auto* alert = new juce::AlertWindow (name + " has no MPE", message, juce::MessageBoxIconType::QuestionIcon, this);
+    alert->addButton ("Use Plain MIDI", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    alert->addButton ("Keep MPE", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    mpeAdvice = alert;
+    alert->setAlwaysOnTop (true);
+
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([safe = juce::Component::SafePointer<MpeRollEditor> (this), name] (int result)
+    {
+        if (safe == nullptr || result != 1)
+            return;
+
+        auto settings = safe->document.getSettings();
+        settings.output.mode = OutputSettings::Mode::singleChannel;
+        safe->document.setSettings (settings);
+        safe->setStatus ("Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
+    }), true);
+
+    alert->toFront (true);
 }
 
 void MpeRollEditor::warnSynthSilent()
@@ -740,6 +807,7 @@ void MpeRollEditor::browseForPlugin()
             else
             {
                 safe->setStatus (safe->describeLoaded (file.getFileNameWithoutExtension()));
+                safe->offerPlainMidi();
             }
 
             safe->rollProcessor.requestConfiguration();

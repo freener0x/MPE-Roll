@@ -150,23 +150,32 @@ int main (int argc, char* argv[])
     formats.addFormat (std::make_unique<mperoll::ClapPluginFormat>());
    #endif
 
-    juce::XmlElement list ("LIST");
-
-    for (auto* format : formats.getFormats())
+    // The plugin is looked at from a message handled by the running message loop, as JUCE's own
+    // plugin host does in its scanner process, rather than before the loop has ever run: some
+    // plugins (copy protection, licence checks) start in ways that expect a working message loop.
+    juce::MessageManager::callAsync ([&]
     {
-        if (format->getName() != job.formatName)
-            continue;
+        juce::XmlElement list ("LIST");
 
-        // From here on, a crash or hang is the plugin's.
-        mperoll::PluginScanner::startedMarkerFor (jobFile).create();
+        for (auto* format : formats.getFormats())
+        {
+            if (format->getName() != job.formatName)
+                continue;
 
-        juce::OwnedArray<juce::PluginDescription> found;
-        format->findAllTypesForFile (found, job.fileOrIdentifier);
+            // From here on, a crash or hang is the plugin's.
+            mperoll::PluginScanner::startedMarkerFor (jobFile).create();
 
-        for (auto* description : found)
-            list.addChildElement (description->createXml().release());
-    }
+            juce::OwnedArray<juce::PluginDescription> found;
+            format->findAllTypesForFile (found, job.fileOrIdentifier);
 
-    mperoll::PluginScanner::resultFileFor (jobFile).replaceWithText (list.toString());
-    leave();
+            for (auto* description : found)
+                list.addChildElement (description->createXml().release());
+        }
+
+        mperoll::PluginScanner::resultFileFor (jobFile).replaceWithText (list.toString());
+        leave();
+    });
+
+    juce::MessageManager::getInstance()->runDispatchLoop();
+    return 0;
 }

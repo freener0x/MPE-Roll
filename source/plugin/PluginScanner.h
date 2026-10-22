@@ -111,6 +111,15 @@ bool isFlStudioNativePluginFile (const juce::String& path);
 /** What a scan says about the FL Studio plugins it left out: what they are, and where to find them instead. */
 juce::String describeFlStudioNativeFiles (const juce::StringArray& fileNames);
 
+/** Whether finding no plugin in this file means the plugin wouldn't start (a .vst3 or .clap, which
+    can only be plugins) rather than the file not being one (a .dll may be any library). */
+bool mightRefuseToStart (const juce::String& fileOrIdentifier);
+
+/** What to tell the user about plugin files that held no plugin the scanner could see: JUCE leaves
+    out a VST3 whose component won't initialise, which is what an unauthorised plugin tends to do.
+    fromScan words it for the box at the end of a scan rather than for loading one file. */
+juce::String describeRefusedToStart (const juce::StringArray& fileNames, bool fromScan);
+
 /** For KnownPluginList: scans each file with findTypes. A file that crashes or hangs is reported as
     failed, so the list blacklists it. Without a scanner program, files are scanned in this process
     as before. With one that turns jobs down (Outcome::outdated), no file is looked at anywhere, and
@@ -134,6 +143,7 @@ private:
 
     juce::CriticalSection skippedLock;
     juce::StringArray flStudioNativeFiles;             // left out of this scan, for the box at its end
+    juce::StringArray refusedFiles;                    // plugins that wouldn't start, for the same box
     std::shared_ptr<juce::ScopedMessageBox> nativeBox = std::make_shared<juce::ScopedMessageBox>();
 };
 

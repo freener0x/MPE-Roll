@@ -67,8 +67,8 @@ private:
 class InfoProp : public juce::PropertyComponent
 {
 public:
-    InfoProp (const juce::String& name, std::function<juce::String()> textFn)
-        : PropertyComponent (name, 44), text (std::move (textFn))
+    InfoProp (const juce::String& name, std::function<juce::String()> textFn, int height = 44)
+        : PropertyComponent (name, height), text (std::move (textFn))
     {
         label.setColour (juce::Label::textColourId, Theme::textDim);
         label.setFont (juce::FontOptions (12.5f));

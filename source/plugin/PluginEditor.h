@@ -65,6 +65,7 @@ private:
     juce::String transientStatus;
     juce::uint32 transientStatusTime = 0;
     juce::Component::SafePointer<juce::AlertWindow> silenceAlert;   // the "No sound from ..." box, while it's open
+    juce::Component::SafePointer<juce::AlertWindow> mpeAdvice;      // the "... has no MPE" box, while it's open
     bool showingSilentStatus = false;                               // the status line says the synth hasn't sounded
 
     void timerCallback() override;
@@ -91,6 +92,12 @@ private:
     void browseForPlugin();
     void loadSynth (const juce::PluginDescription&);
     juce::String describeLoaded (const juce::String& synthName) const;
+
+    /** After a synth is loaded over MPE: if it can't take each note's own expression whatever is set
+        in it (one MPE Roll knows has no MPE, or a VST3 that takes pitch bend on one channel and no
+        note expressions), offers to play it with Plain MIDI. */
+    void offerPlainMidi();
+
     void warnSynthSilent();
     void showLoadFailure (const juce::String& error, const juce::PluginDescription* plugin);
 

@@ -185,6 +185,34 @@ juce::String describeFlStudioNativeFiles (const juce::StringArray& files)
            "File > Send to FL piano roll, which rebuilds the clip in FL's own piano roll.";
 }
 
+namespace
+{
+    const char* const activationAdvice =
+        "A plugin usually does this when it isn't activated or authorised on this computer yet. Open it once "
+        "directly in FL Studio, or sign in to its maker's app (Roland Cloud Manager for ZENOLOGY and the other "
+        "Roland Cloud instruments, Arturia Software Center, Native Access, iLok License Manager...) and check "
+        "it's authorised there, then try again. Load synth > Show the plugin log has what MPE Roll saw.";
+}
+
+juce::String describeRefusedToStart (const juce::StringArray& fileNames, bool fromScan)
+{
+    // JUCE leaves out a VST3 whose component won't initialise, so it looks like a file with nothing in it.
+    if (fileNames.size() == 1 && ! fromScan)
+        return fileNames[0] + " didn't start when MPE Roll looked inside it, so there was nothing to load.\n\n"
+               + activationAdvice;
+
+    return juce::String (fileNames.size() == 1 ? "This plugin didn't start when MPE Roll looked inside it, so it isn't listed: "
+                                               : "These plugins didn't start when MPE Roll looked inside them, so they aren't listed: ")
+         + fileNames.joinIntoString (", ") + ".\n\n" + activationAdvice;
+}
+
+bool mightRefuseToStart (const juce::String& fileOrIdentifier)
+{
+    // A .vst3 or .clap is certainly a plugin, so finding nothing in one means it wouldn't start.
+    // A .dll may be any library that happens to sit in a VST folder.
+    return fileOrIdentifier.endsWithIgnoreCase (".vst3") || fileOrIdentifier.endsWithIgnoreCase (".clap");
+}
+
 juce::String describeFailure (Outcome outcome, const juce::String& fileName)
 {
     switch (outcome)
@@ -193,7 +221,9 @@ juce::String describeFailure (Outcome outcome, const juce::String& fileName)
             return fileName + " crashed while MPE Roll was checking it, so it wasn't loaded: loading it "
                               "here would most likely have crashed MPE Roll and FL Studio with it.";
         case Outcome::timedOut:
-            return fileName + " took too long to load while MPE Roll was checking it, so it wasn't loaded.";
+            return fileName + " took too long to load while MPE Roll was checking it, so it wasn't loaded. "
+                              "Some plugins wait for a licence or sign-in window the first time: open it once "
+                              "directly in FL Studio, then try again.";
         case Outcome::cancelled:
             return "Checking " + fileName + " was cancelled.";
         case Outcome::unavailable:
@@ -231,8 +261,17 @@ bool OutOfProcessScanner::findPluginTypesFor (juce::AudioPluginFormat& format,
     const auto took = juce::roundToInt ((juce::Time::getMillisecondCounterHiRes() - started) / 1000.0);
 
     if (outcome == Outcome::found)
+    {
         PluginLog::add ("Scan: " + fileOrIdentifier + ": " + juce::String (result.size() - before) + " plugin(s), "
                         + juce::String (took) + " s");
+
+        if (result.size() == before && mightRefuseToStart (fileOrIdentifier))
+        {
+            const juce::ScopedLock lock (skippedLock);
+            refusedFiles.addIfNotAlreadyThere (juce::File::isAbsolutePath (fileOrIdentifier)
+                                                   ? juce::File (fileOrIdentifier).getFileName() : fileOrIdentifier);
+        }
+    }
     else if (outcome != Outcome::cancelled)
         PluginLog::add ("Scan: " + fileOrIdentifier + ": " + describeFailure (outcome, format.getName() + " file")
                         + " (" + juce::String (took) + " s)");
@@ -278,24 +317,38 @@ void OutOfProcessScanner::scanFinished()
 {
     toldScannerOutdated = false;
 
-    juce::StringArray skipped;
+    juce::StringArray skipped, refused;
     {
         const juce::ScopedLock lock (skippedLock);
         skipped.swapWith (flStudioNativeFiles);
+        refused.swapWith (refusedFiles);
     }
 
-    if (skipped.isEmpty())
+    if (skipped.isEmpty() && refused.isEmpty())
         return;
 
+    juce::StringArray paragraphs;
+
+    if (! refused.isEmpty())
+        paragraphs.add (describeRefusedToStart (refused, true));
+
+    if (! skipped.isEmpty())
+        paragraphs.add (describeFlStudioNativeFiles (skipped));
+
+    const auto title = refused.isEmpty() ? "FL Studio's own plugins can't be hosted"
+                                         : (skipped.isEmpty() ? "Some plugins didn't start"
+                                                              : "Some plugins weren't added");
+
     // Held by this scanner, like the out-of-date box, so it closes with it.
-    juce::MessageManager::callAsync ([box = std::weak_ptr<juce::ScopedMessageBox> (nativeBox), skipped]
+    juce::MessageManager::callAsync ([box = std::weak_ptr<juce::ScopedMessageBox> (nativeBox),
+                                      message = paragraphs.joinIntoString ("\n\n"), title = juce::String (title)]
     {
         if (auto held = box.lock())
         {
             const auto options = juce::MessageBoxOptions()
                                      .withIconType (juce::MessageBoxIconType::InfoIcon)
-                                     .withTitle ("FL Studio's own plugins can't be hosted")
-                                     .withMessage (describeFlStudioNativeFiles (skipped))
+                                     .withTitle (title)
+                                     .withMessage (message)
                                      .withButton ("OK");
             *held = juce::AlertWindow::showScopedAsync (options, nullptr);
         }

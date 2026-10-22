@@ -55,7 +55,26 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 note with its own tuning, pressure and brightness (plus volume, pan, vibrato and expression from
 per-note CC7, CC10, CC1 and CC11), so there are no channels or bend ranges to match. The top of
 **MPE settings** shows how the loaded synth is being played. If a CLAP synth responds better to MPE,
-turn off **CLAP note expressions** there.
+turn off **Note expressions (CLAP, VST3)** there.
+
+**VST3 synths** only get MIDI pitch bend, pressure and controllers on the MIDI channels they map them
+on; the rest is dropped (that's how VST3 works). MPE Roll asks each VST3 synth which channels those
+are, and again every few seconds:
+- **Every channel** (JUCE-built synths such as Vital and Surge XT, Omnisphere 3): MPE over MIDI, as
+  above.
+- **Channel 1 only, but it takes VST3 note expressions:** MPE Roll plays it with those, as Cubase
+  and Bitwig do: every note on channel 1 with an ID of its own, its glide as tuning, and its pressure
+  and timbre as whatever the synth takes for MPE's pressure and Y. *MPE settings* says *VST3 notes on
+  channel 1...*. Serum 2's guide says it takes note expressions with its own MPE switch off.
+- **Channel 1 only, and no note expressions:** each note's own expression can't reach it. *MPE
+  settings* says so, and MPE Roll offers *Plain MIDI* when you load it. If the synth also comes as
+  VST2 or CLAP, load that instead: VST2 synths get MIDI on every channel.
+
+The plugin log (*Load synth… › Show the plugin log*) records what each VST3 synth answered.
+
+**Known synths:** for the synths in section 7, *MPE settings* and the status line say where the
+synth's MPE switch is, and for those without MPE (Analog Lab, ZENOLOGY...) MPE Roll offers *Plain
+MIDI* when you load them. *Keep MPE* (Escape) leaves everything as it is.
 
 The synth and its settings are saved inside your FL project. If you open the project on a computer
 that doesn't have that synth, MPE Roll shows **Missing: <synth name>** and keeps its settings, so
@@ -292,6 +311,51 @@ ones need *Plain MIDI* as below), and Omnisphere 3's VST3 plays over MPE, per-no
 once MPE is on in its System page. Neither synth comes as CLAP, so the CLAP note-expression path
 doesn't apply.
 
+MPE in popular synths (from the makers' manuals and support pages, October 2026). MPE Roll knows
+these, and says the same in *MPE settings*. Set the synth's per-note bend range to **48**, MPE
+Roll's *Per-note bend range*, or change MPE Roll's to match.
+
+| Synth | MPE | Where to turn it on |
+| --- | --- | --- |
+| Serum (1.x) | Yes | *MENU* (top bar) › *MPE Enabled*; MPE bend range at the bottom of that menu |
+| Serum 2 (VST3 only) | Yes | *MENU* › *MPE Enabled* (usually on); *MPE Bend Range* on its Global page. Takes VST3 note expressions with MPE off |
+| Pigments | Yes | *Settings* (top toolbar) › *Enable MPE*, *Bend Range* |
+| Arturia V Collection | Many | Gear icon › *Settings* tab › *Enable MPE*; one without that setting has none |
+| Analog Lab (V, Pro) | **No** | Use *Plain MIDI*, or load the instrument itself (Pigments, a V Collection instrument) |
+| Omnisphere 3 | Yes | *System* page (gear icon) › MPE on, *MPE Pitch Bend Range*; patch in Part 1 only |
+| Omnisphere 2 | **No** | *Plain MIDI*, patch in Part 1 |
+| Vital | Yes | *ADVANCED* tab › *MPE ENABLED* (saved per preset); per-note range fixed at 48 |
+| Diva (1.4.8 and later) | Yes | Pitch Bend Up and Down set to *MPE* (polyphonic presets); the CLAP version needs nothing |
+| Zebra 3 | Yes | The CLAP version needs nothing |
+| Zebra2 | **No** | *Plain MIDI* |
+| Phase Plant | Yes | Its settings › MPE on, *Bend Range*, MIDI channel *Any* |
+| Surge XT | Yes | Turns itself on from MPE Roll's setup; the CLAP version needs nothing |
+| Equator2 | Yes | MIDI settings › *MPE* mode (not *Standard*) |
+| Cherry Audio (DCO-106, Dreamsynth, Memorymode, Mercury-4, Miniverse, PS-20, Octave Cat, Sines...) | Yes | *Settings* (gear) › *Interface* › *Enable MPE mode*; bend range on its *MPE* tab |
+| SWAM | Yes, one note at a time | MIDI settings › *MIDI Profile*: *MPE* |
+| Noisy, Imagine | Yes | Its MPE presets, or MPE on in its settings |
+| ZENOLOGY, Roland Cloud | **No** | *Plain MIDI* |
+| Massive X, Kontakt, Sylenth1, Spire, Waves synths | **No** | *Plain MIDI* (a few Kontakt libraries have an MPE mode of their own) |
+
+**Xfer Serum and Serum 2**
+- Serum 1 has MPE, off until you tick *MPE Enabled* in its main *MENU*; set the MPE bend range at the
+  bottom of that menu to MPE Roll's *Per-note bend range* (48). Its VST2 (`Serum_x64.dll`) gets MPE's
+  per-channel MIDI whatever the VST3 does.
+- Serum 2 comes as VST3 (and AAX) only. Xfer's guide: with its MPE switch on it takes per-channel
+  MIDI, and with it off it takes VST3 note expressions. Which of those reach it through MPE Roll
+  depends on the channels its VST3 maps pitch bend on, which MPE Roll asks it: *MPE settings › Synth
+  is played with* says *MPE over MIDI* (keep Serum 2's MPE on) or *VST3 notes on channel 1* (turn
+  Serum 2's MPE off). If it says the notes can't be reached one by one, please send the plugin log.
+
+**Roland ZENOLOGY and Roland Cloud instruments**
+- No MPE: play them with *Plain MIDI*.
+- They're VST3 only on Windows (Roland dropped VST2 in February 2026), installed in
+  `C:\Program Files\Common Files\VST3\Roland\`, and need Roland Cloud Manager: sign in there and
+  check the instrument is authorised (and that its RCMService is running) before scanning. One that
+  isn't authorised doesn't start when MPE Roll looks inside it, and MPE Roll now says so instead of
+  listing nothing. If it still won't load, *Copy details* in the box that says so (and the plugin
+  log) has what happened.
+
 **Spectrasonics Omnisphere**
 - Authorize it once in its standalone app or directly in FL before loading it inside MPE Roll.
 - A parameter only reaches MPE Roll's *Synth* slots after you right-click it in Omnisphere and choose
@@ -354,12 +418,12 @@ doesn't apply.
 | FL doesn't list MPE Roll | Check where the files went: the whole `MPE Roll.vst3` folder in `C:\Program Files\Common Files\VST3`, or `MPE Roll.dll` in one of the plugin folders listed under *Options › Manage plugins*. Then click *Find installed plugins*. |
 | Scanning for plugins crashes FL | MPE Roll Scanner isn't installed, so plugins were looked at inside FL. It's inside the `.vst3` folder; with the `.dll`, put `MPE Roll Scanner.exe` next to it. |
 | "… crashed while MPE Roll was checking it" | That plugin crashes when it's loaded outside its usual host, so MPE Roll won't load it (FL would go down with it). Try updating the plugin, and please report which one it is. |
-| Per-note lanes do nothing, zone-wide ones work | The synth isn't in MPE mode, or has none. Turn MPE on in the synth, or set *Synth expects* to *Plain MIDI*, where the newest note's expression drives the whole synth. |
+| Per-note lanes do nothing, zone-wide ones work | The synth isn't in MPE mode, or has none. *MPE settings › Synth is played with* says which, and where the synth's MPE switch is if MPE Roll knows it (section 7). Turn MPE on in the synth, or set *Synth expects* to *Plain MIDI*, where the newest note's expression drives the whole synth. A VST3 synth that takes pitch bend on channel 1 only can't get each note's own expression over MIDI: MPE Roll plays it with VST3 note expressions if it takes them, and otherwise says so (section 2). |
 | MPE Roll crashes | The standalone app saves a report to `%APPDATA%\MPE Roll\Crash report.txt` and says so. In FL, FL's own crash message names the file that crashed. Please include either when you report it. |
 | No sound | Load a synth (*Load synth…*), and check that the synth itself makes sound in its own window. |
 | No sound from a loaded synth; "No sound from …" appears | The synth isn't in MPE mode, so it only listens on channel 1, and MPE Roll plays notes on channels 2–16; or it was still loading its sounds. Turn MPE on in the synth (Omnisphere 3: its *System* page), or click *Use Plain MIDI*. Only that button changes anything: *Keep MPE* takes Return and Escape both, and closing the box keeps MPE too. MPE Roll asks once each time a synth is loaded or a project is opened: it gives the synth ten seconds to load, then asks once three seconds of notes, short or long, have gone without a sound, and not at all if the synth has sounded first. Until it hears the synth, the status line says *No sound from … yet* as well. *Synth is played with* in *MPE settings* shows the channels. |
 | A synth's window opens with its title bar above the top of the screen, or its controls out of reach | MPE Roll opens the synth's window on the screen MPE Roll is on, with the title bar inside the work area (above the taskbar); a synth whose window can be resized is shrunk to fit. If one still ends up out of reach (some synths resize themselves after opening, for example when a preset loads), choose *Load synth… › Bring the synth's window back on screen*. A synth whose window can't be resized and is taller than the screen keeps its title bar on screen and runs off the bottom: lower its own size or zoom setting (most have one), or Windows' display scale. |
-| A synth won't load | MPE Roll says why in a box. Click *Copy details* and paste them into your report: they name the plugin, its format and version, the error, and the end of MPE Roll's plugin log. *Load synth… › Show the plugin log* opens the log itself (`%APPDATA%\MPE Roll\Plugin log.txt`), which records every scan and load with how long it took. |
+| A synth won't load | MPE Roll says why in a box. Click *Copy details* and paste them into your report: they name the plugin, its format and version, the error, and the end of MPE Roll's plugin log. *Load synth… › Show the plugin log* opens the log itself (`%APPDATA%\MPE Roll\Plugin log.txt`), which records every scan and load with how long it took. A plugin that *didn't start when MPE Roll looked inside it* usually isn't activated or authorised yet: open it once directly in FL, or sign in to its maker's app (Roland Cloud Manager for ZENOLOGY), then try again. One that *took too long* may be waiting for a sign-in window the first time. |
 | Clicks, timing drift or CPU spikes | In MPE Roll's wrapper settings, turn on *Use fixed size buffers* (Troubleshooting tab). |
 | Mouse clicks land away from the pointer after reopening the window | In FL, MPE Roll draws its window in software (*MPE settings › Window › Window drawing: Automatic*), which avoids this. If it still happens, try the other *Window drawing* choices and tell us what the *Window* line next to it says. |
 | Glides are much too big or too small | The synth's MPE bend range doesn't match MPE Roll's *Per-note bend range* (48 by default). |
@@ -367,7 +431,8 @@ doesn't apply.
 | Recording catches nothing | The controller's Port in FL's MIDI settings must match MPE Roll's MIDI input port, and FL must be playing. |
 | Notes play twice while recording | FL also sends the controller to the selected channel. Select another channel. |
 | "Missing: <synth>" on the synth button | That synth isn't installed (or scanned) on this computer. Install it, scan, and pick it again. |
-| A CLAP synth plays but doesn't glide, press or brighten | It may not support CLAP note expressions. Turn off *CLAP note expressions* in *MPE settings* and turn on MPE in the synth instead. |
+| A CLAP synth plays but doesn't glide, press or brighten | It may not support CLAP note expressions. Turn off *Note expressions (CLAP, VST3)* in *MPE settings* and turn on MPE in the synth instead. |
+| A VST3 synth played with VST3 note expressions doesn't glide | Its own MPE switch may be on (Serum 2 takes note expressions with it off). Or turn off *Note expressions (CLAP, VST3)* to send MPE over MIDI, and please send the plugin log. |
 | A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded and open their own window; MPE Roll says so. Please report synths whose window doesn't appear at all. |
 | An automation clip moves the wrong knob | The clip belongs to an MPE Roll slot, and slots are reassigned when you load a different synth. Re-link it with *Last tweaked*. |
 | Vibrato barely moves, or only on the newest note | Vibrato rides on the note's pitch bend, so it needs what glides need: MPE on in the synth with the bend ranges matching, or *Plain MIDI* with *Zone bend range* set to the synth's, where only the newest note's is heard. A synth without MPE can also take the zone-wide *Vibrato* lane. |

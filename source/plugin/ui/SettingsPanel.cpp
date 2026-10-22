@@ -101,10 +101,11 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
 
     // Output to the synth.
     Comps output;
+    // Room for what to do in the synth, too: which switch turns its MPE on.
     output.add (new InfoProp ("Synth is played with", [this, settings]
-                              { return processor.getSynth().describeConnection (settings().output); }));
+                              { return processor.getSynth().describeConnection (settings().output); }, 96));
    #if MPEROLL_HOST_CLAP
-    output.add (new BoolProp ("CLAP note expressions",
+    output.add (new BoolProp ("Note expressions (CLAP, VST3)",
         [settings] { return settings().output.clapNoteExpressions; },
         [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.clapNoteExpressions = b; }); }));
    #endif

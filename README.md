@@ -43,8 +43,26 @@ instead of MPE MIDI, so there are no channels or bend ranges to set up in the sy
 Other zone-wide controllers, such as the sustain pedal or the mod wheel, reach the synth as MIDI on
 the master channel and every member channel, so they apply to the notes whichever way the synth
 handles channels. (A synth that doesn't take MIDI gets zone CC7/10/1/11 combined into its notes
-instead.) Synths that only take MIDI get MPE as usual, and *MPE settings › CLAP note expressions*
-switches to MPE MIDI if you prefer it.
+instead.) Synths that only take MIDI get MPE as usual, and *MPE settings › Note expressions (CLAP,
+VST3)* switches to MPE MIDI if you prefer it.
+
+**VST3 synths are asked what they take.** A VST3 synth gets MIDI pitch bend, pressure and
+controllers only on the channels it maps them on (that's how VST3 works, and JUCE's host drops the
+rest). MPE Roll asks each VST3 synth which channels those are. One that maps them on every channel,
+as JUCE-built synths such as Vital and Surge XT do, is played with MPE over MIDI. One that maps
+pitch bend on MIDI channel 1 only but takes **VST3 note expressions** is played with those instead:
+each note on channel 1 with its own ID, its glide as tuning, and its pressure and timbre as the
+synth's own types for MPE's pressure and Y (plus volume, pan, vibrato and expression where it takes
+them). One that takes neither can't get each note's own expression, and *MPE settings* says so and
+suggests *Plain MIDI*. MPE Roll asks again every few seconds, so a synth whose own MPE switch
+changes this is followed.
+
+**Known synths come with directions.** For synths MPE Roll knows (Serum and Serum 2,
+Pigments and the other Arturia instruments, Omnisphere, Vital, Diva, Phase Plant, Surge XT,
+Equator2, Cherry Audio, SWAM, Expressive E), *MPE settings* and the status line say where the
+synth's MPE switch is. For ones without MPE (Analog Lab, ZENOLOGY and the Roland Cloud instruments,
+Massive X, Kontakt, Sylenth1, Spire, Zebra2, Omnisphere 2, Waves), MPE Roll offers *Plain MIDI*
+when you load them.
 
 **Zone-wide (master channel) lanes:** pitch bend with its own range, pressure, timbre and any
 controller, including the sustain, sostenuto, soft, legato and hold pedals.
@@ -201,6 +219,9 @@ synth's channel, run it from the Scripts menu:
 - The fine-pitch unit FL uses in scripts isn't confirmed. The generated script uses tenths of a
   semitone; if glides land at the wrong pitch, change `PITCHOFS_PER_SEMITONE` at the top of the
   script to `100`.
+- **VST3 note expressions are new.** They're tested automatically with a small non-JUCE VST3 test
+  synth that maps pitch bend on channel 1 only, on Linux and Windows, but not yet with a commercial
+  synth. Serum 2's guide says it takes note expressions with its own MPE switch off.
 - **CLAP and VST2 hosting are new.** Both are tested automatically with small test synths on
   Linux, and compiled for Windows and macOS. Showing a CLAP synth's own window hasn't been tried
   with a real synth on any system yet; if it fails, MPE Roll shows a message and the synth still
@@ -234,20 +255,24 @@ source/plugin/    The plugin: processor, hosted synth, automation slots, documen
   clap/             CLAP hosting: plugin format, instance, and the MPE to note expression translator
 tests/            Unit tests, plus a Python stand-in for FL's flpianoroll module that runs the
                   generated scripts.
-tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUCE), and CLAP
-                  (plain CLAP API, pitch only from note expressions). Needs -DMPEROLL_BUILD_DEV_TOOLS=ON.
+tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUCE), CLAP (plain CLAP
+                  API, pitch only from note expressions), and a VST3 one on the plain VST3 interfaces
+                  that maps pitch bend on channel 1 only and takes note expressions. Needs
+                  -DMPEROLL_BUILD_DEV_TOOLS=ON.
                   make_donate_page.py writes DONATE.md, docs/donate.html, the QR codes and
                   .github/FUNDING.yml from docs/donate.json.
 third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
 third_party/lame/ The build configuration for the LAME MP3 encoder (LAME itself is downloaded).
-cmake/            A fix applied to the downloaded JUCE.
+cmake/            Fixes and additions applied to the downloaded JUCE: an empty VST3 MIDI mapping, the
+                  hosted VST3's edit controller, and VST3 note events handed over in the MIDI buffer.
 ```
 
 Run the tests with `ctest --test-dir build`. With the dev tools enabled, `MpeRollHarness selftest`
-and `uitest` exercise the full plugin, and `render <test synth> out.wav`, `params <test synth>` and
-`clapdialect <test synth.clap>` check that per-note glides, parameter automation and CLAP note
-expressions reach a hosted synth, and `export <test synth> <folder>` exports a clip as WAV and MP3
-and reads both back. CI runs all of them.
+and `uitest` exercise the full plugin, and `render <test synth> out.wav`, `params <test synth>`,
+`clapdialect <test synth.clap>` and `vst3dialect <note expression synth.vst3> <test synth.vst3>`
+check that per-note glides, parameter automation and CLAP and VST3 note expressions reach a hosted
+synth, and `export <test synth> <folder>` exports a clip as WAV and MP3 and reads both back. CI runs
+all of them.
 
 ## Support MPE Roll
 

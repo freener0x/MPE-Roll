@@ -372,9 +372,13 @@ void HostedSynth::finishLoadFromFile (const juce::File& file, PluginScanner::Out
 
     if (found.isEmpty())
     {
-        // FL's own plugins have no VST entry point, so a scan finds nothing in them.
+        // FL's own plugins have no VST entry point, so a scan finds nothing in them. A .vst3 or
+        // .clap with nothing in it is a plugin that wouldn't start (JUCE leaves out a VST3 whose
+        // component won't initialise), typically one that isn't authorised yet.
         const auto message = isFlStudioNativePlugin (file) ? describeFlStudioNativePlugin (file)
-                                                           : "No plugin was found in " + file.getFileName() + ".";
+                           : PluginScanner::mightRefuseToStart (file.getFullPathName())
+                                 ? PluginScanner::describeRefusedToStart (juce::StringArray (file.getFileName()), false)
+                                 : "No plugin was found in " + file.getFileName() + ".";
         PluginLog::add ("Checking " + file.getFullPathName() + ": " + message);
 
         if (onDone)
@@ -517,7 +521,11 @@ void HostedSynth::configure (juce::AudioPluginInstance& plugin)
     {
         auto stereo = layout;
         stereo.outputBuses.getReference (0) = juce::AudioChannelSet::stereo();
-        plugin.setBusesLayout (stereo);
+
+        // A synth may refuse; it then plays in its own layout, its first outputs taken as left and right.
+        if (! plugin.setBusesLayout (stereo))
+            PluginLog::add ("  " + plugin.getName() + " kept its own output layout ("
+                            + plugin.getBusesLayout().outputBuses[0].getDescription() + ") rather than stereo");
     }
 
     plugin.setRateAndBufferSizeDetails (sampleRate, blockSize);
@@ -541,6 +549,7 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
         silenceWatch = {};
         silenceWarning = false;
         silentOverMpe = false;
+        vst3Expressions.reset();
 
        #if MPEROLL_HOST_CLAP
         clapControls = dynamic_cast<ClapSynthControls*> (instance.get());
@@ -551,6 +560,16 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
     const auto oldName = description != nullptr ? describe (*description) : juce::String();
     description = std::make_unique<juce::PluginDescription> (desc);
     unresolvedState.reset();
+
+    // A VST3 synth is asked what it takes of MPE now, and again every few seconds: its own MPE
+    // switch may change it, and JUCE doesn't pass that on.
+    vst3Support = {};
+    refreshVst3Support();
+
+    if (vst3Support.isVst3)
+        vst3Recheck.startTimer (3000);
+    else
+        vst3Recheck.stopTimer();
 
     if (old != nullptr)
     {
@@ -598,6 +617,9 @@ std::unique_ptr<juce::AudioPluginInstance> HostedSynth::takeInstance()
         onPluginRemoving (*instance);
 
     instance->removeListener (this);
+    vst3Recheck.stopTimer();
+    vst3Support = {};
+    vst3Expressions.setSupport (vst3Support);
     std::unique_ptr<juce::AudioPluginInstance> old;
 
     {
@@ -607,6 +629,24 @@ std::unique_ptr<juce::AudioPluginInstance> HostedSynth::takeInstance()
     }
 
     return old;
+}
+
+void HostedSynth::refreshVst3Support()
+{
+    if (instance == nullptr)
+        return;
+
+    const auto support = Vst3Support::probe (*instance);
+
+    if (support == vst3Support)
+        return;
+
+    vst3Support = support;
+    vst3Expressions.setSupport (support);
+
+    if (support.isVst3)
+        PluginLog::add ("  " + getName() + ", " + support.describe()
+                        + (support.wantsNoteExpressions() ? "; MPE goes to it as VST3 note expressions" : ""));
 }
 
 void HostedSynth::audioProcessorChanged (juce::AudioProcessor*, const ChangeDetails& details)
@@ -713,6 +753,8 @@ void HostedSynth::prepare (double newSampleRate, int maximumBlockSize)
 
     scratch.setSize (juce::jmax (channels, 8), blockSize);
     midiPiece.ensureSize (1 << 14);
+    vst3Expressions.prepare (blockSize);
+    vst3Expressions.forgetNotes();      // MPE Roll stops its notes when it's prepared
 }
 
 void HostedSynth::release()
@@ -776,7 +818,7 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
 
         juce::AudioBuffer<float> view (scratch.getArrayOfWritePointers(), needed, length);
         view.clear();
-        plugin.processBlock (view, *pieceMidi);
+        plugin.processBlock (view, vst3Expressions.process (*pieceMidi, length, outputSettings));
 
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         {
@@ -895,8 +937,21 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
     if (instance == nullptr)
         return "No synth loaded.";
 
+    const auto profile = getProfile();
+
     if (playsNoteExpressions (settings))
-        return "CLAP notes, each with its own tuning, pressure, brightness, volume, pan, vibrato and expression.";
+    {
+        if (clapControls != nullptr)
+            return "CLAP notes, each with its own tuning, pressure, brightness, volume, pan, vibrato and expression.";
+
+        return "VST3 notes on channel 1, each with its own " + vst3Support.describeNoteExpressions()
+             + ". This VST3 synth takes pitch bend " + vst3Support.describeBend()
+             + ", so MPE over MIDI couldn't reach its notes one by one."
+             + (profile.has_value() && profile->name == "Serum 2"
+                    ? juce::String (" Xfer's guide says Serum 2 takes note expressions with its own MPE switch off "
+                                    "(MENU > MPE Enabled).")
+                    : juce::String());
+    }
 
     const auto via = clapControls != nullptr ? juce::String (" (the CLAP synth accepts MIDI)") : juce::String();
 
@@ -905,12 +960,27 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
 
     // A synth that isn't in MPE mode often listens on channel 1 only, and hears nothing.
     const auto channels = settings.zones.describeMemberChannels();
+    const auto mpe = "MPE over MIDI" + via + (channels.isNotEmpty() ? ", notes on channels " + channels : juce::String()) + ". ";
 
-    if (channels.isEmpty())
-        return "MPE over MIDI" + via + ".";
+    if (profile.has_value() && profile->mpe == SynthProfile::Mpe::none)
+        return mpe + profile->advice;
 
-    return "MPE over MIDI" + via + ", notes on channels " + channels + ". Turn on MPE in the synth, "
-           "or it may not hear them.";
+    // JUCE's VST3 host drops MIDI pitch bend and pressure on channels the synth maps nothing to.
+    if (vst3Support.midiMissesNotes())
+        return mpe + "But this VST3 synth takes pitch bend " + vst3Support.describeBend()
+             + ", so each note's glides can't reach it one by one"
+             + (vst3Support.takesTuning() ? juce::String (" (turn on Note expressions to play it with VST3 note expressions)") : juce::String())
+             + ". Set Synth expects to Plain MIDI, or load its VST2 or CLAP version if you have one.";
+
+    if (profile.has_value())
+        return mpe + profile->advice;
+
+    return mpe + "Turn on MPE in the synth, or it may not hear them.";
+}
+
+std::optional<SynthProfile> HostedSynth::getProfile() const
+{
+    return description != nullptr && instance != nullptr ? SynthProfile::find (*description) : std::nullopt;
 }
 
 juce::String HostedSynth::describeSetup() const
@@ -930,12 +1000,15 @@ juce::String HostedSynth::describeSetup() const
 
 bool HostedSynth::playsNoteExpressions (const OutputSettings& settings) const
 {
+    if (instance == nullptr)
+        return false;
+
    #if MPEROLL_HOST_CLAP
-    return clapControls != nullptr && clapControls->playsNoteExpressions (settings);
-   #else
-    juce::ignoreUnused (settings);
-    return false;
+    if (clapControls != nullptr)
+        return clapControls->playsNoteExpressions (settings);
    #endif
+
+    return vst3Expressions.isUsedWith (settings);
 }
 
 int HostedSynth::getLatencySamples() const
