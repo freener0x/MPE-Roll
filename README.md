@@ -57,12 +57,13 @@ them). One that takes neither can't get each note's own expression, and *MPE set
 suggests *Plain MIDI*. MPE Roll asks again every few seconds, so a synth whose own MPE switch
 changes this is followed.
 
-**Known synths come with directions.** For synths MPE Roll knows (Serum and Serum 2,
-Pigments and the other Arturia instruments, Omnisphere, Vital, Diva, Phase Plant, Surge XT,
-Equator2, Cherry Audio, SWAM, Expressive E), *MPE settings* and the status line say where the
-synth's MPE switch is. For ones without MPE (Analog Lab, ZENOLOGY and the Roland Cloud instruments,
-Massive X, Kontakt, Sylenth1, Spire, Zebra2, Omnisphere 2, Waves), MPE Roll offers *Plain MIDI*
-when you load them. [docs/MPE_SYNTHS.md](docs/MPE_SYNTHS.md) lists them all, with sources.
+**Known synths come with directions.** MPE Roll knows the MPE of some 680 instruments from 180
+makers, from an audit of what the major stores sell (October 2026): for one with MPE (Serum and
+Serum 2, Pigments and the other Arturia instruments, Omnisphere 3, Vital, Diva, Phase Plant, Surge
+XT, Equator2, Cherry Audio, SWAM, Icarus...), *MPE settings* and the status line say where its MPE
+switch is; for one without (Analog Lab, ZENOLOGY and the Roland Cloud instruments, Massive X,
+Sylenth1, Spire, Zebra2, Omnisphere 2, Waves...), MPE Roll offers *Plain MIDI* when you load it.
+[docs/MPE_SYNTHS.md](docs/MPE_SYNTHS.md) lists them all, with where to turn MPE on and sources.
 
 **Zone-wide (master channel) lanes:** pitch bend with its own range, pressure, timbre and any
 controller, including the sustain, sostenuto, soft, legato and hold pedals.

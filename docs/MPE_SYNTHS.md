@@ -2,9 +2,9 @@
 
 <!-- Made by tools/make_synth_list.py from docs/synths.json. Change those, not this page. -->
 
-Which instruments for Windows have MPE, and where to turn it on: 24 instruments from 16 makers, sold by the major stores (Plugin Boutique, Sweetwater, Thomann, Best Service, KVR Marketplace, Native Instruments, Splice, ADSR, Audio Plugin Deals) or given away. Checked October 2026 against the makers' manuals, support pages and release notes, and the MPE lists of controller makers. The sources are in the last column. Found a mistake, or an instrument that's missing? Please open an issue.
+Which instruments for Windows have MPE, and where to turn it on: 673 instruments from 181 makers, sold by the major stores (Plugin Boutique, Sweetwater, Thomann, Best Service, KVR Marketplace, Native Instruments, Splice, ADSR, Audio Plugin Deals) or given away. Checked October 2026 against the makers' manuals, support pages and release notes, and the MPE lists of controller makers. The sources are in the last column. Found a mistake, or an instrument that's missing? Please open an issue.
 
-12 have MPE, 2 have it with limits, 10 don't, 0 never mention it and 0 are unclear.
+159 have MPE, 25 have it with limits, 41 don't, 441 never mention it and 7 are unclear.
 
 ## Reading the list
 
@@ -21,108 +21,1582 @@ Only instruments are listed: effects don't play notes, so MPE doesn't apply to t
 
 ## Makers
 
-[Arturia](#arturia) · [Audio Modeling](#audio-modeling) · [Cherry Audio](#cherry-audio) · [Expressive E](#expressive-e) · [Kilohearts](#kilohearts) · [LennarDigital](#lennardigital) · [Native Instruments](#native-instruments) · [Reveal Sound](#reveal-sound) · [Roland](#roland) · [ROLI](#roli) · [Spectrasonics](#spectrasonics) · [Surge Synth Team](#surge-synth-team) · [u-he](#u-he) · [Vital Audio](#vital-audio) · [Waves](#waves) · [Xfer Records](#xfer-records)
+[2nd Sense Audio](#2nd-sense-audio) · [8Dio](#8dio) · [Aaron Venture](#aaron-venture) · [AIR Music Technology](#air-music-technology) · [Akai Professional](#akai-professional) · [Algonaut](#algonaut) · [Ample Sound](#ample-sound) · [Anukari](#anukari) · [Applied Acoustics Systems](#applied-acoustics-systems) · [Arne Gleason](#arne-gleason) · [Arturia](#arturia) · [Audiaire](#audiaire) · [Audio Damage](#audio-damage) · [Audio Imperia](#audio-imperia) · [Audio Modeling](#audio-modeling) · [Audio Tech Hub](#audio-tech-hub) · [Audiomodern](#audiomodern) · [AudioRealism](#audiorealism) · [Baby Audio](#baby-audio) · [BandLab (Cakewalk)](#bandlab-cakewalk) · [Best Service](#best-service) · [BFD Drums](#bfd-drums) · [Bitsonic](#bitsonic) · [Bjt2](#bjt2) · [Blamsoft](#blamsoft) · [Blaukraut Audio](#blaukraut-audio) · [BLEASS](#bleass) · [Brain Control](#brain-control) · [Bruce Sutherland](#bruce-sutherland) · [Cherry Audio](#cherry-audio) · [Cinesamples](#cinesamples) · [CWITEC](#cwitec) · [Cymatics](#cymatics) · [D16 Group](#d16-group) · [Daichi Laboratory](#daichi-laboratory) · [Decent Samples](#decent-samples) · [Decomposer](#decomposer) · [Delta-V Audio](#delta-v-audio) · [Digital Suburban](#digital-suburban) · [discoDSP](#discodsp) · [DISTRHO](#distrho) · [Dmitry Sches](#dmitry-sches) · [Dreamtonics](#dreamtonics) · [DSK Music](#dsk-music) · [EastWest](#eastwest) · [Embertone](#embertone) · [Emvoice](#emvoice) · [Excite Audio](#excite-audio) · [Expressive E](#expressive-e) · [FabFilter](#fabfilter) · [FORS](#fors) · [Full Bucket Music](#full-bucket-music) · [Futucraft](#futucraft) · [Future Audio Workshop](#future-audio-workshop) · [FXpansion](#fxpansion) · [Garritan](#garritan) · [GForce Software](#gforce-software) · [Glitchmachines](#glitchmachines) · [Gospel Musicians](#gospel-musicians) · [Greg Recco](#greg-recco) · [GSi](#gsi) · [Heavyocity](#heavyocity) · [Hexachords](#hexachords) · [HY-Plugins](#hy-plugins) · [IK Multimedia](#ik-multimedia) · [Image-Line](#image-line) · [Imaginando](#imaginando) · [Initial Audio](#initial-audio) · [Inphonik](#inphonik) · [Iurie Nistor](#iurie-nistor) · [iZotope](#izotope) · [KarmaFX](#karmafx) · [Kilohearts](#kilohearts) · [Klevgrand](#klevgrand) · [Kong Audio](#kong-audio) · [Korg](#korg) · [Krotos](#krotos) · [KV331 Audio](#kv331-audio) · [LennarDigital](#lennardigital) · [Lethal Audio](#lethal-audio) · [LinPlug](#linplug) · [Loomer](#loomer) · [Loopcloud](#loopcloud) · [Lunacy Audio](#lunacy-audio) · [Madrona Labs](#madrona-labs) · [Manda Audio](#manda-audio) · [Martin Lüders](#martin-lders) · [Martinic](#martinic) · [Matt Tytel](#matt-tytel) · [MeldaProduction](#meldaproduction) · [Minimal Audio](#minimal-audio) · [Modalics](#modalics) · [Modartt](#modartt) · [Moforte](#moforte) · [Moog Music](#moog-music) · [MusicLab](#musiclab) · [MuTools](#mutools) · [Native Instruments](#native-instruments) · [Newfangled Audio](#newfangled-audio) · [Noise Engineering](#noise-engineering) · [Orchestral Tools](#orchestral-tools) · [Output](#output) · [Pauli Pölkki](#pauli-plkki) · [Physical Audio](#physical-audio) · [Pitch Innovations](#pitch-innovations) · [Plogue](#plogue) · [plugdata team](#plugdata-team) · [Plugin Alliance](#plugin-alliance) · [Plugin Boutique](#plugin-boutique) · [PlugInGuru](#pluginguru) · [Quantastical](#quantastical) · [quietformat](#quietformat) · [Reason Studios](#reason-studios) · [reFX](#refx) · [Renoise](#renoise) · [Reveal Sound](#reveal-sound) · [Rhizomatic](#rhizomatic) · [Rhodes Music Group](#rhodes-music-group) · [Rob Papen](#rob-papen) · [Roland](#roland) · [ROLI](#roli) · [Sample Modeling](#sample-modeling) · [Sampleson](#sampleson) · [Serato](#serato) · [sfztools](#sfztools) · [Sick Noise Instruments](#sick-noise-instruments) · [Siegfried Kullmann](#siegfried-kullmann) · [Slate Digital](#slate-digital) · [SocaLabs](#socalabs) · [Softube](#softube) · [Sonic Academy](#sonic-academy) · [Sonic Cat](#sonic-cat) · [Sonic Charge](#sonic-charge) · [Sonic Projects](#sonic-projects) · [SonicModeler](#sonicmodeler) · [Sonivox](#sonivox) · [Sound Guru](#sound-guru) · [Sound Magic](#sound-magic) · [Soundpaint](#soundpaint) · [Spectrasonics](#spectrasonics) · [Spitfire Audio](#spitfire-audio) · [Splice](#splice) · [Stagecraft Software](#stagecraft-software) · [Steinberg](#steinberg) · [Sugar Bytes](#sugar-bytes) · [Surge Synth Team](#surge-synth-team) · [Swar Systems](#swar-systems) · [Synapse Audio](#synapse-audio) · [Syntheway](#syntheway) · [Synthogy](#synthogy) · [TAL Software](#tal-software) · [TheWaveWarden](#thewavewarden) · [Three-Body Technology](#three-body-technology) · [tiagolr](#tiagolr) · [Tone2](#tone2) · [Toontrack](#toontrack) · [Tracktion](#tracktion) · [Tupos Audio](#tupos-audio) · [u-he](#u-he) · [UJAM](#ujam) · [Ummet Ozcan](#ummet-ozcan) · [Unfiltered Audio](#unfiltered-audio) · [Universal Audio](#universal-audio) · [UVI](#uvi) · [VAST Dynamics](#vast-dynamics) · [VCV](#vcv) · [Vengeance Sound](#vengeance-sound) · [VI Labs](#vi-labs) · [Vienna Symphonic Library](#vienna-symphonic-library) · [Vital Audio](#vital-audio) · [W.A. Production](#wa-production) · [Waldorf](#waldorf) · [Wave Alchemy](#wave-alchemy) · [Waves](#waves) · [Xfer Records](#xfer-records) · [Xhun Audio](#xhun-audio) · [XILS-lab](#xils-lab) · [XLN Audio](#xln-audio) · [Yamaha](#yamaha) · [Yellow Tools](#yellow-tools) · [ZynAddSubFX](#zynaddsubfx)
+
+## 2nd Sense Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Wiggle | VST2, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Waveshaping synth: 4 operators with drawn wavetables, FM, phase distortion and a step sequencer. Distributed by Best Service. | [synthanatomy.com](https://synthanatomy.com/2016/03/2nd-sense-audio-released-wiggle-dynamic.html), [adorama.com](https://www.adorama.com/2swiggle.html) |
+
+## 8Dio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Kontakt libraries | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Mostly Kontakt libraries, so they load inside Kontakt 8 (formats listed are Kontakt 8's). Kontakt has no native MPE; a library would need its own scripted MPE mode. | [native-instruments.com](https://www.native-instruments.com/en/products/komplete/samplers/kontakt-8/specifications/), [vi-control.net](https://vi-control.net/community/threads/auras-now-%C2%A399.71428/page-3), [vi-control.net](https://vi-control.net/community/threads/roli-seaboard-rise-25.85381/page-3) |
+
+## Aaron Venture
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Infinite Brass | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt library (version 1.5), played with continuous controllers (dynamics, vibrato) and no keyswitches. It loads inside Kontakt 8; the formats listed are Kontakt 8's. | [kvraudio.com](https://www.kvraudio.com/news-print.php?id=52300), [vi-control.net](https://vi-control.net/community/threads/infinite-series-aaron-venture-thread-aaron-update-april-21-2026.86499/page-137), [native-instruments.com](https://www.native-instruments.com/en/products/komplete/samplers/kontakt-8/specifications/) |
+| Infinite Woodwinds | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt library; users describe version 2.0 as a largely new library. It loads inside Kontakt 8; the formats listed are Kontakt 8's. | [kvraudio.com](https://www.kvraudio.com/news-print.php?id=45999), [vi-control.net](https://vi-control.net/community/threads/infinite-series-aaron-venture-thread-aaron-update-april-21-2026.86499/page-168), [native-instruments.com](https://www.native-instruments.com/en/products/komplete/samplers/kontakt-8/specifications/) |
+
+## AIR Music Technology
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Bassline | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Mono bass synth, one of seven AIR instruments from the MPC and Force. VST3 and standalone come from release coverage, not AIR, so check the installer. | [gearnews.com](https://www.gearnews.com/air-music-tech-plugins) |
+| Boom | VST2, AAX | Not mentioned | *Plain MIDI*. | Drum machine. VST3 is unconfirmed. | [synthtopia.com](https://www.synthtopia.com/content/tag/strike/) |
+| DB-33 | VST2, AAX | Not mentioned | *Plain MIDI*. | Tonewheel organ. It is not among the titles in AIR's 2024 VST3 update article, so VST3 is unconfirmed. | [synthtopia.com](https://www.synthtopia.com/content/tag/strike/) |
+| Electric | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Electric piano, one of seven AIR instruments from the MPC and Force. VST3 and standalone come from release coverage, not AIR, so check the installer. | [gearnews.com](https://www.gearnews.com/air-music-tech-plugins) |
+| Fabric / Fabric XL | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. AIR's Fabric Vintage Synths (2026) have MPE. | Sample-plus-synthesis instruments from the MPC Instruments Collection; presets morph with mod wheel, velocity and channel aftertouch. Not the same as Fabric Vintage Synths. | [pluginboutique.com](https://www.pluginboutique.com/products/10664-MPC-Instrument-Collection), [thomann.co.uk](https://www.thomann.co.uk/air_music_technology_mpc_instruments_collection.htm) |
+| Fabric Vintage Synths Vol 1 | VST2, VST3, AAX | Yes | Settings (cog icon) › MPE on. | Released April 2026 with MPE, including an MPE-aware arpeggiator. Holds three polysynths (Pro, Jup, Memorymoog) that may load as separate plugins. Check the installer for VST3. | [support.airmusictech.com](https://support.airmusictech.com/en/support/solutions/articles/69000877979-air-fabric-vintage-synths-collection-walkthrough-faq), [inmusicbrands.com](https://www.inmusicbrands.com/press/fabric-vintage-synths/), [soundonsound.com](https://www.soundonsound.com/news/air-music-tech-release-fabric-vintage-synths-vol1) |
+| Hybrid 3 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Wavetable and analog-style synth. Version 3.1.1 (2024) added a VST3 build for Windows 10-11. | [support.airmusictech.com](https://support.airmusictech.com/support/solutions/articles/69000857086-air-music-tech-are-vst3-builds-available-for-my-classic-air-titles-), [synthtopia.com](https://www.synthtopia.com/content/2014/05/01/air-instrument-expansion-pack-hybrid-3-plus-vst-au-aax-support/) |
+| Hype | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Four-engine hybrid synth (FM, wavetable, VA, sample) with about 1,500 presets, from the MPC and Force. VST3 comes from release coverage, not AIR, so check the installer. | [pluginboutique.com](https://www.pluginboutique.com/products/8889-Hype), [gearnews.com](https://www.gearnews.com/air-music-tech-plugins) |
+| Loom II | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Additive synth with a Morph Pad. Version 2.1.1 (2024) added a VST3 build for Windows 10-11. | [support.airmusictech.com](https://support.airmusictech.com/support/solutions/articles/69000857086-air-music-tech-are-vst3-builds-available-for-my-classic-air-titles-) |
+| Mellotron | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Sample-based Mellotron with 6 tape sets, one of seven AIR instruments from the MPC and Force. VST3 and standalone come from release coverage, so check the installer. | [musicradar.com](https://musicradar.com/news/air-music-new-instrument-plugins), [gearnews.com](https://www.gearnews.com/air-music-tech-plugins) |
+| Mini Grand | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sampled piano. Version 1.3.1 (2024) added a VST3 build for Windows 10-11. | [support.airmusictech.com](https://support.airmusictech.com/support/solutions/articles/69000857086-air-music-tech-are-vst3-builds-available-for-my-classic-air-titles-) |
+| Odyssey | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | ARP Odyssey emulation by WayOutWare, first made for the MPC and Force. Takes velocity, channel aftertouch and expression pedal; mono, duo or 4-voice poly. | [thomann.it](https://www.thomann.it/air_music_technology_odyssey.htm), [gearnews.com](https://www.gearnews.com/air-music-tech-plugins) |
+| OPx-4 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Four-operator FM synth (4x4 FM matrix, 23 filter types, 32-slot mod matrix) that also runs on the MPC and Force. Needs Windows 10 or later. | [kvraudio.com](https://www.kvraudio.com/product/opx-4-by-air-music-technology), [thomann.co.uk](https://www.thomann.co.uk/air_music_technology_opx_4.htm), [pluginboutique.com](https://www.pluginboutique.com/products/10664-MPC-Instrument-Collection) |
+| Solina | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | String-ensemble synth, one of seven AIR instruments from the MPC and Force. VST3 and standalone come from release coverage, not AIR, so check the installer. | [musicradar.com](https://musicradar.com/news/air-music-new-instrument-plugins), [bonedo.de](https://www.bonedo.de/artikel/air-music-tech-veroeffentlicht-sieben-neue-plugins-von-instrumentenklassikern/) |
+| Strike | VST2, AAX | Not mentioned | *Plain MIDI*. | Virtual drummer. VST3 is unconfirmed. | [synthtopia.com](https://www.synthtopia.com/content/tag/strike/) |
+| Structure 2 / Structure Free | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sampler. Structure 2 2.1.2 (2024) added a VST3 build; whether Structure Free has one was not checked. | [support.airmusictech.com](https://support.airmusictech.com/support/solutions/articles/69000857086-air-music-tech-are-vst3-builds-available-for-my-classic-air-titles-) |
+| TubeSynth | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Virtual analog synth, one of seven AIR instruments from the MPC and Force. VST3 and standalone come from release coverage, not AIR, so check the installer. | [gearnews.com](https://www.gearnews.com/air-music-tech-plugins) |
+| Vacuum Pro | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Modelled vacuum-tube polysynth. Version 1.1.1 (2024) added a VST3 build for Windows 10-11. | [support.airmusictech.com](https://support.airmusictech.com/support/solutions/articles/69000857086-air-music-tech-are-vst3-builds-available-for-my-classic-air-titles-), [synthanatomy.com](https://synthanatomy.com/2024/11/air-music-tech-classic-plugins-loom-ii-vacuum-pro-gets-apple-silicon-and-vst3-support-public-beta.html) |
+| Velvet | VST2, AAX | Not mentioned | *Plain MIDI*. | Electric piano. It is not among the titles in AIR's 2024 VST3 update article, so VST3 is unconfirmed. | [support.airmusictech.com](https://support.airmusictech.com/support/solutions/articles/69000857086-air-music-tech-are-vst3-builds-available-for-my-classic-air-titles-), [synthtopia.com](https://www.synthtopia.com/content/tag/strike/) |
+| Xpand!2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. Its 4 parts on separate MIDI channels are multitimbral, not per-note: use Plain MIDI on one channel. | Multitimbral 4-part ROMpler. Version 2.3.1 (2024) added a VST3 build for Windows 10-11. | [support.airmusictech.com](https://support.airmusictech.com/support/solutions/articles/69000857086-air-music-tech-are-vst3-builds-available-for-my-classic-air-titles-), [airmusictech.com](https://www.airmusictech.com/virtual-instruments/) |
+
+## Akai Professional
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| MPC 3 / MPC Beats |  | Not mentioned | *Plain MIDI*. | MPC desktop software, which can also load as a plugin. No MPE mention up to the MPC 3.8 update (May 2026). Its plugin formats on Windows were not confirmed. | [support.akaipro.com](https://support.akaipro.com/en/support/solutions/articles/69000876025-akai-mpc-series-how-to-use-3rd-party-vst-s-with-your-mpc), [synthtopia.com](https://www.synthtopia.com/content/2026/05/13/akai-mpc-3-8-update-expands-the-mpc-workflow/), [matrixsynth.com](https://www.matrixsynth.com/2025/01/mpc-3-update-demo-nova-interface.html?m=0) |
+
+## Algonaut
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Atlas 2 | VST2, VST3, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | AI sample organiser and drum machine with a sequencer. | [soundonsound.com](https://www.soundonsound.com/reviews/algonaut-atlas-2), [blog.dubspot.com](https://blog.dubspot.com/plugins/atlas-2) |
+
+## Ample Sound
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Ample Guitar, Ample Bass and Ample Metal instruments | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | One plugin per instrument. No Ample Sound statement on MPE; forum users say the guitars are not MPE compatible and LinnStrument players use One Channel mode or the third-party tool MPEfy. | [vi-control.net](https://vi-control.net/community/threads/any-guitar-library-that-supports-mpe.157665/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9245682), [thomann.de](https://www.thomann.de/be/ample_sound_ample_guitar_p_ii.htm) |
+| Ample Metal Hellrazer | VST2, VST3, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Sampled 9-string electric guitar (Schecter Hellraiser) with tab reader, Riffer 4 and Strummer; articulations by keyswitch. Version 4.1; needs online activation. | [amplesound.net](https://www.amplesound.net/en/pro-pd.asp?id=16), [kvraudio.com](https://www.kvraudio.com/product/amh-by-ample-sound), [bestservice.com](https://www.bestservice.com/en/ample_metal_hellrazer_amh.html) |
+
+## Anukari
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Anukari | VST3, AAX, Standalone | Yes | On without a switch. | 3D mass-and-spring physics synth; v1.0 came out in June 2026. Every MPE input can be mapped to any physics parameter. Also MTS-ESP microtuning. An effect version is sold alongside. | [soundonsound.com](https://www.soundonsound.com/news/anukaris-3d-physics-synthesizer-now-available), [synthanatomy.com](https://synthanatomy.com/2026/06/anukari-a-3d-physics-synthesizer-that-generates-sounds-using-masses-and-springs.html), [kvraudio.com](https://www.kvraudio.com/product/anukari-by-anukari) |
+
+## Applied Acoustics Systems
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| AAS Player | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Free player for AAS sound packs. No MPE found, and nothing says it inherits Multiphonics CV-3's MPE. Windows formats not verified. | [kvraudio.com](https://www.kvraudio.com/news/aas-releases-the-multiphonics-cv-3-modular-synthesizer-and-fx-63073), [synthtopia.com](https://www.synthtopia.com/content/2025/02/04/applied-acoustics-systems-multiphonics-cv%E2%80%913-modular-synthesizer-adds-polyphony-more/) |
+| Chromaphone 3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | No MPE found on AAS's page or in launch coverage (Oct 2020). Expression comes from four performance macros per layer mapped to MIDI controls. Windows formats not re-checked. | [applied-acoustics.com](https://www.applied-acoustics.com/chromaphone), [applied-acoustics.com](https://www.applied-acoustics.com/press/aas-lounge-lizard-ep-5-mpe-press-release/), [synthtopia.com](https://synthtopia.com/content/2020/10/30/applied-acoustics-systems-intros-chromaphone-3-acoustic-object-synthesizer) |
+| Lounge Lizard EP-4 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Its successor Lounge Lizard EP-5 has MPE from v5.1. | Discontinued; superseded by EP-5. Nothing found says EP-4 has MPE; AAS introduced MPE in EP-5 v5.1 (Nov 2025). Windows formats not verified. | [applied-acoustics.com](https://www.applied-acoustics.com/press/aas-lounge-lizard-ep-5-mpe-press-release/), [synthtopia.com](https://www.synthtopia.com/content/2025/02/04/applied-acoustics-systems-multiphonics-cv%E2%80%913-modular-synthesizer-adds-polyphony-more/) |
+| Lounge Lizard EP-5 | VST2, VST3, AAX, Standalone | Yes | Settings › MIDI › MPE (v5.1 or later). Bend range: Settings › MIDI › Pitch bend (MPE default not documented). | MPE was added in v5.1 (Nov 2025), a free update for registered users. Expressive E sells MPE presets for it (Lounge Lizard Expressive Suite). The exact control names in Settings were not seen. | [applied-acoustics.com](https://www.applied-acoustics.com/press/aas-lounge-lizard-ep-5-mpe-press-release/), [applied-acoustics.com](https://www.applied-acoustics.com/lounge-lizard-ep-5/manual/), [soundonsound.com](https://www.soundonsound.com/news/lounge-lizard-expressive-suite-expressive-e) |
+| Multiphonics CV-1 | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. Its successor Multiphonics CV-3 has MPE; CV-1 owners can upgrade. | Discontinued monophonic modular synth, replaced by CV-2 and then CV-3. AAS lists polyphony and MPE as new in CV-3, so CV-1 has no MPE. Windows formats not verified. | [applied-acoustics.com](https://www.applied-acoustics.com/press/aas-multiphonics-cv-3-press-release/), [synthanatomy.com](https://synthanatomy.com/?p=91901), [synthtopia.com](https://www.synthtopia.com/content/2025/02/04/applied-acoustics-systems-multiphonics-cv%E2%80%913-modular-synthesizer-adds-polyphony-more/) |
+| Multiphonics CV-3 | VST2, VST3, AAX, Standalone | Yes | Location not documented: look for an MPE option in its settings, and use a polyphonic patch. | MPE and polyphony are new in CV-3 (Feb 2025); v3.1 followed in Feb 2026. A modular synth and effect processor. Where MPE is turned on and its bend default were not found. | [applied-acoustics.com](https://www.applied-acoustics.com/press/aas-multiphonics-cv-3-press-release/), [synthtopia.com](https://www.synthtopia.com/content/2025/02/04/applied-acoustics-systems-multiphonics-cv%E2%80%913-modular-synthesizer-adds-polyphony-more/), [kvraudio.com](https://www.kvraudio.com/news/aas-releases-the-multiphonics-cv-3-modular-synthesizer-and-fx-63073) |
+| String Studio VS-3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | AAS makes no MPE statement. v3 added mod wheel and channel pressure. One KVR user reported running it with Bitwig's MPE option, but that is anecdotal. Windows formats not re-checked. | [sweetwater.com](https://www.sweetwater.com/c716--Applied_Acoustics_Systems--Virtual_Synthesizer_Software), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7245381), [synthtopia.com](https://www.synthtopia.com/content/2025/02/04/applied-acoustics-systems-multiphonics-cv%E2%80%913-modular-synthesizer-adds-polyphony-more/) |
+| Strum GS-2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | No MPE found. Its strum and chord detection expects notes on one channel, so MPE channel rotation would likely interfere (not documented). Windows formats not re-checked. | [sweetwater.com](https://www.sweetwater.com/c706--Applied_Acoustics_Systems--Virtual_Instruments_Software), [synthtopia.com](https://www.synthtopia.com/content/2025/02/04/applied-acoustics-systems-multiphonics-cv%E2%80%913-modular-synthesizer-adds-polyphony-more/) |
+| Ultra Analog VA-3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | No MPE found; AAS's MPE announcements cover only Lounge Lizard EP-5 5.1 and Multiphonics CV-3. A claim that MPE was listed at its 2019 launch was not supported. Windows formats not re-checked. | [sweetwater.com](https://www.sweetwater.com/c706--Applied_Acoustics_Systems--Virtual_Instruments_Software), [synthtopia.com](https://www.synthtopia.com/content/2025/02/04/applied-acoustics-systems-multiphonics-cv%E2%80%913-modular-synthesizer-adds-polyphony-more/) |
+
+## Arne Gleason
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Guitar AG | VST3 | Yes | MPE section › MPE Mode: On (off by default). Bend range: MPE Bend Range parameter (0-96, default 48). VST3 note expressions are not documented; use MPE over MIDI. | Free, experimental VST3 (PolyForm Noncommercial). Six-string voice allocation; lower zone only. A Windows .vst3 zip (v0.3.1) is listed but unverified; otherwise build from source. | [github.com](https://github.com/ArneGleason/guitar-ag), [github.com](https://github.com/ArneGleason/guitar-ag/blob/main/src/plugin/PluginProcessor.cpp), [raw.githubusercontent.com](https://raw.githubusercontent.com/ArneGleason/guitar-ag/main/docs/mpe-behavior.md) |
 
 ## Arturia
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Analog Lab | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. For each note's own expression, load the instrument itself: Pigments, or a V Collection instrument with an Enable MPE setting. |  | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
-| Arturia V Collection instruments | VST2, VST3, AAX, Standalone | Yes, limited | Gear icon › Settings tab › Enable MPE. Bend range: Bend Range next to it; set 48. | Many have MPE; one without that setting has none | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
-| Pigments | VST2, VST3, AAX, Standalone | Yes | Settings (top toolbar) › Enable MPE. Bend range: Bend Range next to it; set 48. |  | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Acid V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | A TB-303-style bass synth. The original hardware is monophonic; check the plugin's voice settings before expecting several MPE notes at once. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Analog Lab (Pro, V) | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. For each note's own expression, load the instrument itself: Pigments, or a V Collection instrument with an Enable MPE setting. | Arturia says Analog Lab itself isn't MPE compatible; in MPE Roll in FL Studio only the zone-wide lanes reach it. A 2022 V Collection 9.1 note mentions MPE settings in its side panel, which no Arturia document confirms. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [soundonsound.com](https://www.soundonsound.com/news/arturia-update-v-collection), [selector.news](https://selector.news/2022/11/23/arturia-v-collection-9-1-update/) |
+| ARP 2600 V3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Augmented BRASS | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. |  | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Augmented GRAND PIANO | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | Released October 2022: Steinway D samples combined with synthesis. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [andertons.co.uk](https://www.andertons.co.uk/arturia-augmented-grand-piano/) |
+| Augmented MALLETS | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | Part of V Collection 11: marimba, vibraphone, celesta and tubular bells plus synthesis. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Augmented PERSIA | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE (Arturia's usual path, not confirmed for PERSIA). | Released April 2026. MPE per retailers (Thomann, Muziker); Arturia's MPE page predates it, so the Enable MPE path is assumed from the other Augmented instruments. | [thomann.co.uk](https://www.thomann.co.uk/arturia_augmented_persia.htm), [muziker.pt](https://www.muziker.pt/arturia-augmented-persia), [kvraudio.com](https://www.kvraudio.com/news-print.php?id=66744) |
+| Augmented STRINGS | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | Arturia says the full version is fully MPE-compatible; the free Augmented STRINGS Intro supports MPE only partly. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Augmented STRINGS Intro | VST2, VST3, AAX, Standalone | Yes, limited | Settings wheel (gear icon, top right) › side panel › Enable MPE (Arturia's usual path, not confirmed for the Intro). | A free or bundled cut-down edition. Arturia says it supports MPE only partly, without saying which features are missing; the full Augmented STRINGS is fully MPE-compatible. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Augmented VOICES | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. |  | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Augmented WOODWINDS | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. |  | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Augmented YANGTZE | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | Part of V Collection 11. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| B-3 V2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Buchla Easel V | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE list. V Collection 9.2 added MTS-ESP microtuning to it, not MPE. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [cdm.link](https://cdm.link/whats-new-in-arturia-v-collection-9-2/) |
+| Clavinet V | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| CMI V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | MPE was added in the V Collection 9.2 update (per CDM). | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [cdm.link](https://cdm.link/whats-new-in-arturia-v-collection-9-2/) |
+| CP-70 V | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| CS-80 V4 | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | Only V4 is on Arturia's MPE list; CS-80 V3 is not. Whether its sounds get MPE inside Analog Lab is unclear: load the CS-80 V4 plugin itself. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [forum.arturia.com](https://forum.arturia.com/t/cs-80-v-seaboard-rise-2/1309) |
+| CZ V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | MPE was added in the V Collection 9.2 update (per CDM). | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [cdm.link](https://cdm.link/whats-new-in-arturia-v-collection-9-2/) |
+| DX7 V | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE list. An older Arturia staff post on KVR lists it for MTS-ESP microtuning only, not MPE. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8433144) |
+| Emulator II V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | Arturia's MPE list calls it Emulator V. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Farfisa V | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Jun-6 V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | A KVR user reports (weaker evidence) that with MPE on, only Slide and Bend show in the MPE panel and pressure does nothing. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8610327) |
+| Jup-8 V4 | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range (default 48, per ROLI). | Only V4 is on Arturia's MPE list; Jup-8 V3 is not. A KVR user reports (weaker evidence) that pressure does nothing once MPE is on. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [support.roli.com](https://support.roli.com/support/solutions/articles/36000489485-arturia-v-collection-setting-up-the-rise-2), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8610327) |
+| Jup-8000 V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range (default 48, per ROLI). | A Roland JP-8000 emulation, new in V Collection 11 (April 2025). | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [soundonsound.com](https://www.soundonsound.com/news/arturia-v-collection-11-released), [andertons.co.uk](https://www.andertons.co.uk/arturia-jup8000-v-esd/) |
+| KORG MS-20 V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. |  | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4764426253724-KORG-MS-20-V-General-Questions) |
+| Matrix-12 V2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Mellotron V | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Memory V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE (Arturia's usual path, not confirmed for Memory V). | Memorymoog emulation released May 2026. Retailers and press list MPE; Arturia's MPE support page predates it, so the Enable MPE path is assumed from its other instruments. | [pluginboutique.com](https://www.pluginboutique.com/products/17383-Memory-V), [mixdownmag.com.au](https://mixdownmag.com.au/news/product/arturia-memory-v-brings-the-legendary-memorymoog-to-modern-producers/), [weraveyou.com](https://weraveyou.com/2026/05/arturia-memory-v-brings-the-memorymoog-to-your-daw/) |
+| Mini V4 | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range (default 48, per ROLI). | Only V4 is on Arturia's MPE list; Mini V3 is not. Whether its sounds get MPE inside Analog Lab is unclear: load the Mini V4 plugin itself. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [support.roli.com](https://support.roli.com/support/solutions/articles/36000489485-arturia-v-collection-setting-up-the-rise-2) |
+| MiniBrute V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | Released May 2024. Unlike the monophonic hardware, the plugin is polyphonic (eight voices reported), so polyphonic MPE works. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [synthanatomy.com](https://synthanatomy.com/2024/05/arturia-minibrute-v-an-authentic-polyphonic-emulation-of-the-original-brute-synthesizer.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8793677) |
+| MiniFreak V | VST2, VST3, AAX, Standalone | Unclear | *Plain MIDI*. | Sources conflict: Thomann lists MPE, but Arturia's MPE list leaves it out and a forum user says it has none. Look for Enable MPE under the gear icon; if it is missing, use Plain MIDI. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [thomann.de](https://www.thomann.de/gr/arturia_minifreak_v.htm), [forum.arturia.com](https://forum.arturia.com/t/mpe-minifreak-v-poly-glide-is-it-possible-with-a-push3-etc/8368) |
+| Modular V3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| OP-Xa V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | An Oberheim OB-Xa emulation. ROLI's V Collection setup guide uses it as its example of the Enable MPE toggle. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [support.roli.com](https://support.roli.com/support/solutions/articles/36000489485-arturia-v-collection-setting-up-the-rise-2) |
+| Piano V3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Arturia's Augmented GRAND PIANO has MPE. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Pigments | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon, top toolbar) › Settings tab › MPE Settings › MPE: Enabled. Bend range: MPE Settings › Bend Range (default 48, max 96). | MPE since Pigments 2.1; the current version is Pigments 7. Slide (CC74) drives Filter Cutoff by default. Whether Pigments sounds get MPE inside Analog Lab is unclear: load the Pigments plugin. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [dl.arturia.net](https://dl.arturia.net/products/pigments/manual/pigments_Manual_5_0_0_EN.pdf), [support.roli.com](https://support.roli.com/support/solutions/articles/36000447351-arturia-pigments-using-the-seaboard-with-pigments) |
+| Pigments Play | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. The full Pigments has MPE. | Free cut-down Pigments released in 2026. No source mentions MPE, so do not assume it has Pigments' MPE. Its Windows formats were not confirmed one by one. | [arturia.com](https://www.arturia.com/products/software-instruments/pigments-play/free), [synthanatomy.com](https://synthanatomy.com/2026/08/arturia-pigments-play-the-free-player-version-of-the-multi-engine-synth.html), [sonicstate.com](https://sonicstate.com/news/2026/08/06/pigments-play-a-free-arturia-synth/) |
+| Prophet V3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Its successors Prophet-5 V and Prophet-VS V have MPE. | Discontinued: replaced by Prophet-5 V and Prophet-VS V. Not on Arturia's MPE list, but still widely installed, including as an Analog Lab engine. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [kvraudio.com](https://www.kvraudio.com/news/arturia-releases-v-collection-11-63649) |
+| Prophet-5 V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | Replaces the Prophet-5 half of the older Prophet V3. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Prophet-VS V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | Replaces the Prophet VS half of the older Prophet V3. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Pure LoFi | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | A hybrid lo-fi sampler/synth, new in V Collection 11 (April 2025). Whether its sounds get MPE inside Analog Lab is unclear: load the Pure LoFi plugin itself. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [soundonsound.com](https://www.soundonsound.com/news/arturia-v-collection-11-released) |
+| Pure SUB | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE (Arturia's usual path, not confirmed for Pure SUB). | A bass synth released August 2026. Arturia's store lists MPE with Slide; its MPE support page predates it, so the Enable MPE path is assumed from its other instruments. | [arturia.com](https://www.arturia.com/store/pure-sub), [synthtopia.com](https://www.synthtopia.com/?p=154538), [soundonsound.com](https://www.soundonsound.com/news/arturia-release-pure-sub) |
+| SEM V3 | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | The rebuilt SEM from V Collection 11 (April 2025), marketed as SEM V. Only this version is on Arturia's MPE list; SEM V2 is not. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [sonicstate.com](https://www.sonicstate.com/news/2025/04/24/arturia-v-collection-11-7-new-instruments) |
+| SFZ Engine |  | Not mentioned | *Plain MIDI*. | Known only as an engine inside Analog Lab, not as a separate plugin. Not on Arturia's MPE list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Solina V2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| SQ80 V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. |  | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Stage-73 V2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Synclavier V | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Synthi V | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE list. V Collection 9.2 added MTS-ESP microtuning to it, not MPE. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [cdm.link](https://cdm.link/whats-new-in-arturia-v-collection-9-2/) |
+| Synthx V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. | An Elka Synthex emulation, new in V Collection 11 (2025). | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility), [soundonsound.com](https://www.soundonsound.com/news/arturia-v-collection-11-released) |
+| Vocoder V | VST2, VST3, AAX, Standalone | Yes | Settings wheel (gear icon, top right) › side panel › Enable MPE. Bend range: Side panel MPE settings › Bend Range; set 48. |  | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| VOX Continental V2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| Wurli V3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Arturia's MPE compatibility list. | [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+
+## Audiaire
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Zone | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Wavetable synth with a parameter sequencer, a 32-step note sequencer and an 8-slot mod matrix; iLok. No MPE in reviews or launch coverage. | [musictech.com](https://musictech.com/reviews/audiaire-zone-review/), [sonicstate.com](https://www.sonicstate.com/news/2018/09/28/zone-an-advanced-parameter-sequencer-synth/) |
+
+## Audio Damage
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| AD-202 | VST3, CLAP, AAX | Yes | On without a switch. | Released August 2026, inspired by the Roland MC-202: one oscillator, 24 dB ladder filter, 8-voice poly, MTS-ESP microtuning, no DRM. How to set up MPE and CLAP note expressions are not documented. | [sonicstate.com](https://sonicstate.com/news/2026/08/17/ad-202-roland-mc-202-plugin-/), [blog.dubspot.com](https://blog.dubspot.com/plugins/audio-damage-ad-202), [rekkerd.org](https://rekkerd.org/audio-damage-releases-ad-202-single-oscillator-monosynth-plugin/) |
+| Axon 2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | FM drum synth: seven 2-operator voices played by a neural-network-style sequencer; it can also send MIDI to other plugins. Windows formats not verified. | [cdn.shopify.com](https://cdn.shopify.com/s/files/1/1550/9885/files/Axon_2.0_Manual.pdf), [soundonsound.com](https://www.soundonsound.com/reviews/audio-damage-axon-2), [pluginboutique.com](https://www.pluginboutique.com/products/7401-MPE-Synth-Bundle) |
+| Phosphor 3 | VST3, CLAP, AAX | Yes | MPE mode (where the switch sits is not documented). | Additive synth modelled on the alphaSyntauri; version 3 added an MPE mode, TUN tuning files and a new UI. Older releases also came as 64-bit VST2. | [audiodamage.com](https://www.audiodamage.com/collections/bundles/products/the-synthesizer-suite), [rekkerd.org](https://rekkerd.org/audio-damage-releases-phosphor-3-additive-synthesizer), [pluginboutique.com](https://www.pluginboutique.com/products/6465-Phosphor-3) |
+| Quanta 2 | VST3, CLAP, AAX | Yes | Per-instance settings › MPE mode. Bend range: Per-instance settings › Pitch bend range override (default not documented). | Granular synth. Takes per-note pressure, pitch bend and modulation over MPE, and also plain MIDI. Windows 10 or later. CLAP note expressions are not documented. | [audiodamage.com](https://audiodamage.com/products/ad055-quanta-2), [pluginboutique.com](https://pluginboutique.com/products/9550-Quanta-2), [kvraudio.com](https://www.kvraudio.com/product/quanta-2-by-audio-damage) |
+| Tattoo | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Drum synth. Weak evidence: Audio Damage's MPE listings leave it out, and nothing else mentions MPE. Windows formats not verified. | [pluginboutique.com](https://www.pluginboutique.com/products/7401-MPE-Synth-Bundle), [pluginboutique.com](https://pluginboutique.com/products/9550-Quanta-2) |
+
+## Audio Imperia
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Audio Imperia Kontakt libraries | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt libraries such as SOLO, Nucleus and Areia. They load in Kontakt 8, so the formats are Kontakt's and MPE Roll sees Kontakt. No MPE mention found. | [native-instruments.com](https://www.native-instruments.com/es/products/nks-partners/audio-imperia/solo/), [native-instruments.com](https://www.native-instruments.com/en/products/komplete/samplers/kontakt-8/specifications/) |
 
 ## Audio Modeling
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| SWAM instruments | VST2, VST3, AAX, Standalone | Yes, limited | MIDI settings › MIDI Profile: MPE. | One note at a time | [static.audiomodeling.com](https://static.audiomodeling.com/manuals/brass/SWAM%20Solo%20Brass%20-%20User%20Manual%20-%20v3.6.0.pdf) |
+| SWAM Solo Brass | VST2, VST3, AAX, Standalone | Yes, limited | MIDI icon › mapping presets › MPE Default. Bend range: MIDI mapping page; the factory range differs by family, and MPE Default's value is not documented. | Monophonic, one voice per instance: overlapping MPE notes play legato, not chords. MPE Default is documented for SWAM solo instruments in general, not per brass instrument. | [rogerlinndesign.com](https://rogerlinndesign.com/support/support-linnstrument-recommended-sounds), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9266283) |
+| SWAM Solo Strings | VST2, VST3, AAX, Standalone | Yes, limited | MIDI icon › mapping presets › MPE Default. Bend range: MIDI mapping page; the factory range differs by family, and MPE Default's value is not documented. | Monophonic, one voice per instance: overlapping MPE notes play legato, not chords. In the bowed strings MPE Default leaves CC74 unassigned. PolySWAM is a separate polyphonic product. | [rogerlinndesign.com](https://rogerlinndesign.com/support/support-linnstrument-recommended-sounds), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9266283), [blog.dubspot.com](https://blog.dubspot.com/audio-modeling-polyswam-2026) |
+| SWAM Solo Woodwinds | VST2, VST3, AAX, Standalone | Yes, limited | MIDI icon › mapping presets › MPE Default. Bend range: MIDI mapping page; the factory range differs by family, and MPE Default's value is not documented. | Saxophones, flutes, double reeds and clarinets, sold singly or as a bundle, one plugin per instrument. Monophonic: overlapping MPE notes play legato, not chords. | [rogerlinndesign.com](https://rogerlinndesign.com/support/support-linnstrument-recommended-sounds), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9266283) |
+
+## Audio Tech Hub
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| TrapSynth | VST2, VST3 | Not mentioned \* | *Plain MIDI*. | Hybrid rompler: 13 layers, 1,000+ instruments, 100 wavetables and a 32-step arpeggiator. Sold through ADSR. Only marketing and reseller pages were found, none mentioning MPE. | [rekkerd.org](https://rekkerd.org/?p=258502), [adsrsounds.com](https://www.adsrsounds.com/product/software/audio-tech-hub-trapsynth-vst-rompler/) |
+
+## Audiomodern
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Soundbox | VST2, VST3, AAX, Standalone | Yes | On without a switch. | Free sampler platform with paid sound packs. Full MPE came in version 1.3.0 (September 2026); the Windows player found was 1.2.1, so update. Where to turn MPE on was not found. | [audiomodern.com](https://audiomodern.com/?p=194335), [sonicstate.com](https://sonicstate.com/news/2026/09/11/soundbox-now-speaks-mpe/), [synthtopia.com](https://www.synthtopia.com/content/2024/10/04/audiomodern-intros-soundbox-mpe-sampler-for-ipad-mac-windows/) |
+
+## AudioRealism
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| ABL3 | VST2 | Not mentioned \* | *Plain MIDI*. | Monophonic TB-303 emulation with a pattern sequencer. Formats from 2016 coverage; VST3 not confirmed. | [soundonsound.com](https://www.soundonsound.com/reviews/audiorealism-bassline-3) |
+| ADM | VST2 | Not mentioned \* | *Plain MIDI*. | Drum machine covering 909, 808 and 606 styles. Windows formats uncertain. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8174449) |
+
+## Baby Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Atoms | VST3, AAX | Yes | On without a switch. | Physical-modelling synth (NAMM 2024). No MPE switch, bend-range setting or manual was found. One retailer lists VST2 and a forum title lists CLAP; both unconfirmed. | [gearnews.com](https://www.gearnews.com/?p=173208), [thomann.co.uk](https://thomann.co.uk/baby_audio_atoms.htm), [musicradar.com](https://www.musicradar.com/news/baby-audio-atoms-synth-plugin) |
+| BA-1 | VST3, AAX | Not mentioned | *Plain MIDI*. | Synth modelled on a 1981 portable synth. One retailer also lists VST2 on Windows, unconfirmed. | [thomann.ae](https://thomann.ae/baby_audio_ba_1.htm), [musicstore.com](https://www.musicstore.com/en_AT/EUR/Baby-Audio-BA-1-License-Code/art-PCM0018534-000), [blog.dubspot.com](https://blog.dubspot.com/plugins/compare/ba-1-vs-vital) |
+| Grainferno | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Granular synth released March 2026, morphing between two source slots. It is new, so check Baby Audio's page for later MPE. | [avid.com](https://www.avid.com/plugins/baby-audio-grainferno), [musictech.com](https://musictech.com/products/baby-audio-grainferno-synthesizer-plugin/) |
+| Tekno | VST3, AAX | Not mentioned | *Plain MIDI*. | Drum synth with 18 synthesised engines; its v1.1 sequencer exports MIDI. Windows formats not verified. | [pluginboutique.com](https://www.pluginboutique.com/products/17470-Baby-Audio-Synth-Bundle) |
+
+## BandLab (Cakewalk)
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Rapture Pro | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Oscillator and sample-based synth with a Perform mode. Legacy: coverage dates from 2013-2016, and whether it is still sold is unconfirmed. | [kvraudio.com](https://www.kvraudio.com/news/31991), [synthanatomy.com](https://synthanatomy.com/2016/03/easter-deal-cakewalk-z3ta2-and-rapture.html) |
+| Z3TA+ 2 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Waveshaping synth (2011); its Adaptive Pitch Bend is not MPE. Legacy: all coverage dates from 2011-2016, and whether it is still sold is unconfirmed. | [musicradar.com](https://www.musicradar.com/news/tech/cakewalk-z3ta2-full-specs-revealed-482932), [kvraudio.com](https://www.kvraudio.com/news/31991) |
+
+## Best Service
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Engine 2 | VST2, AAX, Standalone | Not mentioned | *Plain MIDI*. | Best Service's free legacy sample player; MPE Roll sees Engine, not the library in it. Newer libraries use the VST3-only Engine Player, where no MPE was found either. | [bestservice.com](https://www.bestservice.com/downloads), [bestservice.com](https://www.bestservice.com/en/news/engineplayer_faq.html), [rekkerd.org](https://rekkerd.org/?p=49338) |
+
+## BFD Drums
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| BFD Player | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Free drum player (October 2023) with 5.25 GB of content. Windows 10 or later. | [kvraudio.com](https://kvraudio.com/news/bfd-drums-releases-bfd-player---free-drum-instrument-58989) |
+| BFD3 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Formerly FXpansion; ROLI owned it from 2016 and sold it to inMusic in 2020. The 3.5 update (2025) added VST3 and AAX alongside VST2. | [bonedo.de](https://www.bonedo.de/artikel/bfd-3-5-drum-plugin-synthesizer), [kvraudio.com](https://www.kvraudio.com/news-print.php?id=58989) |
+
+## Bitsonic
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Keyzone Classic | VST2, VST3 | Not mentioned \* | *Plain MIDI*. | The original free VST is no longer available. Keyzone Classic 4 is VST3 and runs in the Bitsonic Sample Player; version 3 ran in Decent Sampler. | [kvraudio.com](https://www.kvraudio.com/product/keyzone-classic-4-by-bitsonic), [hiphopmakers.com](https://hiphopmakers.com/keyzone-classic-vst-plugin) |
+
+## Bjt2
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Crescendo |  | Yes \* | On without a switch. | Free, Windows. Programmable engine that works as an instrument, effect or MIDI processor; imports SoundFonts and Scala tunings. Updated often. Plugin formats not confirmed. | [vi-control.net](https://vi-control.net/community/threads/free-crescendo-v1-0-181-programmable-synth-fx-midi-engine-custom-sinc-resampling-soundfont-import-temperaments.171227/), [kvraudio.com](https://www.kvraudio.com/product/crescendo-by-bjt2/reviews) |
+
+## Blamsoft
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| VK-1 Viking Synthesizer | VST2 | Not mentioned \* | *Plain MIDI*. | Free monophonic synth inspired by the Moog Voyager, with 228 presets. Originally a Reason Rack Extension; a VST since 2017. | [bedroomproducersblog.com](https://bedroomproducersblog.com/2017/12/14/vk-1-viking-synthesizer-free/), [synthanatomy.com](https://synthanatomy.com/?p=17842) |
+
+## Blaukraut Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Charlatan |  | Not mentioned \* | *Plain MIDI*. | Free virtual analog synth for Windows only, now Charlatan 3 (v3.3.2). Plugin formats not confirmed. | [bedroomproducersblog.com](https://bedroomproducersblog.com/2024/03/19/blaukraut-charlatan-3/), [kvraudio.com](https://www.kvraudio.com/product/charlatan-by-blaukraut-engineering/timeline) |
+
+## BLEASS
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Alpha | VST3, AAX | Yes | On without a switch. | Virtual-analog synth. Where to set up MPE on desktop and the bend range were not found; it may work like Omega's General section. The iOS version takes MPE Pressure. | [apps.apple.com](https://apps.apple.com/py/app/bleass-alpha-synthesizer/id1476042892?l=en-GB), [plugin-alliance.com](https://plugin-alliance.com/en/products/bleass-alpha-synthesizer.html), [bonedo.de](https://www.bonedo.de/artikel/bleass-alpha-und-omega-test) |
+| Megalit | VST3, AAX | Yes | On without a switch. | Released June 2025. MPE covers polyphonic aftertouch, slide and X/Y modulation. Windows 8 or later; no CLAP. Only retailer sources; the switch and bend range were not found. | [thomann.co.uk](https://www.thomann.co.uk/bleass_megalit.htm), [thomann.co.uk](https://www.thomann.co.uk/bleass_megalit_bundle.htm) |
+| Omega | VST3, AAX | Yes | General section › MPE: set Slide and Pressure targets. | 4-operator FM synth. MPE covers polyphonic pressure, slide and X/Y. Windows 8 or later; no CLAP. The bend range setting was not found. | [thomann.co.uk](https://www.thomann.co.uk/bleass_omega.htm), [pluginboutique.com](https://www.pluginboutique.com/product/1-Instruments/4-Synth/8612-BLEASS-Omega-Synth) |
+| SampleWiz 2 | VST3, AAX | Yes | On without a switch. | BLEASS's sampler, made with Jordan Rudess, with granular and cloud engines. MPE works through Slide and Pressure modulation; the switch location and bend range were not found. | [pluginboutique.com](https://www.pluginboutique.com/products/11029-BLEASS-SampleWiz-2), [thomann.es](https://www.thomann.es/bleass_samplewiz_2.htm) |
+
+## Brain Control
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Tunefish 4 | VST2, VST3 | **No** | *Plain MIDI*. | Free and open source (v4.3.0). It ignores MIDI channels, so MPE notes merge into one instrument and each note's bend moves every voice. Found by reading its source code. | [github.com](https://github.com/paynebc/tunefish/blob/master/src/tunefish4/Source/PluginProcessor.cpp), [github.com](https://github.com/paynebc/tunefish/blob/master/src/tunefish4/Source/synth/tf4.cpp), [github.com](https://github.com/paynebc/tunefish/blob/master/src/tunefish4/Tunefish4.jucer) |
+
+## Bruce Sutherland
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| JuceOPLVSTi | VST2 | **No** | *Plain MIDI*. Use Plain MIDI and keep pitch bends within one semitone. | Free open-source OPL2/OPL3 (AdLib) chip emulator. Pitch bend is global with a hard-coded range of just under +/-1 semitone, and there is no channel or MPE handling. Last code change was in March 2024. | [github.com](https://github.com/bsutherland/JuceOPLVSTi/blob/master/Source/PluginProcessor.cpp), [github.com](https://github.com/bsutherland/JuceOPLVSTi/blob/master/readme.md) |
 
 ## Cherry Audio
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Elka-X | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. |  | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/631-does-the-elka-x-synthesizer-have-mpe-support) |
-| Memorymode | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon) › Interface › Enable MPE mode. Bend range: Its MPE tab; set 48. |  | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Atomika | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Polivoks emulation. Not on Cherry's MPE list and no MPE mention found. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Blue3 Organ | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Modelled tonewheel organ. Not on Cherry's MPE list. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| CA2600 | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Cherry Audio chose not to add MPE to CA2600, and it is not on Cherry's list of MPE instruments. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/639-does-the-ca2600-synthesizer-support-mpe), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| CR-78 Drum Machine | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Drum machine, so MPE is unlikely to matter. Not on Cherry's MPE list. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Crumar DS-2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Released March 31, 2026. Mono synth section plus a 32-note poly section, with aftertouch and polyphonic aftertouch; MPE is not mentioned. VST2 not confirmed. | [cherryaudio.com](https://cherryaudio.com/news/cherry-audio-launches-crumar-ds-2-synthesizer), [thomannmusic.com](https://www.thomannmusic.com/cherry_audio_crumar_ds_2.htm) |
+| Crumar Spirit | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Released 2025. Not on Cherry's MPE list and no MPE mention found. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| DCO-106 | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon) › Interface › Enable MPE Mode; the MPE button in the top toolbar then opens the MPE tab. Bend range: MPE tab (default 48). | On Cherry Audio's list of MPE instruments. Map Y (timbre) and Z (pressure) with right-click › MPE Assign. The arpeggiator must be off for MPE to work. Windows formats not checked. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [docs.cherryaudio.com](https://docs.cherryaudio.com/cherry-audio/instruments/dco-106/mpe-settings) |
+| Dreamsynth | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon) › Interface › Enable MPE Mode; the MPE button in the top toolbar then opens the MPE tab. Bend range: MPE tab (default 48). | On Cherry Audio's list of MPE instruments. Map Y (timbre) and Z (pressure) with right-click › MPE Assign (polyphonic parameters only). Windows formats not checked. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [docs.cherryaudio.com](https://docs.cherryaudio.com/cherry-audio/instruments/dreamsynth/mpe) |
+| Eight Voice | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Cherry's FAQ says Eight Voice has no MPE, and it is not on Cherry's list of MPE instruments. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/643-does-eight-voice-support-mpe), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/category/39-faq) |
+| Elka-X | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Cherry decided not to add MPE to Elka-X. Cherry staff reportedly said its dual layers don't suit Cherry's MPE implementation. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/631-does-the-elka-x-synthesizer-have-mpe-support), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/category/39-faq) |
+| Ensoniq ESQ-1 | VST2, VST3, AAX, Standalone | Yes | Choose MPE as the voice mode (Mono, Poly, Unison or MPE); the exact control is not documented. | Released June 2026, licensed from Ensoniq owner Creative Technology. MPE and poly aftertouch from release. Not on Cherry's older MPE list; whether Settings › Interface also needs MPE on is unknown. | [store.cherryaudio.com](https://store.cherryaudio.com/bundles/esq-1-synthesizer), [thomann.co.uk](https://www.thomann.co.uk/cherry_audio_ensoniq_esq_1.htm) |
+| GX-80 | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Cherry staff say MPE is not part of its dual-layer design. It responds to polyphonic aftertouch, and its 'Last' aftertouch mode applies channel pressure to the newest note. | [forums.cherryaudio.com](https://forums.cherryaudio.com/viewtopic.php?p=11194), [forums.cherryaudio.com](https://forums.cherryaudio.com/viewtopic.php?p=11651), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Harmonia | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Cherry's MPE list and no MPE mention found. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| KR-55C Drum Machine | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Drum machine, new in 2025. Not on Cherry's MPE list. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Lowdown | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Also called Lowdown Bass. Not on Cherry's MPE list and no MPE mention found. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Memorymode | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon) › Interface › Enable MPE Mode; the MPE button in the top toolbar then opens the MPE tab. Bend range: MPE tab (default 48). | Version 1; Memorymode 2 (August 2026) replaces it. Cherry's FAQ says it plays mono from a normal keyboard if MPE mode is left on, so turn MPE mode off for Plain MIDI. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [docs.cherryaudio.com](https://docs.cherryaudio.com/cherry-audio/instruments/memorymode/mpe), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/638-does-the-memorymode-synthesizer-support-mpe) |
+| Memorymode 2 | VST2, VST3, AAX, Standalone | Yes | Turn on MPE in its settings (other Cherry synths: Settings (gear icon) › Interface › Enable MPE Mode). | Released August 2026, replacing Memorymode. Dual layer, 16 voices per layer; MPE and poly aftertouch drive a touch modulation section. The exact enable path was not confirmed. | [bestservice.com](https://www.bestservice.com/en/memorymode_2.html), [synthanatomy.com](https://synthanatomy.com/2026/08/cherry-audio-memorymode-2-the-memorymoog-emulation-gets-a-beefy-makeover.html), [sonicstate.com](https://sonicstate.com/news/2026/08/25/memorymode-2-arrives-with-dual-layer-architecture-and-800-presets/) |
+| Mercury-4 | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon) › Interface › Enable MPE Mode; the MPE button next to MIDI in the top toolbar then opens the MPE tab. Bend range: MPE tab (default 48). | On Cherry Audio's list of MPE instruments. Map Y (timbre) and Z (pressure) with right-click › MPE Assign (polyphonic parameters only). Windows formats not checked. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [docs.cherryaudio.com](https://docs.cherryaudio.com/cherry-audio/instruments/mercury-4/mpe) |
+| Mercury-6 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Cherry's Mercury-4 has MPE. | Jupiter-6 emulation (March 2023). Not on Cherry's MPE list, and its launch news names no MPE. | [cherryaudio.com](https://cherryaudio.com/news/cherry-audio-launches-mercury-6-synthesizer), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Mercury-8 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Cherry's Mercury-4 has MPE. | Jupiter-8 emulation (2025). Listings mention 'expressive performance capabilities' but never MPE. Not on Cherry's MPE list. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [pluginboutique.com](https://www.pluginboutique.com/products/16471-Mercury-Synthesizer-Collection-Bundle) |
+| Miniverse | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon) › Interface › Enable MPE Mode; the MPE button in the top toolbar then opens the MPE tab. Bend range: MPE tab (default 48). | On Cherry Audio's list of MPE instruments. Map Y (timbre) and Z (pressure) with right-click › MPE Assign (polyphonic parameters only). Windows formats not checked. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [docs.cherryaudio.com](https://docs.cherryaudio.com/cherry-audio/instruments/miniverse/mpe) |
+| Novachord + Solovox | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Cherry's MPE list and no MPE mention found. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Octave Cat | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon) › Interface › Enable MPE Mode; the MPE button in the top toolbar then opens the MPE tab. Bend range: MPE tab (default 48). | On Cherry Audio's list of MPE instruments. Map Y (timbre) and Z (pressure) with right-click › MPE Assign. Windows formats not checked. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [docs.cherryaudio.com](https://docs.cherryaudio.com/cherry-audio/instruments/octave-cat/mpe) |
+| ODC 2800 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | ARP Odyssey emulation (2025). Not on Cherry's MPE list and no MPE mention found. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| P-10 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Prophet-5/10 emulation (November 2024). Documented expression is velocity and polyphonic aftertouch, not MPE. Not on Cherry's MPE list. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [musictech.com](https://musictech.com/news/gear/cherry-audio-p-10/) |
+| Pentaphonic | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Released October 2026; Gleeman Pentaphonic recreation. Channel and polyphonic aftertouch drive keyboard-pressure modulation; MPE is not mentioned. | [synthtopia.com](https://www.synthtopia.com/content/2026/10/07/cherry-audio-revives-rare-gleeman-pentaphonic-as-a-modern-soft-synth/), [kvraudio.com](https://www.kvraudio.com/news/cherry-audio-releases-pentaphonic-synthesizer-plugin-vst-au-and-aax-68982) |
+| Polymode | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Cherry's support pages say Polymode has no MPE because its designers decided against adding it. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/section/99-polymode-synthesizer), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Pro Soloist | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Not on Cherry's MPE list and no MPE mention found. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| PS-20 | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon) › Interface › Enable MPE Mode; the MPE button in the top toolbar then opens the MPE tab. Bend range: MPE tab (default 48). | On Cherry Audio's list of MPE instruments. Its manual asks for an MPE lower zone ('Lower Mode'), which is what MPE Roll sends. Not the same product as PS-3300. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [docs.cherryaudio.com](https://docs.cherryaudio.com/cherry-audio/instruments/ps-20/mpe) |
+| PS-3300 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Cherry's PS-20 has MPE. | Korg PS-3300 emulation. Not on Cherry's MPE list (the similarly named PS-20 is) and no MPE mention found. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [musicradar.com](https://www.musicradar.com/reviews/cherry-audio-ps-3300-review) |
+| Quadra | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Cherry's FAQ says Quadra has no MPE, and it is not on Cherry's list of MPE instruments. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/641-does-quadra-support-mpe), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Rhodes Chroma | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Chroma emulation with SysEx patch import and an emulated Expander (layer/split). Not on Cherry's MPE list and no MPE mention found. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [cherryaudio.com](https://cherryaudio.com/news/cherry-audio-2023-recap-5-years) |
+| SH-MAX | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Released February 2026; combines Roland SH-5, SH-7 and SH-3A. Touch effects follow channel or polyphonic aftertouch; MPE is not mentioned. | [cherryaudio.com](https://cherryaudio.com/news/cherry-audio-fuses-three-classic-synths-into-new-sh-max-powerhouse), [thomann.co.uk](https://www.thomann.co.uk/cherry_audio_sh_max.htm) |
+| Sines | VST2, VST3, AAX, Standalone | Yes | Settings (gear icon) › Interface › Enable MPE Mode; the MPE button in the top toolbar then opens the MPE tab. Bend range: MPE tab (default 48). | On Cherry Audio's list of MPE instruments. Map Y (timbre) and Z (pressure) with right-click › MPE Assign. Windows formats not checked. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments), [docs.cherryaudio.com](https://docs.cherryaudio.com/cherry-audio/instruments/sines/mpe), [sweetwater.com](https://www.sweetwater.com/c716--Cherry_Audio_MPE_Virtual_Synthesizer_Software) |
+| Surrealistic MG-1 Plus | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Cherry's support FAQ 'Does Surrealistic MG-1 Plus support MPE?' says it does not (known from search summaries; the page itself was not opened). Not on Cherry's MPE list. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/644-does-surrealistic-mg-1-plus-support-mpe), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Synthesizer Expander Module | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Ships in mono and poly versions. Not on Cherry's MPE list and no MPE mention found. | [store.cherryaudio.com](https://store.cherryaudio.com/bundles/synthesizer-expander-module-bundle), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Trident Mk III | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Released October 2025. Responds to velocity, aftertouch including polyphonic aftertouch, and pedal expression; MPE is not mentioned. VST2 not confirmed. | [synthtopia.com](https://www.synthtopia.com/?p=150581), [thomann.co.uk](https://www.thomann.co.uk/cherry_audio_trident_mk3.htm) |
+| Voltage Modular | VST2, VST3, AAX, Standalone | Yes, limited | Add the MPE Interface module (sold separately) and patch its outputs into polyphonic modules. | MPE came in v1.1 (late 2018) through the MPE Interface module, sold separately ($10 at launch, also in the Year One Collection). No global MPE switch; it needs manual patching. | [cherryaudio.com](https://cherryaudio.com/news/mpe-interface-and-poly-unison), [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/617-can-i-use-my-mpe-device-with-voltage-modular), [synthanatomy.com](https://synthanatomy.com/2018/12/news-cherry-audio-voltage-modular-1-1-released.html) |
+| Wurlybird 140B | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Sample-based Wurlitzer 140B. Not on Cherry's MPE list. | [cherryaudio.kayako.com](https://cherryaudio.kayako.com/article/539-cherry-audio-mpe-enabled-instruments) |
+| Yellowjacket | VST2, VST3, AAX, Standalone | **No** \* | *Plain MIDI*. | EDP Wasp tribute, new in 2025 (Synth Stack 6). Its user guide says it is not MPE compatible. | [docs.cherryaudio.com](https://docs.cherryaudio.com/pdf/Yellowjacket%20User%20Guide.pdf) |
+
+## Cinesamples
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Musio | VST3, AAX | Not mentioned | *Plain MIDI*. | Cinesamples' own player for its whole catalogue, including the CineSymphony series. No MPE found. VST2 and standalone versions not confirmed. | [soundonsound.com](https://www.soundonsound.com/reviews/cinesamples-musio), [musictech.com](https://musictech.com/news/gear/entire-cinesamples-catalogue-in-one-plugin-musio) |
+
+## CWITEC
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| TX16Wx | VST2, VST3 | Not mentioned | *Plain MIDI*. | Free sampler with a paid Pro version. It has polyphonic glide, microtuning (MTS-ESP since 3.5) and a per-voice mod matrix, but no MPE or note expressions are documented. | [pluginboutique.com](https://www.pluginboutique.com/products/17446-TX16Wx-Software-Sampler), [kvraudio.com](https://www.kvraudio.com/developer/1555) |
+
+## Cymatics
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Ocean Pluck | VST3, AAX | Unclear | *Plain MIDI*. | Karplus-Strong pluck instrument (v1.1.0). One French news item calls it an MPE synth, but Cymatics' own pages never mention MPE. Try MPE, and use Plain MIDI if held notes bend together. | [cymatics.fm](https://cymatics.fm/pages/ocean-pluck-c), [fr.audiofanzine.com](https://fr.audiofanzine.com/cymatics/news/), [kvraudio.com](https://www.kvraudio.com/product/ocean-pluck-by-cymatics) |
+
+## D16 Group
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Drumazon 2 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | TR-909 emulation (September 2023). | [pluginboutique.com](https://www.pluginboutique.com/articles/41-Emusician-review-D16-Group-Drumazon) |
+| LuSH-101 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Multi-layer SH-101-style synth. Windows formats assumed from D16's usual range. | [kvraudio.com](https://kvraudio.com/product/lush-101-by-d16-group/details) |
+| Nepheton 2 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | TR-808 emulation (December 2023). | [fullcompass.com](https://www.fullcompass.com/prod/265137-d16-group-classic-boxes-bundle-classic-boxes-roland-collection-virtual-software-instrument-plugin-bundle) |
+| Nithonat 2 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | TR-606 emulation (June 2024). | [kvraudio.com](https://www.kvraudio.com/news/d16_group_releases_nithonat_drum_machine_11849) |
+| Phoscyon 2 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Monophonic TB-303 emulation with a sequencer (2023). | [fullcompass.com](https://www.fullcompass.com/prod/265137-d16-group-classic-boxes-bundle-classic-boxes-roland-collection-virtual-software-instrument-plugin-bundle) |
+| PunchBox | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Bass drum synth. A news listing shows PunchBox 2 released in June 2026; not confirmed with D16. | [kvraudio.com](https://kvraudio.com/product/punchbox-by-d16-group/reviews/4628) |
+
+## Daichi Laboratory
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Synth1 | VST2 | Not mentioned \* | *Plain MIDI*. | Free classic synth (16 voices; the 1.13 beta is native 64-bit). Not updated in years. | [en.wikipedia.org](https://en.wikipedia.org/wiki/Synth1), [kvraudio.com](https://www.kvraudio.com/product/synth1-by-daichi-laboratory-ichiro-toda) |
+
+## Decent Samples
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Decent Sampler | VST2, VST3, AAX, Standalone | Yes, limited | File › MIDI Input Settings... › MPE mode: On. | MPE in the player since 1.11.6 (alpha in early 2025), fully MPE-compatible by December 2025. Per-note timbre and pressure work only in libraries built for them. Exquis MPE kits need 1.13.11+. | [github.com](https://github.com/DecentSamples/decentsampler-developers-guide/blob/main/docs/source/the-modulators-element.md), [decentsamples.com](https://www.decentsamples.com/tag/mpe/), [sonicstate.com](https://sonicstate.com/news/2025/12/18/dualo-du-touch-and-du-touch-sounds-/) |
+
+## Decomposer
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Sitala |  | Not mentioned \* | *Plain MIDI*. | Free 16-pad drum sampler; v2.1 (2026) added Reaper-oriented features. Windows formats not confirmed. | [kvraudio.com](https://www.kvraudio.com/news/decomposer-updates-sitala-drum-sampler-to-v2-1-67679) |
+
+## Delta-V Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| SpaceCraft | VST3 | Yes | On without a switch. Bend range: Pitch bend amount setting (per the iOS 1.1 notes); default not given. | Granular synth from iOS, on desktop through Tracktion (VST3/AU). With MPE: 16 voices, per-note pressure (volume), pitch bend (Glide) and Y to grain position (Slide). No MPE switch is documented. | [pluginboutique.com](https://www.pluginboutique.com/products/8141-Delta-V-SpaceCraft), [synthanatomy.com](https://synthanatomy.com/2019/02/spacecraft-granular-synth-1-1-update-features-mpe-support.html), [bonedo.de](https://www.bonedo.de/artikel/tracktion-bringt-delta-v-spacecraft-granular-synth-als-auvst-plug-in) |
+
+## Digital Suburban
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Dexed | VST3, CLAP, Standalone | Yes, limited | PARM (top panel) › MPE row › MPE (on by default). Bend range: PARM › MPE row › Bend Range, 0-96 (default 24). | MPE since 0.9.5 (from the Surge Synth Team). Only per-note pitch bend works; pressure and timbre do nothing. MPE settings aren't saved with the project, so check them after reloading. | [github.com](https://github.com/asb2m10/dexed/blob/master/source/ui/window/ParamDialog.cpp), [github.com](https://github.com/asb2m10/dexed/blob/master/source/msfa/controllers.h), [github.com](https://github.com/asb2m10/dexed/blob/master/source/midi/PluginMidi.cpp) |
+
+## discoDSP
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Bliss | VST2, VST3, AAX, CLAP | Yes | Turns on by itself when it receives an MPE Configuration Message. | Full MPE since 3.14 (June 2026). Its MPE panel routes each note's pitch bend, timbre (CC74) and pressure in six slots; MPE presets save the setup. Windows formats not checked. | [discodsp.com](https://www.discodsp.com/bliss/), [discodsp.com](https://www.discodsp.com/pdf/bliss.pdf) |
+| Discovery Pro | VST2, VST3, AAX, CLAP | Yes | Config menu › MPE Mode (per bank); also turns on by itself from the MPE (RPN) handshake. Bend range: Global bend range setting: 2, 3, 12, 24 or 48 (MPE default 48). | Full MPE (per-voice pressure, pitch bend and CC74) since 8.20 (June 2026). MPE Mode is set per bank and excludes Poly Aftertouch. Windows formats not checked. | [discodsp.com](https://www.discodsp.com/news/), [kvraudio.com](https://www.kvraudio.com/news/discodsp-updates-discovery-pro-synth-to-v8-20-67172) |
+| OB-Xd 2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. The commercial OB-Xd 3 has MPE (since 3.20). | Free OB-Xd 2.20 (August 2026), closed-source freeware since 2.11. It shares the plugin name OB-Xd with the commercial OB-Xd 3. | [github.com](https://github.com/reales/OB-Xd/blob/main/README.md), [kvraudio.com](https://www.kvraudio.com/news-print.php?id=66917) |
+| OB-Xd 3 | VST2, VST3, AAX, Standalone | Yes | MPE settings › Enable (3.22+); also turns on by itself from an MPE Configuration Message. Bend range: Follows RPN 0 from the sender; MPE settings › pitch bend range (3.22+): 2, 3, 12, 24 or 48. | MPE in the commercial OB-Xd 3 only: added in 3.20 (May 2026), auto-setup in 3.21, MPE settings in 3.22. Poly AT mode turns MPE off. No CLAP build found. | [discodsp.com](https://www.discodsp.com/obxd/), [kvraudio.com](https://www.kvraudio.com/news/discodsp-updates-ob-xd-virtual-analog-synth-to-v3-21-67063), [kvraudio.com](https://www.kvraudio.com/news/67270) |
+| Vertigo | VST2, VST3, AAX, CLAP | Unclear | *Plain MIDI*. | Additive synth. One report says 5.4 (September 2026) added MPE, but no second source confirms it, and a 5.0 forum reply suggests it had none then. Windows formats not checked. | [discodsp.com](https://www.discodsp.com/vertigo/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9150264) |
+
+## DISTRHO
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Cardinal | VST2, VST3, CLAP, Standalone | Yes, limited | Host MIDI module › right-click › Polyphony mode: MPE, MIDI channel: All, Polyphony channels: 16. Bend range: Host MIDI module › right-click › Pitch bend range (0-12, 24, 36 or 48; default 0). | Free plugin version of VCV Rack 2; load the Cardinal Synth variant. MPE works only in patches built for it. For CC74, use Host MIDI CC with MPE mode. CLAP is a work in progress. | [github.com](https://github.com/DISTRHO/Cardinal/blob/main/plugins/Cardinal/src/HostMIDI.cpp), [github.com](https://github.com/DISTRHO/Cardinal/blob/main/plugins/Cardinal/src/HostMIDI-CC.cpp), [github.com](https://github.com/DISTRHO/Cardinal/blob/main/README.md) |
+
+## Dmitry Sches
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Diversion | VST2 | Not mentioned \* | *Plain MIDI*. | Dmitry Sches' first synth (2011). Other formats, and whether it is still sold, were not verified. | [kvraudio.com](https://www.kvraudio.com/developer/ds-audio) |
+| Thorn | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Spectral synth (three spectral oscillators, harmonic filter, arpeggiator). Four searches found no mention of MPE. | [plugivery.com](https://www.plugivery.com/about/pr55-DS-Audio-Software-Release-Thorn), [synthanatomy.com](https://synthanatomy.com/2017/10/dmitry-sches-latest-development-is-thorn-a-versatile-spectral-synthesizer-plugin-for-pc-mac.html) |
+
+## Dreamtonics
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Synthesizer V Studio 2 Pro | VST3 | Not mentioned \* | *Plain MIDI*. Write the melody and pitch curves in its own editor, or drag MIDI into it. | Vocal synth that sings from its own score, so notes from MPE Roll don't perform it like a synth. A keyboard can enter notes into its editor in real time. | [sweetwater.com](https://www.sweetwater.com/store/detail/synthvstu2p), [pluginboutique.com](https://www.pluginboutique.com/products/14980-Synthesizer-V-Studio-2-Pro-3-Voices) |
+
+## DSK Music
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| DSK free instruments (DSK ChoirZ and others) | VST2 | Not mentioned \* | *Plain MIDI*. | Freeware SynthEdit/SynthMaker romplers and synths, mostly Windows VST2. Many older titles may be 32-bit only, which MPE Roll can't load directly. | [rekkerd.org](https://rekkerd.org/dsk-vsti/), [rekkerd.org](https://rekkerd.org/dsk-music-releases-dsk-soundfx-vol-1-free-rompler-plugin) |
+
+## EastWest
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Opus | VST3, AAX, Standalone | Yes | Not documented; check Opus Preferences › MIDI and the instrument's Inspector. Bend range: Opus Inspector › Pitch Bend Range (about 1 semitone by default on some instruments); FL's own setting has no effect. | Engine for Hollywood Orchestra Opus Edition and ComposerCloud (succeeded PLAY). A review and a retailer call it MPE-capable; EastWest's own pages don't mention MPE. No VST2. | [bonedo.de](https://www.bonedo.de/artikel/eastwest-hollywood-orchestra-opus-edition-test/), [thomann.fr](https://www.thomann.fr/eastwest_hollywood_orchest_opus_diamond.htm), [vi-control.net](https://vi-control.net/community/threads/pitch-bend-hollywood-opus-issue.153325/) |
+| PLAY | VST2, AAX | Not mentioned \* | *Plain MIDI*. Its successor Opus is reported to have MPE. | EastWest's legacy engine, superseded by Opus in 2020 but still used by older libraries; treat it as discontinued. VST3 not confirmed. | [sonicstate.com](https://www.sonicstate.com/news/2020/12/01/eastwest-hollywood-orchestra-opus-edition/) |
+
+## Embertone
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Kontakt libraries (Joshua Bell Violin, Friedlander Violin, Walker 1955 Steinway D and others) | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Deeply sampled libraries played in Kontakt; the formats are Kontakt 8's. No source links Embertone to MPE. | [ask.audio](https://ask.audio/articles/review-embertone-walker-1955-steinway-d), [equipboard.com](https://equipboard.com/brands/embertone), [native-instruments.com](https://www.native-instruments.com/en/products/komplete/samplers/kontakt-8/specifications/) |
+
+## Emvoice
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Emvoice One | VST3, AAX | Not mentioned \* | *Plain MIDI*. Record or write the melody in its own piano roll (MIDI Listen). | Cloud-based vocal synth that needs internet. MIDI Listen records notes into its own piano roll; it isn't played live. Sources conflict on formats (VST3/AAX/AU vs VST/AU). | [musictech.com](https://musictech.com/news/virtual-vocalist-emvoice-one-comes-to-pro-tools-and-introduces-midi-listen-mode), [mixdownmag.com.au](https://mixdownmag.com.au/reviews/review-emvoice-one-vocal-synthesis/) |
+
+## Excite Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Bloom Bass Impulse | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Playable bass instrument. Windows formats assumed from Excite Audio's usual set, not verified. | [pluginboutique.com](https://www.pluginboutique.com/manufacturers/322-Excite-Audio?rto=true) |
+| Bloom Drum Breaks | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Playable drum-break instrument. Windows formats assumed from Excite Audio's usual set, not verified. | [pluginboutique.com](https://www.pluginboutique.com/manufacturers/322-Excite-Audio?rto=true) |
+| Bloom Vocal Aether | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Playable instrument built from vocal loops, phrases and one-shots. Windows formats assumed from Excite Audio's usual set, not verified. | [pluginboutique.com](https://www.pluginboutique.com/manufacturers/322-Excite-Audio?rto=true), [musictech.com](https://musictech.com/news/gear/excite-audio-complete-plugin-collection-deal-half-price) |
 
 ## Expressive E
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Noisy and Imagine | VST3, AAX, Standalone | Yes | Its MPE presets, or MPE on in its settings. |  | [expressivee.com](https://www.expressivee.com/88-noisy-two) |
+| Arché Collection | VST2 | **No** | *Plain MIDI*. Its successor Soliste has MPE. | Physically modelled violin, viola and cello (2019) for Touche through legacy MIDI CCs. VST/AU only, iLok, no native Apple Silicon. | [expressivee.com](https://www.expressivee.com/arche-collection), [expressivee.com](https://www.expressivee.com/arche-cello), [synthtopia.com](https://www.synthtopia.com/content/2025/06/19/expressive-e-introduces-soliste-an-mpe-ready-solo-string-suite/) |
+| Ctrl-e | VST3 | Yes | On without a switch. | Free plugin (April 2026) with about 980 MPE presets on nine partner engines (Vital, Noisy 2, Phase Plant...). Built for the Osmose keybed; not confirmed to run fully without it. | [expressivee.com](https://www.expressivee.com/200-ctrl-e), [kvraudio.com](https://www.kvraudio.com/product/ctrl-e-by-expressive-e), [soundonsound.com](https://www.soundonsound.com/reviews/expressive-e-osmose-ce) |
+| Imagine | VST2, VST3 | **No** | *Plain MIDI*. Expressive E's Soliste and Noisy 2 have MPE. | Acoustic physical-modelling synth co-developed with AAS (2021). Maker text: Touche and legacy MIDI only, no MPE. One retailer's MPE tag is the only contrary source. | [woodbrass.com](https://www.woodbrass.com/en-fr/virtual-instruments-expressive-e-imagine-p396254.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8209452), [soundonsound.com](https://www.soundonsound.com/news/expressive-e-aas-release-imagine) |
+| Noisy 2 | VST2, VST3 | Yes | Turn on MPE in Noisy 2 (off by default) and load an MPE preset. Bend range: Noisy 2's pitch-bend range (reportedly 1 or 2 by default); set 48. | Bi-timbral noise/resonator physical-modelling synth (v2.0, 2024) with MPE and classic modes and MPE trig modes for push, lift and shake. Setup steps come from a user forum, not the manual. | [kvraudio.com](https://www.kvraudio.com/news/60726), [woodbrass.com](https://www.woodbrass.com/en-fr/virtual-instruments-expressive-e-noisy-2-p396255.html), [elektronauts.com](https://www.elektronauts.com/t/expressive-e-noisy-2-mpe-update/213449) |
+| Soliste | VST2, VST3 | Yes | On without a switch. | Four physically modelled solo strings (violin, viola, cello, double bass), June 2025; successor to the Arche Collection. Built for Osmose and Touche, works with any MPE controller. iLok. | [soundonsound.com](https://www.soundonsound.com/reviews/expressive-e-soliste?amp), [synthtopia.com](https://www.synthtopia.com/content/2025/06/19/expressive-e-introduces-soliste-an-mpe-ready-solo-string-suite/), [thomann.de](https://www.thomann.de/be/expressive_e_soliste_suite.htm) |
+
+## FabFilter
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| One | VST2, VST3, CLAP, AAX | Not mentioned \* | *Plain MIDI*. | Basic 10-voice subtractive synth, FabFilter's first plugin. Its help pages still cover it, but a retailer lists it as discontinued. Its MIDI help covers MIDI Learn, not MPE. | [fabfilter.com](https://www.fabfilter.com/help/one/support/midi), [fabfilter.com](https://www.fabfilter.com/help/one), [bax-shop.co.uk](https://www.bax-shop.co.uk/instrument-plugins/fabfilter-one-virtual-instrument-download) |
+| Twin 3 | VST2, VST3, CLAP, AAX | **No** | *Plain MIDI*. | Staff said MPE was planned for a 3.1 update but would not promise a date, and none has shipped. MPE promised for Twin 2 never came either. | [prod.fabfilter.com](https://prod.fabfilter.com/forum/topic/7269/is-twin-3-supporting-mpe), [fabfilter.com](https://www.fabfilter.com/products/twin-3) |
+
+## FORS
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Pivot | VST3, CLAP | Yes | On without a switch. Bend range: Fixed at 48 (MPE); ordinary MIDI pitch bend is 2. CLAP: takes tuning note expressions for per-note pitch. | 3-operator FM synth, paid and free versions. MPE came in an update after the July 2025 launch, with CLAP note-expression tuning and MTS-ESP. Slide and pressure are modulation sources. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9139768), [soundonsound.com](https://www.soundonsound.com/reviews/fors-pivot), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9100485) |
+
+## Full Bucket Music
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Bucket ONE | VST2, VST3, CLAP | Not mentioned \* | *Plain MIDI*. | Free emulation of a 1985 Crumar synth with up to 64 voices, split/double modes and MIDI Learn. Its feature list has no MPE. | [kvraudio.com](https://kvraudio.com/news/full-bucket-music-releases-bucket-one-for-win-and-mac-free-vst2-vst3-au-clap-plugin-58179) |
+| FB-3300 | VST2, VST3 | Not mentioned | *Plain MIDI*. | Korg PS-3300 emulation with MIDI Learn for CCs. Maker-level searches found no MPE. A CLAP build was not confirmed. | [Looperman.com](https://Looperman.com/free-music-software/detail/full-bucket-music-fb3300), [clapdb.tech](https://clapdb.tech/developer/full-bucket-music) |
+| FB-7999 | VST2, VST3 | Not mentioned | *Plain MIDI*. | Free Korg DW-6000/8000 emulation. Three maker-level searches found no MPE. | [kvraudio.com](https://www.kvraudio.com/product/fb-7999-by-full-bucket-music) |
+| Fury-800 | VST2, VST3 | Not mentioned | *Plain MIDI*. | Free Korg Poly-800 emulation; version 2.0 added a Poly-800-accurate mode switch. Maker-level searches found no MPE. | [audiotechnology.com](https://www.audiotechnology.com/free-stuff/full-bucket-music-fury-800) |
+| ModulAir | VST2, VST3 | Not mentioned | *Plain MIDI*. | Modular synth. No feature list was found, and maker-level searches found no MPE. | [looperman.com](https://www.looperman.com/free-music-software/detail/full-bucket-music-modulair) |
+| Mono/Fury | VST2, VST3 | Not mentioned | *Plain MIDI*. | Korg Mono/Poly emulation. Maker-level searches found no MPE. | [clapdb.tech](https://clapdb.tech/developer/full-bucket-music) |
+| MPS | VST2, VST3, AAX, CLAP | Not mentioned | *Plain MIDI*. | Musical Parameter Synthesizer: 64 voices, MTS-ESP microtuning, MIDI Learn. The v2.0.0 feature list has no MPE, and a KVR user asked for MPE or a settable bend range. | [kvraudio.com](https://www.kvraudio.com/product/mps-by-full-bucket-music), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7177917) |
+| Pendulate | VST2, VST3 | Not mentioned | *Plain MIDI*. | Free monophonic synth. Maker-level searches found no MPE. | [clapdb.tech](https://clapdb.tech/developer/full-bucket-music) |
+| Ragnarok | VST2, VST3 | Not mentioned | *Plain MIDI*. | No feature list was found, and maker-level searches found no MPE. | [clapdb.tech](https://clapdb.tech/developer/full-bucket-music) |
+
+## Futucraft
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Kairatune | VST2 | Not mentioned \* | *Plain MIDI*. | Free monophonic synth for bass, leads and effects, 32- and 64-bit Windows VST. v1.1 added MIDI learn for CCs, aftertouch and global pitch bend. Sources are from 2011-2012. | [rekkerd.org](https://rekkerd.org/futucraft-updates-kairatune-free-synth-plugin-to-v1-1/), [synthtopia.com](https://www.synthtopia.com/content/2011/09/26/free-synth-for-windows-kairatune/) |
+
+## Future Audio Workshop
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| SubLab | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | The original sub-bass synth, succeeded by SubLab XL, which shares its engines. No MPE found for either. Windows formats are assumed, not confirmed. | [synthanatomy.com](https://synthanatomy.com/2022/07/future-audio-workshop-sublab-xl-popular-sub-bass-synth-plugin-gets-an-xl-makeover.html) |
+| SubLab XL | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sub-bass and 808 synth. Changelogs through v1.0.4 list no MPE; glide is mono, like FL Studio Glide Notes. Windows formats are assumed, not confirmed. | [soundonsound.com](https://www.soundonsound.com/news/new-sublab-xl-updates), [synthanatomy.com](https://synthanatomy.com/2022/07/future-audio-workshop-sublab-xl-popular-sub-bass-synth-plugin-gets-an-xl-makeover.html) |
+
+## FXpansion
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| DCAM Synth Squad |  | Not mentioned \* | *Plain MIDI*. Its successors Cypher2 and Strobe2 have MPE. | Amber, Cypher, Strobe and Fusor, released 2009 and discontinued. Only an unreleased build had MPE's precursor, for Seaboard demos. Windows support and formats not confirmed. | [roli.com](https://roli.com/blog/cypher2-angus-hewlett) |
+| Geist2 | VST2, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Pad and step-sequencer drum sampler (2016). Development appears to have stopped since ROLI bought FXpansion, so treat it as legacy. Windows formats not confirmed. | [soundonsound.com](https://www.soundonsound.com/news/fxpansion-geist-2-launched), [synthtopia.com](https://synthtopia.com/content/tag/fxpansion) |
+
+## Garritan
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Abbey Road Studios CFX Concert Grand | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Sampled Yamaha CFX (2014). Loads in ARIA Player and shows in hosts as ARIA Player. No MPE documented. | [garritan.com](https://www.garritan.com/?p=184) |
+| ARIA Player | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Player engine for every Garritan library. Its 16 slots each take their own MIDI channel, so MPE member channels would reach other slots. VST3 came in a later 1.9xx release. | [garritan.com](https://garritan.com/?p=8190), [usermanuals.garritan.com](https://usermanuals.garritan.com/ARIAPlayer/Content/plug-in.htm) |
+| Jazz & Big Band 3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Loads in ARIA Player and shows in hosts as ARIA Player. No MPE documented. | [garritan.com](https://www.garritan.com/?p=184) |
+| Personal Orchestra 5 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Loads in ARIA Player and shows in hosts as ARIA Player, which has no documented MPE. Use Plain MIDI on the slot's channel; dynamics come from CC1. | [garritan.com](https://garritan.com/?p=8190) |
+| World Instruments | VST2, Standalone | Not mentioned \* | *Plain MIDI*. | Discontinued. Loads in ARIA Player and shows in hosts as ARIA Player. Supports Scala tunings. Whether newer ARIA builds add VST3 was not confirmed. | [garritan.com](https://garritan.com/?p=1693), [bax-shop.co.uk](https://www.bax-shop.co.uk/instrument-plugins/garritan-world-instruments-download) |
+
+## GForce Software
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Axxess | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Released December 2023 with Unison, Mono, Mono Legato and Poly modes. Expression is described only as velocity to the filter and VCA. | [kvraudio.com](https://www.kvraudio.com/news/gforce-software-releases-axxess---fat-simple-and-flexible-poly-synth-59637), [sonicstate.com](https://sonicstate.com/news/2023/12/19/gforce-introduces-the-axxess-synth/) |
+| impOSCar3 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | OSCar recreation, successor to impOSCar2. Velocity and aftertouch are listed; no MPE on the product page or in the changelog through v1.0.2 (January 2026). | [gforcesoftware.com](https://www.gforcesoftware.com/product/imposcar3/), [gforcesoftware.com](https://www.gforcesoftware.com/help/updates-and-releases/), [sonicstate.com](https://sonicstate.com/news/2024/06/05/gforce-software-introduces-imposcar3/) |
+| M-Tron Pro IV | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sample-based Mellotron/Chamberlin instrument. No MPE found. The older M-Tron Pro is now legacy. Windows formats were not checked. | [gforcesoftware.com](https://www.gforcesoftware.com/help/updates-and-releases/) |
+| MAP | VST2, VST3, AAX, Standalone | Yes | On without a switch. | Synth released late 2025, inspired by West Coast modular systems. v1.1 improved MPE response and added MPE to the arpeggiators. SOS and Rekkerd list VST2; KVR does not. | [gforcesoftware.com](https://www.gforcesoftware.com/product/map/), [gforcesoftware.com](https://www.gforcesoftware.com/help/updates-and-releases/), [soundonsound.com](https://www.soundonsound.com/news/gforce-launch-map) |
+| Minimonsta2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Release coverage mentions four macros, a new UI and improved aftertouch and velocity control, but no MPE. The original Minimonsta is legacy. | [sonicstate.com](https://sonicstate.com/news/2023/03/21/patch-flip-gforce-minimonsta-2) |
+| Oberheim OB-1 | VST2, VST3, AAX | Yes, limited | Settings screen › Poly Pitch Bend: On. Bend range: Per preset, up to 48; the padlock next to it keeps it across patches. | Not marketed as MPE: one KVR user found per-note bend and pressure (via poly aftertouch) working; CC74 untested. 16-voice poly or mono. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8908386), [vi-control.net](https://vi-control.net/community/threads/list-of-mpe-and-polyphonic-aftertouch-intruments.152225/), [cdm.link](https://cdm.link/oberheim-ob-1-review/) |
+| Oberheim OB-E | VST2, VST3, AAX | Yes | On without a switch. Bend range: Saved per preset; the manual lists a maximum of 12 (user report), so 48 is unconfirmed. | Oberheim 8-Voice emulation (2021) with full MPE across all eight voices, per GForce. Users say per-note bend and pressure work; timbre may need CC1 rather than CC74. | [gforcesoftware.com](https://gforcesoftware.com/product/ob-e), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8372274), [everand.com](https://everand.com/article/506202315/G-Force-Ob-E-150) |
+| Oddity3 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | ARP Odyssey recreation with mono, duo and poly modes. Poly aftertouch and velocity are documented, MPE is not; poly aftertouch on one channel may still work. | [gforcesoftware.com](https://www.gforcesoftware.com/product/oddity3/), [gforcesoftware.com](https://www.gforcesoftware.com/help/updates-and-releases/), [gforcesoftware.com](https://www.gforcesoftware.com/blog/gforce-software-ltd-introduces-oddity3/) |
+| Sequential Prophet-5 | VST2, VST3, AAX, Standalone | Yes | On without a switch. | Official Sequential-licensed plugin released June 2026 with full MPE compatibility (per-note pitch, slide and pressure). Enable step and bend range are not documented. | [gforcesoftware.com](https://www.gforcesoftware.com/product/sequential-prophet-5/), [synthtopia.com](https://www.synthtopia.com/content/2026/06/16/sequential-prophet-5-now-available-as-official-software-synth/) |
+| Virtual String Machine | VST2, AAX | Not mentioned | *Plain MIDI*. | Sampled collection of 17 vintage string machines with filter aftertouch. A legacy product; Windows formats are uncertain and VST3 was not confirmed. | [gforcesoftware.com](https://www.gforcesoftware.com/blog/macos-26-tahoe-compatibility/), [soundonsound.com](https://www.soundonsound.com/reviews/gforce-virtual-string-machine) |
+
+## Glitchmachines
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Polygon 2 | VST2, VST3 | Not mentioned \* | *Plain MIDI*. | Hybrid granular sampler with 4 sampler modules, a dual FM oscillator, 8 LFOs and node-based modulation. Based on search summaries only; Windows formats not confirmed. | [glitchmachines.com](https://glitchmachines.com/products/polygon/), [glitchmachines.com](https://glitchmachines.com/wp-content/uploads/POLYGON2_User_Guide.pdf) |
+
+## Gospel Musicians
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Neo-Soul Keys Studio 2 | VST3, Standalone | Not mentioned \* | *Plain MIDI*. | Sampled electric piano (about 50 GB, 172 sounds) with Pure Synth engine and VKFX effects. Plugin plus standalone; the exact Windows plugin formats were not confirmed. | [bedroomproducersblog.com](https://bedroomproducersblog.com/2023/08/31/neo-soul-keys-deal/), [kvraudio.com](https://www.kvraudio.com/news/36507) |
+
+## Greg Recco
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Audible Planets | VST3 | Yes | Global box (main page) › MPE: On, or plugin menu › MPE. Bend range: Global box › PB Range (default 2, giving +/-48 per note in MPE mode; 4 gives 96). No CLAP build; MPE comes over MIDI. | Free open-source synth (GPL-3.0), v1.2, VST3 only with no installer. Hosts may list the vendor as Void-Star. MPE Pressure and MPE Timbre are poly mod sources to route in the mod matrix. | [github.com](https://github.com/gregrecco67/AudiblePlanets/blob/main/Source/DSP/PluginProcessor.cpp), [github.com](https://github.com/gregrecco67/AudiblePlanets/blob/main/Source/UI/Panels.h), [github.com](https://github.com/gregrecco67/AudiblePlanets/blob/main/Source/DSP/SynthVoice3.cpp) |
+
+## GSi
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| MrRay73 | VST2, VST3 | Not mentioned \* | *Plain MIDI*. | Modelled 70s electro-mechanical (Rhodes-type) piano. Sources confirm MrRay73 and Mark II; the mkIII name and its Windows formats were not confirmed. | [mac.softpedia.com](https://mac.softpedia.com/publisher/GSi-Genuine-Soundware-and-Instruments-23789.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=3547685) |
+| MrTramp2 | VST2 | Not mentioned \* | *Plain MIDI*. | Free Wurlitzer-style electric piano for PC and Mac (VST/AU). | [rekkerd.org](https://rekkerd.org/gsi-releases-mrtramp2/) |
+| VB3-II | VST2, VST3 | Not mentioned \* | *Plain MIDI*. | Tonewheel organ whose manuals are split by MIDI channel, so MPE channel rotation would scatter notes across manuals; use Plain MIDI on one channel. Formats not confirmed. | [genuinesoundware.com](https://www.genuinesoundware.com/products/vb3-2/2023/Manual/help.htm), [rekkerd.org](https://rekkerd.org/?p=126485) |
+
+## Heavyocity
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Kontakt instruments (Damage 2, Gravity 2, NOVO and others) | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Libraries for Kontakt or Kontakt Player (formats listed are Kontakt 8's). No Heavyocity MPE statement found. A Kontakt instrument has full MPE only if its script was written for it. | [heavyocity.com](https://heavyocity.com/product-category/virtual-instruments/kontakt), [native-instruments.com](https://www.native-instruments.com/en/products/komplete/samplers/kontakt-8/specifications/), [vi-control.net](https://vi-control.net/community/threads/roli-seaboard-rise-25.85381/page-3) |
+
+## Hexachords
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Orb Synth X | VST3 | Not mentioned | *Plain MIDI*. | Wavetable synth (2 oscillators, 2 filters, mod matrix), first part of Orb Producer Suite. Sources describe the 2020 Orb Synth; the name Orb Synth X and its formats are unconfirmed. | [synthanatomy.com](https://synthanatomy.com/2020/11/hexachords-orb-synth-an-ableton-like-wavetable-synthesizer-for-1.html), [gearspace.com](https://gearspace.com/gear/hexachords.108637/) |
+
+## HY-Plugins
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| HY-POLY | VST2, VST3 | Not mentioned | *Plain MIDI*. | Subtractive polysynth with dual filters and 24 modulation sources. A free version is limited to 4 voices and one oscillator mode. The licence needs an online check every 30 days. | [kvraudio.com](https://kvraudio.com/news/hy-plugins-release-hy-poly-with-intro-offer-and-free-version-48891), [pluginboutique.com](https://www.pluginboutique.com/products/7929-HY-POLY) |
+
+## IK Multimedia
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Hammond B-3X | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Play it with Plain MIDI on the organ's MIDI channel. | Modelled tonewheel organ. Since 1.3, controllers respond only on their assigned MIDI channels and the bend range is global, so MPE member-channel data would be ignored or misrouted. | [sonicstate.com](https://www.sonicstate.com/news/2020/04/09/ik-multimedia-updates-hammond-b-3x) |
+| Miroslav Philharmonik 2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Play it with Plain MIDI on one part's MIDI channel. | Orchestral workstation with a 16-part multitimbral mixer, so MPE member channels would play different parts. | [rekkerd.org](https://rekkerd.org/ik-multimedia-releases-miroslav-philharmonik-2/) |
+| MODO BASS 2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Modal-synthesis electric bass. Slides come from its own controls and keyswitches. | [bestservice.com](https://www.bestservice.com/modo_bass_2.html) |
+| MODO DRUM | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Physically modelled drums. | [pluginboutique.com](https://www.pluginboutique.com/products/16876-MODO-MAX-SampleTank-4-MAX-Bundle) |
+| Pianoverse | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Sampled pianos with cinematic effects. | [soundonsound.com](https://www.soundonsound.com/news/ik-multimedia-introduce-pianoverse) |
+| SampleTank 4 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Play it with Plain MIDI on one part's MIDI channel. | Includes SampleTank 4 MAX v2. 16-part multitimbral: each part has its own MIDI channel, so MPE member channels would play different parts. Updates up to 4.1.7 list no MPE. | [mac4ever.com](https://www.mac4ever.com/audio/169815-ik-multimedia-met-a-jour-sampletank-4-et-syntronik-2), [fullcompass.com](https://fullcompass.com/prod/563214-ik-multimedia-sampletank-4-se-sample-based-workstation-with-over-30gb-of-samples-and-2-000-sounds-download) |
+| Syntronik 2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Sampled and modelled vintage synths, up to 4 layered per instance. Pitch bend and aftertouch routing are channel-wide. | [synthtopia.com](https://www.synthtopia.com/?p=127199), [soundonsound.com](https://www.soundonsound.com/news/ik-syntronik-2-soft-synth) |
+
+## Image-Line
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| DirectWave | VST2 | Not mentioned | *Plain MIDI*. | Sampler. VST build, no longer sold (VST registrations are discontinued); owners can still download it. MPE Roll can't host the FL-native version. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+| Drumaxx | VST2 | Not mentioned | *Plain MIDI*. | Physical-modelling drum synth. VST build, no longer sold (VST registrations are discontinued); owners can still download it. MPE Roll can't host the FL-native version. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+| Harmless | VST2 | Not mentioned | *Plain MIDI*. | VST build, no longer sold (VST registrations are discontinued); owners can still download it. MPE Roll can't host the FL-native version. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+| Harmor | VST2 | Not mentioned | *Plain MIDI*. | VST build (VST2 only), no longer sold; owners can still download it. A third-party tutorial says FL Studio's per-note colours give partial per-note control in native Harmor; that is not MPE. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+| Morphine | VST2 | Not mentioned | *Plain MIDI*. | Additive synth. VST build, no longer sold (VST registrations are discontinued); owners can still download it. MPE Roll can't host the FL-native version. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+| Ogun | VST2 | Not mentioned | *Plain MIDI*. | VST build, no longer sold (VST registrations are discontinued); owners can still download it. MPE Roll can't host the FL-native version. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+| Poizone | VST2 | Not mentioned | *Plain MIDI*. | VST build, no longer sold (VST registrations are discontinued); owners can still download it. MPE Roll can't host the FL-native version. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+| Sakura | VST2 | Not mentioned | *Plain MIDI*. | Physical-modelling string synth. VST build, no longer sold (VST registrations are discontinued); owners can still download it. MPE Roll can't host the FL-native version. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+| Sytrus | VST2 | Not mentioned | *Plain MIDI*. | VST build, no longer sold (VST registrations are discontinued); owners can still download it. No VST3 build found. MPE Roll can't host the FL-native Sytrus. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+| Toxic Biohazard | VST2 | Not mentioned | *Plain MIDI*. | VST build, no longer sold (VST registrations are discontinued); owners can still download it. MPE Roll can't host the FL-native version. | [image-line.com](https://www.image-line.com/vst-downloads), [forum.image-line.com](https://forum.image-line.com/viewtopic.php?p=2030818) |
+
+## Imaginando
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| DRC | VST2, VST3, Standalone | Unclear | *Plain MIDI*. | Polyphonic virtual-analog synth. A retailer says it has MPE and users say the iOS version gained it, but Roger Linn found no MPE in its documentation. 2.10.0 added VST3 and dropped AAX. | [muziker.no](https://www.muziker.no/imaginando-drc-polyphonic-synthesizer), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7535527), [rekkerd.org](https://rekkerd.org/?p=271600) |
+| FRMS | VST2, VST3, AAX, Standalone | Yes | On without a switch. | Granular, subtractive and FM synth: up to 4 layers, 8 voices. Its on-screen keyboard has an MPE mode; no setting for MPE from a host is documented. Windows 10 or later, 64-bit host. | [imaginando.pt](https://www.imaginando.pt/media/introducing-frms-granular-synthesizer), [imaginando.pt](https://imaginando.pt/products/frms-granular-synthesizer/help/performance-modes), [thomann.co.uk](https://www.thomann.co.uk/imaginando_frms_granular_synthesizer.htm) |
+
+## Initial Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| 808 Studio II | VST2 | Not mentioned \* | *Plain MIDI*. | 808 bass synth with drag-and-drop modulation (two LFOs, two envelopes) and a sequencer. Windows formats beyond VST2 were not verified. | [adsrsounds.com](https://www.adsrsounds.com/product/software/initial-audio-808-studio-2-bass-synth-vst/), [soundstorexl.com](https://www.soundstorexl.com/products/initial-audio-808-studio-ii) |
+| Heat Up 3 | VST2, Standalone | Not mentioned \* | *Plain MIDI*. | ROMpler with about 1,500 multisampled instruments for hip hop, trap, drill and R&B; current version 3.5.x. Retailers list a Windows VST2 and standalone; VST3 not confirmed. | [initialaudio.com](https://initialaudio.com/product/hustle-heat-up-3-expansion/), [bhphotovideo.com](https://www.bhphotovideo.com/c/product/1753821-REG/initial_audio_15_00012_heatup_with_over_1_500.html) |
+| Sektor | VST2, VST3, AAX, Standalone | Yes | Its MPE Mode (an MPE keyboard appears when it is on). | MPE fixes and the MPE keyboard came in 1.6.1 (2022); before that, users reported per-note pitch not working, so use a current version (1.6.5) and test per-note bend. | [rekkerd.org](https://rekkerd.org/?p=216652), [musictech.com](https://musictech.com/news/sektor-polyphonic-wavetable-synth/), [kvraudio.com](https://www.kvraudio.com/product/sektor-by-initial-audio) |
+
+## Inphonik
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| RYM2612 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Cycle-accurate emulation of the Sega Mega Drive's YM2612 FM chip, with 6 or up to 16 voices. A Reason Rack Extension before its 2019 plugin release. | [sonicstate.com](https://sonicstate.com/news/2019/08/06/yamaha-ym2612-fm-synth-emulated), [thebeatcommunity.com](https://thebeatcommunity.com/?p=29148), [musictech.com](https://musictech.com/news/gear/inphonik-rym2612-synth-plug-in-sega-mega-drive/) |
+
+## Iurie Nistor
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Geonkick | VST3 | **No** | *Plain MIDI*. | Percussion synth (kicks, snares, claps, hi-hats). Its VST3 reads only note-on and note-off: no pitch bend, pressure or CCs. Also LV2 on Windows, single or 16-instrument kit. | [github.com](https://github.com/Geonkick-Synthesizer/geonkick/blob/main/src/plugin/vst/GKickVstProcessor.cpp), [github.com](https://github.com/Geonkick-Synthesizer/geonkick/blob/main/README.md) |
+
+## iZotope
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| BreakTweaker | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Beat and drum instrument. Discontinued: pulled from sale in October 2022; support ended 27 October 2023. The Windows formats are from memory and were not checked. | [support.izotope.com](https://support.izotope.com/hc/en-us/articles/7394969418653-Support-Notice-for-Iris-2-Breaktweaker-a), [synthanatomy.com](https://synthanatomy.com/2022/10/izotope-discontinues-iris-2-breaktweaker-and-trash-2-plugins.html) |
+| Iris 2 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Discontinued: pulled from sale in October 2022; support ended 27 October 2023. The Windows formats are from memory and were not checked. | [support.izotope.com](https://support.izotope.com/hc/en-us/articles/7394969418653-Support-Notice-for-Iris-2-Breaktweaker-a) |
+
+## KarmaFX
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| KarmaFX Synth Modular | VST2, VST3 | Yes \* | Force MPE on in its GUI (Lower Zone, master channel 1), or let an MPE Configuration Message turn it on. Bend range: NotePitch module or MIDI RPN 0 (default 48). | MPE (per-note pitch bend and timbre, CC74) added in 2.01 (October 2021); 2.02 (2024) added VST3. The exact name of the GUI switch that forces MPE on was not found. | [kvraudio.com](https://www.kvraudio.com/news-print.php?id=53111), [kvraudio.com](https://kvraudio.com/product/karmafx-synth-modular-by-karmafx) |
 
 ## Kilohearts
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Phase Plant | VST2, VST3, CLAP, AAX, Standalone | Yes | Its settings › MPE on, MIDI channel Any. Bend range: Bend Range next to it; set 48. |  | [kilohearts.com](https://kilohearts.com/blog/expressive_performance_with_mpe_in_phase_plant) |
+| Phase Plant | VST2, VST3, AAX | Yes | No MPE switch confirmed: set its MIDI channel to Any (not 1) and route its MPE modulators in the patch. Bend range: Bend Range in its voice settings, saved with the project (third-party, unconfirmed); set 48. | MPE came with Kilohearts v2 (2022); 2.0.7 fixed the Note modulator ignoring MPE bend. Pressure, timbre and slide act only where a patch routes the MPE modulators. CLAP not confirmed. | [kilohearts.com](https://kilohearts.com/blog/expressive_performance_with_mpe_in_phase_plant), [kilohearts.com](https://kilohearts.com/docs/basic_usage), [support.jamstik.com](https://support.jamstik.com/hc/en-us/articles/8276077782157-How-to-Use-the-Jamstik-MIDI-Guitar-with-Kilohearts-Phase-Plant) |
+
+## Klevgrand
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Tomofon | VST2, VST3, AAX | Yes | On without a switch. | Real audio synth that turns audio files into wave-based Audio Models. Full MPE (per-note pitch bend) came in the free 1.2 update. No MPE switch or bend-range setting is documented. | [klevgrand.com](https://klevgrand.com/products/tomofon), [thomann.fi](https://www.thomann.fi/klevgrand_tomofon.htm), [rekkerd.org](https://rekkerd.org/klevgrand-updates-tomofon-real-audio-synth-plugin-to-v1-2) |
+
+## Kong Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Chinee series (ChineeErhu, ChineePipa, ChineeDizi and others) | VST2 | Not mentioned \* | *Plain MIDI*. | Chinese traditional instruments. Articulations follow channel aftertouch, mod wheel and keyswitches, which are channel-wide. Early releases were Windows VSTi; VST3 in current versions is unconfirmed. | [kvraudio.com](https://www.kvraudio.com/news/kong_audio_releases_chineepipa_v1_0_5584), [sonicstate.com](https://sonicstate.com/news/2005/10/21/kong-audio-release-ancient-chinese-erhu-vsti/) |
+
+## Korg
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| ARP 2600 | VST3, AAX | Not mentioned | *Plain MIDI*. | Added to KORG Collection in July 2024. Korg documents no MPE. A standalone version was not checked for this title. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/au/news/2024/0719/) |
+| ARP ODYSSEY | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Part of KORG Collection. Its polyphonic mode is a voice mode, not MPE. Korg documents no MPE. VST2 is no longer listed for Windows. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/us/products/software/korg_collection) |
+| Collection 6 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Suite entry: each instrument loads as its own plug-in. Korg documents MPE for none of them; polyphonic versions of mono synths are a voice mode, not MPE. The Dec 2025 updates mention no MPE. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/us/products/software/korg_collection), [korg.com](https://www.korg.com/uk/news/2025/1212/) |
+| ELECTRIBE-R | VST3, AAX | Not mentioned | *Plain MIDI*. | Drum machine in KORG Collection, plug-in only (no standalone). Korg documents no MPE, and per-note expression adds little to drums. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [splice.com](https://splice.com/plugins/39137209) |
+| EP-1 | VST3, AAX | Not mentioned | *Plain MIDI*. | Electric piano added to KORG Collection in July 2024. Korg documents no MPE. A standalone version was not checked for this title. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/au/news/2024/0719/) |
+| M1 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Part of KORG Collection 6, also sold on its own. Korg documents no MPE. VST2 is no longer listed for Windows. M1 Le is a separate product. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/us/products/software/korg_collection/) |
+| microKORG | VST3, AAX | Not mentioned | *Plain MIDI*. | Part of KORG Collection, plug-in only (no standalone). Korg documents no MPE. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [splice.com](https://splice.com/plugins/39137209) |
+| miniKORG 700S | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Part of KORG Collection. Korg documents no MPE. VST2 is no longer listed for Windows; standalone was not checked for this title. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [splice.com](https://splice.com/plugins/39137209) |
+| modwave native | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | No Korg source documents MPE in the plug-in; only the modwave module (hardware) has it. A forum post says 1.2.4 reached feature parity with the mkII but doesn't name MPE, so test it. | [korg.com](https://www.korg.com/jp/support/download/product/0/908/), [korg.com](https://www.korg.com/it/news/2023/0126/), [gearspace.com](https://gearspace.com/threads/korg-modwave.1339556/page-76) |
+| Mono/Poly | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Part of KORG Collection. Korg documents no MPE. VST2 is no longer listed for Windows. Not the same as multi/poly native. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/us/products/software/korg_collection) |
+| MS-20 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Arturia's own MS-20 V emulation is on Arturia's MPE compatibility list. | Part of KORG Collection. Its polyphonic mode is a voice mode, not MPE. Korg documents no MPE. VST2 is no longer listed for Windows. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [support.arturia.com](https://support.arturia.com/hc/en-us/articles/4793918378908-MPE-Compatibility) |
+| multi/poly native | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Use Plain MIDI with pressure sent as poly aftertouch and its Aftertouch Source set to Poly. | Released early 2025. Korg documents poly aftertouch (Aftertouch Source: Off, Channel, Poly, Channel+Poly) and MIDI 2.0 Property Exchange, not MPE. A forum claim of MPE use is anecdotal. | [korg.com](https://www.korg.com/us/products/software/multipoly_native/), [cdn.korg.com](https://cdn.korg.com/us/support/download/files/2d9e80075f77f6f507c30c8c94ff8c74.pdf), [kvraudio.com](https://www.kvraudio.com/news/korg-announces-multi-poly-module-and-multi-poly-native-62765) |
+| opsix native | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | No Korg source documents MPE in the plug-in; only the opsix module (hardware) has it. Release notes up to 1.3.1 (Dec 2024) don't mention it. One unofficial download listing claims MPE. | [support.korguser.net](https://support.korguser.net/hc/en-us/articles/4407442226585-opsix-native-release-notes), [korg.com](https://www.korg.com/it/news/2023/0126/), [midi.org](https://midi.org/innovation-award/modwave-wavestate-and-opsix-native-plug-ins) |
+| Polysix | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Part of KORG Collection. Korg documents no MPE. VST2 is no longer listed for Windows. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/us/products/software/korg_collection/) |
+| Prophecy | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Part of KORG Collection, which adds polyphonic versions of its mono synths. Korg documents no MPE. VST2 is no longer listed for Windows. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/us/products/software/korg_collection) |
+| PS-3300 | VST3, AAX | Not mentioned | *Plain MIDI*. | New in KORG Collection 6 (Oct 2025). Korg documents no MPE. A standalone version was not checked for this title. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [kvraudio.com](https://www.kvraudio.com/news-print.php?id=65189) |
+| SGX-2 | VST3, AAX | Not mentioned | *Plain MIDI*. | Piano sound engine, new in KORG Collection 6 (Oct 2025). Korg documents no MPE. A standalone version was not checked for this title. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [kvraudio.com](https://www.kvraudio.com/news-print.php?id=65189) |
+| TRINITY | VST3, AAX | Not mentioned | *Plain MIDI*. | New in KORG Collection 6 (Oct 2025); 1.1.0 (Dec 2025) added PCG file import. Korg documents no MPE. A standalone version was not checked for this title. | [korg.com](https://www.korg.com/uk/news/2025/1212/), [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [kvraudio.com](https://www.kvraudio.com/news-print.php?id=65189) |
+| TRITON | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Part of KORG Collection, also sold on its own. Korg documents no MPE. VST2 is no longer listed for Windows. | [korg.com](https://www.korg.com/us/products/software/kc_triton/index.php), [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php) |
+| TRITON Extreme | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Part of KORG Collection. Korg documents no MPE. VST2 is no longer listed for Windows. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [pluginboutique.com](https://www.pluginboutique.com/product/81-Bundles/58-Instrument-Bundles/16094-KORG-Collection-6) |
+| VOX Super Continental | VST3, AAX | Not mentioned | *Plain MIDI*. | Combo organ added to KORG Collection in July 2024. Korg documents no MPE. A standalone version was not checked for this title. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/au/news/2024/0719/) |
+| wavestate native | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Use Plain MIDI with pressure sent as polyphonic aftertouch; its factory sounds respond to it. | No Korg source documents MPE in the plug-in; only the wavestate module (hardware) has it. Factory sounds respond to poly aftertouch. The free LE edition bundled with Keystage has the same status. | [korg.com](https://www.korg.com/us/products/synthesizers/wavestate_module/index.php), [korg.com](https://www.korg.com/it/news/2023/0126/), [gearnews.com](https://www.gearnews.com/korg-modwave-opsix-and-wavestate-modules/) |
+| WAVESTATION | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Part of KORG Collection. Korg documents no MPE. VST2 is no longer listed for Windows. Not the same as wavestate native. | [korg.com](https://www.korg.com/us/products/software/korg_collection/specifications.php), [korg.com](https://www.korg.com/us/products/software/korg_collection/) |
+
+## Krotos
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Concept | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | VA synth with four multi-mode modulators. Concept 2 (June 2021, a free upgrade) added a granular oscillator. No launch coverage or review mentions MPE. | [sonicstate.com](https://sonicstate.com/news/2021/06/22/krotos-releases-concept-2), [soundonsound.com](https://www.soundonsound.com/reviews/krotos-concept-2), [gearnews.com](https://www.gearnews.com/namm-2020-krotos-concept-modulation-focused-software-synth) |
+
+## KV331 Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| SynthMaster 3 | VST2, VST3, AAX | Yes | Track View › Voice › MIDI I/O: MPE (instead of Omni), for each layer; MIDI input can also be set globally. Bend range: Not documented; KV331 advises a global pitch bend range of 48 for SynthMaster One. | Evidence is KVR threads with KV331 replies. KV331 said in 2023 its VST3s lacked MPE and no SM3 fix was found, so prefer VST2. Users report CC74 working on some presets only, and layer-wide bend. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8994082), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9188488), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8816676) |
+| SynthMaster One | VST2, VST3, AAX, Standalone | Yes | MIDI input: MPE (globally or per preset); Settings › Map CC74 to CC1 for mod-wheel presets. Bend range: Global pitch bend range (set 48, KV331's advice for MPE). | v1.6 fixed MPE and poly aftertouch in the VST3 version. In MPE mode channel 1 is global and mono presets play polyphonically. One LinnStrument user still got no response (forum). | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8576719), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9087864), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7328129) |
 
 ## LennarDigital
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Sylenth1 | VST2, VST3, AAX | **No** | *Plain MIDI*. |  | [lennardigital.com](https://www.lennardigital.com/sylenth1/whatsnew.php) |
+| Sylenth1 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Changelogs and write-ups mention aftertouch (a mod source since 1.1) and MIDI Learn, never MPE. Windows formats are from memory and were not checked. | [kvraudio.com](https://www.kvraudio.com/news/5961), [blog.dubspot.com](https://blog.dubspot.com/plugins/sylenth1) |
+
+## Lethal Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Lethal | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | ROM synth with about 3,000 patches and 5 GB of content. Needs online activation. The sources found date from about 2016-2017 and none mention MPE. | [kvraudio.com](https://www.kvraudio.com/product/lethal-by-lethal-audio), [gearspace.com](https://gearspace.com/threads/lethal-audio-lethal.1086055/) |
+
+## LinPlug
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Alpha 3 |  | Not mentioned \* | *Plain MIDI*. | Discontinued: LinPlug stopped selling it, promised about one more year of support and warned it may stop working in future hosts. Windows formats were not confirmed. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=6250197) |
+| CronoX |  | Not mentioned \* | *Plain MIDI*. | Still listed among LinPlug products (version 4). No MPE mention was found anywhere, and Windows formats were not confirmed. | [equipboard.com](https://equipboard.com/brands/linplug) |
+| Octopus |  | Not mentioned \* | *Plain MIDI*. | FM synth, now discontinued, and may stop working in future hosts. Windows formats were not confirmed. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=6250197), [kvraudio.com](https://www.kvraudio.com/news/24827) |
+| RMV |  | Not mentioned \* | *Plain MIDI*. | Drum machine, now discontinued, and may stop working in future hosts. Windows formats were not confirmed. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=6250197) |
+| Spectral |  | Not mentioned \* | *Plain MIDI*. | An update fixed hanging notes when the same note played on two MIDI channels, which is not MPE. Version 1.3.0 is the latest found. Windows formats were not confirmed. | [kvraudio.com](https://www.kvraudio.com/news/24827), [rekkerd.org](https://rekkerd.org/?p=92952) |
+
+## Loomer
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Aspect | VST2, VST3 | Not mentioned \* | *Plain MIDI*. | Semi-modular 32-voice polyphonic synth. Aspect 2 (July 2024, free upgrade) added a new interface, envelopes and a sequencer; no feature list mentions MPE. | [kvraudio.com](https://www.kvraudio.com/news/loomer-releases-aspect-2---semi-modular-polyphonic-synthesizer-61200), [synthanatomy.com](https://synthanatomy.com/2024/07/loomer-aspect-2-semi-modular-synth.html), [rekkerd.org](https://rekkerd.org/loomer-updates-aspect-to-v1-4) |
+
+## Loopcloud
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| DRUM | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | 16-pad drum sampler with a step sequencer. The Loopcloud app must be running for it to work. Format lists differ: VST/VST3 at Plugin Boutique, VST3/AAX in the Loopcloud help centre. | [help.loopmasters.com](https://help.loopmasters.com/hc/en-us/articles/38918849150100-What-s-included-in-the-Loopcloud-installer), [pluginboutique.com](https://www.pluginboutique.com/products/8319-DRUM) |
+| PLAY | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Sample-based instrument with 300 presets at its 2021 launch, four performance controls and an Advanced sampler tab. Format lists differ between Plugin Boutique and the Loopcloud help centre. | [help.loopmasters.com](https://help.loopmasters.com/hc/en-us/articles/38918849150100-What-s-included-in-the-Loopcloud-installer), [rekkerd.org](https://rekkerd.org/loopcloud-play-intuitive-instrument-now-available-at-plugin-boutique/) |
+
+## Lunacy Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| CUBE | VST3, AAX | Not mentioned | *Plain MIDI*. | Sampler and vector synth with 3D morphing. Searches found no MPE, and a user reports its only velocity modulation is a fixed volume scale. | [kvraudio.com](https://www.kvraudio.com/news/lunacy-audio-releases-cube-3d-virtual-instrument-51859), [pluginboutique.com](https://www.pluginboutique.com/products/12370-CUBE-Crossgrade-from-BEAM) |
+
+## Madrona Labs
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Aalto | VST2 | Yes | Settings menu: choose MPE if it has a MIDI / MPE / OSC protocol switch, as Kaivo's does (not confirmed for Aalto). Bend range: Settings menu › MPE pitch bend for Main and Member channels (1.9.3 or later; default not found). | MPE since 1.7 (2015); MPE bend settings since 1.9.3. The Windows build is VST2 only (no VST3 as of 1.9.5). Aalto 2 (CLAP-first) was announced; its MPE controls were not confirmed. | [kvraudio.com](https://kvraudio.com/news/madrona-labs-updates-aalto-kaivo-and-virta-and-launches-summer-sale-42236), [synthtopia.com](https://synthtopia.com/content/2015/07/30/aalto-1-7-brings-support-for-multidimensional-polyphonic-expression), [cdm.link](https://cdm.link/madrona-labs-plug-ins-are-now-all-m1-m2-apple-silicon-native/) |
+| Kaivo | VST2 | Yes | Settings menu › protocol: MPE (MIDI / MPE / OSC switch, Kaivo 1.2 or later). Bend range: Settings menu › MPE pitch bend for Main and Member channels (1.9.3 or later; default not found). | Granular synth with physical-model resonators. MPE protocol switch since 1.2; MPE bend settings since 1.9.3. The Windows build is VST2 only as of 1.9.5; VST3 was announced but not confirmed. | [kvraudio.com](https://kvraudio.com/news/madrona-labs-updates-its-synthesizer-lineup-46868), [kvraudio.com](https://kvraudio.com/news/madrona-labs-updates-aalto-kaivo-and-virta-and-launches-summer-sale-42236), [cdm.link](https://cdm.link/madrona-labs-plug-ins-are-now-all-m1-m2-apple-silicon-native/) |
+| Sumu | VST3 | Yes | Protocol menu (under Input in the changelog): MPE, in Sumu 1.1 or later. Bend range: MPE bend range menu (Input): 0 / 12 / 24 / 48 / 96; default not found. | Spatialized additive/FM resynthesizer for Windows 10+. The dedicated MPE mode with protocol and bend range menus came in the free 1.1 update (Aug 2025; 1.1.1 recommended). | [kvraudio.com](https://www.kvraudio.com/news/madrona-labs-updates-sumu-to-v1-1-1-64648), [synthanatomy.com](https://synthanatomy.com/2025/08/madrona-labs-sumu-novel-synth-plugin-explores-spatialized-additive-resynthesis-with-fm.html), [soundonsound.com](https://www.soundonsound.com/news/madrona-labs-release-sumu) |
+| Virta | VST2 | Yes | Settings menu: choose MPE if it has a MIDI / MPE / OSC protocol switch, as Kaivo's does (not confirmed for Virta). Bend range: Settings menu › MPE pitch bend for Main and Member channels (1.9.3 or later; default not found). | Synth and effect played by an audio input or MIDI. MPE improved in 1.9.3 (2020). The Windows build is VST2 only as of 1.9.5. Whether it is still sold was not verified. | [kvraudio.com](https://kvraudio.com/news/madrona-labs-updates-aalto-kaivo-and-virta-and-launches-summer-sale-42236), [kvraudio.com](https://www.kvraudio.com/news/33070), [cdm.link](https://cdm.link/madrona-labs-plug-ins-are-now-all-m1-m2-apple-silicon-native/) |
+
+## Manda Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| MT Power Drum Kit 2 | VST2 | Not mentioned \* | *Plain MIDI*. | Free acoustic drum sampler for pop, rock and metal. No MPE mention was found, and a drum kit has little use for per-note bend. | [alternativeto.net](https://alternativeto.net/software/mt-power-drum-kit-2/about), [delamar.de](https://www.delamar.de/musiksoftware/audio-plugins/free-vst-plugins-mt-power-drum-kit-25632/) |
+
+## Martin Lüders
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| PG-8X | VST2 | Not mentioned \* | *Plain MIDI*. | Free JX-8P-inspired synth, v2.0, 12 voices. Not updated in about a decade; the 32/64-bit Windows VST2 still works. | [synthtopia.com](https://www.synthtopia.com/?p=71250), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8770233) |
+
+## Martinic
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| AX73 | VST2, VST3, CLAP, AAX | Not mentioned | *Plain MIDI*. | Akai AX73 (CEM3394) emulation. Its KVR release thread (last edited June 2024) said 'MPE support in the works', but no later update note says it shipped. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8232093), [rekkerd.org](https://rekkerd.org/?p=268287), [soundonsound.com](https://www.soundonsound.com/reviews/martinic-ax73) |
+| Elka Panther | VST2, VST3, CLAP, AAX | Not mentioned | *Plain MIDI*. | Physically modelled, sample-free combo organ covering the Elka Panther 100 and 300. | [soundonsound.com](https://www.soundonsound.com/node/4927184), [adorama.com](https://www.adorama.com/martinic-retro-pack-plugin-bundle-download/p/mnc13331004) |
+| Kee Bass | VST2, VST3, CLAP, AAX | Not mentioned | *Plain MIDI*. | Emulation of the Rheem Kee Bass, a monophonic string-bass simulator, so MPE adds little. No CLAP note expressions are documented. | [gearnews.com](https://www.gearnews.com/?p=124433), [adorama.com](https://www.adorama.com/martinic-retro-pack-plugin-bundle-download/p/mnc13331004) |
+
+## Matt Tytel
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Helm | VST2, Standalone | Yes, limited | On without a switch. Bend range: VOICE section › PITCH BEND knob, 0-48 (default 2, saved per patch). | Discontinued (0.9.0 beta, 2017); its author now makes Vital. Never advertised as MPE: per-note bend works, but CC74 does nothing and per-note pressure reaches the wrong voice. | [github.com](https://github.com/mtytel/helm/blob/master/src/synthesis/helm_voice_handler.cpp), [github.com](https://github.com/mtytel/helm/blob/master/src/common/helm_common.cpp), [github.com](https://github.com/mtytel/helm/blob/master/src/common/midi_manager.cpp) |
+
+## MeldaProduction
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| MDrummer | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Drum machine and virtual drummer. No MPE mention was found; Melda's MPE statements cover MSoundFactory, not MDrummer. | [proplugin.com](https://proplugin.com/en/product/meldaproduction-mdrummer-drum-machine-and-virtual-drummer-plugin/) |
+| MPowerSynth | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. MeldaProduction's MSoundFactory has MPE. | No MPE in retailer listings or the 8.07 release notes; a user skipped its beta because it lacked MPE. | [thomann.co.uk](https://www.thomann.co.uk/meldaproduction_mpowersynth.htm), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7415430) |
+| MSoundFactory | VST2, VST3, AAX | Yes | Map Pressure and Timbre (CC74) to the patch's parameters, with MIDI learn set to channel All. | MPE depends on the patch: the developer says it just needs pressure and timbre mapped. The Analog Empire: Pads & Strings expansion lists MPE. An MPE button exists; its function is undocumented. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7415430), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7811850), [soundonsound.com](https://www.soundonsound.com/node/4932996) |
+
+## Minimal Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Current 2 |  | Yes | Keyboard modulator panel (right of the modulation bar) › MPE (far right of the panel). Bend range: +/-48 (the standard MPE range, per Minimal Audio). | Minimal Audio's support article and manual say Current fully supports MPE without naming a version. The MPE modulators are not pre-assigned. Windows formats were not verified. | [support.minimal.audio](https://support.minimal.audio/articles/29504315470491-enable-mpe-support), [manual.minimal.audio](https://manual.minimal.audio/current-manual/additional-settings/enable-mpe-support), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8794255) |
+
+## Modalics
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| MINDst Drums | VST2, VST3, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Drum instrument, v1.2.0. Windows 10 or later, 64-bit only. | [kvraudio.com](https://www.kvraudio.com/product/mindst-drums-by-modalics), [bhphotovideo.com](https://www.bhphotovideo.com/c/product/1833730-REG/modalics_1035_3127_mindst_drums.html) |
+
+## Modartt
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Airteq | VST3, AAX, Standalone | Yes | Load the MPE version of a preset (many presets come in MPE and breath-controller versions). | Physically modelled flute, reed and pipe instrument, released Sept 2026. MPE evidence comes from a plugin database and a review, not Modartt. No global MPE switch found; VST2 not listed. | [blog.dubspot.com](https://blog.dubspot.com/plugins/modartt-airteq), [bonedo.de](https://www.bonedo.de/?p=2867136), [thebeatcommunity.com](https://thebeatcommunity.com/2026/09/16/modartt-release-airteq/) |
+| Organteq | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Physically modelled pipe organ; Organteq 2 was released Sept 2023. No MPE mention found. It may share Pianoteq's MIDI engine, but per-channel bend was not verified. | [modartt.com](https://www.modartt.com/data/download/press/press_release_2023_09_27.pdf), [forum.modartt.com](https://forum.modartt.com/viewtopic.php?id=9521) |
+| Pianoteq | VST2, VST3, AAX, Standalone | Yes, limited | Options › MIDI: keep the Pitch Bend row in the mapping list, and leave MIDI input on all channels. Bend range: Options › MIDI › pitch-bend range fields in cents; set -4800/+4800 (the maximum since 8.1.x). Default not confirmed. No VST3 note expressions (2018 Modartt forum answer about Pianoteq 6). | Only pitch bend is per note: pressure and CC74 act on all notes. Use 8.1.4 or later, which allows +/-4800 cents and stops bends leaking across channels. Menus come from Modartt forum posts. | [mac.softpedia.com](https://mac.softpedia.com/progChangelog/Pianoteq-Changelog-41956.html), [forum.modartt.com](https://forum.modartt.com/viewtopic.php?id=10631), [forum.modartt.com](https://forum.modartt.com/viewtopic.php?id=1502) |
+
+## Moforte
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Naada | VST3, Standalone | Yes | On without a switch. | Physical-modelling instruments (sitar, oud, sax, duduk, trumpet...) in several bundles. The only MPE evidence is moForte's KVR listings; no MPE setting or bend range is documented. | [kvraudio.com](https://www.kvraudio.com/product/naada-all-instruments-for-windows-by-moforte), [kvraudio.com](https://www.kvraudio.com/product/naada-harmonica-flutes-and-brass-for-windows-by-moforte) |
+
+## Moog Music
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Mariana | VST3, AAX, Standalone | Yes, limited | On without a switch. | Bass synth released Dec 2023; monophonic with a duophonic mode. MPE, MIDI and virtual CV can modulate nearly every parameter. No MPE switch or bend range setting is documented. | [software.moogmusic.com](https://software.moogmusic.com/store/mariana), [cdm.link](https://cdm.link/2023/12/moog-mariana-soft-synth/), [soundonsound.com](https://www.soundonsound.com/reviews/moog-mariana) |
+
+## MusicLab
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| RealEight | VST2, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | 8-string guitar, part of the Real Guitar Series 6. | [soundonsound.com](https://www.soundonsound.com/reviews/musiclab-real-guitar-series-6) |
+| RealGuitar | VST2, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Classic and steel-string guitars (version 6) with Multi Performance Mode, which is not MPE. VST3 on Windows was not confirmed. | [soundonsound.com](https://www.soundonsound.com/reviews/musiclab-real-guitar-series-6), [sweetwater.com](https://www.sweetwater.com/c706--MusicLab--Virtual_Instruments_Software) |
+| RealLPC | VST2, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Les Paul Custom guitar, part of the Real Guitar Series 6. | [soundonsound.com](https://www.soundonsound.com/reviews/musiclab-real-guitar-series-6) |
+| RealRick | VST2, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Rickenbacker 12-string guitar with Floating Fret Position Technology, part of the Real Guitar Series 6. | [sweetwater.com](https://www.sweetwater.com/c696--MusicLab--Software_and_Plugins) |
+| RealStrat | VST2, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Stratocaster guitar with Standard and Elite sets, part of the Real Guitar Series 6. | [soundonsound.com](https://www.soundonsound.com/reviews/musiclab-real-guitar-series-6), [proplugin.com](https://proplugin.com/en/product/musiclab-realstrat-6-electric-guitar-software-instrument/) |
+
+## MuTools
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| MUX Modular | VST2, VST3 | Not mentioned | *Plain MIDI*. | Modular synth and effect plugin from the MuLab team. No update notes or reviews mention MPE; per-channel handling might be patchable, but nothing documents it. Windows formats not verified. | [rekkerd.org](https://rekkerd.org/mutools-updates-mulab-mux-vst-v5-3), [musicradar.com](https://musicradar.com/reviews/tech/mutools-mux-579122), [fr.audiofanzine.com](https://fr.audiofanzine.com/synthe-modulaires-virtuel/mutools/mux-modular-7/news/) |
 
 ## Native Instruments
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Kontakt | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. |  | [docs.native-instruments.com](https://docs.native-instruments.com/ni-tech-manuals/ksp-manual/en/version-history) |
-| Massive X | VST2, VST3, AAX | **No** | *Plain MIDI*. |  | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?t=545907&start=1185) |
+| Abbey Road Drummers | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt drum libraries: Abbey Road 50s, 60s, 70s, 80s, Modern and Vintage Drummer. No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Absynth 5 | VST2, AAX, Standalone | Not mentioned | *Plain MIDI*. Its successor Absynth 6 has full MPE. | Discontinued: NI ended sales and development in 2022; owners can still download it for Windows 10/11. No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussion/6034/end-of-sale-for-absynth-5-official-statement-faq), [rogerlinndesign.com](https://rogerlinndesign.com/support/support-linnstrument-recommended-sounds) |
+| Absynth 6 | VST3, AAX | Yes | On without a switch. | Released December 2025 with full MPE and polyphonic aftertouch; Absynth 5 had none. No source names an MPE switch or a bend range setting. Standalone not confirmed. | [native-instruments.com](https://www.native-instruments.com/ja/products/absynth-6), [kvraudio.com](https://www.kvraudio.com/news-print.php?id=65628), [mixdownmag.com.au](https://mixdownmag.com.au/?p=75518) |
+| Action Strings 2 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Phrase-based Kontakt string library (Kontakt or the free Kontakt Player). No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Alicia's Keys | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt piano (Yamaha C3 Neo). No MPE mention found. | [native-instruments.com](https://www.native-instruments.com/ja/collections/komplete-26-collectors-edition-included-products-instruments), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Analog Dreams | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Play Series instrument for Kontakt or the free Kontakt Player. A search naming it with MPE found nothing. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Arkhis | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Cinematic Kontakt instrument (Kontakt or the free Kontakt Player). No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Ashlight | VST3, AAX, Standalone | Yes | Load an MPE preset from Ashlight's browser and set the Kontakt instrument's MIDI channel to Omni. Bend range: Fixed at 48 on member channels (12 on master channel 1). | Granular Kontakt instrument for Kontakt or the free Kontakt Player, so hosts list it as Kontakt. MPE modulates the grain engine per note. One user got silence from an MPE preset. | [native-instruments.com](https://www.native-instruments.com/ni-tech-manuals/ashlight-manual/en/perform-page), [native-instruments.com](https://native-instruments.com/products/komplete/cinematic/ashlight), [community.native-instruments.com](https://community.native-instruments.com/discussion/comment/22360) |
+| Battery 4 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Drum sampler. No MPE mention found. VST3 since 4.3.0. | [native-instruments.com](https://www.native-instruments.com/en/products/komplete/drums/battery-4/specifications/), [support.native-instruments.com](https://support.native-instruments.com/support/solutions/articles/69000879785-native-instruments-vst3-compatibility-of-native-instruments-plug-ins) |
+| Butch Vig Drums | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt drum library. No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| FM8 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | No MPE mention found. VST3 since 1.4.6. The standalone app was not re-checked. | [native-instruments.com](https://www.native-instruments.com/en/products/komplete/synths/fm8/specifications/), [rogerlinndesign.com](https://rogerlinndesign.com/support/support-linnstrument-recommended-sounds) |
+| Form | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Reaktor ensemble (Reaktor 6 or the free Player). Nothing found on MPE; users report stock NI Reaktor ensembles ignore it. | [vi-control.net](https://vi-control.net/community/threads/reaktor-mpe.169669/) |
+| Glaze 2 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Play Series vocal instrument for Kontakt or the free Kontakt Player. The original Glaze shows no MPE either; its settings cover only key range and velocity curve. | [native-instruments.com](https://www.native-instruments.com/products/komplete/play-series/glaze-2/), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Hypha | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Its polyphonic aftertouch presets give per-note pressure without MPE. | Free hybrid synth delivered as a Kontakt instrument (Kontakt or Kontakt Player 7.5.0 or later). It ships with polyphonic aftertouch presets; no source mentions MPE. | [native-instruments.com](https://www.native-instruments.com/fr/products/komplete/synths/hypha/), [community.native-instruments.com](https://community.native-instruments.com/discussion/comment/146590) |
+| Kontakt 8 | VST3, AAX, Standalone | Yes, limited | No MPE switch: instrument header › MIDI channel: Omni, then the library's own MPE mode (MPE-scripted libraries only). Bend range: Set by each library (Ashlight: fixed at 48); ROLI's one-slot-per-channel workaround tops out at 12. | Only libraries scripted for MPE respond per note; most NI libraries are not. ROLI's workaround loads one copy per member channel. No MPE as of 8.12.0. Kontakt Player is the same plugin. | [community.native-instruments.com](https://community.native-instruments.com/discussion/comment/22360), [community.native-instruments.com](https://community.native-instruments.com/discussion/comment/146590), [support.roli.com](https://support.roli.com/en/support/solutions/articles/36000495149-kontakt-7-using-the-seaboard-with-kontakt-factory-library-2) |
+| Kontour | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Reaktor ensemble (Reaktor 6 or the free Player). Searches naming Kontour found nothing on MPE or polyphonic aftertouch. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8713649) |
+| Lores | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt instrument (Kontakt or the free Kontakt Player). Searches naming Lores found nothing on MPE. | [vi-control.net](https://vi-control.net/community/threads/list-of-mpe-and-polyphonic-aftertouch-intruments.152225/), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Mallet Flux | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt instrument made with Sonuscore, for Kontakt or the free Kontakt Player. No MPE in NI's listings or its manual. | [native-instruments.com](https://www.native-instruments.com/fileadmin/ni_media/downloads/manuals/MALLET_FLUX_Manual.pdf), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Maschine 3 | VST3, AAX, Standalone | **No** | *Plain MIDI*. | An NI moderator said in early 2024 that Maschine has no MPE, not even regular aftertouch: instruments hosted in it get notes only. No MPE news since. Formats not confirmed. | [community.native-instruments.com](https://community.native-instruments.com/discussion/21878/can-i-use-a-mpe-controller-in-maschine) |
+| Massive | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | The original Massive, not Massive X. No MPE documentation found; a forum poster says it responds to polyphonic aftertouch, which is not MPE. VST3 since 1.5.9. | [support.native-instruments.com](https://support.native-instruments.com/support/solutions/articles/69000879785-native-instruments-vst3-compatibility-of-native-instruments-plug-ins), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8426468) |
+| Massive X | VST2, VST3, AAX | **No** | *Plain MIDI*. | Users report no MPE or polyphonic aftertouch up to 1.6.1 (2025); the 1.7 changelog adds none and NI never mentions MPE. The free Massive X Player is the same. No standalone; VST3 since 1.3.3. | [community.native-instruments.com](https://community.native-instruments.com/discussion/46889/why-does-massive-x-1-6-still-not-fully-support-ni-keyboards), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9112048), [rekkerd.org](https://rekkerd.org/native-instruments-updates-massive-x-synthesizer-to-v1-7/) |
+| Monark | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Reaktor ensemble (Reaktor 6 or the free Player), a monophonic Minimoog-style synth. Global pitch bend only, about 7/9 semitones; NI shows how to widen it to an octave (PB Range). | [support.native-instruments.com](https://support.native-instruments.com/support/solutions/articles/69000879922-how-to-change-the-pitch-bend-range-in-monark-to-one-octave), [vi-control.net](https://vi-control.net/community/threads/reaktor-mpe.169669/) |
+| Noire | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt piano (Yamaha CFX with felt, made with Nils Frahm). No MPE mention found. | [native-instruments.com](https://www.native-instruments.com/de/collections/komplete-26-ultimate-included-products-instruments), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Pharlight | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Ashlight, the third of the trilogy, has MPE. | Granular Kontakt instrument, second of the Straylight, Pharlight and Ashlight trilogy. Only Ashlight is described with MPE. | [synthanatomy.com](https://synthanatomy.com/2021/08/native-instruments-ashlight-kontakt-granular-instrument-explores-the-dark-side.html), [thomann.co.uk](https://www.thomann.co.uk/native_instruments_ashlight.htm) |
+| Piano Colors | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt instrument made with Galaxy Instruments (2021). Expression comes from macro knobs and an X-Y pad. | [native-instruments.com](https://www.native-instruments.com/de/press-area/music-production/piano-colors/), [thomann.co.uk](https://www.thomann.co.uk/native_instruments_piano_colors.htm) |
+| Playbox | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt instrument (Kontakt or the free Kontakt Player). No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Polyplex | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | 8-pad drum sampler for the free Reaktor Player or full Reaktor 6. No MPE mention found. VST3 needs Reaktor 6.5.0 or later. | [native-instruments.com](https://www.native-instruments.com/zh/products/polyplex), [native-instruments.com](https://www.native-instruments.com/es/products/reaktor-player) |
+| Prism | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Reaktor modal synth (Reaktor 6 or the free Player). A user found it ignores MPE until edited in full Reaktor with parts of a User Library MPE Mikro Prism. NI's page doesn't mention MPE. | [native-instruments.com](https://www.native-instruments.com/products/komplete/synths/prism/), [vi-control.net](https://vi-control.net/community/threads/reaktor-mpe.169669/) |
+| Razor | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Reaktor ensemble (Reaktor 6 or the free Player). A Seaboard user found it ignores MPE; only a hand-edited ensemble in full Reaktor worked, with glitchy mono patches. NI says nothing on MPE. | [vi-control.net](https://vi-control.net/community/threads/reaktor-mpe.169669/) |
+| Reaktor 6 | VST2, VST3, AAX, Standalone | Yes, limited | No MPE switch: load an ensemble built for MPE (User Library, search 'MPE') and let it receive MIDI channels 2-16. Bend range: Set in each ensemble; ROLI's Reaktor guide uses 48. | Only ensembles built for MPE respond; stock NI ones (Razor, Prism, Super 8) don't. It listens on channel 1 by default. User Library ensembles need full Reaktor, not the free Player. | [support.roli.com](https://support.roli.com/en/support/solutions/articles/36000024500-reaktor-using-the-seaboard-rise-grand-with-reaktor), [forum.sensel.com](https://forum.sensel.com/t/reaktor-and-mpe/1089), [vi-control.net](https://vi-control.net/community/threads/reaktor-mpe.169669/) |
+| Retro Machines MK2 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt instrument of sampled vintage synths. A community list puts it under polyphonic aftertouch, not MPE; poly aftertouch is a different message from MPE's per-channel pressure. | [vi-control.net](https://vi-control.net/community/threads/list-of-mpe-and-polyphonic-aftertouch-intruments.152225/), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Rounds | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Reaktor ensemble (Reaktor 6 or the free Player). No MPE mention found; users report stock NI Reaktor ensembles ignore MPE. | [vi-control.net](https://vi-control.net/community/threads/reaktor-mpe.169669/) |
+| Scarbee Mark I | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt Rhodes library. No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Session Guitarist - Electric Vintage | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt guitar library. An NI forum user says NI's Kontakt guitar libraries don't natively support MPE. Other Session Guitarist titles were not checked. | [community.native-instruments.com](https://community.native-instruments.com/discussion/49796/kontakt-guitar-samples-for-roli) |
+| Session Horns Pro | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt horn library; also covers the original Session Horns. Only NI-wide and Kontakt-wide MPE searches covered it, with no mention. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Session Strings Pro 2 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt string library (Kontakt or the free Kontakt Player). No MPE mention found. | [native-instruments.com](https://www.native-instruments.com/de/collections/komplete-26-ultimate-included-products-instruments), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Spark | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Reaktor ensemble (Reaktor 6 or the free Player). No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe) |
+| Straylight | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Ashlight, the third of the trilogy, has MPE. | Granular Kontakt instrument (2019), first of the Straylight, Pharlight and Ashlight trilogy. Expression comes from an X-Y pad. Only Ashlight is described with MPE. | [synthanatomy.com](https://synthanatomy.com/2019/05/native-instruments-straylight-released-kontakt-6.html), [thomann.co.uk](https://www.thomann.co.uk/native_instruments_ashlight.htm) |
+| Super 8 | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. | Reaktor ensemble (Reaktor 6 or the free Player). A user found stock Reaktor synths ignore MPE; Super 8 was the easiest to convert by editing it in full Reaktor, which the Player can't do. | [vi-control.net](https://vi-control.net/community/threads/reaktor-mpe.169669/) |
+| Symphony Series | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt orchestral libraries: String, Brass and Woodwind Ensembles and Solos, and Percussion. Only NI-wide and Kontakt-wide MPE searches covered them, with no mention. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| The Gentleman / The Giant / The Grandeur | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Three Kontakt pianos, grouped here. No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Una Corda | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt piano with one string per key. No MPE mention found. | [native-instruments.com](https://www.native-instruments.com/de/collections/komplete-26-ultimate-included-products-instruments), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Vintage Organs | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt organ library. No MPE mention found. | [community.native-instruments.com](https://community.native-instruments.com/discussions/tagged/mpe), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+
+## Newfangled Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Generate | VST2, VST3, AAX | Yes | Not confirmed; its user guide has an MPE section (2.7) in the top Preset Bar. | Polyphonic synth; MIDI and MPE can modulate every control. The user guide has an MPE section in its Preset Bar chapter, but the switch and bend range were not confirmed. | [manualsnet.com](https://manualsnet.com/eventide/generate-newfangled-audio), [soundonsound.com](https://www.soundonsound.com/reviews/newfangled-audio-generate?amp), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7882516) |
+
+## Noise Engineering
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Manis Iteritas | VST3, AAX | Yes | Not documented; look for an MPE option in its settings. | 64-bit Windows 10 or later. MPE came to Noise Engineering's earlier plugins as a free update. It also maps velocity and polyphonic aftertouch. | [noiseengineering.us](https://noiseengineering.us/products/manis-iteritas-plugin/), [manuals.noiseengineering.us](https://manuals.noiseengineering.us/manis_iteritas/), [kvraudio.com](https://www.kvraudio.com/product/manis-iteritas-by-noise-engineering) |
+| Sinc Vereor | VST3, AAX | Yes | Not documented; look for an MPE option in its settings. | Free, in the Freequel bundle with Virt Vereor and Ruina. MPE came in the 2024 Freequel update; existing owners get it from the Noise Engineering customer portal. | [noiseengineering.us](https://noiseengineering.us/products/ruina), [bedroomproducersblog.com](https://bedroomproducersblog.com/2024/03/07/noise-engineering-freequel/) |
+| Virt Vereor | VST3, AAX | Yes | Not documented; look for an MPE option in its settings. | Free, in the Freequel bundle with Sinc Vereor and Ruina. MPE came in the 2024 Freequel update; existing owners get it from the Noise Engineering customer portal. | [noiseengineering.us](https://noiseengineering.us/products/ruina), [manuals.noiseengineering.us](https://manuals.noiseengineering.us/virt_vereor/), [bedroomproducersblog.com](https://bedroomproducersblog.com/2024/03/07/noise-engineering-freequel/) |
+
+## Orchestral Tools
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| SINE Player | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Free player for Orchestral Tools libraries (Berlin series, Metropolis Ark and others). AAX since 1.0.6 (October 2021). No MPE mention found. | [recordingmag.com](https://www.recordingmag.com/news/orchestral-tools-sineplayer-now-available-to-pro-tools-users/), [audiotechnology.com](https://audiotechnology.com/?p=78430) |
+
+## Output
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Analog Brass & Winds | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt library: it loads inside Kontakt or Kontakt Player, so the host sees Kontakt. Formats are Kontakt 8's (no VST2). No MPE mention found. | [pluginboutique.com](https://www.pluginboutique.com/products/13960-Output-Instruments-Bundle), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Analog Strings | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt library: it loads inside Kontakt or Kontakt Player, so the host sees Kontakt. Formats are Kontakt 8's (no VST2). No MPE mention found. | [pluginboutique.com](https://www.pluginboutique.com/products/13960-Output-Instruments-Bundle), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Arcade | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Loop instrument: white keys trigger loops, black keys trigger performance modifiers, so per-note expression has little to act on. Windows formats not confirmed. | [bonedo.de](https://www.bonedo.de/artikel/output-arcade-test) |
+| Exhale | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt vocal library: it loads inside Kontakt or Kontakt Player, so the host sees Kontakt. Formats are Kontakt 8's (no VST2). No MPE mention found. | [native-instruments.com](https://www.native-instruments.com/products/exhale), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Signal | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt pulse and rhythm library: it loads inside Kontakt or Kontakt Player, so the host sees Kontakt. Formats are Kontakt 8's (no VST2). No MPE mention found. | [pluginboutique.com](https://www.pluginboutique.com/products/13960-Output-Instruments-Bundle), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+| Substance | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt bass library: it loads inside Kontakt or Kontakt Player, so the host sees Kontakt. Formats are Kontakt 8's (no VST2). No MPE mention found. | [pluginboutique.com](https://www.pluginboutique.com/products/13960-Output-Instruments-Bundle), [native-instruments.com](https://www.native-instruments.com/fr/products/kontakt-player) |
+
+## Pauli Pölkki
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Wave Manuel | VST3 | Not mentioned \* | *Plain MIDI*. | Free stereophonic waveshaping synth, now v2.0. The developer said MPE 'should be a thing', a wish rather than a feature. Windows formats not confirmed (VST3 assumed). | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8570006), [bedroomproducersblog.com](https://bedroomproducersblog.com/?p=45788) |
+
+## Physical Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Modus | VST3, AAX | Yes | MIDI/MPE window (v1.2.1 and later); its option names are not documented. | Physical-modelling synth (strings and plates). The MIDI/MPE window came in v1.2.1, sidechain audio in v1.3, Scala tuning in v1.4. KVR lists 1.5.1 for Windows 11. | [vi-control.net](https://vi-control.net/community/threads/new-physical-audio-release-their-third-physical-modeling-synth-modus.141471/), [musicradar.com](https://musicradar.com/news/physical-audio-modus-synth-plugin), [kvraudio.com](https://www.kvraudio.com/marketplace/modus-by-physical-audio) |
+
+## Pitch Innovations
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Fluid Chords 2 | VST2, VST3, Standalone | Yes, limited | Nothing to turn on: MPE is its core (incoming MPE is not documented). | Turns held chords into MPE bends, played by its own wavetable synth and MPE sampler or a hosted MPE VST. The standalone is for MPE-capable DAWs only. Windows 10 or later, 64-bit. | [pluginboutique.com](https://www.pluginboutique.com/products/15093-Fluid-Chords-2), [soundonsound.com](https://www.soundonsound.com/news/fluid-chords-2-pitch-innovations) |
+
+## Plogue
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Alter/Ego | VST2 | Not mentioned | *Plain MIDI*. | Free singing-synthesis instrument. No MPE mention found. Windows formats uncertain (VST3 not confirmed). | [alterego.fandom.com](https://alterego.fandom.com/wiki/Plogue) |
+| chipsounds | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Chip-sound instrument, not part of Plogue's chipsynth line (which has an MPE mode). A 2026 post uses it as its example of a softsynth without native MPE. Windows formats not checked. | [rekkerd.org](https://rekkerd.org/?p=57610), [matrixsynth.com](https://www.matrixsynth.com/2026/01/midi-mpe-pitch-with-any-softsynth.html) |
+| chipspeech | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Speech-synthesis instrument. Its updates mention mod wheel (CC1) and attack (CC30) control but no MPE. Windows formats not re-checked. | [rekkerd.org](https://rekkerd.org/?p=24380) |
+| chipsynth C64 | VST3, CLAP, AAX, Standalone | Yes | Not documented; Plogue's other chipsynths call it MPE mode. | Commodore 64 SID emulation, up to 12 voices, with multi-MIDI and MPE with per-note modulation and wide-range per-note pitch bend. No VST2. CLAP note expressions not documented. | [plogue.com](https://plogue.com/products/chipsynth-c64.html), [cdm.link](https://cdm.link/chipsynth-c64/), [kvraudio.com](https://www.kvraudio.com/product/chipsynth-c64-by-plogue) |
+| chipsynth MD | VST2, VST3, CLAP, AAX, Standalone | Yes | MPE mode (named in a user report; the menu path is not documented). | Sega Mega Drive / Genesis FM emulation. A user reports MPE mode works in the standalone and in Reaper but not in Cubase, which Plogue support blamed on Cubase. Windows formats not confirmed. | [forums.steinberg.net](https://forums.steinberg.net/t/plogue-chipsynths-not-working-correctly-in-mpe-mode/1032172) |
+| chipsynth OPS7 | VST2, VST3, CLAP, AAX, Standalone | Yes | MPE mode (named in a user report; the menu path is not documented). | DX7-family FM emulation. A user reports its MPE mode works, even in Cubase; Plogue documents no MPE. Windows formats not confirmed. | [forums.steinberg.net](https://forums.steinberg.net/t/plogue-chipsynths-not-working-correctly-in-mpe-mode/1032172) |
+| chipsynth PortaFM | VST2, VST3, CLAP, AAX, Standalone | Yes | MPE mode (named in a user report; the menu path is not documented). | Yamaha PSS (OPLL) FM emulation from 2018, updated in 2022. A user reports MPE mode works in the standalone and in Reaper but not in Cubase. VST2 and CLAP not confirmed. | [forums.steinberg.net](https://forums.steinberg.net/t/plogue-chipsynths-not-working-correctly-in-mpe-mode/1032172), [synthanatomy.com](https://synthanatomy.com/2018/05/portafm-plogue-revives-iconic-yamaha-pss-synthesizers-plugin.html), [sonicstate.com](https://www.sonicstate.com/news/2022/11/22/chipsynth-portafm-updated) |
+| chipsynth SFC | VST3, CLAP, AAX, Standalone | Not mentioned | *Plain MIDI*. Look for an MPE mode in its settings, as its chipsynth siblings have, and test it. | SNES / Super Famicom emulation (2020). No MPE mention found, though its siblings chipsynth MD, PortaFM and OPS7 have an MPE mode. Windows formats not confirmed. | [forums.steinberg.net](https://forums.steinberg.net/t/plogue-chipsynths-not-working-correctly-in-mpe-mode/1032172), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7868218) |
+| sforzando | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Free SFZ player. Searches found nothing about it and MPE. Windows formats not checked. | [kvraudio.com](https://www.kvraudio.com/developer/plogue) |
+
+## plugdata team
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| plugdata | VST3, CLAP, Standalone | Yes, limited | No switch: the patch must handle MPE, e.g. with the bundled ELSE library's [mpe.in] object. Bend range: Set inside the patch. | Free, open-source Pure Data as a plugin. MPE depends entirely on the patch; patches without [mpe.in] treat MIDI as ordinary channel messages. | [github.com](https://github.com/plugdata-team/plugdata/blob/develop/Resources/Documentation/ELSE/mpe.in.json), [github.com](https://github.com/plugdata-team/plugdata/blob/develop/README.md) |
+
+## Plugin Alliance
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| bx_oberhausen | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Polyphonic Oberheim SEM recreation by Brainworx: 32 voices, TMT unison, arpeggiator, mod matrix. No MPE on the maker page or in reviews. | [plugin-alliance.com](https://www.plugin-alliance.com/en/products/bx_oberhausen.html), [musicradar.com](https://www.musicradar.com/reviews/brainworx-bxoberhausen) |
+
+## Plugin Boutique
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Big Kick | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Kick drum generator. Windows formats not confirmed. | [pluginboutique.com](https://www.pluginboutique.com/products/14568-Plugin-Boutique-Plugins-Bundle) |
+| VirtualCZ | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Casio CZ phase-distortion synth. v1.3 added MTS-ESP microtuning, which is not MPE. Windows formats not confirmed. | [kvraudio.com](https://www.kvraudio.com/news-print.php?id=51582), [synthtopia.com](https://www.synthtopia.com/content/2014/09/10/virtualcz-phase-distortion-synth-inspired-by-classic-casio-cz-synthesizers/) |
+
+## PlugInGuru
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Unify | VST2, VST3, Standalone | Not mentioned | *Plain MIDI*. Load the MPE synth in MPE Roll directly, or test that per-note bends stay on separate notes inside Unify. | Plugin host that loads as an instrument, with Instrument, Auxiliary and MIDI layers. Whether it passes MPE on to hosted synths is not documented. | [synthanatomy.com](https://synthanatomy.com/2020/01/pluginguru-unify-multi-format-plugin-host-made-for-sound-designers.html), [rekkerd.org](https://rekkerd.org/pluginguru-releases-unify-2-host-plugin/), [bedroomproducersblog.com](https://bedroomproducersblog.com/?p=34815) |
+
+## Quantastical
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| STRÄNG | VST3, AAX, Standalone | Yes | Not documented; look for MPE options in its settings (v2.3 and later). | Convolution synth. MPE since v2.3; v2.3.3 added two independent per-note expression axes and per-note pitch rounding. A Push 3 pressure issue at launch was promised a fix. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9275355), [rekkerd.org](https://rekkerd.org/quantastical-sound-updates-strang-software-synthesizer-to-v2-3-3/), [rekkerd.org](https://rekkerd.org/quantastical-sound-updates-strang-software-synthesizer-to-v2-5/) |
+
+## quietformat
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Meltone | VST3, Standalone | Yes | Not documented; look for an MPE option in its settings. | Analog-style synth with the GILLA ARP generative engine, released July 2025. The v1.2.1 engine update may change parameters in older sessions. No CLAP build listed. | [kvraudio.com](https://www.kvraudio.com/product/meltone-by-quietformat), [soundonsound.com](https://www.soundonsound.com/news/meltone-soft-synth-quietformat) |
+
+## Reason Studios
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Europa | VST3, AAX | **No** | *Plain MIDI*. | Runs inside Reason or the Reason Rack Plugin, which has no MPE. The Reason 12.7.4 Europa fixes say nothing about MPE. | [help.reasonstudios.com](https://help.reasonstudios.com/hc/en-us/articles/17521169642642-Reason-12-7-4-released), [bonedo.de](https://www.bonedo.de/artikel/reason-studios-reason-13-test/) |
+| Grain | VST3, AAX | **No** | *Plain MIDI*. | Granular sampler that runs inside Reason or the Reason Rack Plugin, which has no MPE. | [reasonstudios.com](https://www.reasonstudios.com/shop/product/reason-rack-14/), [bonedo.de](https://www.bonedo.de/artikel/reason-studios-reason-13-test/) |
+| Malstrom | VST3, AAX | **No** | *Plain MIDI*. | Synth that runs inside Reason or the Reason Rack Plugin, which has no MPE. | [bonedo.de](https://www.bonedo.de/artikel/reason-studios-reason-12-test) |
+| Reason Rack Plugin | VST3, AAX | **No** | *Plain MIDI*. | One plugin (Reason Rack 14) holding all the Reason instruments and Rack Extensions. Reviews of Reason 12 and 13 list missing MPE; no Reason 14 source mentions MPE. | [docs.reasonstudios.com](https://docs.reasonstudios.com/rackplugin14), [bonedo.de](https://www.bonedo.de/artikel/reason-studios-reason-13-test/), [bonedo.de](https://www.bonedo.de/artikel/reason-studios-reason-12-test) |
+| Subtractor | VST3, AAX | **No** | *Plain MIDI*. | Synth that runs inside Reason or the Reason Rack Plugin, which has no MPE. | [bonedo.de](https://www.bonedo.de/artikel/reason-studios-reason-12-test) |
+| Thor | VST3, AAX | **No** | *Plain MIDI*. | Synth that runs inside Reason or the Reason Rack Plugin, which has no MPE. | [bonedo.de](https://www.bonedo.de/artikel/reason-studios-reason-13-test/) |
+
+## reFX
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Nexus 2 | VST2 | Not mentioned | *Plain MIDI*. | Discontinued legacy ROMpler, VST2 only. No MPE mention found for any Nexus version. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9140659) |
+| Nexus 3 | VST2, AAX | Not mentioned | *Plain MIDI*. | Discontinued (replaced by Nexus 4 and 5) but still used. No MPE mention found. Windows formats unverified (believed to have no VST3 build). | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9140659) |
+| Nexus 4 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Superseded by Nexus 5 but still widely used. No reFX MPE statement was found for any Nexus version. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9140659) |
+| Nexus 5 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | No reFX statement on MPE was found. A KVR user (Oct 2025) says it responds to channel pressure only, not polyphonic aftertouch. Windows formats not confirmed. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9140659), [blog.dubspot.com](https://blog.dubspot.com/plugins/nexus-5) |
+| Vanguard 2 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Released November 2022 as a rebuild of the 2004 original. Launch coverage lists wavetables, filters, effects and expansions but no MPE. | [kvraudio.com](https://www.kvraudio.com/news/refx-releases-vanguard-2-56585), [synthanatomy.com](https://synthanatomy.com/?p=69257) |
+
+## Renoise
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Redux | VST3 | Not mentioned | *Plain MIDI*. | No MPE in Renoise or Redux release notes up to Redux 1.4 (July 2025); forum threads still request MPE for Renoise. Redux ships as a 64-bit VST3 on Windows. | [kvraudio.com](https://www.kvraudio.com/news/renoise-3-5-and-redux-1-4-released-64280), [forum.renoise.com](https://forum.renoise.com/t/support-for-mpe-midi-polyphonic-expression/59211) |
 
 ## Reveal Sound
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Spire | VST2, VST3, AAX | **No** | *Plain MIDI*. |  | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8899985) |
+| Spire | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Users have asked for MPE in the official KVR feature-request thread since 2022. Release notes up to 1.5.20 mention none. A major update was announced in 2024 with no timeline. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8583150), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8899985), [rekkerd.org](https://rekkerd.org/reveal-sound-updates-spire-synthesizer-to-v1-5-20/) |
+
+## Rhizomatic
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Plasmonic | VST3, AAX, Standalone | Yes | Check its settings for an MPE option (location not documented). | MPE since launch (December 2020); MPE Slide and Pressure are built into its modulation. v1.2 added 100 MPE presets and MTS-ESP. MPE setting location and per-note bend range not documented. | [synthanatomy.com](https://synthanatomy.com/2020/12/rhizomatic-plasmonic-mpe-physical-modeling-synth-from-the-absynth-developer.html), [kvraudio.com](https://www.kvraudio.com/product/plasmonic-by-rhizomatic) |
+
+## Rhodes Music Group
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Rhodes V8 Pro | VST3, AAX | Not mentioned \* | *Plain MIDI*. | Its per-note control means per-tine tuning, timbre, level and damping, not MPE. No standalone version. Exact Windows formats were not checked. | [rhodesmusic.com](https://rhodesmusic.com/rhodes-v8-plu), [soundonsound.com](https://www.soundonsound.com/reviews/rhodes-v8-v8-pro) |
+
+## Rob Papen
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| BIT-2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Analog-modelled synth released April 2023. Listings mention a mod matrix and a ribbon controller but no MPE. | [pluginboutique.com](https://www.pluginboutique.com/products/10494-BIT-2), [matrixsynth.com](https://www.matrixsynth.com/2023/04/rob-papen-introduces-bit-2-analogue.html) |
+| Blade-2 | VST2, VST3, AAX | Yes | PlayMode › MPE mode (added as 'MPE Beta' in v2.1.0a). | MPE was added in v2.1.0a, labelled beta at the time; whether it is still beta was not confirmed. Retailers and users confirm MPE. | [kvraudio.com](https://kvraudio.com/news/rob-papen-updates-blade-2-v2-1-0a-and-explorer-v6-2-0a-50139), [thomann.fr](https://www.thomann.fr/rob_papen_blade_2.htm), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8036603) |
+| BLUE-III | VST2, VST3, AAX | Yes | Play Mode › MPE Poly (may read 'Poly MPE'). | MPE is its own polyphonic play mode, separate from the 16-voice Polyphonic, Mono and Legato modes. The feature list calls it 'MPE Poly mode'. | [pluginboutique.com](https://pluginboutique.com/products/9949-BLUE-III), [blackoctopus-sound.com](https://blackoctopus-sound.com/product/rob-papen-blue-3/) |
+| Go2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. Its upgrade Go2-X has MPE (Poly MPE play mode). | MPE (Poly MPE play mode) was found only for the Go2-X upgrade, not for the original Go2. | [pluginboutique.com](https://www.pluginboutique.com/products/11563-Go2-X-Upgrade-from-Go2), [pluginboutique.com](https://www.pluginboutique.com/manufacturers/57-Rob-Papen) |
+| Go2-X | VST2, VST3, AAX | Yes | Play section › Play mode › Poly MPE. | Go2-X is the paid upgrade of Go2 (late 2023); Poly MPE is one of its 9 play modes. The original Go2 has no documented MPE. | [pluginboutique.com](https://www.pluginboutique.com/products/11562-Go2-X), [thomann.ae](https://www.thomann.ae/rob_papen_go2_x.htm) |
+| Predator-3 | VST2, VST3, AAX | Yes | Turn on MPE in its settings (location not documented). | Bonedo's review lists MPE support among Predator-3's new features. Where to turn it on was not found; Rob Papen's other MPE synths use a 'Poly MPE' play mode. | [bonedo.de](https://www.bonedo.de/artikel/rob-papen-predator-3-test/3), [pluginboutique.com](https://www.pluginboutique.com/products/8293-Predator-3) |
+| Punch-2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Drum synth. No MPE mention found. | [pluginboutique.com](https://www.pluginboutique.com/manufacturers/57-rob-papen) |
+| Quad-2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Began as a Reason Rack Extension. Only a Thomann upgrade listing names Quad-2; the installed plugin may show as Quad. No MPE found. | [thomannmusic.com](https://www.thomannmusic.com/rob_papen_quad_2_upgrade.htm), [rekkerd.org](https://rekkerd.org/?p=157508) |
+| RAW-2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Distortion-focused synth (16 voices, two phase-distortion oscillators, ribbon controller) released March 2025 in eXplorer-10. No MPE found. | [sonicstate.com](https://sonicstate.com/news/2025/03/07/rob-papen-releases-explorer-10-bundle/), [fullcompass.com](https://www.fullcompass.com/prod/650961-rob-papen-raw-2-virtual-synthesizer-virtual) |
+| RAW-Kick 2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Kick-drum synth released May 2026 in eXplorer-11, successor to RAW-Kick. Three layers and a ribbon controller. No MPE found. | [rekkerd.org](https://rekkerd.org/rob-papen-launches-raw-kick-2-drum-instrument/), [soundonsound.com](https://www.soundonsound.com/news/rob-papen-launch-explorer-11) |
+| SubBoomBass-2 | VST2, VST3, AAX | Yes | Play mode › Poly MPE. | MPE arrived in the free update v1.0.2 ('MIDI MPE compatible (Poly MPE)'), which also added Mono Low/High modes and fixed polyphonic aftertouch. | [rekkerd.org](https://rekkerd.org/rob-papen-adds-new-features-presets-to-subboombass-2-synthesizer/) |
+| SynFeX | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | FX synth for risers and drops, released March 2025 in eXplorer-10. No MPE found. | [bonedo.de](https://www.bonedo.de/artikel/rob-papen-explorer-10-software-bundle-mit-raw-2-und-synfex) |
+| Vecto | VST2, VST3, AAX | Yes | Play mode › Poly MPE. | Update 1.0.2 added MPE (Poly MPE play mode), VST3, granular resynthesis, new filters and 231 presets. | [rekkerd.org](https://rekkerd.org/?p=194292) |
+| WirePluck | VST2, VST3, AAX | Yes | Play section › Play Mode › Poly MPE. Bend range: Play section › Pitch Bend Up / Down (up to 48); whether Poly MPE uses it per note is not stated. | Released July 2025: a 16-voice hybrid physical-modelling pluck synth (Wire, String, FM and Wave layers). How Poly MPE handles per-note bend and pressure is not documented. | [robpapen.com](https://www.robpapen.com/WirePluck-Features.html), [bestservice.com](https://www.bestservice.com/en/wirepluck.html), [thomann.de](https://www.thomann.de/gr/rob_papen_wirepluck.htm) |
 
 ## Roland
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| ZENOLOGY and Roland Cloud instruments | VST3, AAX | **No** | *Plain MIDI*. |  | [roland.com](https://www.roland.com/dk/products/rc_zenology/) |
+| D-50 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary (LA synthesis). No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update), [musicradar.com](https://www.musicradar.com/news/roland-galaxias-super-synth) |
+| GALAXIAS | VST3, Standalone | Not mentioned | *Plain MIDI*. | Roland Cloud Ultimate only; needs internet sign-in. A Scene layers up to four Roland Cloud instruments. Since 1.8 (November 2025) it also hosts ZENOLOGY GX, which has no plug-in of its own. | [roland.com](https://www.roland.com/fr/products/rc_galaxias/), [roland.com](https://www.roland.com/us/products/rc_zenology_gx/articles/), [roland.com](https://www.roland.com/us/company/press_releases/2023/Roland-Introduces-GALAXIAS/) |
+| JD-800 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary; also a ZENOLOGY Model Expansion. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update), [soundonsound.com](https://www.soundonsound.com/news/roland-announce-zenology-pro-collection) |
+| JUNO-106 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary; also a ZENOLOGY Model Expansion. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update), [soundonsound.com](https://www.soundonsound.com/news/roland-announce-zenology-pro-collection) |
+| JUNO-60 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| JUPITER-4 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary; its release was reported but not re-checked. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| JUPITER-8 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary (membership or Lifetime Key); also a ZENOLOGY Model Expansion. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update), [musicradar.com](https://www.musicradar.com/news/roland-galaxias-super-synth) |
+| JV-1080 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary ROMpler. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| JX-8P | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary; also a ZENOLOGY Model Expansion. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update), [soundonsound.com](https://www.soundonsound.com/news/roland-announce-zenology-pro-collection) |
+| Other Roland Cloud instruments | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud instruments without their own entry. No Roland Cloud instrument documents MPE, and no update adding it was found. Roland Cloud is phasing out VST2. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update), [musicradar.com](https://www.musicradar.com/news/roland-galaxias-super-synth) |
+| PROMARS | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| SH-101 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary monosynth; also a ZENOLOGY Model Expansion. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update), [soundonsound.com](https://www.soundonsound.com/news/roland-announce-zenology-pro-collection) |
+| SH-2 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary monosynth. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| SOUND Canvas VA | VST3, AAX | Not mentioned | *Plain MIDI*. | 16-part GM/GS sound module: each MIDI channel plays its own part, so MPE notes on channels 2-16 would reach different parts. Use Plain MIDI on the part's channel. No MPE documented. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| SRX series | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud plug-ins built from the SRX expansion boards (SRX ORCHESTRA, SRX KEYBOARDS and others); the current set of titles was not checked. No MPE documented. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| SYSTEM-100 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| SYSTEM-8 | VST3, AAX | Not mentioned | *Plain MIDI*. | Software version of the SYSTEM-8, on Roland Cloud. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update), [musicradar.com](https://www.musicradar.com/news/roland-galaxias-super-synth) |
+| TB-303 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud bass line monosynth with its own sequencer. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| TR-606 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud drum machine. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| TR-707 / TR-727 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud drum machines; whether they ship as one plug-in or two was not checked. No MPE documented. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| TR-808 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud drum machine with its own sequencer. No MPE documented, and MPE adds little to drum triggering; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update), [musicradar.com](https://www.musicradar.com/news/roland-galaxias-super-synth) |
+| TR-909 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud drum machine. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| XV-5080 | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland Cloud Legendary ROMpler. No MPE documented; its own manual was not checked. | [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
+| ZENOLOGY | VST3, AAX | Not mentioned | *Plain MIDI*. | Roland's ZEN-Core software synth. The free ZENOLOGY and ZENOLOGY Pro are one plug-in unlocked by licence. Needs Roland Cloud Manager. Roland Cloud is phasing out VST2. | [roland.com](https://www.roland.com/cloud/promos/products/zenologypro), [roland.com](https://www.roland.com/RolandComSite/media/global/release/pdf/2020/20200512_1_Roland_Zenology.pdf), [rolandcloud.com](https://rolandcloud.com/news/roland-cloud-support-update) |
 
 ## ROLI
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Equator2 | VST3, AAX, Standalone | Yes | MIDI settings › MPE mode (not Standard). Bend range: Per-note bend range in the same settings; set 48. |  | [support.roli.com](https://support.roli.com/support/solutions/articles/36000447444-changing-midi-settings-in-equator2) |
+| Cypher2 | VST2, AAX | Yes | Load a 5D preset; users report an Enable MPE checkbox in its drop-down menu. Bend range: 5D presets use 48 (user report). | FXpansion synth (2018), now ROLI. VST2 and AAX only; no VST3 found. Reads per-note pitch bend, strike and release velocity, pressure and CC74. Development appears to have ended. | [support.roli.com](https://support.roli.com/support/discussions/topics/36000006021), [cdm.link](https://cdm.link/2018/08/cypher2-roli-fxpansion-synth/), [vi-control.net](https://vi-control.net/community/threads/issues-in-cypher-2-and-strobe-2-the-end-of-it.125641/) |
+| Equator2 | VST3, Standalone | Yes | Mod Panel › Note Configuration › MPE mode, Global Channel 1, channels 2-16; use its MPE presets. Bend range: Note Configuration › Note Pitch Bend (12-96, default 48). | ROLI's flagship MPE synth (2020), successor to Equator. Download its 5 GB sample library or most presets are silent. Changing its MIDI settings after recording can put Glide out of tune. | [support.roli.com](https://support.roli.com/en/support/solutions/articles/36000447444-changing-midi-settings-in-equator2), [support.roli.com](https://support.roli.com/en/support/solutions/articles/36000028378-setting-the-ideal-pitch-bend-range), [kvraudio.com](https://www.kvraudio.com/product/equator2-by-roli/details) |
+| ROLI Studio Drums | VST3 | Yes | On without a switch. | ROLI calls it the world's first MPE drum engine: 15 kits, 240 drum parts, MPE expression controls. No source says where MPE is switched on. Windows formats are inferred; check the installer. | [roli.com](https://roli.com/product/roli-studio), [synthtopia.com](https://synthtopia.com/content/2019/10/17/roli-launches-blocks-studio-editions-roli-studio-software-suite) |
+| ROLI Studio Player | VST3, Standalone | Yes | Note icon (bottom right) › Note Configuration: MPE channel settings, pitch bend and pressure on; MPE presets. Bend range: Note Configuration window (default not confirmed). | Plays presets from the Equator2, Equator, Cypher2 and Strobe2 engines; latest version 1.4.1. One user saw it drop to single-channel MIDI in Ableton: if per-note bends stop, check Note Configuration. | [support.roli.com](https://support.roli.com/support/discussions/topics/36000012226), [support.roli.com](https://support.roli.com/en/support/solutions/articles/36000513168-how-to-activate-pitch-bend-and-mpe-features-on-the-piano-m), [roli.com](https://roli.com/product/roli-studio) |
+| Strobe2 | VST2 | Yes | Load a 5D patch from the MPE Factory library (v2.3.0.25 or later). Bend range: 5D patches expect 48 (the Seaboard default). | FXpansion multitimbral polysynth, now ROLI. MPE and 5D patches came in the free v2.3 update. VST3 and AAX on Windows were not confirmed. Development appears to have ended. | [support.roli.com](https://support.roli.com/support/solutions/articles/36000045177), [kvraudio.com](https://kvraudio.com/product/strobe2-by-fxpansion), [rogerlinndesign.com](https://rogerlinndesign.com/support/support-linnstrument-recommended-sounds) |
+
+## Sample Modeling
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Brass Bundle (Trumpet, Trombone, French Horn, Tuba) | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt / Kontakt Player libraries; formats are Kontakt 8's. Solo instruments shaped by CCs (dynamics on CC11). A user found Kontakt MPE workarounds sluggish. Use Plain MIDI per instrument. | [native-instruments.com](https://www.native-instruments.com/en/products/nks-partners/samplemodeling/brass-bundle/), [soundonsound.com](https://www.soundonsound.com/reviews/sample-modeling-solo-winds-brass), [vi-control.net](https://vi-control.net/community/threads/roli-seaboard-sample-modelling-divisimate.171135/) |
+| Solo & Ensemble Strings | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Kontakt / Kontakt Player library (Kontakt 5.8.1 or later); formats are Kontakt 8's. Over 30 parameters per instrument. Users found Kontakt MPE workarounds with it more hassle than they are worth. | [soundonsound.com](https://soundonsound.com/node/4921022), [vi-control.net](https://vi-control.net/community/threads/roli-seaboard-sample-modelling-divisimate.171135/), [native-instruments.com](https://www.native-instruments.com/en/products/komplete/samplers/kontakt-8/specifications/) |
+
+## Sampleson
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Stage54 | VST3 | Not mentioned \* | *Plain MIDI*. | Spectral-modelled 54-key electric tine piano (about 45 MB). Listings say Windows 'VST/AU', so whether the Windows build is VST2 or VST3 was not confirmed. | [sampleson.gumroad.com](https://sampleson.gumroad.com/l/NfmJO), [musicradar.com](https://musicradar.com/news/plugin-boutique-stage-54-electric-piano-plugin) |
+
+## Serato
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Serato Sample | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sample-chopping instrument; Keyboard Mode plays one cue chromatically. It has no native pitch bend, so per-note pitch can't work. AAX since 2.2.0; VST2 in current Windows builds is unconfirmed. | [serato.com](https://serato.com/forum/discussion/1669037), [support.serato.com](https://support.serato.com/hc/en-us/articles/115000501614-Cues), [serato.com](https://serato.com/sample/downloads) |
+
+## sfztools
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| sfizz | VST3 | **No** | *Plain MIDI*. | Open-source SFZ player. Pitch bend and channel aftertouch are global; poly aftertouch is per note. No MPE in its code or docs. The plug-in builds come from the sfizz-ui project. | [github.com](https://github.com/sfztools/sfizz/blob/develop/src/sfizz/Synth.h), [github.com](https://github.com/sfztools/sfizz-ui/blob/develop/README.md) |
+
+## Sick Noise Instruments
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Xenobyte | VST3, Standalone | Not mentioned \* | *Plain MIDI*. | Xenobyte 1 is a free VST3 hybrid synth whose master panel offers only mono mode, polyphony and glide. Xenobyte 2 (October 2026) is a Windows-only VST3/standalone wavetable and granular synth. | [thebeatcommunity.com](https://thebeatcommunity.com/2026/10/02/sick-noise-instruments-release-xenobyte-2-windows-only/), [rekkerd.org](https://rekkerd.org/free-xenobyte-synthesizer-plugin-by-sick-noise-instruments) |
+
+## Siegfried Kullmann
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| SQ8L | VST2 | Not mentioned \* | *Plain MIDI*. Arturia's SQ80 V, a separate SQ-80 model, has MPE. | Discontinued freeware emulation of the Ensoniq SQ-80, Windows VST2 only. No MPE mention was found for it. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8219566) |
+
+## Slate Digital
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Steven Slate Drums 5.5 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Drum sampler with 400+ instruments and MIDI Learn & Map for e-drum kits. No MPE mentioned. Its plugin list name and Windows formats were not confirmed. | [thomann.de](https://www.thomann.de/gr/slate_digital_steven_slate_drums_5.htm) |
+
+## SocaLabs
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Wavetable | VST2, VST3, CLAP | Yes | Main menu (plugin header) › MPE. Bend range: Fixed at 48 in MPE mode (JUCE MPE zone default); the Pitch Bend knob (0-48, default 2) only applies outside MPE. | Free, open-source wavetable synth (1.0.37). Since 1.0.18 MPE is a global setting remembered for new instances. The 48 bend range comes from the Gin/JUCE code, not SocaLabs docs. | [github.com](https://github.com/FigBug/Wavetable/blob/master/Manual.md), [github.com](https://github.com/FigBug/Wavetable/blob/master/plugin/Source/PluginEditor.cpp), [github.com](https://github.com/FigBug/Gin/blob/master/modules/gin_dsp/dsp/gin_synthesiser.h) |
+
+## Softube
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Heartbeat | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Analog-modelled eight-channel drum synth (2015). Softube does not mention MPE, and a drum synth gains little from it. Softube recommends VST3. | [softube.com](https://www.softube.com/heartbeat), [synthtopia.com](https://synthtopia.com/content/2015/06/26/softube-intros-heartbeat-drum-synth-inspired-by-classic-drum-machines) |
+| Model 72 Synthesizer System | VST3, AAX | Not mentioned | *Plain MIDI*. | Monophonic Minimoog-style model. Softube does not mention MPE for it, and a forum user says Softube has added MPE to none of its instruments. | [softube.com](https://www.softube.com/plug-ins/synthesizers/synthesizers), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9164033) |
+| Model 77 Dual Layer Synth | VST3, AAX | Not mentioned | *Plain MIDI*. | Yamaha CS-80 model with polyphonic aftertouch. Poly aftertouch is not MPE: there is no per-note pitch bend or timbre. Softube does not mention MPE. | [softube.com](https://www.softube.com/model-77-dual-layer-synth), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9164033) |
+| Model 80 Five Voice Synthesizer | VST3, AAX | Not mentioned | *Plain MIDI*. | Model of the 1980 Prophet-5 five-voice polysynth. Softube does not mention MPE for it. | [softube.com](https://www.softube.com/plug-ins/synthesizers/synthesizers), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9164033) |
+| Model 82 Sequencing Mono Synth | VST3, AAX | Not mentioned | *Plain MIDI*. | Monophonic SH-101 style synth with a built-in sequencer. Softube does not mention MPE for it. | [softube.com](https://www.softube.com/plug-ins/synthesizers/synthesizers), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9164033) |
+| Model 84 Polyphonic Synthesizer | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Juno-106 model released in April 2021, with velocity and channel aftertouch routing. Softube does not mention MPE. Softube recommends VST3. | [softube.com](https://softube.com/model-84-polyphonic-synthesizer), [kvraudio.com](https://www.kvraudio.com/product/21092), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9164033) |
+| Modular | VST3, AAX | Yes, limited | Add the free ROLI Seaboard RISE module › patch its per-voice CV outputs to the voices › voice mode: POLY ROTATE. Bend range: No setting on the module confirmed; ROLI's setup guide uses 48. | MPE only through the free ROLI Seaboard RISE module (November 2016): four voices, POLY ROTATE / POLY LOWEST / MONO. The normal MIDI-to-CV modules do not take MPE. | [support.roli.com](https://support.roli.com/support/solutions/articles/36000024629-softube-modular-rise-grand), [synthtopia.com](https://synthtopia.com/content/2016/11/10/softube-modular-gets-mpe-support-with-roli-seaboard-rise-module), [gearnews.com](https://www.gearnews.com/rise-module-softube-modular-gives-cv-control-roli-keyboards/) |
+
+## Sonic Academy
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| ANA 2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Hybrid synth. The free v2.5 update (November 2022) added multi-sampling, not MPE. Feature lists and comparison tables show no MPE. | [blog.dubspot.com](https://blog.dubspot.com/plugins/ana-2), [synthanatomy.com](https://synthanatomy.com/2022/11/sonic-academy-ana-2-5-free-synthesizer-upgrade-brings-multi-sampling.html), [kvraudio.com](https://www.kvraudio.com/product/ana-2-by-sonic-academy) |
+| Kick 3 | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Kick drum synth with five layers, keytracking and FX (KVR lists v1.1.7). No MPE mention found. Windows formats were not verified. | [musictech.com](https://musictech.com/reviews/plug-ins/sonic-academy-kick-3-review/), [kvraudio.com](https://www.kvraudio.com/product/kick-3-by-sonic-academy) |
+
+## Sonic Cat
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Purity | VST2, Standalone | Not mentioned \* | *Plain MIDI*. | Lightweight PCM ROMpler (v1.4.7) for Windows XP to 11, with a 64-bit build. Formerly sold by Luxonix. Paid product. No MPE mentioned. | [kvraudio.com](https://www.kvraudio.com/product/purity-by-sonic-cat/details), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8477403) |
+
+## Sonic Charge
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Microtonic | VST2, VST3 | Not mentioned | *Plain MIDI*. | Pattern-based drum synth (current major version 3). No MPE found. On Windows it needs a VST 2.4 or VST3 host; there is no standalone. | [cdn.soniccharge.com](https://cdn.soniccharge.com/microtonic) |
+| Synplant 2 | VST2, VST3 | Yes, limited | On without a switch. | Rudimentary MPE since Synplant 2 (2023): per-channel pitch bend, pressure and mod wheel. The developer says support is incomplete; extra per-note control must be mapped by hand. | [cdm.link](https://cdm.link/2023/10/the-road-to-synplant-2/), [cdm.link](https://cdm.link/2023/10/synplant-2-hands-on/), [rekkerd.org](https://rekkerd.org/?p=254282) |
+
+## Sonic Projects
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| OP-X PRO-3 | VST3 | Not mentioned | *Plain MIDI*. | 12-voice Oberheim OB-X style synth released December 2023 (KVR lists v1.0.3). No source mentions MPE or poly aftertouch for it. | [sonicstate.com](https://sonicstate.com/news/2023/12/11/12-voice-semi-modular-va-synth/), [kvraudio.com](https://www.kvraudio.com/product/op-x-pro-3-by-sonicprojects) |
+
+## SonicModeler
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Syntropy | VST3, CLAP, Standalone | Yes | On without a switch. | Formula-based synth with MPE, poly pressure and microtuning (v1.4 on Windows). Syntropy 2, a free upgrade, was not checked for MPE. CLAP note expressions are not documented. | [synthtopia.com](https://www.synthtopia.com/?p=153595), [kvraudio.com](https://www.kvraudio.com/news/67194), [kvraudio.com](https://www.kvraudio.com/product/syntropy-by-sonicmodeler) |
+
+## Sonivox
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Big Bang Universal Drums | VST2 | Not mentioned \* | *Plain MIDI*. | Drum library instrument. Its formats and current availability were not confirmed. No MPE mention found. | [manualsdir.com](https://www.manualsdir.com/manuals/628055/sonivox-big-bang-universal-drums.html) |
+| Eighty Eight Ensemble 2 | VST2 | Not mentioned \* | *Plain MIDI*. | Sampled grand piano with MIDI learn and saveable MIDI setups. The 2.0 review lists Windows VST and RTAS. No MPE mentioned. | [delamar.de](https://www.delamar.de/musiksoftware/sonivox-eighty-eight-ensemble-2-20715/) |
+| Twist 2 | VST2 | Not mentioned \* | *Plain MIDI*. | Sound-design synth with a pattern generator and effects (about 2013). Current availability and VST3/AAX builds after the inMusic ownership change were not checked. | [plugivery.com](https://www.plugivery.com/products/p3420-Premier-Collection/) |
+
+## Sound Guru
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| The Mangle | VST2 | Not mentioned \* | *Plain MIDI*. | Granular sampler (8 samples, ADSR, drag-on modulation, two sequencers). Development appears stalled since about 2019. Windows formats were not confirmed. | [kvraudio.com](https://www.kvraudio.com/product/the-mangle-by-sound-guru/reviews), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=6016776) |
+
+## Sound Magic
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Neo Piano | VST3 | Not mentioned \* | *Plain MIDI*. Sound Magic's free Piano One claims MPE support. | Sound Magic's Neo Piano pages advertise MIDI 2.0 per-note control and polyphonic aftertouch, but not MPE. Poly aftertouch is not part of MPE Roll's MPE output. | [neovst.com](https://neovst.com/product/neo-piano-chapters-newyork/), [kvraudio.com](https://www.kvraudio.com/news-print.php?id=67136) |
+| Piano One | VST2, VST3 | Yes | On without a switch. | Free hybrid-modelled grand piano. MPE is claimed only in Sound Magic's 2025 MIDI Innovation Award entry, filed as a prototype; no manual or release notes confirm it. | [midi.org](https://midi.org/innovation-award/piano-one), [midi.org](https://www.midi.org/innovation-awards), [kvraudio.com](https://www.kvraudio.com/product/piano-one-by-sound-magic/timeline) |
+
+## Soundpaint
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Soundpaint | VST3, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Free sampler engine from 8Dio. Version 5.0 (September 2026) added a sample editor, an arpeggiator and Racks. No MPE in its feature lists. VST2 on Windows was not checked. | [blog.dubspot.com](https://blog.dubspot.com/plugins/soundpaint), [looperman.com](https://www.looperman.com/free-music-software/detail/8dioproductions-soundpaint) |
 
 ## Spectrasonics
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Omnisphere 2 | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. Load the patch into Part 1. |  | [support.spectrasonics.net](https://support.spectrasonics.net/manual/Omnisphere3/30/en/topic/mpe-midi-polyphonic-expression) |
-| Omnisphere 3 | VST2, VST3, AAX, Standalone | Yes | System page (gear icon) › MPE on; load the patch into Part 1 only. Bend range: MPE Pitch Bend Range on the System page; set 48. |  | [support.spectrasonics.net](https://support.spectrasonics.net/manual/Omnisphere3/30/en/topic/system-mpe) |
+| Keyscape | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Owners of Omnisphere 3 can load its patches there and use Omnisphere's MPE (untested). | Sampled keyboard collection. Spectrasonics documents MPE only for Omnisphere 3. Windows standalone since 2018 and VST3 since June 2021. | [spectrasonics.net](https://www.spectrasonics.net/support/knowledgebase/article/how+to+use+keyscape+and+trilian+in+omnisphere/103/19), [support.spectrasonics.net](https://support.spectrasonics.net/manual/Omnisphere3/30/en/topic/using-mpe-sources), [ilio.com](https://www.ilio.com/blog/spectrasonics-announces-native-apple-silicon-and-vst3-support-for-all-instruments/) |
+| Omnisphere 2 | VST2, VST3, AAX, Standalone | **No** | *Plain MIDI*. Load the patch into Part 1. | Discontinued: Omnisphere 3 replaced it in October 2025 as a paid upgrade. MPE is new in version 3, so 2.x has none. | [support.spectrasonics.net](https://support.spectrasonics.net/manual/Omnisphere3/30/en/topic/using-mpe-sources), [soundonsound.com](https://www.soundonsound.com/news/spectrasonics-omnisphere-3-arrives), [stars-music.com](https://www.stars-music.com/spectrasonics-omnisphere-3_232974.html) |
+| Omnisphere 3 | VST2, VST3, AAX | Yes | System page › MPE (turn on). Bend range: System page › MPE Pitch Bend Range (default not found). | MPE added in Omnisphere 3.0 (October 2025). Per-note pitch bend works by default; MPE Y (CC74) and Z (pressure) need Mod Matrix routings. No CLAP version found. | [support.spectrasonics.net](https://support.spectrasonics.net/manual/Omnisphere3/30/en/topic/using-mpe-sources), [support.spectrasonics.net](https://support.spectrasonics.net/manual/Omnisphere/main/controls/page04.html), [soundonsound.com](https://www.soundonsound.com/news/spectrasonics-omnisphere-3-arrives) |
+| Stylus RMX Xpanded | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Groove and loop instrument. No MPE found, and no documented Omnisphere 3 route for its patches. Windows standalone since 2018 and VST3 since June 2021. | [support.spectrasonics.net](https://support.spectrasonics.net/manual/Omnisphere3/30/en/topic/using-mpe-sources), [musictech.com](https://musictech.com/news/spectrasonics-instruments-standalone/), [ilio.com](https://www.ilio.com/blog/spectrasonics-announces-native-apple-silicon-and-vst3-support-for-all-instruments/) |
+| Trilian | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Owners of Omnisphere 3 can load its patches there and use Omnisphere's MPE (untested). | Bass instrument with only ordinary per-patch pitch bend (up/down 0-24 semitones). Spectrasonics documents MPE only for Omnisphere 3. Standalone since 2018, VST3 since 2021. | [support.spectrasonics.net](https://support.spectrasonics.net/manual/Trilian/1.5/en/topic/bend), [spectrasonics.net](https://www.spectrasonics.net/support/knowledgebase/article/how+to+use+keyscape+and+trilian+in+omnisphere/103/19), [ilio.com](https://www.ilio.com/blog/spectrasonics-announces-native-apple-silicon-and-vst3-support-for-all-instruments/) |
+
+## Spitfire Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Abbey Road One | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Runs in Spitfire's own plugin; each volume shows under its own name. Not searched individually; maker-level searches found no MPE. | [vi-control.net](https://vi-control.net/community/threads/list-of-mpe-and-polyphonic-aftertouch-intruments.152225/) |
+| Albion | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | ONE, NEO, Tundra and other volumes have shipped as Kontakt libraries, so they load in Kontakt (Kontakt 8 on Windows: VST3, AAX, Standalone; no VST2). No Spitfire MPE statement. | [native-instruments.com](https://www.native-instruments.com/en/products/komplete/samplers/kontakt-8/specifications/), [vi-control.net](https://vi-control.net/community/threads/list-of-mpe-and-polyphonic-aftertouch-intruments.152225/) |
+| BBC Symphony Orchestra | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Discover (free), Core and Professional editions, all in Spitfire's own plugin. Maker-level Spitfire searches found no MPE. | [musictech.com](https://musictech.com/news/gear/spitfire-audio-bbc-symphony-orchestra/), [musictech.com](https://musictech.com/news/spitfire-audio-makes-bbc-symphony-orchestra-accessible-to-everyone) |
+| BT Phobos | VST3, AAX | Yes | MPE mode on (control name not documented); its MIDI channel setting then becomes the master channel: set 1. | Polyconvolution synth made with BT (2017). In MPE mode it answers on all channels, per a Spitfire support reply quoted on VI-Control. The bend range is not documented. | [spitfireaudio.com](https://www.spitfireaudio.com/bt-phobos), [vi-control.net](https://vi-control.net/community/threads/bt-phobos-update-1-1-4.60895/page-25), [thomann.co.uk](https://www.thomann.co.uk/spitfire_audio_bt_phobos.htm) |
+| LABS | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Free instrument platform. LABS sounds are now also in Splice INSTRUMENT. No MPE found for either; Spitfire's MPE presets are for its Ableton Live packs. | [support.spitfireaudio.com](https://support.spitfireaudio.com/en/articles/12247087-what-is-splice-instrument-and-what-is-happening-to-labs), [spitfireaudio.com](https://www.spitfireaudio.com/ableton), [producersphere.com](https://www.producersphere.com/free-products/spitfire-audio-labs) |
+| Originals | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | A series of libraries in Spitfire's own plugin; each shows under its own name. Not searched title by title; maker-level searches found no MPE. | [vi-control.net](https://vi-control.net/community/threads/list-of-mpe-and-polyphonic-aftertouch-intruments.152225/) |
+| Phoenix | VST3, AAX, Standalone | Yes | MPE switch not documented. | Hybrid synth made with BT (September 2026), 16 stereo voices. Full MPE per launch coverage based on published specs; Spitfire's own wording not seen. Must stay online while running. | [blog.dubspot.com](https://blog.dubspot.com/spitfire-phoenix-bt-2026), [musicradar.com](https://www.musicradar.com/music-tech/this-is-a-dream-inspiration-engine-bt-and-spitfire-audio-team-up-for-phoenix-hybrid-synth), [musictech.com](https://musictech.com/news/gear/spitfire-audio-phoenix-bt/) |
+| Spitfire plugin libraries | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Spitfire's own player, shared by BBC Symphony Orchestra, Abbey Road One, the Originals and others; each library shows under its own name. Maker-level searches found no MPE. | [musictech.com](https://musictech.com/news/gear/spitfire-audio-bbc-symphony-orchestra/), [soundonsound.com](https://www.soundonsound.com/news/spitfire-symphony-orchestra-updated), [vi-control.net](https://vi-control.net/community/threads/list-of-mpe-and-polyphonic-aftertouch-intruments.152225/) |
+
+## Splice
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| INSTRUMENT | VST3, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Free sample-based instrument with premium presets on subscription; LABS sounds are also in it. Splice's FAQ and launch coverage mention MIDI playability but not MPE. | [support.splice.com](https://support.splice.com/en/articles/12277768-splice-instrument-faq), [prosoundweb.com](https://www.prosoundweb.com/splice-launches-flagship-virtual-instrument-platform/) |
+
+## Stagecraft Software
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Addiction Synth | VST3 | Yes | MPE switch not documented. | Subtractive synth with MPE and aftertouch. The current Windows build is listed as 64-bit VST3 only; a 2020 write-up also named VST2, AAX and standalone. | [pluginboutique.com](https://www.pluginboutique.com/products/1240), [rekkerd.org](https://rekkerd.org/addiction-synth-plugin-by-stagecraft-sale) |
+| Infinity Synth | VST3, AAX, Standalone | Yes | MPE switch not documented. Bend range: Per preset (adjustable pitch bend); per-note range not documented. | Sample-based synth; each preset poly or mono. KVR marks it No Longer Available (last v9.0.9, Windows 10+); a 2026 review found the Windows build less stable. Windows formats inferred. | [pluginboutique.com](https://www.pluginboutique.com/products/9958-Infinity-Synth-Addiction-Synth-Theremin-Bundle), [kvraudio.com](https://www.kvraudio.com/product/infinity-synth-by-stagecraft-software/details), [soundhouse.co.jp](https://www.soundhouse.co.jp/en/products/detail/item/371079) |
+
+## Steinberg
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Axe Machina | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Soundiron's 7-string metal guitar library for HALion and HALion Sonic (May 2026). No MPE mentioned; HALion 7.5 users report some scripted guitar patches ignore MPE. | [thebeatcommunity.com](https://thebeatcommunity.com/2026/05/07/steinberg-release-axe-machina-for-halion-halion-sonic/), [forums.steinberg.net](https://forums.steinberg.net/t/halion-7-5-some-instruments-dont-work-with-mpe/1038485) |
+| Backbone | VST3, AAX | Not mentioned | *Plain MIDI*. | Drum resynthesizer that splits samples into noise and tonal parts; introduced with Absolute 5, part of Absolute 7. No MPE mentioned. | [studio.se](https://www.studio.se/press/steinberg-introduces-the-absolute-5-instrument-collection-r505/), [soundonsound.com](https://www.soundonsound.com/reviews/steinberg-absolute-7?amp) |
+| Groove Agent 6 | VST3, AAX | Not mentioned | *Plain MIDI*. | Released February 2026, replacing Groove Agent 5. Release coverage doesn't mention MPE; Steinberg documents MPE only for HALion 7.5. | [helpcenter.steinberg.de](https://helpcenter.steinberg.de/hc/es/articles/37854448711442-Using-MIDI-Polyphonic-Expression-MPE-with-HALion), [sonicstate.com](https://sonicstate.com/news/2026/02/20/steinberg-releases-groove-agent-6-/), [rekkerd.org](https://rekkerd.org/steinberg-launches-groove-agent-6-and-absolute-7/) |
+| Groove Agent SE 5 | VST3, AAX | Not mentioned | *Plain MIDI*. | Free drum instrument, also included with Cubase. Its manual mentions neither MPE nor Note Expression. | [archive.steinberg.help](https://archive.steinberg.help/groove_agent_se/v5/fr/Groove_Agent_SE_5_Mode_d_emploi_fr.pdf), [forums.steinberg.net](https://forums.steinberg.net/t/still-no-fix-for-mpe-pitchbend-in-padshop/1032990) |
+| HALion 7 | VST3, AAX, Standalone | Yes | MPE button, upper right (grey; pink when on); mappings in Create Tab (+) › MPE. Needs HALion 7.5 or later. Bend range: MPE editor (Create Tab (+) › MPE); default not documented. Zone Pitchbend Up/Down reportedly caps at +24 up, -48 down. VST3 Note Expression: Volume, Pan, Tuning and up to 8 custom controllers. Incoming MPE is mapped onto it (bend to Tuning, pressure to Volume). | MPE came in the free 7.5 update (4 Aug 2026); older versions have none. MPE is turned into Note Expression, so some scripted patches (some basses, guitars) ignore it. CC74 mapping undocumented. | [helpcenter.steinberg.de](https://helpcenter.steinberg.de/hc/es/articles/37854448711442-Using-MIDI-Polyphonic-Expression-MPE-with-HALion), [sonicstate.com](https://sonicstate.com/news/2026/08/04/halion-7-5-free-update-marks-vst-30th-and-halion-25th/), [steinberg.help](https://steinberg.help/halion/v7/en/halion/topics/note_expression/note_expression_c.html) |
+| HALion content instruments | VST3, AAX, Standalone | Yes, limited | Load it in full HALion 7.5 or later › MPE button, upper right (pink when on); mappings: Create Tab (+) › MPE. Bend range: HALion's MPE editor; default not documented. Zone Pitchbend reportedly caps at +24 up, -48 down. VST3 Note Expression through the HALion engine; by default MPE bend goes to Tuning and pressure to Volume. | Dark Planet, Hypnotic Dance, Triebwerk, Skylab, Model C, Anima, FM Lab, Olympus Choir. No product page mentions MPE; they get HALion 7.5's MPE, but some scripted patches ignore it. | [helpcenter.steinberg.de](https://helpcenter.steinberg.de/hc/es/articles/37854448711442-Using-MIDI-Polyphonic-Expression-MPE-with-HALion), [forums.steinberg.net](https://forums.steinberg.net/t/halion-7-5-some-instruments-dont-work-with-mpe/1038485), [forums.steinberg.net](https://forums.steinberg.net/t/i-thought-it-was-free/1039077) |
+| HALion Sonic 7 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. MPE Roll can play it with VST3 note expressions; full HALion 7.5 has MPE. | Steinberg's free player for HALion-format libraries. Steinberg's MPE article names only full HALion 7.5; a HALion Sonic 7.5 exists, but no MPE button for it is documented. | [helpcenter.steinberg.de](https://helpcenter.steinberg.de/hc/es/articles/37854448711442-Using-MIDI-Polyphonic-Expression-MPE-with-HALion), [archive.steinberg.help](https://archive.steinberg.help/halion_sonic/v7/en/halion/topics/note_expression/note_expression_c.html), [synthanatomy.com](https://synthanatomy.com/2026/08/steinberg-halion-7-flagship-sampler-plugin-gets-an-fm-and-spectral-makeover.html) |
+| Iconica Sections & Players | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Try VST3 note expressions, or full HALion 7.5's generic MPE (untested). | Orchestral library recorded at Funkhaus Berlin with Orchestral Tools; loads in HALion Sonic (the 2018 original had its own Iconica player). No MPE mentioned. | [helpcenter.steinberg.de](https://helpcenter.steinberg.de/hc/es/articles/37854448711442-Using-MIDI-Polyphonic-Expression-MPE-with-HALion), [sonicstate.com](https://www.sonicstate.com/news/2018/06/27/steinberg-releases-comprehensive-orchestral-library/), [forums.steinberg.net](https://forums.steinberg.net/t/halion-7-5-some-instruments-dont-work-with-mpe/1038485) |
+| Iconica Sketch | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Compact orchestral library for HALion Sonic. No MPE mentioned; it may pick up full HALion 7.5's generic MPE, untested. | [helpcenter.steinberg.de](https://helpcenter.steinberg.de/hc/es/articles/37854448711442-Using-MIDI-Polyphonic-Expression-MPE-with-HALion), [bestservice.com](https://www.bestservice.com/en/iconica_sketch.html) |
+| LM-7 | VST3 | Not mentioned | *Plain MIDI*. | Free retro drum sample unit in the Steinberg Classics Collection (August 2026), rebuilt as 64-bit VST3 for Windows 10/11. No MPE mentioned. | [bedroomproducersblog.com](https://bedroomproducersblog.com/2026/08/04/steinberg-classics-free/), [blog.dubspot.com](https://blog.dubspot.com/steinberg-anniversary-free-classics-halion-sale) |
+| Model E | VST3 | Not mentioned | *Plain MIDI*. | Free in the Steinberg Classics Collection (August 2026): the old CS-40, renamed and rebuilt as 64-bit VST3 for Windows 10/11. No MPE mentioned. | [bedroomproducersblog.com](https://bedroomproducersblog.com/2026/08/04/steinberg-classics-free/), [synthanatomy.com](https://synthanatomy.com/2026/08/steinberg-classics-free-legendary-plugins-get-a-30th-anniversary-of-vst-update.html) |
+| Neon | VST3 | Not mentioned | *Plain MIDI*. | Free in the Steinberg Classics Collection (4 Aug 2026): the 1990s VST instrument rebuilt as 64-bit VST3 for Windows 10/11. Needs a Steinberg account. No MPE mentioned. | [bedroomproducersblog.com](https://bedroomproducersblog.com/2026/08/04/steinberg-classics-free/), [blog.dubspot.com](https://blog.dubspot.com/steinberg-anniversary-free-classics-halion-sale) |
+| Padshop 2 | VST3, AAX | Yes, limited | No MPE switch: it takes VST3 note expressions. Polyphonic mode on (cog-wheel menu), per forum users. Bend range: Its own pitchbend setting; reportedly -48 down, +24 up at most; factory MPE presets at -2/+2; per-note bend reported unreliable. VST3 Note Expression (Tuning, Volume, Pan, depending on the preset); the modulation matrix takes Note Expression sources. | No native MPE: Steinberg says it has sounds designed for MPE, played through Note Expression. Forum threads from 2024 to 2026 say per-note bend is still broken. Latest version seen: 2.3.0. | [archive.steinberg.help](https://archive.steinberg.help/nuendo/v13/en/cubase_nuendo/topics/note_expression/note_expression_halion_sonic_se_c.html), [forums.steinberg.net](https://forums.steinberg.net/t/still-no-fix-for-mpe-pitchbend-in-padshop/1032990), [forums.steinberg.net](https://forums.steinberg.net/t/padshop-2-2-pitchbend-setting-bug/918666) |
+| Retrologue 2 | VST3, AAX | Yes, limited | No MPE switch: it takes VST3 note expressions, used when Note expressions (CLAP, VST3) is on in MPE settings. Bend range: Pitchbend range in its settings; reportedly -48 down but only +24 up, and MPE bend may not follow it. VST3 Note Expression through its 16-slot modulation matrix: Tuning, Volume and Pan, depending on the preset. | No native MPE: Steinberg's presets made for MPE work through Note Expression (Cubase and Nuendo convert MPE). HALion 7.5's MPE mode was not added; 2.5 (March 2026) added UI scaling only. | [steinberg.help](https://steinberg.help/nuendo/v11/en/cubase_nuendo/topics/note_expression/note_expression_halion_sonic_se_c.html), [forums.steinberg.net](https://forums.steinberg.net/t/still-no-fix-for-mpe-pitchbend-in-padshop/1032990), [forums.steinberg.net](https://forums.steinberg.net/tag/retrologue-2/158) |
+| The Grand 3 | VST3, AAX | Not mentioned | *Plain MIDI*. | Sampled grand piano, still sold and part of Absolute 7. No MPE mentioned. | [soundonsound.com](https://www.soundonsound.com/reviews/steinberg-absolute-7?amp) |
+| VB-1 | VST3 | Not mentioned | *Plain MIDI*. | Free virtual bass in the Steinberg Classics Collection (August 2026), rebuilt as 64-bit VST3 for Windows 10/11. No MPE mentioned. | [bedroomproducersblog.com](https://bedroomproducersblog.com/2026/08/04/steinberg-classics-free/) |
+
+## Sugar Bytes
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Aparillo | VST2, VST3, AAX | Unclear | *Plain MIDI*. | 16-voice 2-operator FM synth. A Thomann listing tags MPE, but the 2018 launch thread and a Dubspot comparison suggest none, and Sugar Bytes says nothing. Test two overlapping bent notes. | [thomann.nl](https://www.thomann.nl/sugar_bytes_aparillo.htm), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=6973595), [blog.dubspot.com](https://blog.dubspot.com/plugins/compare/aparillo-vs-phase-plant) |
+| Cyclop | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Monophonic bass and lead synth. No MPE found. | [bax-shop.co.uk](https://bax-shop.co.uk/instrument-plugins/sugar-bytes) |
+| DrumComputer | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Drum synthesizer with a 16-step sequencer and pattern generation. No MPE mentioned. Windows formats not verified. | [thomann.pl](https://thomann.pl/sugar_bytes_drumcomputer.htm) |
+| Egoist | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Groovebox-style sampler with a slicer, beat and bass sections and an effect sequencer. No MPE found. Windows formats not verified. | [gear4music.ie](https://gear4music.ie/Recording-and-Computers/Sugar-Bytes-Egoist/4WJQ) |
+| Factory | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Poly synth with a modulation matrix and sequencers. Three Sugar Bytes MPE searches found no MPE statement for Factory. | [bax-shop.co.uk](https://bax-shop.co.uk/instrument-plugins/sugar-bytes) |
+| Obscurium | VST2, VST3, AAX, Standalone | Unclear | *Plain MIDI*. | Generative synth (2014) that can also host VST2 instruments. Only a Thomann listing tags MPE; Sugar Bytes and reviews don't. VST3 and Standalone on Windows not confirmed. | [thomann.nl](https://www.thomann.nl/sugar_bytes_obscurium.htm), [woodbrass.com](https://www.woodbrass.com/plug-ins-sugar-bytes-obscurium-p427847.html), [rekkerd.org](https://rekkerd.org/sugar-bytes-releases-obscurium-synth-plugin) |
+| Unique | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Maker-level Sugar Bytes searches found no MPE for Unique. | [andertons.co.uk](https://www.andertons.co.uk/sugar-bytes/sugar-bytes-sugar-bundle-all-sugar-bytes-products-in-one-bundle-esd) |
 
 ## Surge Synth Team
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Surge XT | VST3, CLAP, Standalone | Yes | Turns itself on from MPE Roll's setup (MPE settings › Send MPE setup now). CLAP version: CLAP note expressions, nothing to set up. |  | [github.com](https://github.com/surge-synthesizer/surge/blob/main/src/common/SurgeSynthesizer.cpp) |
+| Monique | VST3, CLAP, Standalone | **No** | *Plain MIDI*. Surge XT, from the same team, has MPE. | Monophonic synth. Its source has no MPE mode and treats pitch wheel and pressure as ordinary MIDI. Use Plain MIDI. | [github.com](https://github.com/surge-synthesizer/monique-monosynth/blob/main/src/core/monique_core_Synth.cpp), [github.com](https://github.com/surge-synthesizer/monique-monosynth/blob/main/CMakeLists.txt) |
+| OB-Xf | VST3, CLAP, Standalone | Yes | Global section › MPE button (lit); the cogwheel beside it opens the MPE page. MPE Roll's MCM (RPN 6) also turns it on. Bend range: MPE page (cogwheel) › MPE Glide Range, 0-96 (default 48). | Free, open-source continuation of OB-Xd by the Surge Synth Team. Version 1.1 is in beta, with nightly Windows x64/ARM installers. Pitch bend, pressure and CC74 are handled per voice. | [github.com](https://github.com/surge-synthesizer/OB-Xf/blob/main/src/editor/ObxfEditorTheme.cpp), [github.com](https://github.com/surge-synthesizer/OB-Xf/blob/main/src/midi/MidiHandler.cpp), [github.com](https://github.com/surge-synthesizer/OB-Xf/blob/main/src/engine/Motherboard.h) |
+| Shortcircuit XT | VST3, CLAP, Standalone | Yes | Header channel-usage button (shows Omni) › MPE. Bend range: Header channel-usage menu › MPE Settings: 12, 24, 48 or 96 (default 24). CLAP: Volume, Pan, Tuning, Vibrato, Expression, Brightness and Pressure arrive as Note Expressions modulation sources. | Free, open-source sampler, still in beta (nightly builds). MPE pitch bend, timbre and pressure are voice modulation sources. The same menu can make MPE the default for new instances. | [github.com](https://github.com/surge-synthesizer/shortcircuit-xt/blob/main/src/scxt-plugin/app/editor-impl/SCXTEditorMenus.cpp), [github.com](https://github.com/surge-synthesizer/shortcircuit-xt/blob/main/src/scxt-core/engine/part.h), [github.com](https://github.com/surge-synthesizer/shortcircuit-xt/blob/main/src/scxt-core/modulation/voice_matrix.h) |
+| Six Sines | VST3, CLAP, Standalone | Yes | Main panel play-mode area (or Settings gear) › Play / Settings › MPE + Smoothing › MPE Active: On. Bend range: Play / Settings › MPE + Smoothing › MPE Bend Range (default 24). CLAP: Tuning and Pan note expressions only. The VST3 (clap-wrapper) also offers Tuning and Pan note expressions. | Free, open-source 6-operator FM synth (1.2.1). Since 1.2 the MPE settings are saved with the DAW session, not the patch. MPE pressure and timbre are modulation sources. | [github.com](https://github.com/baconpaul/six-sines/blob/main/doc/manual.md), [github.com](https://github.com/baconpaul/six-sines/blob/main/src/ui/playmode-sub-panel.cpp), [github.com](https://github.com/baconpaul/six-sines/blob/main/src/clap/six-sines-clap.cpp) |
+| Surge XT | VST3, CLAP, Standalone | Yes | Header status area › MPE button (lit), or Menu › MPE Settings › Enable MPE. MPE Roll's MCM (RPN 6) also turns it on. Bend range: Right-click MPE › Set MPE Pitch Bend Range (default 48); RPN 0 on channel 2 also sets it. CLAP: Tuning, Volume, Pan, Pressure and Brightness (as timbre) per note; Vibrato and Expression are ignored. The VST3 has no note expressions. | MPE since Surge 1.6.0 (2019). The MPE state is saved with the DAW project, not the patch. RPN 0 sets the per-note range only on MIDI channel 2. VST2 only if self-built. | [github.com](https://github.com/surge-synthesizer/surge-synthesizer.github.io/blob/master/src/content/manual_xt/04-header.mdx), [github.com](https://github.com/surge-synthesizer/surge/blob/main/src/surge-xt/gui/SurgeGUIEditorMenuStructures.cpp), [github.com](https://github.com/surge-synthesizer/surge/blob/main/src/surge-xt/SurgeSynthProcessor.cpp) |
+
+## Swar Systems
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| SwarPlug | VST2, VST3, AAX | Yes | PITCH/MPE pane › Pitch Channel: ALL (accepts bends on every member channel). Bend range: PITCH/MPE pane › PBR, plus a downward PBR field since 4.3.0; default not found. | Indian instruments ROMpler. MPE came with SwarPlug 4 (Aug 2018). The Pitch Channel detail comes only from a user-uploaded copy of the version notes. Windows formats not confirmed. | [mac.softpedia.com](https://mac.softpedia.com/progChangelog/SwarPlug-Changelog-63834.html), [kvraudio.com](https://www.kvraudio.com/news/swar-systems-releases-swarplug-4-42359), [scribd.com](https://www.scribd.com/document/698693068/SP) |
+
+## Synapse Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Antidote | VST2, VST3 | Not mentioned | *Plain MIDI*. Dune 3, from the same maker, has MPE. | Synapse's MPE updates cover Dune 3 and The Legend, and Antidote's own updates never mention MPE. Also a Reason Rack Extension. Windows formats not checked. Use Plain MIDI. | [synthanatomy.com](https://synthanatomy.com/2025/07/synapse-audio-dune-3-update-3-64-expands-mpe-support-new-patch-library-with-expressive-e.html), [synthtopia.com](https://www.synthtopia.com/?p=92050), [synthtopia.com](https://www.synthtopia.com/content/tag/synapse-audio/) |
+| Dune 3 | VST2, VST3, AAX | Yes | Settings tab › MPE Controller: On (lock it so preset changes don't reset it, v3.65+). Bend range: Fixed at 48 when MPE Controller is on. | Full MPE since v3.6 (Nov 2023); v3.64 extended it. Before the v3.65 lock, preset changes could reset it. A forum user says MPE does not work in Mono Legato mode. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9111152), [synthanatomy.com](https://synthanatomy.com/2023/11/synapse-audio-dune-3-6-new-reverbs-mpe-better-graphics-and-more.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9111856) |
+| Obsession | VST2, VST3, AAX | Yes | Not documented (Synapse only says it supports MPE). | OB-Xa-inspired two-part synth (2020). Synapse's manual says it supports MPE, but no MPE control is documented. A forum user says MPE fails in Mono Legato mode. VST3 not confirmed. | [synapse-audio.com](https://www.synapse-audio.com/obsession/ObsessionManualRE.pdf), [bestservice.com](https://www.bestservice.com/en/obsession.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9111856) |
+| Proxima | VST3, AAX | Yes | Not documented (Synapse only says it supports MPE). | Sequential Prophet-600 emulation with 12 voices, released Oct 2025. Synapse lists MPE support, but no manual section or switch name was found. | [synapse-audio.com](https://www.synapse-audio.com/proxima.html), [rekkerd.org](https://rekkerd.org/synapse-audio-launches-proxima-virtual-analog-synthesizer), [sonicstate.com](https://sonicstate.com/news/2025/10/22/vintage-1982-synth-emulation) |
+| The Legend | VST2, VST3, AAX | Yes, limited | Voice mode: one of the Polyphony modes (MPE works only in Poly mode). | MPE added in free update v1.2 (Jan 2018) and works only in the polyphonic voice modes, not Mono or Unison. AAX came in v1.3. VST3 not verified. Succeeded by The Legend HZ. | [synapse-audio.com](https://www.synapse-audio.com/news-legendupdate120.html), [synapse-audio.com](https://www.synapse-audio.com/thelegend.html), [rekkerd.org](https://rekkerd.org/?p=140846) |
+| The Legend HZ | VST2, VST3, AAX | Yes | Not confirmed; the back panel has an MPE Advanced mode (v2.01) for Rise/Fall times. Bend range: Probably fixed at 48 in MPE mode, as in Dune 3 whose MPE came from it (not confirmed). | Made with Hans Zimmer (May 2024), successor to The Legend. v2.01 added an MPE Advanced mode on the back panel. MPE reportedly works in Mono Legato mode too. | [synapse-audio.com](https://www.synapse-audio.com/thelegendhz.html), [rekkerd.org](https://rekkerd.org/synapse-audio-updates-the-legend-hz-synthesizer-to-v2-01/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9111152) |
+
+## Syntheway
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Magnus Choir | VST2, VST3 | Not mentioned \* | *Plain MIDI*. | Choir and vocal textures for 64-bit Windows. The Windows v2.5 notes list pitch bend for the 32-bit version only. Use Plain MIDI. | [syntheway.net](https://www.syntheway.net/choir.htm), [kvraudio.com](https://kvraudio.com/news/syntheway-releases-magnus-choir-for-windows-v2-5-and-macos-v3-5---adds-vst3-support-44947) |
+
+## Synthogy
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Ivory 3 American Concert D | VST3, AAX | Not mentioned | *Plain MIDI*. | A 1951 Steinway D on the Ivory 3 engine (Oct 2024), with 4 stereo mic positions. Same Windows formats as German D. No MPE documentation. Use Plain MIDI. | [synthogy.com](https://www.synthogy.com/article/introducing-ivory-3-american-concert-d-a-timeless-classic), [synthogy.com](https://synthogy.com/products/ivory-3-german-d) |
+| Ivory 3 German D | VST3, AAX | Not mentioned | *Plain MIDI*. | Ivory 3 engine, on Windows since Oct 2023. Continuous Velocity and 'MIDI 2.0 ready' high-resolution velocity are not MPE. The Windows standalone is the bundled Ivory 3 Cantabile host. Use Plain MIDI. | [synthogy.com](https://synthogy.com/products/ivory-3-german-d), [synthogy.com](https://www.synthogy.com/article/synthogy-releases-ivory-3-for-windows), [soundonsound.com](https://www.soundonsound.com/reviews/synthogy-ivory-3) |
+| Ivory 3 LE Uprights | VST3, AAX | Not mentioned | *Plain MIDI*. | Yamaha U5 (Modern) and 1914 A.M. Hume (Vintage) rebuilt for Ivory 3 (Oct 2025). A user reports the first Windows build 3.0.8 broke loading; 3.0.8.1 reportedly fixed it. Use Plain MIDI. | [synthogy.com](https://synthogy.com/article/introducing-ivory-3-le-uprights-modern-and-vintage), [sweetwater.com](https://www.sweetwater.com/c706--Synthogy--Virtual_Instruments_Software) |
+
+## TAL Software
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| TAL-BassLine-101 | VST2, VST3, AAX, CLAP | Yes, limited | Its MPE settings (exact label not documented). | SH-101 emulation (mono, with poly/unison modes). MPE since V3 (Dec 2019). TAL documents MPE for cutoff and volume only; per-note pitch is not stated. Formats not checked. | [tal-software.com](https://tal-software.com/products/tal-bassline-101), [synthanatomy.com](https://synthanatomy.com/2019/12/tal-released-bassline-101-v3-u-no-lx-v4-with-new-uis-mpe-more.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7576269) |
+| TAL-DAC | VST2, VST3, AAX, CLAP | Not mentioned | *Plain MIDI*. | Latest listed version 2.0.3. No MPE entries in TAL's changelog. Formats not re-checked. Use Plain MIDI. | [tal-software.com](https://tal-software.com/products/tal-dac), [synthanatomy.com](https://synthanatomy.com/2019/12/tal-released-bassline-101-v3-u-no-lx-v4-with-new-uis-mpe-more.html) |
+| TAL-Drum | VST2, VST3, AAX, CLAP | Not mentioned | *Plain MIDI*. | Drum sampler. Its manual does not mention MPE, and TAL's MPE news does not include it. Formats assumed from TAL's usual lineup. Use Plain MIDI. | [tal-software.com](https://tal-software.com/downloads/docs/TAL-Drum-UserManual.pdf), [synthanatomy.com](https://synthanatomy.com/2019/12/tal-released-bassline-101-v3-u-no-lx-v4-with-new-uis-mpe-more.html) |
+| TAL-J-8 | VST2, VST3, AAX, CLAP | Yes | Its MPE settings (exact label not documented). | Jupiter-8 emulation with MPE since launch (Dec 2020). 2.0.1 (Sep 2025) added more MPE options for MPE hardware such as the Osmose. Formats not checked. | [tal-software.com](https://www.tal-software.com/products/tal-j-8), [synthtopia.com](https://www.synthtopia.com/content/2020/12/16/new-software-synth-pairs-classic-roland-jupiter-8-sound-with-mpe-support/) |
+| TAL-Mod | VST2, VST3, AAX, CLAP | Yes | MPE button on the plugin interface (per a KVR user; position not confirmed). | MPE added in 1.5.0; 1.5.4 fixed MPE pressure and made timbre/slide non-bipolar. Only the changelog documents MPE, not the manual or product page. Formats not checked. | [tal-software.com](https://tal-software.com/products/tal-mod), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7633875), [kvraudio.com](https://kvraudio.com/news/solidtrax-releases-analog-ingredients-for-tal-mod-semi-modular-synthesizer-47737) |
+| TAL-NoiseMaker | VST2, VST3, AAX, CLAP | Not mentioned | *Plain MIDI*. TAL-U-NO-LX and TAL-J-8 from TAL have MPE. | Free. Its changelog up to 5.0.6 (Aug 2023) has no MPE entry, and the feature list has none. Formats not verified. Use Plain MIDI. | [tal-software.com](https://tal-software.com/products/TAL-NoiseMaker), [synthanatomy.com](https://synthanatomy.com/2019/12/tal-released-bassline-101-v3-u-no-lx-v4-with-new-uis-mpe-more.html) |
+| TAL-Pha | VST2, VST3, AAX, CLAP | Yes | Its MPE settings (exact label not documented). | Alpha Juno II / MKS-50 emulation. TAL's feature list says 'Aftertouch and MPE support'. The manual excerpt found does not mention MPE. Formats not checked. | [tal-software.com](https://tal-software.com/products/tal-pha), [kvraudio.com](https://kvraudio.com/news/tal-software-releases-tal-pha-alpha-juno-ii-emulation-vst-au-aax-clap-60076) |
+| TAL-Sampler | VST2, VST3, AAX, CLAP | Yes | Its MPE settings (exact label not documented). | TAL's Sep 2025 news names it among plugins with improved MPE settings, and Roger Linn Design lists it for LinnStrument. The version that added MPE was not found. Formats not checked. | [tal-software.com](https://tal-software.com/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7576269), [vi-control.net](https://vi-control.net/community/threads/list-of-mpe-and-polyphonic-aftertouch-intruments.152225/) |
+| TAL-U-NO-LX | VST2, VST3, AAX, CLAP | Yes | Its MPE settings (exact label not documented). Bend range: 48 per note, channel 1 as master (retailer copy of TAL's feature list). CLAP: changelog 4.6.6 says 'CLAP MPE now works in Bitwig'; note-expression support is not stated. | Juno-60 emulation. MPE since V4 (Dec 2019). 5.1.1 (Sep 2025) added more MPE options for hardware such as the Osmose; 5.1.2/5.1.3 fixed MPE pitch during release. Formats not checked. | [tal-software.com](https://tal-software.com/products/tal-u-no-lx), [synthanatomy.com](https://synthanatomy.com/2019/12/tal-released-bassline-101-v3-u-no-lx-v4-with-new-uis-mpe-more.html), [muziker.ee](https://muziker.ee/tal-software-u-no-lx) |
+
+## TheWaveWarden
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Odin 2 | VST3, CLAP | **No** | *Plain MIDI*. | Version 2.4.1. Pitch wheel and channel pressure are global and the MIDI channel is ignored, so per-note bends would bend every voice. It reads polyphonic aftertouch per note. No Windows standalone. | [github.com](https://github.com/TheWaveWarden/odin2/blob/master/Source/PluginProcessorMidi.cpp), [github.com](https://github.com/TheWaveWarden/odin2/blob/master/change_log.md), [github.com](https://github.com/TheWaveWarden/odin2/blob/master/installers/windows/win_installer.iss) |
+
+## Three-Body Technology
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Heavier7Strings | VST2, VST3, AAX, Standalone | Not mentioned \* | *Plain MIDI*. | Sampled 7-string metal guitar (v1.7.0) with 16 amps, 19 effect modules and 300 MIDI patterns. No MPE mentioned. Use Plain MIDI. | [kvraudio.com](https://www.kvraudio.com/product/heavier7strings-by-three-body-technology), [soundonsound.com](https://www.soundonsound.com/reviews/heavier7strings) |
+
+## tiagolr
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| RipplerX | VST3 | **No** | *Plain MIDI*. | Free, open-source modal/waveguide model. It ignores the MIDI channel, channel pressure and CC74. Standalone only if self-built. Audio-in does not work in FL Studio. Use Plain MIDI. | [github.com](https://github.com/tiagolr/ripplerx/blob/master/src/PluginProcessor.cpp), [github.com](https://github.com/tiagolr/ripplerx), [github.com](https://github.com/tiagolr/ripplerx/blob/master/CMakeLists.txt) |
+
+## Tone2
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Electra 3 | VST2, VST3, Standalone | **No** | *Plain MIDI*. Icarus 3, from Tone2, has MPE. | Covers Electra 3 and the older Electra 2 and ElectraX. Tone2's comparison lists MPE only for Icarus 3, and users say no Electra version has MPE. Use Plain MIDI. | [tone2.com](https://tone2.com/comparison.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7365714), [kvraudio.com](https://www.kvraudio.com/product/electra3-by-tone2-audiosoftware) |
+| Gladiator 4 | VST2, VST3, Standalone | **No** | *Plain MIDI*. Icarus 3, from Tone2, has MPE. | Successor to Gladiator 3 (3.1 added VST3 and a Windows standalone). Tone2's comparison lists MPE only for Icarus 3. Use Plain MIDI. | [tone2.com](https://tone2.com/comparison.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9273406), [thomann.es](https://www.thomann.es/tone2_gladiator.htm) |
+| Icarus 3 | VST2, VST3, Standalone | Yes | SETUP page › force MPE: On (Icarus 2.5: Enable MPE support). | Tone2's only synth with MPE; MPE since 2.5, extended to Legato and Mono modes in 3.1. Some hosts don't pass all 16 channels to the VST3; use the VST2 (Icarus.dll) then. Bend range setting not found. | [tone2.com](https://tone2.com/comparison.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9091032), [musicconnection.com](https://www.musicconnection.com/?p=147642) |
+| Nemesis 3 | VST2, VST3 | **No** | *Plain MIDI*. Icarus 3, from Tone2, has MPE. | neoFM synth; Nemesis 3 replaced Nemesis 2, with update 3.1 in 2026. Tone2's comparison lists MPE only for Icarus 3. Windows standalone not confirmed. Use Plain MIDI. | [tone2.com](https://tone2.com/comparison.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9273406) |
+| RayBlaster 3 | VST2, VST3 | **No** | *Plain MIDI*. Icarus 3, from Tone2, has MPE. | RayBlaster 3.0 came out in Nov 2023. Tone2's comparison lists MPE only for Icarus 3. Windows standalone not confirmed. Use Plain MIDI. | [tone2.com](https://tone2.com/comparison.html), [sonicstate.com](https://www.sonicstate.com/news/2023/11/01/tone2-updates-rayblaster-synth/) |
+| Saurus 4 | VST2, VST3 | **No** | *Plain MIDI*. Icarus 3, from Tone2, has MPE. | Analog-modelling synth, successor to Saurus 3. Tone2's comparison lists MPE only for Icarus 3. Windows standalone not confirmed. Use Plain MIDI. | [tone2.com](https://tone2.com/comparison.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9273406) |
+| Warlock | VST2, VST3 | **No** | *Plain MIDI*. Icarus 3, from Tone2, has MPE. | Successor (2021) to the free FireBird synth. Tone2's comparison lists MPE only for Icarus 3. Windows standalone not confirmed. Use Plain MIDI. | [tone2.com](https://tone2.com/comparison.html) |
+
+## Toontrack
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| EZbass | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Sampled bass. Toontrack documents no MPE. A forum user found slides from an MPE guitar sounded fretted on the Fretless EBX. Toontrack's requirements name VST3, AU or AAX hosts. | [toontrack.com](https://toontrack.com/release-notes/release-notes-ezbass), [toontrack.com](https://www.toontrack.com/?p=2860198) |
+| EZdrummer 3 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Drum sampler. Toontrack documents no MPE. Toontrack's requirements name VST3, AU or AAX hosts plus standalone; no VST2. | [toontrack.com](https://toontrack.com/?p=2212044), [soundonsound.com](https://www.soundonsound.com/reviews/toontrack-ezdrummer-3) |
+| EZkeys 2 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Piano and keys with a songwriting engine. Toontrack documents no MPE. Toontrack and Sound On Sound give VST3, AU and AAX plus standalone; no VST2. | [toontrack.com](https://toontrack.com/?p=2212044), [soundonsound.com](https://www.soundonsound.com/news/upcoming-toontrack-release-ezkeys-2) |
+| Superior Drummer 3 | VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Drum production suite with e-kit MIDI mapping. Toontrack documents no MPE. Toontrack's requirements name VST3, AU or AAX hosts (VST2 only for EZmix 2), so current versions may lack VST2. | [toontrack.com](https://www.toontrack.com/faq/1311697-2/), [toontrack.com](https://toontrack.com/?p=2212044), [thomannmusic.com](https://www.thomannmusic.com/toontrack_superior_drummer_3_crossgrade.htm) |
+
+## Tracktion
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Abyss II | VST3, AAX | Yes | On without a switch. | Released August 2026 as a major upgrade to Abyss (2021). Synth Anatomy says it fully supports MPE with mappings to any target; all Dawesome synths support MPE. AAX not confirmed. | [synthanatomy.com](https://synthanatomy.com/2026/08/dawesome-abyss-ii-color-soundscape-synthesizer-gets-a-major-upgrade.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9047145) |
+| BioTek 2 | VST3, AAX | Yes | Global Menu › Activate MPE, then Instrument Edit page › Activate MPE On All Layers. | MPE added in v2.1.5. The Global Menu switch is saved in preferences; each loaded instrument's layers also need MPE on. Replaced by BioTek 3. VST2 not verified. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7166101) |
+| BioTek 3 | VST3, AAX | Yes, limited | On without a switch. | Current BioTek version. No maker statement on MPE. Users report per-note bend and glide working unreliably and differing by DAW (Bitwig, Reaper). No MPE switch or bend range setting found. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9016654), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9017024) |
+| Collective | VST3, AAX | Not mentioned | *Plain MIDI*. Tracktion's Dawesome synths, such as Novum and Kult, have MPE. | Sample-based synth; Collective 2 adds VA oscillators, 4-op FM and more presets. No source mentions MPE. | [synthtopia.com](https://www.synthtopia.com/?p=151008), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=6838935) |
+| F.'em | VST3, AAX | Yes | Turn on MPE in its options (exact label not documented). | Hybrid quad-timbral FM, VA and sample synth. Bonedo says it reads MPE once enabled in its options, with timbre and pressure as mod matrix sources. Exact control label not found. | [bonedo.de](https://www.bonedo.de/?p=705716), [synthtopia.com](https://www.synthtopia.com/?p=123994) |
+| Kontrast | VST3, AAX | Yes | On without a switch. | Wavetable synth by Dawesome, released autumn 2025. Expressive E sells 250 MPE presets for it that respond to per-note pressure and bends. AAX not confirmed; no MPE switch documented. | [expressivee.com](https://www.expressivee.com/173-kontrast-expressive-suite), [soundonsound.com](https://www.soundonsound.com/news/expressive-e-release-kontrast-expressive-suite), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9137503) |
+| Kult | VST3 | Yes | On without a switch. | FM/AM synth with a 2D display and an arpeggiator, by Dawesome for Tracktion. Sound On Sound says it has full MPE support and runs as AU or VST3 only. No MPE switch documented. | [soundonsound.com](https://www.soundonsound.com/node/4929816), [adorama.com](https://www.adorama.com/tracktion-oblivium-alpha-expansion-pack-kult-synthesizer-download/p/tr1163150) |
+| Miniraze | VST3, AAX | Not mentioned | *Plain MIDI*. | Three-oscillator wave-slicing synth by MOK, released 2021; v1.5 (Dec 2025) added waveforms and formant filters. No source mentions MPE. Coverage says VST without naming VST2 or VST3. | [sonicstate.com](https://sonicstate.com/news/2021/11/08/mok-miniraze-virtual-wave-slicing-synthesizer/), [sonicstate.com](https://sonicstate.com/news/2025/12/05/mok-updates-miniraze), [synthanatomy.com](https://synthanatomy.com/2024/06/mok-miniraze-synthesizer-wave-slicing-synthesis-meets-classic-subtractive-design.html) |
+| Myth | VST3, AAX | Yes | On without a switch. | Resynthesis synth that rebuilds dropped-in audio, with 700+ presets, by Dawesome for Tracktion. Sound On Sound says it has full MPE support. AAX not confirmed; no MPE switch documented. | [soundonsound.com](https://soundonsound.com/news/tracktion-present-dawesome-myth), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9047145) |
+| Novum | VST3, AAX | Yes | On without a switch. | Granular synth by Dawesome (Peter V) for Tracktion. Sound On Sound reports full MPE support. It may not declare MPE to hosts such as Ableton Live. AAX not confirmed; no MPE switch documented. | [soundonsound.com](https://www.soundonsound.com/news/tracktion-release-novum-granular-synthesizer), [adorama.com](https://www.adorama.com/tr1163133.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8458975) |
+| RetroMod 106 | VST3, AAX | Not mentioned | *Plain MIDI*. Tracktion's Dawesome synths, such as Novum and Kult, have MPE. | Multisampled Juno-60, Juno-106 and Alpha Juno with an XY pad. No source mentions MPE. Other RetroMod titles were not checked. Retailers also list a VST build. | [rekkerd.org](https://rekkerd.org/tracktion-launches-retromod-series-of-virtual-moog-roland-clavia-synths/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=6838935) |
+| Waverazor | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Wave-slicing oscillator synth from 2017 by MOK, launched with Tracktion. No source mentions MPE. Windows formats were not verified. | [pluginboutique.com](https://pluginboutique.com/products/8144), [mmrmagazine.com](https://mmrmagazine.com/tracktion-releases-mok-waverazor/) |
+| Zyklop | VST3, AAX | Yes | On without a switch. | Free resynthesis synth, little sister of Myth. MPE rests on a forum statement that all Dawesome synths support MPE and on Expressive E's MPE presets for it. AAX not confirmed. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9047145), [expressivee.com](https://www.expressivee.com/200-ctrl-e), [bonedo.de](https://www.bonedo.de/?p=2477751) |
+
+## Tupos Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| MPE FM | VST3, Standalone | Yes | On without a switch. | FM synth with 2-, 4- and 6-operator engines, built around MPE. Windows build is VST3 and standalone. Only source is Dubspot, based on the developer's page, not hands-on testing. | [blog.dubspot.com](https://blog.dubspot.com/tupos-audio-mpe-fm-2026), [blog.dubspot.com](https://blog.dubspot.com/plugins/tupos-mpe-fm) |
+| MPE Subtractive | VST3, Standalone | Yes | On without a switch. | Two-oscillator subtractive synth built around per-note expression. Windows build is VST3 and standalone; installer v1.0.1 is not code-signed. Only source is Dubspot, not hands-on. | [blog.dubspot.com](https://blog.dubspot.com/plugins/tupos-mpe-subtractive), [blog.dubspot.com](https://blog.dubspot.com/tupos-audio-mpe-subtractive-2026) |
 
 ## u-he
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Diva | VST2, VST3, CLAP, AAX | Yes | Pitch Bend Up and Down set to MPE (polyphonic presets). CLAP version: CLAP note expressions, nothing to set up. | MPE from 1.4.8 | [u-he.com](https://u-he.com/news/2024/08/mpe-released/) |
-| Zebra 3 | VST3, CLAP, AAX | Yes | On without a switch. CLAP version: CLAP note expressions, nothing to set up. |  | [u-he.com](https://u-he.com/products/plug-ins/zebra3/releases/3.0.1/) |
-| Zebra2 | VST2, VST3, AAX | **No** | *Plain MIDI*. |  | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7627708) |
+| ACE | VST2, VST3, CLAP, AAX | Yes | MPE button: On; use a polyphonic voice mode. Bend range: Follows the per-note range MPE Roll sends (any symmetric range); Pitch Bend Up/Down set only the global range. CLAP: micro-pitch, timbre, pressure, pan and gain (from 1.4.3). | MPE added in 1.4.3 (August 2024), for polyphonic presets only. 1.4.3 is the last version with VST2. If timbre does nothing, map Control A to CC74 in the MIDI settings. | [u-he.com](https://u-he.com/products/plug-ins/ace/releases/1.4.3/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8959714), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8888971) |
+| Bazille | VST2, VST3, CLAP, AAX | Yes | MPE button: On (early builds showed it only on the original skin); use a polyphonic voice mode. Bend range: Follows the per-note range MPE Roll sends (any symmetric range); Pitch Bend Up/Down set only the global range. CLAP: micro-pitch, timbre, pressure, pan and gain (from 1.1.3). | MPE added in 1.1.3 (August 2024), for polyphonic presets only. 1.1.3 is the last version with VST2. If timbre does nothing, map Control A to CC74 in the MIDI settings. | [u-he.com](https://u-he.com/products/plug-ins/bazille/releases/1.1.3/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8959714), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?t=603439) |
+| BazilleCM | VST2, VST3 | Not mentioned | *Plain MIDI*. The full Bazille has MPE (1.1.3 and later). | Free cut-down Bazille (up to eight voices). u-he documents MPE only for the full Bazille, so don't assume it carries over. Formats not verified. | [u-he.com](https://u-he.com/products/), [u-he.com](https://u-he.com/products/plug-ins/bazille/releases/1.1.3/) |
+| Diva | VST2, VST3, CLAP, AAX | Yes | MAIN section (bottom of panel) › MPE button: On; use a polyphonic voice mode. Bend range: Follows the per-note range MPE Roll sends (any symmetric range); Pitch Bend Up/Down set only the global range. CLAP: micro-pitch, timbre, pressure, pan and gain; 1.4.8 improved them for mono and legato presets. | MPE added in 1.4.8 (August 2024), for polyphonic presets only. 1.4.8 is the last version with VST2. In the beta, channel 1 was not treated as the MPE master channel. | [u-he.com](https://u-he.com/products/plug-ins/diva/releases/1.4.8/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8959714), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8888971) |
+| Filterscape VA | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | The synth in u-he's Filterscape trio (FilterscapeQ6 and Filterscape are effects). u-he's MPE update doesn't include it. Formats not verified. | [u-he.com](https://u-he.com/news/2024/08/mpe-released/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8796929), [pluginboutique.com](https://www.pluginboutique.com/manufacturers/135-u-he) |
+| Hive 2 | VST2, VST3, CLAP, AAX | Yes | MPE button: On (early builds showed it only on the original skin); use a polyphonic voice mode. Bend range: Follows the per-note range MPE Roll sends (any symmetric range); Pitch Bend Up/Down set only the global range. CLAP: micro-pitch, timbre, pressure, pan and gain (from 2.1.2). | MPE added in 2.1.2 (August 2024), for polyphonic presets only; Ctrl A/B offset doesn't work in MPE mode. 2.1.2 is the last version with VST2. If timbre does nothing, map Control A to CC74. | [u-he.com](https://u-he.com/products/hive/releasenotes.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8959714), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8782817) |
+| Podolski | VST2, VST3 | Not mentioned | *Plain MIDI*. | Free, older u-he synth. Not part of u-he's 2024 MPE update (ACE, Bazille, Diva, Hive 2). Latest release noted is 1.2.x. AAX and CLAP not confirmed. | [u-he.com](https://u-he.com/news/2024/08/mpe-released/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8796929), [looperman.com](https://www.looperman.com/free-music-software/detail/u-he-podolski) |
+| Repro-1 | VST3, CLAP, AAX | Not mentioned | *Plain MIDI*. Repro-5, sold with it as Repro, has MPE for polyphonic presets. | Monophonic synth sold with Repro-5 as Repro. u-he scopes Repro's MPE (1.1.3) to Repro-5's polyphonic presets, and its MPE mono mode isn't implemented. | [u-he.com](https://www.u-he.com/repro), [u-he.com](https://u-he.com/products/repro/releasenotes.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?t=603439) |
+| Repro-5 | VST3, CLAP, AAX | Yes | Turn on MPE in its settings (Repro-5 User Guide, page 46); polyphonic presets only. | MPE added in Repro 1.1.3 (December 2024), for Repro-5's polyphonic presets. u-he lists open MPE issues and an FL Studio sample-and-hold rate issue. VST2 in 1.1.3 not confirmed. | [u-he.com](https://www.u-he.com/repro), [u-he.com](https://u-he.com/products/repro/releasenotes.html), [u-he.com](https://u-he.com/news/2024/12/repro-released/) |
+| Triple Cheese | VST2, VST3 | Not mentioned | *Plain MIDI*. | Free u-he comb-filter synth, no longer actively developed. Not part of u-he's 2024 MPE update. Latest release noted is 1.2.1. AAX and CLAP not confirmed. | [u-he.com](https://u-he.com/news/2024/08/mpe-released/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7627708), [rekkerd.org](https://rekkerd.org/?p=93330) |
+| Tyrell N6 | VST2, VST3, CLAP, AAX | **No** | *Plain MIDI*. | Free (via Amazona.de). The latest build, 3.0.0 (March 2025), added CLAP but not MPE; u-he plans MPE and per-voice modulation for the CLAP version in a later makeover. | [u-he.com](https://u-he.com/products/tyrelln6/), [u-he.com](https://u-he.com/products/tyrelln6/releasenotes.html), [rekkerd.org](https://rekkerd.org/u-he-releases-tyrelln6-public-beta-2025-revision-16947) |
+| Zebra 3 | VST3, CLAP, AAX | Yes | Perform page › MPE button: On; Pitches panel › Pitch Bend Up/Down: MPE. Bend range: Pitches panel › Pitch Bend Up/Down: MPE (value not documented); 3.0.1 added a per-voice pitch bend preference. CLAP: per-note modulation and expression with no MPE setup; the VST3 has no per-note modulation. | Released April 2026. 3.0.1 and 3.0.2 added MPE preferences (per-voice pitch bend, smoothing). Users reported a short MPE bend in some VST3 hosts. Control names come from forum posts. | [u-he.com](https://u-he.com/news/2026/07/zebra-3-0-1-released/), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9254498), [sonicstate.com](https://sonicstate.com/news/2026/04/21/u-he-zebra-3-is-finally-here/) |
+| Zebra Legacy (Zebra2, ZebraHZ) | VST2, VST3, AAX | **No** | *Plain MIDI*. Its successor Zebra 3 has MPE. | Superseded by Zebra 3. Zebra2 tells voices apart only by note, velocity and poly aftertouch, so per-note bend and timbre don't work; poly aftertouch does, in Plain MIDI. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=6914329), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7627708), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8888971) |
+| Zebralette 3 | VST3, CLAP | Unclear | *Plain MIDI*. | Free cut-down of Zebra 3. Its 3.0 release notes (December 2025) say 'No MPE support yet', but in April 2026 u-he staff discussed its MPE mode on KVR. Test before relying on it. | [u-he.com](https://u-he.com/products/plug-ins/zebralette3/release-notes/index.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9231396), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9021863) |
+
+## UJAM
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Beatmaker series |  | Not mentioned | *Plain MIDI*. | Drum machines driven by phrase and style keys (Dope, Hype, Eden, Kaya, Cozy, Void...); MPE matters little here. Windows formats not confirmed per product. | [pluginboutique.com](https://www.pluginboutique.com/products/10607-UJAM-Music-Creation-Suite), [thomann.co.uk](https://thomann.co.uk/ujam_essential_bundle.htm) |
+| Symphonic Elements series |  | Not mentioned | *Plain MIDI*. | Orchestral instruments built on sounds from Hans Zimmer's library (e.g. STRIIIINGS). No MPE found for any UJAM series. Windows formats not confirmed. | [bestservice.com](https://www.bestservice.com/en/the_full_bundle.html), [pluginboutique.com](https://www.pluginboutique.com/products/10607-UJAM-Music-Creation-Suite) |
+| Usynth series | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | UJAM's launch post and KVR (supported standard: MIDI) name no MPE. A bundle listing with Pitch Innovations Fluid Chords mentions MPE, most likely for Fluid Chords. | [ujam.com](https://www.ujam.com/blog/out-now-usynth-plug-in-series-by-ujam/), [kvraudio.com](https://www.kvraudio.com/product/usynth-glam-by-ujam), [pluginboutique.com](https://pluginboutique.com/product/81-Bundles/97-Various-Category/10596-UJAM-Usynth-2080-Pitch-Innovations-Fluid-Chords) |
+| Virtual Bassist series | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Phrase and style bass instruments (Dandy, Mellow, Royal, Rowdy...). Searches found no MPE for any UJAM instrument. | [kvraudio.com](https://www.kvraudio.com/product/music-creation-suite-by-ujam) |
+| Virtual Drummer series | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Pattern and style drum instruments (Deep, Heavy, Solid...); MPE does not apply. | [kvraudio.com](https://www.kvraudio.com/product/music-creation-suite-by-ujam) |
+| Virtual Guitarist series | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Phrase and style instruments (Iron, Amber, Silk, Sparkle, Carbon...): keys trigger chords, phrases and style switches, not single notes, so MPE doesn't fit. Formats not confirmed per title. | [soundonsound.com](https://www.soundonsound.com/node/4912748), [kvraudio.com](https://www.kvraudio.com/product/usynth-glam-by-ujam) |
+| Virtual Pianist series |  | Not mentioned | *Plain MIDI*. | Simplified piano instruments (Vogue, Vibe, Score...). Vogue and Vibe's Player mode plays chords and melodies from one finger and reinterprets incoming notes. Windows formats not confirmed. | [thomann.co.uk](https://thomann.co.uk/ujam_essential_bundle.htm) |
+
+## Ummet Ozcan
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Genesis Pro | VST2 | Not mentioned \* | *Plain MIDI*. | Windows-only 32-bit VST2 (2020, EUR 1); the DAW must run as Administrator. A 64-bit host such as MPE Roll needs a bridge (e.g. jBridge) to load it. No 64-bit version confirmed. | [gearnews.com](https://www.gearnews.com/genesis-pro-virtual-hybrid-synthesizer-from-producer-dj-ummet-ozcan/), [musictech.com](https://musictech.com/news/oz-soft-genesis-pro) |
+
+## Unfiltered Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Battalion | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | Drum machine (April 2024) with 20 synth engines, a sampler and eight voices, each with eight mappable modulation sources. Windows formats not confirmed. | [unfilteredaudio.com](https://www.unfilteredaudio.com/products/battalion), [musictech.com](https://musictech.com/news/gear/plugin-alliance-battalion-drum-machine-unfiltered-audio) |
+| LION | VST2, VST3, AAX | Yes | No MPE switch found: assign the MIDI In modulator's outputs to the parameters each voice should follow. | Maker claims full MPE support for per-voice articulation (ROLI Seaboard, Sensel Morph). The version that added MPE and the bend range setting are unknown. Also sold bundled with the LO-FI-AF effect. | [unfilteredaudio.com](https://www.unfilteredaudio.com/products/lion), [plugin-alliance.com](https://www.plugin-alliance.com/en/products/unfiltered_audio_lion.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7539724) |
+
+## Universal Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Anthem | VST3, AAX | Not mentioned | *Plain MIDI*. | UA's own FM synth from the UAD Synth Collection, native UADx. UA does not mention MPE. Plugin list name not confirmed. | [pluginboutique.com](https://www.pluginboutique.com/products/16631-UAD-Synth-Collection), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9127622) |
+| Electra 88 Vintage Keyboard Studio | VST3, AAX | Not mentioned | *Plain MIDI*. | Model of a 1974 Rhodes Eighty Eight Suitcase Mark I; UAD Native with iLok. UA does not mention MPE. | [uaudio.com](https://www.uaudio.com/products/uad-classic-keys-and-synths-bundle) |
+| Moog Minimoog | VST3, AAX | Not mentioned | *Plain MIDI*. | Native UADx instrument (iLok, no UA hardware needed). UA does not mention MPE; users report fixed MIDI CC assignments and no MIDI learn. Its name in the plugin list was not confirmed. | [pluginboutique.com](https://www.pluginboutique.com/products/16631-UAD-Synth-Collection), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9127979) |
+| Opal Morphing Synthesizer | VST3, AAX | Not mentioned | *Plain MIDI*. | Hybrid analog and wavetable synth, native UADx. UA does not list MPE, and a buyer's review on UA's page hopes it will get MPE eventually. Plugin list name not confirmed. | [uaudio.de](https://uaudio.de/uad-plugins/instruments-extensions/opal-morphing-synthesizer.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9139610) |
+| PolyMAX Synth | VST3, AAX | Not mentioned | *Plain MIDI*. | Eight-voice analog-modeled polysynth with arpeggiator and effects; native UADx with iLok. UA does not mention MPE; users report fixed MIDI CC assignments. Plugin list name not confirmed. | [thomann.de](https://www.thomann.de/gr/universal_audio_uad_synth_collection.htm), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8574624) |
+| Ravel Grand Piano | VST3, AAX | Not mentioned | *Plain MIDI*. | Steinway Model B emulation with sympathetic resonance and pedal modeling; UAD Native on Windows 10/11 with iLok. UA does not mention MPE. | [uaudio.com](https://www.uaudio.com/products/uad-classic-keys-and-synths-bundle), [uaudio.com](https://www.uaudio.com/uad-plugins/plug-in-bundles/uad-producer-edition.html) |
+| Waterfall B3 Organ | VST3, AAX | Not mentioned | *Plain MIDI*. | Hammond B3 tonewheel organ with Leslie 147 emulation; UAD Native with iLok. UA does not mention MPE. | [uaudio.com](https://www.uaudio.com/products/uad-classic-keys-and-synths-bundle) |
+
+## UVI
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Drone | VST2, VST3, AAX, Standalone | Yes | No Drone switch found; if a patch lacks MPE, load it in Falcon: Event Processors › Script Processor › Utilities › MPE. Bend range: Falcon MPE script › Advanced tab; default not found. | Native MPE per retail listings, likely UVI's own copy. Loads in UVI Player (formerly UVI Workstation) or Falcon. Whether its patches already include the MPE script was not confirmed. | [support.uvi.net](https://support.uvi.net/hc/en-us/articles/29111103031325-How-to-set-up-MPE-in-Falcon), [sonovente.com](https://www.sonovente.com/en-gb/uvi-drone-licence-telechargeable-p126903.html), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=7557431) |
+| Falcon | VST2, VST3, AAX, Standalone | Yes | Per patch: load an MPE preset, or Event Processors › Script Processor › Utilities › MPE; part MIDI channel Omni. Bend range: MPE script › X (pitch) Range, usually 24 or 48; set 48. | MPE since an early Falcon 1.x update; Falcon 3 is current. Most factory patches lack the MPE script. Users report per-note modulation works only when assigned at Keygroup level. | [support.uvi.net](https://support.uvi.net/hc/en-us/articles/29111103031325-How-to-set-up-MPE-in-Falcon), [support.roli.com](https://support.roli.com/en/support/solutions/articles/36000025192-uvi-falcon-using-the-seaboard-rise-block-grand-with-uvi-s-falcon), [rekkerd.org](https://rekkerd.org/review-falcon-3-creative-hybrid-instrument-by-uvi) |
+| Glass Orchestra | VST2, VST3, AAX, Standalone | Yes | Main page › MPE mode: On. Bend range: MPE pitch-bend range control on the main page; default not found, set 48. | 14 sampled glass instruments, released January 2024 with native MPE. Needs the latest UVI Player (formerly UVI Workstation) or Falcon; load that plugin in FL Studio. | [cdn.uvi.net](https://cdn.uvi.net/UVISC119_Glass_orchestra/manuals/20250603_145616/Glass_Orchestra_manual_en.pdf), [sonicstate.com](https://sonicstate.com/news/2024/01/25/uvi-releases-glass-orchestra/), [sonovente.com](https://www.sonovente.com/en-gb/uvi-glass-orchestra-licence-telechargeable-p126929.html) |
+| PX Apollo | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. In Falcon, the MPE script can add MPE to its patches (see Falcon). | Sampled and hybrid synth from Vintage Vault 2 (2017); loads in UVI Player (formerly UVI Workstation) or Falcon. No MPE was found for it. | [xlr8r.com](https://xlr8r.com/gear/review-vintage-vault-2/), [kvraudio.com](https://www.kvraudio.com/product/mpe-collection-by-expressive-e) |
+| Synth Anthology 4 | VST2, VST3, AAX, Standalone | Yes | Settings (main screen) › MPE Power; keep the player's part on MIDI channel Omni. Bend range: Settings › MPE Bend (separate from the global Bend); default not found, set 48. | Library released August 2023 with native MPE. It loads in UVI Player (formerly UVI Workstation, free) or Falcon: load that plugin in FL Studio. The Omni step comes from ROLI's Falcon guide. | [cdn.uvi.net](https://cdn.uvi.net/UVISC117_Synth_anthology_4/manuals/20250603_151617/Synth_Anthology_4_manual_en.pdf), [sonicstate.com](https://sonicstate.com/news/2023/08/31/uvi-releases-synth-anthology-4), [synthanatomy.com](https://synthanatomy.com/2023/08/uvi-synth-anthology-4-with-new-rebuilt-dual-engine-mpe-and-more-sounds.html) |
+| UVI Player | VST2, VST3, AAX, Standalone | Yes, limited | No player-wide switch: turn MPE on in the library (Synth Anthology 4: Settings › MPE Power); part on Omni. Bend range: Per library (Synth Anthology 4: Settings › MPE Bend; Glass Orchestra: its MPE pitch-bend range); set 48. | Free player for UVI libraries, renamed from UVI Workstation in October 2026. MPE works only with libraries built for it, such as Synth Anthology 4 and Glass Orchestra. | [cdn.uvi.net](https://cdn.uvi.net/UVISC117_Synth_anthology_4/manuals/20250603_151617/Synth_Anthology_4_manual_en.pdf), [sonicstate.com](https://sonicstate.com/news/2023/08/31/uvi-releases-synth-anthology-4), [sonicstate.com](https://sonicstate.com/news/2026/10/15/uvi-introduces-uvi-player-and-uvi-builder-/) |
+| Vintage Vault 4 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. Synth Anthology 4 has MPE; in Falcon, the MPE script can add MPE to a patch. | Bundle of 36 UVI instruments that load in UVI Player (formerly UVI Workstation) or Falcon. No MPE statement was found for the bundle; MPE is per instrument. | [pluginboutique.com](https://www.pluginboutique.com/products/15713-Vintage-Vault-4), [pro-tools-expert.com](https://www.pro-tools-expert.com/production-expert-1/uvi-vintage-vault-4-announced-huge-vintage-synth-library-and-more) |
+
+## VAST Dynamics
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Vaporizer2 | VST2, VST3, CLAP, AAX, Standalone | Yes | Preset editor › MPE MODE: Always on (or tick MPE PRESET to save MPE with a preset). Bend range: Preset editor › MPE BEND RANGE (1-96, saved per preset, default 64); set 48. | Free, open-source hybrid wavetable synth. Pressure, timbre and lift are freely assignable. Factory presets tagged Factory MPE are already set up. How to open the preset editor was not confirmed. | [github.com](https://github.com/VASTDynamics/Vaporizer2/blob/main/README.md), [github.com](https://github.com/VASTDynamics/Vaporizer2/blob/main/VASTvaporizer/Source/Plugin/VASTPresetEditorComponent.cpp), [github.com](https://github.com/VASTDynamics/Vaporizer2/blob/main/VASTvaporizer/Source/Plugin/VASTPreset/VASTPresetElement.h) |
+
+## VCV
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Rack 2 Pro | VST2, VST3, CLAP, Standalone | Yes | MIDI to CV module: channel All; right-click › Polyphony channels 16, Polyphony allocation MPE, Pitch bend range 48. Bend range: MIDI to CV right-click › Pitch bend range (0-12, 24, 36 or 48; default 2). | MPE in MIDI to CV since Rack 1.0; MIDI-CC to CV in MPE mode covers CC74. The VST3 takes bend and pressure on all 16 channels only from 2.6.1 (March 2025). | [github.com](https://github.com/VCVRack/Rack/blob/v2/src/core/MIDI_CV.cpp), [github.com](https://github.com/VCVRack/Rack/blob/v2/CHANGELOG.md), [github.com](https://github.com/VCVRack/Rack/blob/v2/include/dsp/midi.hpp) |
+
+## Vengeance Sound
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| VPS Avenger 2 | VST2, VST3 | Not mentioned | *Plain MIDI*. | Avenger 2 adds spectral granular and drum-loop modules. Maker and retailer feature lists mention neither MPE nor poly aftertouch; a KVR user says it lacks both. AAX not checked. | [vengeance-sound.com](https://vengeance-sound.com/plugins.php), [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=8797428), [thomannmusic.com](https://www.thomannmusic.com/vengeance_sound_vps_avenger_2_upgrade_from_v1.htm) |
+| VPS Phalanx | VST2, VST3, AAX | Not mentioned \* | *Plain MIDI*. | 16-track drum and one-shot sampler with 32 sample slots and 128 voices. Its KVR feature list does not mention MPE. | [kvraudio.com](https://www.kvraudio.com/product/vps-phalanx-by-vengeance-sound) |
+
+## VI Labs
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Ravenscroft 275 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Sampled concert grand that loads in UVI Workstation (now UVI Player) and has its own MIDI response panel. No MPE is documented for it. | [bestservice.com](https://www.bestservice.com/ravenscroft_275.html), [pluginfox.com](https://pluginfox.com/products/vi-labs-ravenscroft-275?aff=apg) |
+
+## Vienna Symphonic Library
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Synchron Player | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | VSL's pages and manual don't mention MPE, and a user's forum question about it got no official answer. Plugin only (no standalone); also runs inside Vienna Ensemble Pro. | [vsl.co.at](https://www.vsl.co.at/en/Software/Synchron_Player), [forum.vsl.co.at](https://forum.vsl.co.at/topic/48741/synchron-player-why-vst-2) |
+| Vienna Instruments Pro | VST2, AAX | Not mentioned \* | *Plain MIDI*. | Older VSL player, still used for the VI series. VSL's sample-player manual pages don't mention MPE. Not researched on its own. | [vsl.co.at](https://www.vsl.co.at/manuals/ve7/sample-players) |
 
 ## Vital Audio
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Vital | VST2, VST3, CLAP, Standalone | Yes | ADVANCED tab › MPE ENABLED (saved with each preset). Bend range: Fixed at 48. |  | [github.com](https://github.com/mtytel/vital/blob/main/src/synthesis/framework/voice_handler.cpp) |
+| Vital | VST2, VST3, CLAP, Standalone | Yes | ADVANCED tab › VOICE › MPE ENABLED (saved with each preset). Bend range: Fixed at 48. None: per-channel MPE MIDI only (open-source code). | MPE since 1.0 (2020); Basic, Plus and Pro are one plugin. Details come from the open-source code; 1.5.x may differ. CLAP builds are user-reported only. Avoid sending a bend-range RPN. | [github.com](https://github.com/mtytel/vital/blob/main/src/synthesis/framework/voice_handler.h), [github.com](https://github.com/mtytel/vital/blob/main/src/interface/editor_sections/master_controls_interface.cpp), [forum.vital.audio](https://forum.vital.audio/t/pitch-bend-range-in-mpe-mode/5225) |
+
+## W.A. Production
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Babylon 2 | VST3, AAX | Not mentioned | *Plain MIDI*. | Babylon 2 (2024) is a wavetable synth; its per-note microtonal scales are tuning, not MPE. No source mentions MPE for it or the original Babylon (2019), whose formats are unconfirmed. | [kvraudio.com](https://www.kvraudio.com/product/babylon-2-by-w-a-production), [synthanatomy.com](https://synthanatomy.com/2025/01/w-a-production-babylon-2-wavetable-synthesizer-plugin.html), [synthanatomy.com](https://synthanatomy.com/2019/10/w-a-production-released-babylon-one-page-synthesizer-plugin-pc-mac.html) |
+
+## Waldorf
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Attack | VST2, AAX | Not mentioned | *Plain MIDI*. | Analog-style percussion synth in Waldorf Edition 2, with 24 sounds per kit. A Windows VST3 was not confirmed. MPE is not mentioned. | [waldorfmusic.com](https://waldorfmusic.com/produkt/waldorf-edition-2-soft-version/), [thomann.co.uk](https://thomann.co.uk/waldorf_edition_2.htm) |
+| Largo 2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Virtual analog synth with Blofeld DNA, released October 2023. Retailers list MIDI controller automation of the main parameters, but not MPE. | [kvraudio.com](https://www.kvraudio.com/product/largo-2-by-waldorf), [pluginboutique.com](https://www.pluginboutique.com/products/12433-Largo-2-) |
+| Nave | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Wavetable synth ported from the iOS app. Listings give polyphonic aftertouch, up to 3 X/Y pads and 32 voices, but not MPE. | [plugin-alliance.com](https://www.plugin-alliance.com/products/nave.oembed), [bigbearsound.com](https://bigbearsound.com/products/waldorf-music-nave-plug-in) |
+| PPG Wave 2.2V | VST2, AAX | Not mentioned | *Plain MIDI*. | Part of Waldorf Edition 2, with 32 wavetables and up to 64 voices. Its name in the plugin list and a Windows VST3 were not confirmed. MPE is not mentioned. | [waldorfmusic.com](https://waldorfmusic.com/produkt/waldorf-edition-2-soft-version/), [pluginboutique.com](https://www.pluginboutique.com/products/12437-Waldorf-Edition-2) |
+| PPG Wave 3.V | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Version 2.0 is current, with up to 256 voices and MIDI controller automation of most parameters. MPE is not mentioned in the Version 2 listings. | [thomann.de](https://www.thomann.de/ie/waldorf_ppg_3v_version_2.htm), [rubadub.co.uk](https://rubadub.co.uk/products/ppg-wave-3v-version-20) |
+
+## Wave Alchemy
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Revolution | VST3, AAX | Not mentioned \* | *Plain MIDI*. | Drum machine. A maker-level search found no MPE. Formats were not confirmed individually. | [pluginboutique.com](https://www.pluginboutique.com/products/14035-Wave-Alchemy-Instruments-Bundle) |
+| Triaz | VST3, AAX | Not mentioned \* | *Plain MIDI*. | Drum machine that began as a Kontakt instrument in 2022 and was rebuilt as a native plugin, with about 15,000 samples and pitch and motion sequencers. No MPE found. | [musicradar.com](https://www.musicradar.com/news/wave-alchemy-triaz), [pluginboutique.com](https://www.pluginboutique.com/products/14035-Wave-Alchemy-Instruments-Bundle) |
 
 ## Waves
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Waves synths | VST2, VST3, AAX | **No** | *Plain MIDI*. |  | [waves.com](https://www.waves.com/codex-synth-overview) |
+| Bass Fingers | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sampled finger bass. Waves documents no MPE. | [waves.com](https://www.waves.com/support/tech-specs/system-requirements) |
+| Bass Slapper | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Slap bass with an adaptive fretboard (11 positions), NKS-ready. Waves documents no MPE. | [kvraudio.com](https://www.kvraudio.com/news/39297) |
+| Clavinet | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sampled and modelled D6 Clavinet, sold alone and in Pianos & Keys. Waves documents no MPE. | [waves.com](https://www.waves.com/plugins/clavinet) |
+| Codex | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Granular wavetable synth, NKS-ready. Waves documents no MPE. It loads through WaveShell as 'Codex Stereo'. | [waves.com](https://www.waves.com/downloads/release-notes) |
+| CR8 Sampler | VST3, AAX | Not mentioned \* | *Plain MIDI*. | A user request on Waves' forum calls MPE its biggest missing feature; no Waves reply or update adding it was found. Modulation is by envelopes, LFOs, step sequencers and mod wheel. | [forum.waves.com](https://forum.waves.com/t/cr8-mpe-support/12389), [thomann.co.uk](https://thomann.co.uk/waves_cr8_creative_sampler.htm) |
+| Electric 200 Piano | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sampled 200A-style electric piano, part of Pianos & Keys. Waves documents no MPE. | [fullcompass.com](https://www.fullcompass.com/prod/535673-waves-pianos-keys-sampled-piano-and-keyboard-virtual-instrument-bundle-download) |
+| Electric 88 Piano | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sampled suitcase-style electric piano. Waves documents no MPE. It loads through WaveShell as 'Electric 88 Stereo'. | [reverb.com](https://reverb.com/software/instruments/waves/1418-waves-electric-88-piano) |
+| Electric Grand 80 Piano | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sampled CP-80-style electric grand, part of Pianos & Keys. Waves documents no MPE. | [fullcompass.com](https://www.fullcompass.com/prod/535673-waves-pianos-keys-sampled-piano-and-keyboard-virtual-instrument-bundle-download) |
+| Element 2.0 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Virtual analog polysynth, NKS-ready. Waves documents no MPE, and users on Waves' forum ask for MPE in other Waves instruments. It loads through WaveShell as 'Element 2.0 Stereo'. | [waves.com](https://www.waves.com/plugins/element), [forum.waves.com](https://forum.waves.com/t/studioverse-instruments-pro-tools-mpe-support/10257) |
+| Flow Motion FM Synth | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Hybrid FM/subtractive synth with a 4-oscillator FM matrix and a step sequencer, NKS-ready. MPE is in no Waves feature list. It loads through WaveShell as 'Flow Motion Stereo'. | [waves.com](https://www.waves.com/plugins/flow-motion-fm-synth), [prosoundweb.com](https://www.prosoundweb.com/waves-audio-debuts-flow-motion-fm-synth/) |
+| Grand Rhapsody Piano | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Sampled Fazioli F228, part of Pianos & Keys. Waves documents no MPE. | [fullcompass.com](https://www.fullcompass.com/prod/535673-waves-pianos-keys-sampled-piano-and-keyboard-virtual-instrument-bundle-download) |
 
 ## Xfer Records
 
 | Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
 | --- | --- | --- | --- | --- | --- |
-| Serum | VST2, VST3, AAX | Yes | MENU (top bar) › MPE Enabled. Bend range: MPE bend range at the bottom of the same menu; set 48. | Serum 1.x; MPE since 1.2x | [synthtopia.com](https://www.synthtopia.com/content/2019/04/18/serum-synth-now-mpe-compatible/) |
-| Serum 2 | VST3, AAX | Yes | MENU › MPE Enabled (usually on). Bend range: MPE Bend Range on its Global page; set 48. Takes VST3 note expressions with MPE off. |  | [xferrecords.com](https://xferrecords.com/manual/serum-2) |
+| Nerve | VST2 | Not mentioned \* | *Plain MIDI*. | Drum machine and sampler with a step sequencer. Development has stalled at 1.2.9.5 but it is still sold. Released as VST/AU; Windows AAX not verified. No MPE mention found. | [kvraudio.com](https://www.kvraudio.com/product/nerve-by-xfer-records), [rekkerd.org](https://rekkerd.org/xfer-records-releases-nerve/), [splice.com](https://splice.com/plugins/280-nerve-vst-au-by-xfer-records) |
+| Serum | VST2, VST3, AAX | Yes | MENU (top bar) › MPE Enabled. Bend range: MENU › MPE Bend Range (48 ST, apparently the default). | MPE arrived in the 1.2x series and is off by default. VST3 on Windows since 1.35b7 (2022). Since 1.36b8 per-note bend also feeds MPE X. Superseded by Serum 2, a separate plugin. | [support.jamstik.com](https://support.jamstik.com/hc/en-us/articles/360050534752-How-to-use-your-Jamstik-Studio-with-Serum-in-Studio-One-5), [synthtopia.com](https://www.synthtopia.com/content/2019/04/18/serum-synth-now-mpe-compatible/), [synthanatomy.com](https://synthanatomy.com/2022/11/xfer-serum-v1-35b7-update-adds-vst3-support-for-macos-and-windows.html) |
+| Serum 2 | VST3, AAX | Yes | MENU (top bar) › MPE on; the GLOBAL page has further MPE options. Bend range: MPE Bend Range, reportedly on the GLOBAL page (default 48 in Serum 1; not re-confirmed for Serum 2). No per-note tuning note expression, so per-note pitch works only as MPE, one note per channel. | Released 2025 as a separate plugin; VST3 and AAX only, no VST2 or CLAP. MPE is said to be unchanged from Serum 1. GLOBAL options can map pitch bend to MPE X. A user saw bend offsets carry to the next note. | [xferrecords.com](https://www.xferrecords.com/forums/posts/83549), [xferrecords.com](https://xferrecords.com/manual/serum-2), [forums.steinberg.net](https://forums.steinberg.net/t/feature-request-mpe-pitch-bending-editor-improvements/1032907) |
+
+## Xhun Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| LittleOne | VST2, VST3 | Not mentioned \* | *Plain MIDI*. | Moog Little Phatty emulation, 4-voice since v3 as four mono units; per-voice tuning can't be modulated. Set its MIDI input channel selector to the channel you play on. Formats not confirmed. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=6502168), [zzounds.com](https://www.zzounds.com/item--XHULITTLEONE) |
+
+## XILS-lab
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| PolyKB III | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. If PolyKB III 3.6.5 or later is installed, look for an MPE option. | No MPE release found. XILS-lab said in 2026 it plans MPE for its synths, and a reply put MPE in a 3.6.5 beta, likely PolyKB III's own (not confirmed). VST3 since 3.6.3 (March 2023). | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9252788), [synthanatomy.com](https://synthanatomy.com/2023/03/xils-lab-polykb-iii-3-6-3-new-ui-apple-silicon-support-and-59-deal.html) |
+| Syn'X 2 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | Elka Synthex emulation. No MPE release found. XILS-lab said in 2026 it plans MPE for all its synths except PolyM, XILS V+ and XILS 505, so check newer builds. Formats not confirmed. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9252788) |
+| XILS 3 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | EMS VCS3 emulation. No MPE release found. XILS-lab said in 2026 it plans MPE for all its synths except PolyM, XILS V+ and XILS 505. Formats not confirmed. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9252788) |
+| XILS 4 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | No MPE release found; XILS-lab said in 2026 it plans MPE across its range. Version 1.6 added VST3, Apple silicon support and a high-resolution GUI. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9252788) |
+| XILS 5 | VST2, VST3, AAX | Not mentioned | *Plain MIDI*. | No MPE release found; XILS-lab said in 2026 it plans MPE across its range. The product and its formats were not confirmed in research. | [kvraudio.com](https://www.kvraudio.com/forum/viewtopic.php?p=9252788) |
+
+## XLN Audio
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Addictive Drums 2 | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Drum sampler. XLN documents no MPE. | [support.xlnaudio.com](https://support.xlnaudio.com/hc/en-us/articles/16565753549853-Release-Notes-Addictive-Drums-2), [musictech.com](https://musictech.com/guides/buyers-guide/addictive-drums-2-vs-ezdrummer-3-vs-superior-drummer-3-which-drum-plugin-is-best/) |
+| Addictive Keys | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Four sampled keyboards. Mod wheel, one CC and channel aftertouch can be routed to parameters such as filter cutoff, so MPE Roll's pressure sent as channel aftertouch in Plain MIDI can drive them. | [musicradar.com](https://www.musicradar.com/reviews/tech/xln-audio-addictive-keys-567404), [bonedo.de](https://www.bonedo.de/artikel/xln-audio-addictive-keys-test/) |
+| Life | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Sample-to-beat instrument. XLN documents no MPE. | [musicradar.com](https://www.musicradar.com/reviews/tech/xln-audio-addictive-keys-567404) |
+| XO | VST2, VST3, AAX, Standalone | Not mentioned | *Plain MIDI*. | Drum-sample organiser and sequencer. XLN documents no MPE. | [support.xlnaudio.com](https://support.xlnaudio.com/hc/en-us/articles/16565753549853-Release-Notes-Addictive-Drums-2) |
+
+## Yamaha
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Expanded Softsynth Plugin for MONTAGE M | VST3 | Not mentioned | *Plain MIDI*. | Free only to registered MONTAGE M owners. v3.0 lacks MIDI 2.0, individual outputs and Parts 9-16, which limits multi-channel use. The hardware's MPE was not checked and does not imply the plugin's. | [usa.yamaha.com](https://usa.yamaha.com/products/music_production/apps/esp_montagem/index.html), [europe.yamaha.com](https://europe.yamaha.com/en/musical-instruments/keyboards/products/apps/esp_montagem/index.html) |
+| VOCALOID4 VST plug-in | VST2 | Not mentioned \* | *Plain MIDI*. Export the notes as a MIDI file (.mid) and import them into the VOCALOID4 Editor. | Probably the VOCALOID4-era engine plug-in installed by the VOCALOID4 Editor or Piapro Studio (not confirmed). Nothing shows it singing from live notes. Legacy; VOCALOID6 loads V4 voicebanks. | [vocaloid.com](https://www.vocaloid.com/en/articles/vocaloid4_feature), [bedroomproducersblog.com](https://bedroomproducersblog.com/2016/11/21/vocaloid-4-review/), [vocaloid.com](https://www.vocaloid.com/en/support/faq/category/1?page=6) |
+| VOCALOID5 Editor | VST2, Standalone | Not mentioned \* | *Plain MIDI*. Export the notes as a MIDI file and import them into the VOCALOID5 Editor. | Runs as a VST2 instrument and records live notes from an external keyboard, but sings only stored notes and lyrics, with no sound while stopped. No MPE found. Superseded by VOCALOID6. | [vocaloid.com](https://www.vocaloid.com/en/support/faq/507), [soundhouse.co.jp](https://www.soundhouse.co.jp/en/guidance/products/detail/?no=S00986) |
+| VOCALOID6 Editor | VST3, Standalone | Not mentioned \* | *Plain MIDI*. Export the notes as a MIDI file and import them into the VOCALOID6 Editor. | Singing synth that sings notes and lyrics stored in its own ARA2-linked track. Live MIDI only records, with a piano guide, so neither MPE nor live Plain MIDI makes it sing. VST3 format inferred. | [vocaloid.com](https://vocaloid.com/en/support/faq/613), [vocaloid.com](https://www.vocaloid.com/en/vocaloid6/specs/) |
+
+## Yellow Tools
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Independence | VST2, Standalone | Not mentioned \* | *Plain MIDI*. | Sampler workstation. Everything found dates from 2006-2009, and MAGIX later acquired the Yellow Tools technology. Current version, availability and formats are unconfirmed; treat as legacy. | [soundonsound.com](https://www.soundonsound.com/reviews/yellow-tools-independence), [gearspace.com](https://gearspace.com/threads/independence-sampler.935843/) |
+
+## ZynAddSubFX
+
+| Instrument | Windows | MPE | How to play it with MPE Roll | Notes | Sources |
+| --- | --- | --- | --- | --- | --- |
+| ZynAddSubFX | VST2, Standalone | **No** | *Plain MIDI*. | No MPE mode in the code: only part 1 (channel 1) is on by default, so notes on channels 2-16 are silent. Per-note pitch exists only via Zyn's own SysEx. Zyn-Fusion (3.x) Windows formats not verified. | [github.com](https://github.com/zynaddsubfx/zynaddsubfx/blob/master/src/Misc/Master.cpp), [github.com](https://github.com/zynaddsubfx/zynaddsubfx/blob/master/src/Nio/MidiIn.cpp), [lists.linuxaudio.org](https://lists.linuxaudio.org/archives/linux-audio-user/2016-July/105494.html) |

@@ -320,23 +320,25 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | --- | --- | --- |
 | Serum (1.x) | Yes | *MENU* (top bar) › *MPE Enabled*; MPE bend range at the bottom of that menu |
 | Serum 2 (VST3 only) | Yes | *MENU* › *MPE Enabled* (usually on); *MPE Bend Range* on its Global page. Takes VST3 note expressions with MPE off |
-| Pigments | Yes | *Settings* (top toolbar) › *Enable MPE*, *Bend Range* |
+| Pigments | Yes | Gear icon (top toolbar) › *Settings* tab › *MPE Settings* › *MPE: Enabled*, *Bend Range* |
 | Arturia V Collection | Many | Gear icon › *Settings* tab › *Enable MPE*; one without that setting has none |
 | Analog Lab (V, Pro) | **No** | Use *Plain MIDI*, or load the instrument itself (Pigments, a V Collection instrument) |
 | Omnisphere 3 | Yes | *System* page (gear icon) › MPE on, *MPE Pitch Bend Range*; patch in Part 1 only |
 | Omnisphere 2 | **No** | *Plain MIDI*, patch in Part 1 |
 | Vital | Yes | *ADVANCED* tab › *MPE ENABLED* (saved per preset); per-note range fixed at 48 |
-| Diva (1.4.8 and later) | Yes | Pitch Bend Up and Down set to *MPE* (polyphonic presets); the CLAP version needs nothing |
-| Zebra 3 | Yes | The CLAP version needs nothing |
-| Zebra2 | **No** | *Plain MIDI* |
-| Phase Plant | Yes | Its settings › MPE on, *Bend Range*, MIDI channel *Any* |
-| Surge XT | Yes | Turns itself on from MPE Roll's setup; the CLAP version needs nothing |
-| Equator2 | Yes | MIDI settings › *MPE* mode (not *Standard*) |
+| Diva (1.4.8 and later) | Yes | *MAIN* section (bottom of the panel) › *MPE* button, polyphonic presets only; the CLAP version needs nothing |
+| Zebra 3 | Yes | *MPE* button (*Perform* page), *Pitch Bend Up/Down* (*Pitches* panel) › *MPE*; the CLAP version needs nothing |
+| Zebra2, ZebraHZ | **No** | *Plain MIDI* |
+| Phase Plant | Yes | No switch: MIDI channel *Any* (not 1), *Bend Range* 48 in its voice settings; pressure and timbre act where the patch routes its MPE modulators |
+| Surge XT | Yes | Turns itself on from MPE Roll's setup (else *MPE* in its header); the CLAP version needs nothing |
+| Equator2 | Yes | *Mod Panel* › *Note Configuration* › *MPE* mode, *Note Pitch Bend* 48 |
 | Cherry Audio (DCO-106, Dreamsynth, Memorymode, Mercury-4, Miniverse, PS-20, Octave Cat, Sines...) | Yes | *Settings* (gear) › *Interface* › *Enable MPE mode*; bend range on its *MPE* tab |
 | SWAM | Yes, one note at a time | MIDI settings › *MIDI Profile*: *MPE* |
 | Noisy, Imagine | Yes | Its MPE presets, or MPE on in its settings |
 | ZENOLOGY, Roland Cloud | **No** | *Plain MIDI* |
-| Massive X, Kontakt, Sylenth1, Spire, Waves synths | **No** | *Plain MIDI* (a few Kontakt libraries have an MPE mode of their own) |
+| Massive X, Sylenth1, Spire, Waves synths | **No** | *Plain MIDI* |
+| Kontakt 8 | Only some libraries | No switch of its own: libraries scripted for MPE (Ashlight, for one) have their own setting |
+| Tone2 Icarus | Yes | *SETUP* page › *force MPE* (Icarus 2.5: *Enable MPE support*) |
 
 **Xfer Serum and Serum 2**
 - Serum 1 has MPE, off until you tick *MPE Enabled* in its main *MENU*; set the MPE bend range at the

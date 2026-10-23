@@ -2210,6 +2210,16 @@ void synthProfileChecks (Check& check)
                && cherry.has_value() && cherry->name == "CA2600" && cherry->mpe == Mpe::none
                && waves.has_value() && waves->mpe == Mpe::none && ! find ("Some Synth", "Wavesfactory").has_value(),
            "a maker's whole range by the synth's own name, and exact makers");
+
+    // From the audit (docs/MPE_SYNTHS.md): an MPE switch, one whose maker never mentions MPE, and
+    // names that start the same.
+    const auto icarus = find ("Icarus", "Tone2"), one = find ("FabFilter One", "FabFilter"), nexus = find ("Nexus", "reFX");
+    const auto massive = find ("Massive", "Native Instruments"), massiveX = find ("Massive X", "Native Instruments");
+    check (icarus.has_value() && icarus->mpe == Mpe::needsSwitch && icarus->advice.containsIgnoreCase ("force MPE")
+               && one.has_value() && one->mpe == Mpe::none && ! one->certain && one->describeNone().startsWith ("most likely")
+               && nexus.has_value() && nexus->name == "Nexus" && ! nexus->certain
+               && massive.has_value() && massive->name == "Massive" && massiveX.has_value() && massiveX->name == "Massive X",
+           "audited synths: Icarus's switch, 'most likely no MPE' for FabFilter One and Nexus, Massive vs Massive X");
 }
 
 int uiTest()
