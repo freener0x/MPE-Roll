@@ -37,6 +37,8 @@ docs/synths.json holds "checked" (when the list was last checked, e.g. "October 
                     Names and makers are compared in lower case with only letters and digits kept,
                     so "Serum 2", "Serum2" and "serum-2" are the same.
   plugin            false to leave it out of the plugin's list (the page still has it)
+  page              false to leave it off the page (for the plugin's catch-alls, such as "any other
+                    Arturia instrument", whose instruments the page lists one by one)
 
 Text the plugin shows must be plain ASCII; "›", dashes and curly quotes are turned into ASCII.
 
@@ -50,6 +52,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import unicodedata
 from collections import OrderedDict
 from pathlib import Path
 from urllib.parse import urlparse
@@ -76,7 +79,8 @@ def fail(message: str) -> None:
 
 
 def key(text: str) -> str:
-    """How names and makers are compared, here and in the plugin: lower case letters and digits."""
+    """How names and makers are compared, here and in the plugin: lower case letters and digits (an
+    accented letter is dropped, as the plugin's retainCharacters drops it)."""
     return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
@@ -87,6 +91,8 @@ ASCII = {"›": ">", "→": ">", "–": "-", "—": " - ", "‘": "'", "’": "'
 def ascii(text: str) -> str:
     for a, b in ASCII.items():
         text = text.replace(a, b)
+    # Accented letters lose their accents ("STRÄNG" -> "STRANG").
+    text = "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
     if not text.isascii():
         fail(f"the plugin can only show plain ASCII text, which this isn't: {text!r}")
     return text
@@ -158,6 +164,7 @@ def how_to(s: dict) -> str:
 
 
 def render_page(checked: str, synths: list[dict]) -> str:
+    synths = [s for s in synths if s.get("page", True)]
     by_maker: dict[str, list[dict]] = OrderedDict()
     for s in sorted(synths, key=lambda s: (s["maker"].lower(), s["name"].lower())):
         by_maker.setdefault(s["maker"], []).append(s)
