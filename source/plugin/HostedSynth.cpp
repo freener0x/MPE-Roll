@@ -2389,20 +2389,36 @@ void HostedSynth::copySoundToNext()
     const auto looked = now - soundCopy.lookingSince;
 
     // The copies are given it one at a time, each chosen afresh at every look while it's still
-    // open to new notes: one holding no note whose sound has died away, or, with none such for a
-    // while (a drone, long tails in dense playing), one still sounding. A copy holding notes is
-    // given it once they've ended: new state would cut them short.
+    // open to new notes: one holding no note whose sound has died away, or, with none such, the
+    // one that has held no note longest once that's 10 seconds (a drone, long tails in dense
+    // playing). A copy holding notes is given it once they've ended: new state would cut them short.
     const auto holding = (uint32_t) copiesSeen.load (std::memory_order_acquire);
     const auto sounding = copiesSounding.load (std::memory_order_acquire);
-    int next = 0;
 
-    for (const bool quietOnly : { true, false })
+    for (int c = 1; c < maxCopies; ++c)
     {
-        if (! quietOnly && looked < longestTailWaitMs)
-            break;
+        auto& since = soundCopy.freeSince[(size_t) c];
 
-        for (int c = 1; c < maxCopies && next == 0; ++c)
-            if (soundCopy.copies[(size_t) c] && (holding & (1u << c)) == 0 && ! (quietOnly && (sounding & (1u << c)) != 0))
+        if (! soundCopy.copies[(size_t) c] || (holding & (1u << c)) != 0)
+            since = 0.0;
+        else if (since <= 0.0)
+            since = now;
+    }
+
+    int next = 0;
+    bool quiet = true;
+
+    for (int c = 1; c < maxCopies && next == 0; ++c)
+        if (soundCopy.freeSince[(size_t) c] > 0.0 && (sounding & (1u << c)) == 0)
+            next = c;
+
+    if (next == 0)
+    {
+        quiet = false;
+
+        for (int c = 1; c < maxCopies; ++c)
+            if (const auto since = soundCopy.freeSince[(size_t) c];
+                since > 0.0 && now - since >= longestTailWaitMs && (next == 0 || since < soundCopy.freeSince[(size_t) next]))
                 next = c;
     }
 
@@ -2426,6 +2442,7 @@ void HostedSynth::copySoundToNext()
     // counted later either knew or shows it was still open.
     copiesDueSound.fetch_or (1u << next, std::memory_order_seq_cst);
     soundCopy.due = next;
+    soundCopy.closedQuiet = quiet;
     soundCopy.blocksAtClose = soundCopy.blocksSeen = copyBlocks.load (std::memory_order_seq_cst);
     soundCopy.blockSeenAt = now;
     soundCopyStep.startTimer (soundStepMs);
@@ -2459,8 +2476,11 @@ void HostedSynth::giveDueCopyTheSound()
         return;
     }
 
-    // A note reached it before it was closed: it's open again, and another copy goes first.
-    if ((seen & bit) != 0)
+    // A note reached it before it was closed (it's held, or still dying away): it's open again, and
+    // another copy goes first. The sound is read after the notes: from the same block, or a later one.
+    const auto soundingNow = (copiesSounding.load (std::memory_order_acquire) & bit) != 0;
+
+    if ((seen & bit) != 0 || (soundCopy.closedQuiet && soundingNow))
     {
         copiesDueSound.fetch_and (~bit, std::memory_order_seq_cst);
         soundCopy.due = 0;

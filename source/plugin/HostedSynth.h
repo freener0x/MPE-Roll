@@ -529,7 +529,9 @@ private:
         ParameterMirror::Snapshot versions;             // its parameters' versions when it was taken
         CopyRouter::CopySet copies;                     // the copies it's for (each only while it lacks it)
         double lookingSince = 0.0;                      // ms: since choosing the next copy began (0: not yet)
+        std::array<double, maxCopies> freeSince {};     // ms: since each was first seen holding no note (0: holding)
         int due = 0;                                    // the copy closed to new notes, given it next (0: none)
+        bool closedQuiet = false;                       // it was quiet then: a note given it just before mustn't be cut
         uint32_t blocksAtClose = 0;                     // copyBlocks once it was closed
         uint32_t blocksSeen = 0;                        // copyBlocks at the last look
         double blockSeenAt = 0.0;                       // ms: when that changed

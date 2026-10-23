@@ -142,7 +142,7 @@ Set its sound there; MPE Roll gives the other copies the same.
   change, when copy 1's window closes, every 1.5 seconds while it's open (for a synth whose state
   is quick to get, and not while you're turning its knobs), and when a copy finishes loading after
   a change. The copies are given it one at a time, each once it holds no note and its last note
-  has died away (with none such for 10 seconds, one still sounding), so no note is cut short; for
+  has died away (with none such, one that has held no note for 10 seconds), so no note is cut short; for
   that moment new notes go to the other copies. Each copy is
   asked for its own state first and only given copy 1's if it differs (the plugin log says "had its
   sound already" otherwise). Keys held for every copy (a keyswitch, Arcade's modifiers) are played
