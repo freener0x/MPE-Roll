@@ -65,6 +65,8 @@ jobs:
       HARNESS: build/MpeRollHarness_artefacts/Release/MpeRollHarness.exe
       VST3_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3
       VST2_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST/MPE Roll Test Synth.dll
+      PLAIN_VST3_SYNTH: build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3
+      PLAIN_VST2_SYNTH: build/MpeRollPlainTestSynth_artefacts/Release/VST/MPE Roll Plain Test Synth.dll
       CLAP_SYNTH: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap
       NOTE_EXPRESSION_SYNTH: build/MpeRollVst3NoteExpressionTestSynth_artefacts/Release/MPE Roll Note Expression Test Synth.vst3
       SCANNER: build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe
@@ -80,6 +82,7 @@ jobs:
         run: >
           cmake --build build --config Release --parallel --target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone
           MpeRollScanner MpeRollTests MpeRollHarness MpeRollTestSynth_VST3 MpeRollTestSynth_VST MpeRollClapTestSynth
+          MpeRollPlainTestSynth_VST3 MpeRollPlainTestSynth_VST
           MpeRollVst3NoteExpressionTestSynth MpeRollCrashingTestPlugin MpeRollHangingTestPlugin
 
       - name: Test
@@ -107,6 +110,12 @@ jobs:
           "$HARNESS" params "$CLAP_SYNTH"
           "$HARNESS" render "$CLAP_SYNTH" render-clap.wav
           "$HARNESS" clapdialect "$CLAP_SYNTH"
+
+      # Windows is where a crashing copy can be caught, so this also checks that one is switched off.
+      - name: One copy per note through a synth without MPE (VST3, VST2)
+        run: |
+          "$HARNESS" copies "$PLAIN_VST3_SYNTH"
+          "$HARNESS" copies "$PLAIN_VST2_SYNTH"
 
       - name: Hosted VST3 synth that takes MPE only as VST3 note expressions
         run: |
@@ -266,6 +275,13 @@ jobs:
         run: >
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness clapdialect
           "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"
+
+      - name: One copy per note through a synth without MPE (VST3, VST2)
+        run: |
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness copies \
+            "build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3"
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness copies \
+            "build/MpeRollPlainTestSynth_artefacts/Release/VST/libMPE Roll Plain Test Synth.so"
 
       # A VST3 synth that maps pitch bend on MIDI channel 1 only (JUCE's VST3 host drops MPE's bends on
       # the other channels) but takes VST3 note expressions: its notes glide only if MPE Roll sends them.

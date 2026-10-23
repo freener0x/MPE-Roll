@@ -9,14 +9,17 @@
 //   MpeRollHarness selftest                             live input, recording, state, note trigger, undo
 //   MpeRollHarness uitest                               simulated mouse and keyboard editing
 //   MpeRollHarness params <synth.vst3>                  synth parameters exposed for host automation
+//   MpeRollHarness copies <plain synth>                 one copy per note, through a synth without MPE
 //   MpeRollHarness crashtest <report.txt> [overflow]    Windows: crashes on purpose (or overflows the stack)
 //                                                       to check the crash report
 //   MpeRollHarness scantest <scanner> <synth> <crashing.clap> <hanging.clap>
 //                                                       plugin files are looked at in the scanner process
 
+#include "plugin/CopySafety.h"
 #include "plugin/CrashReport.h"
 #include "plugin/Links.h"
 #include "plugin/PluginEditor.h"
+#include "plugin/PluginLog.h"
 #include "plugin/PluginProcessor.h"
 #include "plugin/PluginScanner.h"
 #include "plugin/ui/DonatePanel.h"
@@ -3151,6 +3154,471 @@ int crashTest (const juce::File& reportFile, bool overflow)
 
 } // namespace
 
+//==============================================================================
+/** One copy per note, through the plain test synth: a synth without MPE, where every note on a
+    channel shares its pitch bend. Copies give each note its own; the copies follow the first one's
+    parameters and sound, sleep when quiet, play the same on several cores as on one, survive a
+    project being saved and opened, and stop loading when memory runs low or when loading them
+    crashed last time.
+*/
+struct CopyRig
+{
+    static constexpr double rate = 48000.0;
+    static constexpr int block = 512;
+
+    CopyRig()
+    {
+        processor.setPlayHead (&playHead);
+        processor.setRateAndBufferSizeDetails (rate, block);
+        processor.prepareToPlay (rate, block);
+    }
+
+    ~CopyRig()
+    {
+        processor.releaseResources();
+    }
+
+    HostedSynth& synth()                                { return processor.getSynth(); }
+    HostedSynth::CopyStatus status()                    { return synth().getCopyStatus(); }
+
+    static void pump (int ms)                           { juce::MessageManager::getInstance()->runDispatchLoopUntil (ms); }
+
+    void setOutput (const std::function<void (OutputSettings&)>& change)
+    {
+        auto s = processor.getDocument().getSettings();
+        change (s.output);
+        processor.getDocument().setSettings (s);
+        pump (30);      // the document's change message reaches the processor, which tells the synth
+    }
+
+    /** Blocks with the transport stopped, in about real time: the message loop runs between them
+        for as long as a block lasts, so timers (the copies' checks for a changed sound) fire as
+        they would. */
+    void idle (int milliseconds)
+    {
+        playHead.playing = false;
+        const auto blockMs = juce::jmax (1, (int) (block / rate * 1000.0));
+        const auto blocks = juce::jmax (1, milliseconds / blockMs);
+
+        for (int i = 0; i < blocks; ++i)
+        {
+            juce::AudioBuffer<float> audio (2, block);
+            juce::MidiBuffer midi;
+            processor.processBlock (audio, midi);
+            pump (blockMs);
+        }
+    }
+
+    /** Waits, playing silence, until the copies asked for are loaded (or loading has stopped
+        short) and none is taking a sound. */
+    bool settle (int timeoutMs = 30000)
+    {
+        auto loaded = std::make_shared<bool> (false);
+        synth().whenCopiesLoaded ([loaded] { *loaded = true; });
+
+        for (int waited = 0; waited < timeoutMs; waited += 50)
+        {
+            idle (50);
+
+            if (*loaded && ! status().copyingSound)
+            {
+                idle (50);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Plays the clip in slot 1 from its start for this long and returns what came out. */
+    juce::AudioBuffer<float> play (const MpeClip& clip, double seconds)
+    {
+        processor.getDocument().replaceClip (0, clip, "Test");
+        pump (10);
+
+        const auto total = (int) (seconds * rate);
+        juce::AudioBuffer<float> output (2, total);
+        output.clear();
+        playHead.playing = true;
+
+        for (int pos = 0; pos < total; pos += block)
+        {
+            const auto n = juce::jmin (block, total - pos);
+            juce::AudioBuffer<float> audio (2, n);
+            juce::MidiBuffer midi;
+            playHead.ppq = pos / rate * playHead.bpm / 60.0;
+            processor.processBlock (audio, midi);
+
+            for (int ch = 0; ch < 2; ++ch)
+                output.copyFrom (ch, pos, audio, ch, 0, n);
+        }
+
+        playHead.playing = false;
+        idle (20);
+        return output;
+    }
+
+    double level (const juce::AudioBuffer<float>& audio, double atSeconds, double frequency) const
+    {
+        constexpr int window = 4096;
+        const auto centre = (int) (atSeconds * rate);
+        return goertzel (audio.getReadPointer (0, centre - window / 2), window, frequency, rate);
+    }
+
+    juce::MemoryBlock stateOf (int copy)
+    {
+        juce::MemoryBlock state;
+
+        if (auto* plugin = synth().getCopy (copy))
+            plugin->getStateInformation (state);
+
+        return state;
+    }
+
+    /** True if every loaded copy has the first copy's state. */
+    bool copiesMatchFirst()
+    {
+        const auto first = stateOf (0);
+
+        for (int c = 1; c < OutputSettings::maxCopies; ++c)
+        {
+            if (synth().getCopy (c) == nullptr)
+                continue;
+
+            if (const auto state = stateOf (c); state != first)
+            {
+                size_t at = 0;
+
+                while (at < juce::jmin (state.getSize(), first.getSize()) && state[at] == first[at])
+                    ++at;
+
+                std::printf ("  copy %d's state (%d bytes) differs from the first's (%d bytes) at byte %d\n", c + 1,
+                             (int) state.getSize(), (int) first.getSize(), (int) at);
+                std::printf ("%s\n", PluginLog::tail (6).toRawUTF8());
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    FakePlayHead playHead;
+    MpeRollProcessor processor;
+};
+
+/** C4 glides up an octave between beats 0.5 and 1.5 while E4 holds (as in the render test). */
+MpeClip glideClip()
+{
+    MpeClip clip;
+    clip.length = 8.0;
+    auto glide = note (60, 0.0, 2.0, 0.8f);
+    glide.lanes.pitch = { { 0.0, 0.0f }, { 0.5, 0.0f }, { 1.5, 12.0f } };
+    clip.addNote (glide);
+    clip.addNote (note (64, 0.0, 2.0, 0.8f));
+    return clip;
+}
+
+int copiesTest (const juce::File& synthFile)
+{
+    Check check;
+    ignoreXErrors();     // the synth's window, opened and closed below
+
+    // The settings every MPE Roll shares (where the loading markers go) in a file of the test's own.
+    const auto settingsFile = juce::File::createTempFile ("settings");
+    auto rig = std::make_unique<CopyRig>();
+    rig->synth().useSettingsFile (settingsFile);
+
+    rig->setOutput ([] (OutputSettings& o)
+    {
+        o.mode = OutputSettings::Mode::copies;
+        o.copies = 4;
+        o.masterBendRange = 12.0f;      // the copies are told it (RPN 0), and the synth follows
+    });
+
+    if (! loadSynth (rig->processor, synthFile))
+        return 1;
+
+    std::printf ("Hosting: %s\n", rig->synth().getName().toRawUTF8());
+    check (rig->settle() && rig->status().loaded == 4, "four copies load, one at a time");
+
+    // The synth's own bend range set to MPE Roll's, as its user would: a VST3 built with JUCE gets
+    // MIDI controllers as parameter changes, in which an RPN's messages lose their order, so the
+    // range MPE Roll sends (RPN 0) only reaches the VST2. Through FL automation, so every copy has it.
+    for (auto* p : rig->processor.getParameters())
+        if (p->getName (100) == "Bend range")
+            p->setValue (p->getValueForText ("12"));
+
+    rig->idle (100);
+    std::printf ("  %s\n", rig->synth().describeConnection (rig->processor.getDocument().getSettings().output).toRawUTF8());
+
+    const auto c4 = juce::MidiMessage::getMidiNoteInHertz (60);
+    const auto e4 = juce::MidiMessage::getMidiNoteInHertz (64);
+    const auto c5 = juce::MidiMessage::getMidiNoteInHertz (72);
+
+    std::printf ("Each note glides on its own copy\n");
+    juce::AudioBuffer<float> withCores;
+    {
+        withCores = rig->play (glideClip(), 1.0);
+        const auto earlyC4 = rig->level (withCores, 0.125, c4), earlyE4 = rig->level (withCores, 0.125, e4);
+        const auto lateC5 = rig->level (withCores, 0.925, c5), lateC4 = rig->level (withCores, 0.925, c4);
+        const auto lateE4 = rig->level (withCores, 0.925, e4);
+        std::printf ("  start: C4 %.4f E4 %.4f   end: C5 %.4f C4 %.4f E4 %.4f\n", earlyC4, earlyE4, lateC5, lateC4, lateE4);
+        check (earlyC4 > 0.01 && earlyE4 > 0.01, "both notes start in tune");
+        check (lateC5 > 10.0 * lateC4, "C4 glides up the octave (the copy took the 12-semitone bend range)");
+        check (lateE4 > 0.5 * earlyE4, "E4 holds still while it does");
+    }
+
+    std::printf ("The same on one core as on several\n");
+    {
+        rig->setOutput ([] (OutputSettings& o) { o.copiesUseCores = false; });
+        check (rig->status().workers == 0, "no worker threads with Use several CPU cores off");
+        rig->processor.prepareToPlay (CopyRig::rate, CopyRig::block);
+        const auto alone = rig->play (glideClip(), 1.0);
+        rig->setOutput ([] (OutputSettings& o) { o.copiesUseCores = true; });
+        check (rig->status().workers > 0, "worker threads with it on");
+        rig->processor.prepareToPlay (CopyRig::rate, CopyRig::block);
+        const auto spread = rig->play (glideClip(), 1.0);
+
+        float largest = 0.0f;
+
+        for (int i = 0; i < alone.getNumSamples(); ++i)
+            largest = juce::jmax (largest, std::abs (alone.getSample (0, i) - spread.getSample (0, i)));
+
+        std::printf ("  largest difference %g\n", (double) largest);
+        check (largest < 1.0e-6f, "the copies sound exactly the same spread over cores");
+    }
+
+    std::printf ("Without copies, the synth bends every note together\n");
+    {
+        rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::singleChannel; });
+        check (rig->status().loaded == 0 && rig->synth().getCopy (1) == nullptr, "Plain MIDI lets the copies go");
+
+        // With Plain MIDI the newest note's glide bends the channel: C4 starts just after E4.
+        MpeClip clip;
+        clip.length = 8.0;
+        clip.addNote (note (64, 0.0, 2.0, 0.8f));
+        auto glide = note (60, 0.05, 1.95, 0.8f);
+        glide.lanes.pitch = { { 0.0, 0.0f }, { 0.45, 0.0f }, { 1.45, 12.0f } };
+        clip.addNote (glide);
+        const auto plain = rig->play (clip, 1.0);
+        const auto earlyE4 = rig->level (plain, 0.125, e4), lateE4 = rig->level (plain, 0.925, e4);
+        std::printf ("  E4 at the start %.4f, at the end %.4f\n", earlyE4, lateE4);
+        check (lateE4 < 0.2 * earlyE4, "E4 is carried off by C4's glide (what copies are for)");
+
+        rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::copies; });
+        check (rig->settle() && rig->status().loaded == 4, "back to one copy per note, four copies load again");
+    }
+
+    std::printf ("The copies follow the first one's parameters\n");
+    {
+        rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = false; });
+        juce::AudioProcessorParameter* gain = nullptr;
+
+        for (auto* p : rig->processor.getParameters())
+            if (p->getName (100) == "Gain")
+                gain = p;
+
+        check (gain != nullptr, "the synth's Gain is one of MPE Roll's parameters");
+
+        auto copiesHave = [&] (float value)
+        {
+            for (int c = 1; c < 4; ++c)
+                if (auto* copy = rig->synth().getCopy (c); copy == nullptr || std::abs (copy->getParameters()[0]->getValue() - value) > 1.0e-4f)
+                    return false;
+
+            return true;
+        };
+
+        if (gain != nullptr)
+        {
+            gain->setValue (0.25f);     // as host automation does
+            rig->idle (50);
+            check (copiesHave (0.25f), "automating Gain reaches every copy");
+        }
+
+        rig->synth().getCopy (0)->getParameters()[0]->setValueNotifyingHost (0.5f);   // as the synth's own window does
+        rig->idle (50);
+        check (copiesHave (0.5f), "turning Gain in the first copy reaches every copy");
+
+        rig->synth().getCopy (0)->getParameters()[0]->setValueNotifyingHost (1.0f);
+        rig->idle (50);
+        rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = true; });
+    }
+
+    std::printf ("The copies follow the first one's sound\n");
+    {
+        // A synth picking presets may report several changes in a row: the copies get the sound
+        // once it has settled, 0.4 seconds after the last.
+        rig->synth().getCopy (0)->setCurrentProgram (1);     // Square, and the synth says its program changed
+        rig->idle (800);
+        check (rig->settle() && rig->copiesMatchFirst(), "a program the synth reports reaches every copy");
+
+        rig->synth().getCopy (0)->setCurrentProgram (3);     // Square (quiet): the synth doesn't say
+        rig->idle (50);
+        rig->synth().showEditor (nullptr);
+        rig->idle (100);
+        rig->synth().closeEditor();
+        rig->idle (300);
+        check (rig->settle() && rig->copiesMatchFirst(), "a change it doesn't report reaches them when its window closes");
+
+        rig->synth().getCopy (0)->setCurrentProgram (0);
+        rig->idle (800);
+        rig->synth().copySoundToAllCopies();
+        check (rig->settle() && rig->copiesMatchFirst(), "Give every copy copy 1's sound does");
+    }
+
+    std::printf ("Quiet copies sleep, and a note wakes one\n");
+    {
+        rig->idle (1600);
+        auto s = rig->status();
+        std::printf ("  after the notes: %d asleep of %d\n", s.asleep, s.loaded);
+        check (s.asleep == 4, "a second after the last note, every copy sleeps");
+
+        MpeClip single;
+        single.length = 4.0;
+        single.addNote (note (69, 0.0, 1.0, 0.8f));
+        const auto audio = rig->play (single, 0.4);
+        const auto a4 = rig->level (audio, 0.25, juce::MidiMessage::getMidiNoteInHertz (69));
+        const auto off = rig->level (audio, 0.25, juce::MidiMessage::getMidiNoteInHertz (69) * 1.06);
+        std::printf ("  A4 %.4f, a semitone off %.4f\n", a4, off);
+        check (a4 > 0.01 && a4 > 10.0 * off, "a note wakes a copy and plays in tune");
+    }
+
+    std::printf ("Keys to every copy\n");
+    {
+        rig->setOutput ([] (OutputSettings& o) { o.everyCopyKeys = parseKeySet ("C3"); o.copiesSleep = false; });   // key 36
+        MpeClip one, every;
+        one.length = every.length = 4.0;
+        one.addNote (note (38, 0.0, 1.0, 0.8f));
+        every.addNote (note (36, 0.0, 1.0, 0.8f));
+        const auto oneAudio = rig->play (one, 0.4);
+        rig->idle (300);
+        const auto everyAudio = rig->play (every, 0.4);
+        const auto single = rig->level (oneAudio, 0.25, juce::MidiMessage::getMidiNoteInHertz (38));
+        const auto all = rig->level (everyAudio, 0.25, juce::MidiMessage::getMidiNoteInHertz (36));
+        std::printf ("  a key of its own %.4f, a key to every copy %.4f\n", single, all);
+        check (all > 3.5 * single && all < 4.5 * single, "a key in the every-copy set sounds in all four copies");
+        rig->setOutput ([] (OutputSettings& o) { o.everyCopyKeys.reset(); o.copiesSleep = true; });
+    }
+
+    std::printf ("More copies, fewer copies\n");
+    {
+        rig->setOutput ([] (OutputSettings& o) { o.copies = 2; });
+        check (rig->settle() && rig->status().loaded == 2 && rig->synth().getCopy (2) == nullptr, "down to two copies");
+        rig->setOutput ([] (OutputSettings& o) { o.copies = 6; });
+        rig->synth().getCopy (0)->setCurrentProgram (3);     // while they load, and the synth doesn't say
+        check (rig->settle() && rig->status().loaded == 6, "up to six copies");
+        rig->idle (800);
+        check (rig->copiesMatchFirst(), "the new copies have the first one's sound, picked while they loaded");
+
+        rig->synth().getCopy (0)->setCurrentProgram (0);
+        rig->synth().copySoundToAllCopies();
+        rig->settle();
+    }
+
+    std::printf ("Loading stops when memory runs low\n");
+    {
+        CopySafety::pretendAvailableMemoryMB (500);
+        rig->setOutput ([] (OutputSettings& o) { o.copies = 8; });
+        rig->settle();
+        auto s = rig->status();
+        std::printf ("  %s\n", s.problem.toRawUTF8());
+        check (s.loaded == 6 && s.problem.contains ("memory"), "no more copies with 500 MB free, and it says why");
+
+        CopySafety::pretendAvailableMemoryMB (-2);
+        rig->synth().reloadCopies();
+        check (rig->settle() && rig->status().loaded == 8 && rig->status().problem.isEmpty(), "Load the copies again loads the rest");
+    }
+
+    std::printf ("A crash while loading copies isn't repeated\n");
+    {
+        const auto* d = rig->synth().getDescription();
+        const auto identity = d->pluginFormatName + ":" + juce::String (d->uniqueId != 0 ? d->uniqueId : d->deprecatedUid) + ":" + d->name;
+
+        // What a run that closed while loading a copy leaves behind.
+        rig->synth().getUserSettings()->setValue ("copiesLoading.earlier", "another run|" + identity);
+        rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::singleChannel; });
+        rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::copies; o.copies = 4; });
+        rig->settle();
+        auto s = rig->status();
+        std::printf ("  %s\n", s.problem.toRawUTF8());
+        check (s.loaded == 1 && s.problem.contains ("closed while loading copies"), "no copies are loaded on their own, and it says why");
+
+        rig->synth().reloadCopies();
+        check (rig->settle() && rig->status().loaded == 4, "Load the copies again loads them");
+        check (! rig->synth().getUserSettings()->containsKey ("copiesLoading.earlier"), "and the marker is gone");
+    }
+
+    if (CopySafety::canCatchCrashes())
+    {
+        std::printf ("A copy that crashes is switched off, and the rest play on\n");
+        rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = false; });
+        rig->synth().getCopy (2)->getParameters()[3]->setValue (1.0f);     // the synth's Crash parameter
+        rig->idle (400);
+        auto s = rig->status();
+        std::printf ("  %s\n", s.problem.toRawUTF8());
+        check (s.crashed == 1 && s.problem.contains ("crashed"), "the copy is switched off, and it says so");
+
+        const auto audio = rig->play (glideClip(), 1.0);
+        check (rig->level (audio, 0.125, e4) > 0.01, "the other copies still play");
+
+        rig->synth().reloadCopies();
+        check (rig->settle() && rig->status().loaded == 4 && rig->status().crashed == 0, "Load the copies again replaces it");
+        rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = true; });
+    }
+    else
+    {
+        std::printf ("(A crashing copy can only be caught on Windows: not checked here.)\n");
+    }
+
+    std::printf ("An export plays its own copies\n");
+    {
+        const auto output = rig->processor.getDocument().getSettings().output;
+        HostedSynth exportSynth;
+        exportSynth.setCopySettings (output);
+        bool loaded = false;
+        exportSynth.restoreState (*rig->synth().saveState(), [&] (const juce::String&) { exportSynth.whenCopiesLoaded ([&] { loaded = true; }); });
+
+        for (int i = 0; i < 600 && ! loaded; ++i)
+            CopyRig::pump (50);
+
+        check (loaded && exportSynth.getCopyStatus().loaded == 4, "the export's synth loads four copies of its own");
+
+        AudioExport::Options options;
+        options.sampleRate = CopyRig::rate;
+        options.bpm = 120.0;
+        options.maxTailSeconds = 0.5;
+        AudioExport::prepareForRender (exportSynth, options);
+        const auto audio = AudioExport::render (glideClip(), output, exportSynth, options);
+        const auto lateC5 = rig->level (audio, 0.925, c5), lateE4 = rig->level (audio, 0.925, e4), earlyE4 = rig->level (audio, 0.125, e4);
+        std::printf ("  end: C5 %.4f E4 %.4f (E4 at the start %.4f)\n", lateC5, lateE4, earlyE4);
+        check (lateC5 > 0.01 && lateE4 > 0.5 * earlyE4, "in the export too, C4 glides while E4 holds");
+    }
+
+    std::printf ("A project keeps its copies\n");
+    {
+        rig->synth().getCopy (0)->setCurrentProgram (2);     // Saw
+        rig->idle (100);
+        rig->settle();
+        juce::MemoryBlock project;
+        rig->processor.getStateInformation (project);
+        rig.reset();
+
+        auto reopened = std::make_unique<CopyRig>();
+        reopened->processor.setStateInformation (project.getData(), (int) project.getSize());
+
+        for (int i = 0; i < 200 && reopened->synth().getCopy (0) == nullptr; ++i)
+            CopyRig::pump (50);
+
+        check (reopened->settle() && reopened->status().loaded == 4, "opening the project loads the four copies");
+        check (reopened->copiesMatchFirst(), "with the project's sound in every one");
+    }
+
+    settingsFile.deleteFile();
+    std::printf ("%s\n", check.failures == 0 ? "PASS" : "FAIL");
+    return check.failures == 0 ? 0 : 1;
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -3211,6 +3679,9 @@ int main (int argc, char** argv)
     if (args.size() >= 3 && args[0] == "vst3dialect")
         return vst3DialectTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]));
 
+    if (args.size() >= 2 && args[0] == "copies")
+        return copiesTest (cwd.getChildFile (args[1]));
+
     if (args.size() >= 2 && args[0] == "crashtest")
         return crashTest (cwd.getChildFile (args[1]), args.size() >= 3 && args[2] == "overflow");
 
@@ -3229,6 +3700,7 @@ int main (int argc, char** argv)
                  "  MpeRollHarness params <synth.vst3>\n"
                  "  MpeRollHarness clapdialect <MPE Roll Test Synth.clap>\n"
                  "  MpeRollHarness vst3dialect <MPE Roll Note Expression Test Synth.vst3> <MPE Roll Test Synth.vst3>\n"
+                 "  MpeRollHarness copies <MPE Roll Plain Test Synth>\n"
                  "  MpeRollHarness crashtest <report.txt> [overflow]\n"
                  "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n");
     return 2;

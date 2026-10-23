@@ -91,7 +91,85 @@ which keeps each note's own pressure for synths that respond to it.
 
 **To hear real per-note expression**, use a synth with MPE. Two free ones: *Surge XT* (load its
 `.clap` and MPE Roll plays it with CLAP note expressions, nothing to set up; with its VST3, turn on
-MPE in its menu) and *Vital* (turn on MPE in its settings).
+MPE in its menu) and *Vital* (turn on MPE in its settings). Or play any synth with one copy per
+note, below.
+
+### One copy per note: MPE for any synth
+
+Set *Synth expects* to **One copy per note (any synth)** (*MPE settings*, or the button in the box
+MPE Roll shows when you load a synth without MPE). MPE Roll then loads several copies of the synth,
+8 to start with, and plays each note on a copy of its own as Plain MIDI. Each copy hears one note,
+so that note's glide, vibrato, pressure and timbre are its own, even in a synth with no MPE at all.
+The copies load one at a time, so a slow synth (Analog Lab, a big Kontakt library) takes a while;
+the status line counts them.
+
+**Set it up in the synth (copy 1).** The synth's window (the toolbar's synth button) is copy 1's.
+Set its sound there; MPE Roll gives the other copies the same.
+1. **Pitch-bend range.** Set the synth's own bend range (up and down) to a value it allows, 12 or
+   24 say, and *Zone bend range* in *MPE settings* to the same: each copy's glides are scaled to
+   it, and stop at its edge. MPE Roll also sends the range (RPN 0), which some synths follow, but
+   most keep their own. Check it: draw a one-octave glide and listen that it lands an octave up.
+2. **Pressure and timbre.** Each copy gets its note's pressure as channel aftertouch (*Pressure sent
+   as*) and its timbre as CC74. A synth uses them only where its preset routes them: route
+   *Aftertouch* in its mod matrix, and MIDI-learn CC74 to a control (filter cutoff, a macro).
+3. **Voices.** Each copy plays one note at a time, so turn off the synth's mono, legato and glide
+   (portamento), or a copy glides from whatever note it played last. Leave polyphony at 2 or more,
+   so a copy's last note can finish its release when the copy is used again. Arpeggiator and
+   chord-pattern presets don't work: each copy only ever sees one note.
+
+**Settings** (*MPE settings › One copy per note*):
+- **Copies** (2 to 32, 8 to start with): one for each note held at once, plus a few for release
+  tails. Up to 15 notes at once each keep their own expression; past that they share, as in MPE.
+  When every copy holds a note, *Out of channels* says what happens: *Share a channel* puts the new
+  note in the copy holding the fewest, *Steal oldest note* ends the oldest.
+- **Keys to every copy**: keys that don't play notes but change how the synth plays, so every copy
+  must hear them. *Keyswitches (C0-B2)* for Kontakt libraries with keyswitches low on the keyboard;
+  *Output Arcade* for its pitch keys and modifiers; or type your own: note names as on MPE Roll's
+  keyboard (middle C is C5), ranges, `black` or `white` for those keys only, commas between
+  (`C0-B2`, `C0-B3, black C4-C6`).
+- **Sleep while quiet** (on): a copy that holds no note and has been quiet for a second stops being
+  processed until a note comes for it, like FL's *Smart disable*. Copy 1 doesn't sleep while its
+  window is open. Turn it off for a synth that makes sound on its own between notes.
+- **Use several CPU cores** (on): FL plays a plugin on one core, so MPE Roll plays its copies on
+  threads of its own, one per core (up to 8), at audio priority. The sound is the same either way;
+  turn it off if a synth misbehaves (crackles, or crashes) with it.
+- **Follow copy 1's sound** (on): parameter changes in copy 1 (its knobs, FL automation of *Synth*
+  parameters) reach the other copies before their next block. A new preset, or other changes that
+  aren't parameters, reach them as copy 1's whole state: when the synth reports the change, when
+  copy 1's window closes, every 1.5 seconds while it's open (for a synth whose state is quick to
+  get), and once the copies have finished loading (in case you changed the preset while they
+  loaded). A copy taking a new sound goes quiet for that moment. Off: only when you ask, with **Give
+  every copy copy 1's sound**.
+- **Load the copies again**: after loading stopped short (below), or a copy crashed.
+
+**Running smoothly, and not crashing:**
+- Each copy takes the CPU and memory of one instance of the synth. Effects inside the synth
+  (reverb, delay, chorus) run in every copy: switch them off in the synth and put one on FL's mixer
+  track instead. Fewer unison voices save the most CPU.
+- Copies stop loading while the computer has less than 1 GB of memory free (or twice what the
+  last copy took), and *MPE settings* says so. Close other programs, or ask for fewer copies.
+- If FL closes while copies are loading (a synth that crashes as the fifth copy loads, say), MPE
+  Roll doesn't load copies of that synth on its own again, so the project opens: *Load the copies
+  again* tries once more.
+- On Windows, a copy that crashes while it plays is switched off and the rest play on, instead of
+  taking FL with it; *MPE settings* says which. Save your project soon after: a synth that crashed
+  once may again. (Copy 1, the synth itself, isn't covered: it's what you edit.)
+- Every copy is given a transport (tempo, position) even when the host gives none: some synths
+  crash without one.
+- In FL: keep *Options › Audio settings › Multithreaded generator processing* on, and MPE Roll's
+  *Allow threaded processing* (wrapper › *Processing*) on. If a synth crackles inside MPE Roll, tick
+  *Use fixed size buffers* there (Output recommends it for Arcade).
+- An audio export loads its own copies, so it needs as much memory again while it runs.
+
+**The synths you'll likely try** (from their makers' manuals and user reports):
+
+| Synth | Bend range (set the same as *Zone bend range*) | Pressure, timbre | Watch out for |
+| --- | --- | --- | --- |
+| Serum 1 (1.1.5 has no MPE, so copies are its way to per-note glides) | The two small boxes beside the bend wheel, bottom left: up and down, e.g. 24. Saved with the preset | *MATRIX* tab › a row with source *Aftertouch*; right-click a knob › *MIDI Learn* › play a timbre lane for CC74 | *VOICING*: MONO and LEGATO off, PORTA 0, POLY 2 (right-click POLY to lock it). With Serum 1.2x or later, untick *MENU › MPE Enabled* in copy mode. Updates are free and fix multi-instance bugs (1.23b8: "multiple instances not playing back") |
+| Analog Lab (V, Pro) | No setting in Analog Lab: it's the instrument's own (*Open instrument*, needs the full instrument), usually 2. If you can't change it, leave *Zone bend range* at 2 | Channel aftertouch reaches presets that use it (*Edit Preset* assigns it); CC74 is the *Brightness* macro on Arturia's controller setups, or MIDI-learn it | Slow to load (6–25 s a copy); pick single presets, not Multis; keep CC28, CC29 and program changes out of lanes (they change presets). A copy in demo mode stops after 20 minutes |
+| Kontakt 7, 8 | The instrument's own settings page; in full Kontakt, Edit (wrench) › *Edit All Groups* › Source module's *Pitch Bend* modulation (up to 12) | Most libraries ignore aftertouch: set *Pressure sent as* to CC1 or CC11; right-click a knob › *Learn MIDI CC# Automation* for CC74 | Copies share no samples: memory × copies (lower the preload in *Options › Memory*). Keyswitches: *Keys to every copy*. Turn off the library's own legato and glide, and *Options › Engine › Multiprocessor support* (plug-in). A library in DEMO mode goes silent in every copy |
+| reFX Nexus 5 | Modulation page › *Pitch Bend*: Max +24, Min −24 (negative), *Speed* 127 so glides aren't smoothed. Saved with the preset | Mod matrix: source *at+* to a destination; CC74 moves the filter cutoff already | Portamento *Mode* off; *Voices* 4 or more; avoid arpeggiator and trance-gate presets. Update to 5.1.9 or later (fixes a crash when several instances close) |
+| Output Arcade | None documented: draw a glide and listen; if nothing bends, only MIDI-learned controls vary per note | *Learn MIDI* on a macro (CC74; set *Pressure sent as* to a CC for pressure) | Set *Keys to every copy* to *Output Arcade*, so the modifier and pitch keys reach every copy's loop (if they're an octave off, type the keys in yourself). Log in and download kits in the Arcade app first; *Use fixed size buffers* in FL |
 
 ### Automating the synth from FL
 
@@ -322,21 +400,21 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | Serum 2 (VST3 only) | Yes | *MENU* › *MPE Enabled* (usually on); *MPE Bend Range* on its Global page. Takes VST3 note expressions with MPE off |
 | Pigments | Yes | Gear icon (top toolbar) › *Settings* tab › *MPE Settings* › *MPE: Enabled*, *Bend Range* |
 | Arturia V Collection | Many | Gear icon › *Settings* tab › *Enable MPE*; one without that setting has none |
-| Analog Lab (V, Pro) | **No** | Use *Plain MIDI*, or load the instrument itself (Pigments, a V Collection instrument) |
+| Analog Lab (V, Pro) | **No** | *One copy per note* or *Plain MIDI*, or load the instrument itself (Pigments, a V Collection instrument) |
 | Omnisphere 3 | Yes | *System* page (gear icon) › MPE on, *MPE Pitch Bend Range*; patch in Part 1 only |
-| Omnisphere 2 | **No** | *Plain MIDI*, patch in Part 1 |
+| Omnisphere 2 | **No** | *One copy per note* or *Plain MIDI*, patch in Part 1 |
 | Vital | Yes | *ADVANCED* tab › *MPE ENABLED* (saved per preset); per-note range fixed at 48 |
 | Diva (1.4.8 and later) | Yes | *MAIN* section (bottom of the panel) › *MPE* button, polyphonic presets only; the CLAP version needs nothing |
 | Zebra 3 | Yes | *MPE* button (*Perform* page), *Pitch Bend Up/Down* (*Pitches* panel) › *MPE*; the CLAP version needs nothing |
-| Zebra2, ZebraHZ | **No** | *Plain MIDI* |
+| Zebra2, ZebraHZ | **No** | *One copy per note* or *Plain MIDI* |
 | Phase Plant | Yes | No switch: MIDI channel *Any* (not 1), *Bend Range* 48 in its voice settings; pressure and timbre act where the patch routes its MPE modulators |
 | Surge XT | Yes | Turns itself on from MPE Roll's setup (else *MPE* in its header); the CLAP version needs nothing |
 | Equator2 | Yes | *Mod Panel* › *Note Configuration* › *MPE* mode, *Note Pitch Bend* 48 |
 | Cherry Audio (DCO-106, Dreamsynth, Memorymode, Mercury-4, Miniverse, PS-20, Octave Cat, Sines...) | Yes | *Settings* (gear) › *Interface* › *Enable MPE mode*; bend range on its *MPE* tab |
 | SWAM | Yes, one note at a time | MIDI settings › *MIDI Profile*: *MPE* |
 | Noisy, Imagine | Yes | Its MPE presets, or MPE on in its settings |
-| ZENOLOGY, Roland Cloud | **No** | *Plain MIDI* |
-| Massive X, Sylenth1, Spire, Waves synths | **No** | *Plain MIDI* |
+| ZENOLOGY, Roland Cloud | **No** | *One copy per note* or *Plain MIDI* |
+| Massive X, Sylenth1, Spire, Waves synths | **No** | *One copy per note* or *Plain MIDI* |
 | Kontakt 8 | Only some libraries | No switch of its own: libraries scripted for MPE (Ashlight, for one) have their own setting |
 | Tone2 Icarus | Yes | *SETUP* page › *force MPE* (Icarus 2.5: *Enable MPE support*) |
 
@@ -344,7 +422,7 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 - Serum 1 has MPE from its 1.2x updates (2019), off until you tick *MPE Enabled* in its main *MENU*;
   set the MPE bend range at the bottom of that menu to MPE Roll's *Per-note bend range* (48). An older
   Serum (1.1.5, say) has no *MPE Enabled* item: update it from your Xfer account, free for owners, as
-  is Serum 2. Its VST2 (`Serum_x64.dll`) gets MPE's
+  is Serum 2. Or play it with *One copy per note* (section 2), which needs no MPE in Serum. Its VST2 (`Serum_x64.dll`) gets MPE's
   per-channel MIDI whatever the VST3 does.
 - Serum 2 comes as VST3 (and AAX) only. Xfer's guide: with its MPE switch on it takes per-channel
   MIDI, and with it off it takes VST3 note expressions. Which of those reach it through MPE Roll
@@ -391,7 +469,8 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
   bend range* to the patch's own bend range (*Bend* on its main page). Pressure arrives as channel
   aftertouch, which patches use through Omnisphere's *Aftertouch* modulation source. For timbre,
   MIDI-learn CC74 to a control.
-- *Untested idea for per-note glides with Omnisphere 2:* load the same patch into Parts 1–8, give
+- For each note's own glides with Omnisphere 2, use *One copy per note* (section 2). Or, untested:
+  load the same patch into Parts 1–8, give
   them MIDI channels 2–9 and the same bend range (up to 24), then in MPE Roll choose *Synth expects:
   MPE*, *Lower zone channels: 8* and that range as *Per-note bend range*. Each note then plays on its
   own Part with its own bend and pressure. Only 8 notes get a Part each, and zone-wide lanes,
@@ -404,7 +483,8 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 - What to expect: left on MPE (MPE Roll's default), per-note glides and vibrato are scaled for a
   48-semitone range and Analog Lab applies them with its own, usually 2, so they barely move; only
   the zone-wide lanes work. With *Plain MIDI* the newest note's glide, vibrato, pressure and timbre
-  work, but every held note follows them. Each note having its own takes a synth with MPE.
+  work, but every held note follows them. With *One copy per note* (section 2) each note has its
+  own, at the cost of an Analog Lab per copy (each takes a while to load).
 - Set *Zone bend range* to the preset's pitch-bend range (often 2). The newest note's glide bends the
   whole channel and stops at the edge of that range.
 - Analog Lab responds to channel aftertouch, not poly aftertouch, so keep *Pressure sent as* on
@@ -444,3 +524,9 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | Harmor, Sytrus or another FL synth can't be scanned or loaded | FL's own synths come in Image-Line's format, which only FL can load, so a scan leaves `Harmor_x64.dll` and the like out and names them in a box when it's done, and *Load plugin file…* says what they are. Use *Send to FL piano roll* (section 5). Image-Line's separate VST versions, if you own one, load as ordinary VST2 synths with *Plain MIDI*. |
 | "The MPE Roll Scanner installed here is older than this MPE Roll" | The `MPE Roll Scanner.exe` next to `MPE Roll.dll` is from an older version, so it can't check plugins, and MPE Roll won't load them unchecked. Copy the scanner from the download that this MPE Roll came in (it's also inside the `.vst3` folder) over the old one. |
 | A synth scanned in one MPE Roll channel is missing from another's menu, or the scanned list is gone after a restart | Every MPE Roll of the same kind in FL shares one list and one settings file on this computer (`MPE Roll.settings`), so this shouldn't happen any more. Mixing `MPE Roll.vst3` and `MPE Roll.dll` in one project, a bridged (*Make bridged*) MPE Roll or the standalone app alongside can still overwrite the list: the last to save wins, and scanning again brings it back. If it happens otherwise, please tell us. |
+| One copy per note: glides stop short, or overshoot | Each copy bends within the synth's own pitch-bend range, so set it (in copy 1's window) and *Zone bend range* in *MPE settings* to the same value, up and down. Many synths save the range with each preset, so check it after picking a new one. |
+| One copy per note: some notes sound like the old preset | The copies get copy 1's new sound when the synth reports the change, when its window closes, or every 1.5 seconds while it's open, and a copy taking it goes quiet for that moment. Close the synth's window, or click *Give every copy copy 1's sound* in *MPE settings*. If *Follow copy 1's sound* is off, only that button does it. |
+| One copy per note: fewer copies than asked for | *MPE settings › One copy per note* says why: too little memory free (close other programs, or ask for fewer), a copy that wouldn't load, or loading cut short by a crash last time. *Load the copies again* tries again. |
+| One copy per note: a copy "crashed … and was switched off" | The synth crashed in that copy, and MPE Roll stopped using it so FL carried on. Save your project, then *Load the copies again*; if it happens again, try fewer copies or turn off *Use several CPU cores*, and please report the synth. |
+| One copy per note: CPU is high | Each copy runs a whole synth. Fewer copies, fewer unison voices, effects moved from the synth to FL's mixer, and *Sleep while quiet* on all help. Keep FL's *Multithreaded generator processing* and MPE Roll's *Use several CPU cores* on. |
+| One copy per note: a keyswitch, or Arcade's modifiers, act on one note only | Those keys must reach every copy: set *Keys to every copy* (*Keyswitches*, *Output Arcade*, or the keys typed in). |

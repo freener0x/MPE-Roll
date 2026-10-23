@@ -24,7 +24,8 @@ namespace mperoll
     into notes.
 */
 class MpeRollProcessor : public juce::AudioProcessor,
-                         private juce::Timer
+                         private juce::Timer,
+                         private juce::ChangeListener
 {
 public:
     MpeRollProcessor();
@@ -180,6 +181,7 @@ private:
     //==============================================================================
     void publish (std::shared_ptr<const EngineSnapshot> snapshot);
     void timerCallback() override;
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
     void drainRecording();
     void finishTake();
     void setStatus (const juce::String& message);

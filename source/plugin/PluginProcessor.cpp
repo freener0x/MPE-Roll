@@ -104,16 +104,34 @@ MpeRollProcessor::MpeRollProcessor()
                                               .withNonParameterStateChanged (details.nonParameterStateChanged));
     };
 
+    // One copy per note: the copies are loaded as the settings ask, and the status line follows them.
+    synth.onCopiesChanged = [this]
+    {
+        if (onStatusChanged)
+            onStatusChanged();
+    };
+
+    synth.setCopySettings (settings.output);
+    document.addChangeListener (this);
+
     startTimerHz (30);
 }
 
 MpeRollProcessor::~MpeRollProcessor()
 {
     stopTimer();
+    document.removeChangeListener (this);
     synth.onPluginRemoving = nullptr;
     synth.onPluginChanged = nullptr;
     synth.onPlayingChanged = nullptr;
     synth.onSynthReportedChange = nullptr;
+    synth.onCopiesChanged = nullptr;
+}
+
+void MpeRollProcessor::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    // Most changes are to notes; the synth does nothing unless the copy settings changed.
+    synth.setCopySettings (document.getSettings().output);
 }
 
 //==============================================================================
@@ -273,7 +291,10 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     if (needsConfiguration)
     {
         if (snapshot.settings.output.sendConfiguration)
+        {
             encoder.writeConfiguration (synthMidi, 0);
+            synth.requestConfiguration();       // each copy's bend range, in copy mode
+        }
 
         needsConfiguration = false;
     }

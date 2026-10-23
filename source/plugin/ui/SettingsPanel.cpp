@@ -90,6 +90,42 @@ namespace
         juce::String buttonText;
         std::function<void()> action;
     };
+
+    /** A line of text to type in, taken when Return is pressed or the field loses focus. */
+    class TextProp : public juce::TextPropertyComponent
+    {
+    public:
+        TextProp (const juce::String& name, std::function<juce::String()> getterFn, std::function<void (const juce::String&)> setterFn)
+            : TextPropertyComponent (name, 200, false), getter (std::move (getterFn)), setter (std::move (setterFn))
+        {
+            refresh();
+        }
+
+        void setText (const juce::String& newText) override     { setter (newText); }
+        juce::String getText() const override                   { return getter(); }
+
+    private:
+        std::function<juce::String()> getter;
+        std::function<void (const juce::String&)> setter;
+    };
+
+    /** Keys that go to every copy, ready made for some instruments. Names as MPE Roll's keyboard
+        has them (middle C is C5, as in FL Studio). Kontakt libraries mostly keep their keyswitches
+        below its C1, which is C3 here. Output Arcade plays loops from the white keys between its
+        C2 and C4 (C4 to C6 here) and changes them with the black keys between, and the keys below
+        retune what's playing: those go to every copy, so every copy's loop hears them. */
+    struct KeyPreset
+    {
+        const char* name;
+        const char* keys;
+    };
+
+    constexpr KeyPreset keyPresets[] =
+    {
+        { "None", "" },
+        { "Keyswitches (C0-B2)", "C0-B2" },
+        { "Output Arcade (pitch keys and modifiers)", "C0-B3, black C4-C6" },
+    };
 }
 
 SettingsPanel::SettingsPanel (MpeRollProcessor& p)
@@ -102,14 +138,14 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     // Output to the synth.
     Comps output;
     // Room for what to do in the synth, too: which switch turns its MPE on.
-    output.add (new InfoProp ("Synth is played with", [this, settings]
-                              { return processor.getSynth().describeConnection (settings().output); }, 96));
+    output.add (playedWith = new InfoProp ("Synth is played with", [this, settings]
+                                           { return processor.getSynth().describeConnection (settings().output); }, 96));
    #if MPEROLL_HOST_CLAP
     output.add (new BoolProp ("Note expressions (CLAP, VST3)",
         [settings] { return settings().output.clapNoteExpressions; },
         [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.clapNoteExpressions = b; }); }));
    #endif
-    output.add (new ChoiceProp ("Synth expects", { "MPE", "Plain MIDI (one channel)" },
+    output.add (new ChoiceProp ("Synth expects", { "MPE", "Plain MIDI (one channel)", "One copy per note (any synth)" },
         [settings] { return (int) settings().output.mode; },
         [this] (int i) { edit ([i] (EngineSettings& e) { e.output.mode = (OutputSettings::Mode) i; }); }));
     output.add (new NumberProp ("Lower zone channels", 0, 15, 1,
@@ -159,6 +195,74 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
         [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.sendConfiguration = b; }); }));
     output.add (new ActionProp ("Synth setup", "Send MPE setup now", [this] { processor.requestConfiguration(); }));
     panel.addSection ("Output to synth", output);
+
+    // One copy of the synth per note, each played with Plain MIDI.
+    Comps copies;
+    copies.add (copyStatus = new InfoProp ("Copies now", [this]
+    {
+        const auto status = processor.getSynth().getCopyStatus();
+
+        if (! status.on)
+            return juce::String ("Set Synth expects to One copy per note to play a synth without MPE with each note's own "
+                                 "glides, pressure and timbre: MPE Roll loads that many copies of it, one note to each.");
+
+        juce::String s;
+        s << status.loaded << " of " << status.wanted << " loaded" << (status.loading ? " (loading)" : "")
+          << ", " << status.playing << " playing, " << status.asleep << " asleep";
+
+        if (status.crashed > 0)
+            s << ", " << status.crashed << " switched off";
+
+        if (status.copyingSound)
+            s << ". Giving them copy 1's sound (" << status.inStep << " done)";
+
+        if (status.problem.isNotEmpty())
+            s << ". " << status.problem;
+
+        return s;
+    }, 66));
+    copies.add (new NumberProp ("Copies", OutputSettings::minCopies, OutputSettings::maxCopies, 1,
+        [settings] { return (double) settings().output.copies; },
+        [this] (double v) { edit ([v] (EngineSettings& e) { e.output.copies = (int) v; }); }));
+
+    juce::StringArray keyPresetNames;
+
+    for (const auto& preset : keyPresets)
+        keyPresetNames.add (preset.name);
+
+    keyPresetNames.add ("Your own (below)");
+
+    copies.add (new ChoiceProp ("Keys to every copy", keyPresetNames,
+        [settings]
+        {
+            const auto keys = settings().output.everyCopyKeys;
+
+            for (int i = 0; i < (int) std::size (keyPresets); ++i)
+                if (parseKeySet (keyPresets[i].keys) == keys)
+                    return i;
+
+            return (int) std::size (keyPresets);
+        },
+        [this] (int i)
+        {
+            if (juce::isPositiveAndBelow (i, (int) std::size (keyPresets)))
+                edit ([i] (EngineSettings& e) { e.output.everyCopyKeys = parseKeySet (keyPresets[i].keys); });
+        }));
+    copies.add (new TextProp ("Every-copy keys",
+        [settings] { return formatKeySet (settings().output.everyCopyKeys); },
+        [this] (const juce::String& text) { edit ([text] (EngineSettings& e) { e.output.everyCopyKeys = parseKeySet (text); }); }));
+    copies.add (new BoolProp ("Sleep while quiet",
+        [settings] { return settings().output.copiesSleep; },
+        [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.copiesSleep = b; }); }));
+    copies.add (new BoolProp ("Use several CPU cores",
+        [settings] { return settings().output.copiesUseCores; },
+        [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.copiesUseCores = b; }); }));
+    copies.add (new BoolProp ("Follow copy 1's sound",
+        [settings] { return settings().output.copiesFollow; },
+        [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.copiesFollow = b; }); }));
+    copies.add (new ActionProp ("Sound", "Give every copy copy 1's sound", [this] { processor.getSynth().copySoundToAllCopies(); }));
+    copies.add (new ActionProp ("Copies", "Load the copies again", [this] { processor.getSynth().reloadCopies(); }));
+    panel.addSection ("One copy per note", copies);
 
     // Input from controllers, MIDI files and FL.
     Comps input;
@@ -302,10 +406,15 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     document.addChangeListener (this);
     skins->addChangeListener (this);
     setSize (460, 640);
+
+    // The copies load, sleep and wake on their own: their lines are kept up to date.
+    startTimer (500);
 }
 
 SettingsPanel::~SettingsPanel()
 {
+    stopTimer();
+
     if (! detached)
     {
         skins->removeChangeListener (this);
@@ -319,9 +428,21 @@ void SettingsPanel::detach()
         return;
 
     detached = true;
+    stopTimer();
+    copyStatus = nullptr;
+    playedWith = nullptr;
     skins->removeChangeListener (this);
     document.removeChangeListener (this);
     panel.clear();      // and with the properties go their callbacks into the processor and document
+}
+
+void SettingsPanel::timerCallback()
+{
+    if (copyStatus != nullptr && copyStatus->isShowing())
+        copyStatus->refresh();
+
+    if (playedWith != nullptr && playedWith->isShowing())
+        playedWith->refresh();
 }
 
 void SettingsPanel::parentHierarchyChanged()

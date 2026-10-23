@@ -160,7 +160,7 @@ def how_to(s: dict) -> str:
             parts.append(s["noteExpressions"])
     else:
         if s.get("plainMidi", True):
-            parts.append("*Plain MIDI*")
+            parts.append("*Plain MIDI*, or *One copy per note*")
         if s.get("instead"):
             parts.append(s["instead"])
     return ". ".join(cell(p).rstrip(".") for p in parts if p) + "."
@@ -195,14 +195,16 @@ def render_page(checked: str, synths: list[dict]) -> str:
         "- **Yes, limited**: it has MPE with a limit the notes spell out (one note at a time, some presets only...).",
         "- **No**: its maker says it has no MPE. In MPE Roll's *MPE settings*, set *Synth expects* to "
         "*Plain MIDI (one channel)*: the newest note's glides, pressure and timbre then drive it, and every "
-        "held note follows them.",
+        "held note follows them. Or set it to *One copy per note (any synth)*: MPE Roll plays several copies "
+        "of the instrument, one note to each, so every note keeps its own glides, pressure and timbre, at "
+        f"the cost of a copy's CPU and memory each ([{FL_GUIDE}]({FL_GUIDE}#one-copy-per-note-mpe-for-any-synth)).",
         "- **Not mentioned**: its maker never mentions MPE for it, so it almost certainly has none. Use "
-        "*Plain MIDI* as for **No**.",
+        "*Plain MIDI* or *One copy per note* as for **No**.",
         "- **Unclear**: the sources disagree. Try MPE first; if held notes bend together, use *Plain MIDI*.",
         "- **\\***: not yet confirmed by a second, independent check.",
         "",
         "MPE Roll knows these instruments: when you load one, its status line and *MPE settings* say where "
-        "its MPE switch is, and for one without MPE it offers to switch to *Plain MIDI*. A VST3 that takes "
+        "its MPE switch is, and for one without MPE it offers *Plain MIDI* or *One copy per note*. A VST3 that takes "
         "VST3 note expressions, or a CLAP that takes CLAP note expressions, can get each note's expression "
         "that way, with nothing to set up in the instrument; *MPE settings › Synth is played with* says "
         f"which way MPE Roll plays it. [{FL_GUIDE}]({FL_GUIDE}#7-notes-on-particular-synths) has more on "
@@ -272,7 +274,7 @@ def plugin_entry(s: dict) -> dict:
         # "plainMidi": false for one that doesn't play notes it receives (a vocal synth singing from
         # its own score), which Plain MIDI won't help.
         if s.get("plainMidi", True):
-            advice += " Set Synth expects to Plain MIDI."
+            advice += " Set Synth expects to Plain MIDI, or to One copy per note for each note's own glides."
 
     clap = s.get("clapAdvice", "")
     if clap and not clap.startswith(" "):

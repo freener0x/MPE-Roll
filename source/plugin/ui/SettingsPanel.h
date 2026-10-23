@@ -6,9 +6,12 @@
 namespace mperoll
 {
 
+class InfoProp;
+
 /** MPE output, input and playback settings, plus the window's look, shown in a call-out from the toolbar. */
 class SettingsPanel : public juce::Component,
-                      private juce::ChangeListener
+                      private juce::ChangeListener,
+                      private juce::Timer
 {
 public:
     explicit SettingsPanel (MpeRollProcessor&);
@@ -30,8 +33,11 @@ private:
     juce::PropertyPanel panel;
     juce::HyperlinkButton supportLink;
     bool detached = false;
+    InfoProp* copyStatus = nullptr;     // owned by the panel: lines refreshed as the copies change
+    InfoProp* playedWith = nullptr;
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
+    void timerCallback() override;
     void edit (const std::function<void (EngineSettings&)>& change);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SettingsPanel)

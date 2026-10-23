@@ -1,6 +1,8 @@
 #pragma once
 
+#include "core/CopyRouter.h"
 #include "core/MpeSettings.h"
+#include "CopyWorkers.h"
 #include "PluginScanner.h"
 #include "SynthProfiles.h"
 #include "Vst3NoteExpressions.h"
@@ -24,6 +26,18 @@ class ClapSynthControls;
 
     Loading, unloading and the editor window happen on the message thread. process() is called
     on the audio thread and never blocks: while a plugin is being swapped it outputs silence.
+
+    One copy per note (OutputSettings::Mode::copies): beside the synth (the first copy, whose
+    window the user sees and whose parameters the host automates) more copies of the same plugin
+    are loaded, one at a time, each given the first copy's state. CopyRouter shares the notes out
+    over them, one note per copy, as Plain MIDI. Parameter changes of the first copy reach the
+    others before their next block; other changes to its sound (a preset picked in its window) are
+    copied over as its whole state, when the synth says it changed, when its window closes, every
+    few seconds while its window is open, or when the user asks. Copies that have gone quiet stop
+    being processed until a note comes for them, the rest are processed on several CPU cores, a
+    copy that crashes (where that can be caught: Windows) is switched off rather than taking FL
+    with it, copies stop loading when memory runs low, and if FL closes while copies are loading,
+    they aren't loaded again for that synth until the user asks.
 */
 class HostedSynth : private juce::AudioProcessorListener
 {
@@ -155,6 +169,59 @@ public:
     /** Instrument types from the scanned plugin list. */
     juce::Array<juce::PluginDescription> getInstrumentTypes() const;
 
+    //==============================================================================
+    // One copy per note.
+
+    /** The project's output settings, on the message thread: with mode copies, copies of the synth
+        are loaded (or let go) until there are settings.copies of them, and the rest of the copy
+        settings take effect. The audio thread plays them as setOutputSettings() says.
+    */
+    void setCopySettings (const OutputSettings& settings);
+
+    struct CopyStatus
+    {
+        bool on = false;            // copy mode, with a synth loaded
+        int wanted = 0;             // copies asked for
+        int loaded = 0;             // copies loaded, the first one included
+        int inStep = 0;             // of those, the ones with the first copy's sound
+        int playing = 0;            // copies holding a note
+        int asleep = 0;             // copies not being processed right now
+        int crashed = 0;            // copies switched off after a crash
+        int workers = 0;            // threads besides the audio thread processing copies
+        bool loading = false;
+        bool copyingSound = false;
+        juce::String problem;       // why fewer copies are loaded than were asked for
+    };
+
+    /** Where copy mode is up to, for showing to the user. Message thread. */
+    CopyStatus getCopyStatus() const;
+
+    /** Gives every copy the first copy's sound now (its whole state). Message thread. */
+    void copySoundToAllCopies();
+
+    /** Loads the copies again after loading stopped (a crash while loading them last time, low
+        memory, a copy that wouldn't load or that crashed). Message thread. */
+    void reloadCopies();
+
+    /** Calls back on the message thread once every copy asked for is loaded, or loading has
+        stopped short; at once if nothing is to be loaded. For the audio export. */
+    void whenCopiesLoaded (std::function<void()> callback);
+
+    /** The copy at this index (0 is the synth itself), or nullptr. Message thread, for tests. */
+    juce::AudioPluginInstance* getCopy (int index) const;
+
+    /** Called on the message thread when the copies change: loaded, given the first copy's sound,
+        switched off after a crash, or stopped loading. */
+    std::function<void()> onCopiesChanged;
+
+    /** Audio thread: the MPE setup is being sent, so each copy gets its pitch-bend range again. */
+    void requestConfiguration() noexcept                { configurationRequested = true; }
+
+    /** Sets the synth's parameter at this index, and the same parameter of every copy: what host
+        automation does. Any thread; never blocks. Returns false as withParameter() does.
+    */
+    bool setParameterValue (int index, float value);
+
     /** Calls fn with the synth's parameter at this index, without ever blocking (safe on any thread,
         and never in the audio thread's way). Returns false if there's no such parameter, or the
         synth is being swapped, prepared or released right now.
@@ -278,6 +345,78 @@ private:
         double sampleRate = 44100.0;
     };
 
+    static constexpr int maxCopies = CopyRouter::maxCopies;
+
+    /** A copy of the synth beside the first one (`instance`), in copy mode. */
+    struct Follower
+    {
+        enum class State { empty, ready, busy };        // only the message thread changes it
+
+        std::unique_ptr<juce::AudioPluginInstance> plugin;
+        ClapSynthControls* clap = nullptr;
+        InstanceGuard guard;                            // the audio thread's, while it plays the copy
+        std::atomic<State> state { State::empty };      // only a ready copy is played
+        std::atomic<bool> crashed { false };            // set by whichever thread caught it: never called again
+        std::atomic<bool> fresh { false };              // given new state: the audio thread starts it afresh
+        size_t stateHash = 0;                           // message thread: the state it was last given
+
+        // How far it has caught up with the first copy's parameter changes. Owned by whoever holds
+        // the copy: the thread playing it, or the message thread while it's busy.
+        std::vector<uint32_t> seenParameter, seenChunk;
+        uint32_t seenLatest = 0;
+    };
+
+    /** The first copy's parameter changes, as they happen, for the others to catch up with right
+        before their next block: on the thread that plays them, so never while they're playing.
+        Each parameter, and each chunk of 64, has a version that goes up with every change; a copy
+        remembers the versions it has seen, so catching up skips the chunks nothing changed in.
+    */
+    class ParameterMirror
+    {
+    public:
+        static constexpr int chunkSize = 64;
+
+        /** Message thread, while nothing else uses it. Only the parameters a host may automate are
+            copied: a synth's hidden ones (JUCE's stand-ins for MIDI controllers and pitch bend,
+            say) follow the MIDI each copy is sent, which is its own. */
+        void setUp (const juce::Array<juce::AudioProcessorParameter*>&, const juce::AudioProcessorParameter* bypass);
+        int size() const noexcept                           { return numParameters; }
+
+        /** Any thread, never blocks. */
+        void set (int index, float value) noexcept;
+
+        /** Goes up with every change: for telling whether any parameter moved. */
+        uint32_t getChanges() const noexcept                { return changes.load (std::memory_order_relaxed); }
+
+        /** Every parameter's version now: taken just before the first copy's state is. Message thread. */
+        std::vector<uint32_t> snapshot() const;
+
+        /** The copy was given state taken right after `snapshot`: changes up to it are in that
+            state, later ones are still to be caught up with. Message thread, while the copy isn't played. */
+        void markSeen (Follower&, const std::vector<uint32_t>& snapshot) const;
+
+        /** Sets on the copy every parameter that changed since it last caught up. */
+        void catchUp (Follower&, juce::AudioPluginInstance&) const noexcept;
+
+    private:
+        std::unique_ptr<std::atomic<float>[]> values;
+        std::unique_ptr<std::atomic<uint32_t>[]> versions, chunkVersions;
+        std::vector<bool> copied;                       // which parameters are copied at all
+        std::atomic<uint32_t> changes { 0 };
+        int numParameters = 0, numChunks = 0;
+    };
+
+    /** What the audio thread keeps for each copy, the first included (its MIDI is in copyMidi). */
+    struct CopyRender
+    {
+        juce::AudioBuffer<float> audio;                 // sized on the message thread while the copy isn't played
+        int outputs = 0;                                // the copy's output channels, this block
+        float level = 0.0f;                             // its loudest sample, this block
+        double quietSeconds = 0.0;                      // of quiet output with no note held
+        bool quiet = true;                              // its last note's sound has died away
+        bool asleep = false;                            // not processed until a note comes for it
+    };
+
     /** What every MPE Roll in the process shares: the computer's settings file ("MPE Roll.settings")
         and the list of scanned plugins kept in it. There's one for all instances, so a scan in one
         is seen by the others and none of them saves an older list over it. The list has its own
@@ -346,10 +485,100 @@ private:
     // A VST3 synth MPE over MIDI can't reach note by note, played with note expressions instead.
     Vst3NoteExpressions vst3Expressions;               // audio thread, but for what the synth takes
     Vst3Support vst3Support;                            // message thread
+
+    // One copy per note, message thread.
+    OutputSettings copySettings;
+    std::array<Follower, maxCopies> followers;          // [0] unused: the first copy is `instance`
+    ParameterMirror mirror;                             // sized under the guard, with the first copy
+    std::unique_ptr<CopyWorkers> workers;               // swapped under the guard
+    int copiesGeneration = 0;                           // a copy loaded for an earlier first copy is let go
+    bool loadingCopy = false;
+    juce::String copiesProblem;                         // why loading stopped short
+    juce::int64 lastCopyMegabytes = 0;                  // memory the last copy took when loaded
+    juce::String loadingMarker;                         // this instance's key for "loading copies now"
+    std::vector<std::function<void()>> copiesLoadedCallbacks;
+
+    struct SoundCopy
+    {
+        juce::MemoryBlock state;                        // the first copy's, being copied to the others
+        size_t hash = 0;
+        std::vector<uint32_t> versions;                 // its parameters' versions when it was taken
+        bool running = false;
+        int copied = 0;
+        juce::String reason;                            // for the log
+    } soundCopy;
+
+    bool soundChangeReported = false;                   // the first copy said its sound changed
+    bool windowJustClosed = false;
+    bool copiesJustLoaded = false;                      // its sound may have changed while they loaded
+    bool stateChangesByItself = false;                  // its state changes with nothing done to it
+    int unexplainedChanges = 0;                         // checks in a row that found it so
+    size_t hashAtLastCheck = 0;
+    uint32_t changesAtLastCheck = 0;
+    double stateMilliseconds = 0.0;                     // how long its state took to get, last time
+    bool nonRealtime = false;
+    juce::String crashNote;                             // which copies crashed, for the user
+
+    // One copy per note, audio thread.
+    CopyRouter router;
+    std::array<CopyRender, maxCopies> renders;
+    std::array<juce::MidiBuffer, maxCopies> copyMidi;   // each copy's MIDI, this block
+    OutputSettings copyPlay;                            // what each copy is played with
+    CopyRouter::CopySet playedCopies, enteredCopies;
+    std::array<int, maxCopies> jobs {};
+    int numJobs = 0, jobSamples = 0;
+    juce::AudioPlayHead* jobHead = nullptr;
+    OutputSettings::Mode lastMode = OutputSettings::Mode::mpe;
+    std::atomic<bool> leadFresh { true };               // the first copy is new, or was given state
+    std::atomic<bool> introduceAll { true };            // every copy starts afresh (after prepare)
+    std::atomic<bool> configurationRequested { false };
+    std::atomic<bool> windowOpen { false };             // the first copy's window: it doesn't sleep
+    std::atomic<int> copiesPlaying { 0 }, copiesAsleep { 0 };
+    std::array<std::atomic<unsigned int>, maxCopies> crashCodes {};   // set by the thread that caught a copy's crash
+    std::atomic<bool> anyCopyCrashed { false };
+    int lastPlaying = 0, lastAsleep = 0;               // message thread: what the status last showed
+
+    /** A transport for copies when the host gives none: some synths crash without one. */
+    struct FallbackHead final : public juce::AudioPlayHead
+    {
+        juce::Optional<PositionInfo> getPosition() const override;
+    } fallbackHead;
+
+    juce::TimedCallback soundCheck { [this] { checkSound(); } };        // a change to copy over, maybe
+    juce::TimedCallback soundCopyStep { [this] { copySoundToNext(); } };
+    juce::TimedCallback copiesWatch { [this] { watchCopies(); } };
     juce::TimedCallback vst3Recheck { [this] { refreshVst3Support(); } };   // last: goes first
 
     void install (std::unique_ptr<juce::AudioPluginInstance> newInstance, const juce::PluginDescription& desc);
     std::unique_ptr<juce::AudioPluginInstance> takeInstance();
+
+    bool copiesWanted() const noexcept;
+    int getWantedCopies() const noexcept;
+    void updateCopies();
+    void loadCopy (int index);
+    void finishLoadingCopy (int index, std::unique_ptr<juce::AudioPluginInstance>, const juce::String& error,
+                            const juce::MemoryBlock& state, const std::vector<uint32_t>& versions,
+                            juce::int64 megabytesBefore, double started);
+    void removeCopy (int index);
+    void removeAllCopies();
+    void updateWorkers();
+    bool copiesSettled() const;
+    void settleCopies();
+    void notifyCopiesChanged();
+    void copyCrashed (int index, unsigned int exceptionCode, const juce::String& doing);
+    void soundMayHaveChanged();
+    void startCopyingSound (juce::MemoryBlock state, std::vector<uint32_t> versions, bool everyCopy, const juce::String& reason);
+    void checkSound();
+    void copySoundToNext();
+    void watchCopies();
+    bool copiesBlockedAfterCrash();
+    void setLoadingMarker (bool loading);
+    juce::String getCopyIdentity() const;
+
+    void processCopies (juce::AudioBuffer<float>&, juce::MidiBuffer&, juce::AudioPlayHead*, bool justStarted);
+    void processCopiesPiece (juce::AudioBuffer<float>&, const juce::MidiBuffer&, juce::AudioPlayHead*);
+    void renderCopy (int copy) noexcept;
+    static void renderJob (void* context, int index) noexcept;
     void finishLoadFromFile (const juce::File&, PluginScanner::Outcome, juce::OwnedArray<juce::PluginDescription>& found,
                              LoadCallback, const std::function<void()>& onChecked);
     void stopCheck();
@@ -357,7 +586,7 @@ private:
     void countHeldNotes (const juce::MidiBuffer&) noexcept;
     void listenForSound (const juce::AudioBuffer<float>&) noexcept;
 
-    void audioProcessorParameterChanged (juce::AudioProcessor*, int, float) override {}
+    void audioProcessorParameterChanged (juce::AudioProcessor*, int index, float value) override;
     void audioProcessorChanged (juce::AudioProcessor*, const ChangeDetails&) override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HostedSynth)

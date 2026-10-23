@@ -346,7 +346,24 @@ juce::String MpeRollEditor::describeOutput() const
     const auto& clip = document.getEditClip();
     juce::String text;
 
-    if (s.mode == OutputSettings::Mode::singleChannel || ! s.zones.hasAnyZone())
+    if (s.mode == OutputSettings::Mode::copies)
+    {
+        const auto copies = rollProcessor.getSynth().getCopyStatus();
+        text << "One copy per note: ";
+
+        if (! copies.on)
+            text << "load a synth";
+        else if (copies.loading)
+            text << "loading copies, " << copies.loaded << " of " << copies.wanted;
+        else
+            text << copies.loaded << " copies, " << copies.playing << " playing";
+
+        if (copies.problem.isNotEmpty())
+            text << " (see MPE settings)";
+
+        text << juce::String::fromUTF8 (", \xc2\xb1") << juce::roundToInt (s.masterBendRange) << " st";
+    }
+    else if (s.mode == OutputSettings::Mode::singleChannel || ! s.zones.hasAnyZone())
     {
         text << "Plain MIDI out, channel " << s.singleChannel;
     }
@@ -613,6 +630,9 @@ juce::String MpeRollEditor::describeLoaded (const juce::String& name) const
     const auto& output = document.getSettings().output;
     const auto& synth = rollProcessor.getSynth();
 
+    if (output.mode == OutputSettings::Mode::copies)
+        return "Loaded " + name + ": loading " + juce::String (output.copies - 1) + " more copies of it, one at a time";
+
     if (output.mode != OutputSettings::Mode::mpe)
         return "Loaded " + name;
 
@@ -675,24 +695,22 @@ void MpeRollEditor::offerPlainMidi()
 
     const auto message = why + "\n\nOver MPE, each note's own glides, pressure and timbre can't reach it: only the "
                          "zone-wide lanes would. With Plain MIDI on one channel, the newest note's glides, pressure and "
-                         "timbre drive the synth.\n\nPlay " + name + " with Plain MIDI?";
+                         "timbre drive the synth. With one copy per note, MPE Roll loads several copies of " + name
+                         + " and plays each note on a copy of its own, so every note keeps its own glides, pressure and "
+                         "timbre (each copy takes the CPU and memory of one " + name + ").\n\nPlay " + name + " with Plain MIDI?";
 
     // Return takes the suggestion; Escape and closing the box keep MPE.
     auto* alert = new juce::AlertWindow (title, message, juce::MessageBoxIconType::QuestionIcon, this);
     alert->addButton ("Use Plain MIDI", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    alert->addButton ("One copy per note", 2);
     alert->addButton ("Keep MPE", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     mpeAdvice = alert;
     alert->setAlwaysOnTop (true);
 
     alert->enterModalState (true, juce::ModalCallbackFunction::create ([safe = juce::Component::SafePointer<MpeRollEditor> (this), name] (int result)
     {
-        if (safe == nullptr || result != 1)
-            return;
-
-        auto settings = safe->document.getSettings();
-        settings.output.mode = OutputSettings::Mode::singleChannel;
-        safe->document.setSettings (settings);
-        safe->setStatus ("Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
+        if (safe != nullptr && result != 0)
+            safe->playWithoutMpe (name, result == 2);
     }), true);
 
     alert->toFront (true);
@@ -719,14 +737,15 @@ void MpeRollEditor::warnSynthSilent()
                          "them. Or the synth may still be loading its sounds.\n\n"
                          "To keep MPE, turn it on in " + name + " if it's off (in Omnisphere 3, on its System page). "
                          "Or play the synth with Plain MIDI on one channel, where only the newest note gets glides, "
-                         "pressure and timbre.";
+                         "pressure and timbre; or with one copy of it per note, where every note keeps its own.";
 
-    // Only the Use Plain MIDI button changes the project. Keep MPE takes Return and Escape both, and
-    // closing the box counts as Keep MPE too, so a reflex key or a closed window changes nothing.
-    // (JUCE's own two-button box would give Escape and the close button to the second button.)
+    // Only the Use Plain MIDI and One copy per note buttons change the project. Keep MPE takes Return
+    // and Escape both, and closing the box counts as Keep MPE too, so a reflex key or a closed window
+    // changes nothing. (JUCE's own two-button box would give Escape and the close button to the second button.)
     auto* alert = new juce::AlertWindow ("No sound from " + name, message, juce::MessageBoxIconType::WarningIcon, this);
     alert->addButton ("Keep MPE", 0, juce::KeyPress (juce::KeyPress::returnKey), juce::KeyPress (juce::KeyPress::escapeKey));
     alert->addButton ("Use Plain MIDI", 1);
+    alert->addButton ("One copy per note", 2);
     silenceAlert = alert;
 
     // Plugin windows aren't owned by the host's, so FL's window would otherwise cover the box.
@@ -734,16 +753,23 @@ void MpeRollEditor::warnSynthSilent()
 
     alert->enterModalState (true, juce::ModalCallbackFunction::create ([safe = juce::Component::SafePointer<MpeRollEditor> (this), name] (int result)
     {
-        if (safe == nullptr || result != 1)
-            return;
-
-        auto settings = safe->document.getSettings();
-        settings.output.mode = OutputSettings::Mode::singleChannel;
-        safe->document.setSettings (settings);
-        safe->setStatus ("Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
+        if (safe != nullptr && result != 0)
+            safe->playWithoutMpe (name, result == 2);
     }), true);
 
     alert->toFront (true);
+}
+
+void MpeRollEditor::playWithoutMpe (const juce::String& name, bool oneCopyPerNote)
+{
+    auto settings = document.getSettings();
+    settings.output.mode = oneCopyPerNote ? OutputSettings::Mode::copies : OutputSettings::Mode::singleChannel;
+    document.setSettings (settings);
+
+    setStatus (oneCopyPerNote ? "Playing " + name + " with one copy per note: loading " + juce::String (settings.output.copies - 1)
+                                    + " more copies, one at a time. Set " + name + "'s pitch-bend range to "
+                                    + juce::String (juce::roundToInt (settings.output.masterBendRange)) + " (MPE settings, Zone bend range)"
+                              : "Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
 }
 
 void MpeRollEditor::showLoadFailure (const juce::String& error, const juce::PluginDescription* plugin)

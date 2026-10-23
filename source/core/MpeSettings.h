@@ -2,6 +2,8 @@
 
 #include <juce_core/juce_core.h>
 
+#include <bitset>
+
 namespace mperoll
 {
 
@@ -44,9 +46,15 @@ struct ZoneLayout
 /** How the piano roll talks to the hosted synth. */
 struct OutputSettings
 {
-    enum class Mode { mpe, singleChannel };
+    /** mpe: MPE over MIDI. singleChannel: Plain MIDI on one channel. copies: one copy of the synth
+        per note, each copy played with Plain MIDI (the settings for Plain MIDI apply to each copy).
+    */
+    enum class Mode { mpe, singleChannel, copies };
     enum class PressureTarget { channelPressure, polyAftertouch, controller };
     enum class Overflow { shareChannel, stealOldest };
+
+    static constexpr int minCopies = 2;
+    static constexpr int maxCopies = 32;
 
     Mode mode = Mode::mpe;
     ZoneLayout zones;
@@ -71,11 +79,44 @@ struct OutputSettings
 
     bool clapNoteExpressions = true;    // play CLAP synths with CLAP notes and note expressions, not MIDI
 
+    // One copy per note (mode == copies).
+    int copies = 8;                     // copies of the synth to load, minCopies..maxCopies
+    std::bitset<128> everyCopyKeys;     // keys that go to every copy (keyswitches, a loop instrument's modifier keys)
+    bool copiesSleep = true;            // stop processing a copy that holds no note and has gone quiet
+    bool copiesUseCores = true;         // process the copies on several CPU cores at once
+    bool copiesFollow = true;           // give the other copies the first copy's sound when it changes
+
+    /** True if this key goes to every copy rather than a copy of its own. */
+    bool isEveryCopyKey (int key) const noexcept
+    {
+        return juce::isPositiveAndBelow (key, 128) && everyCopyKeys[(size_t) key];
+    }
+
     // Exact on purpose: these comparisons detect edits, not closeness.
     JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfloat-equal")
     bool operator== (const OutputSettings&) const = default;
     JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 };
+
+/** In copy mode, the MPE stream MpeEncoder writes for HostedSynth to share out over the copies:
+    a lower zone of 15 channels with bend ranges wide enough for any glide, whatever the MPE
+    settings say. Other modes are returned as they are.
+*/
+OutputSettings copyStreamSettings (const OutputSettings&);
+
+/** What each copy is played with in copy mode: the Plain MIDI settings, one note per copy. */
+OutputSettings copyPlaySettings (const OutputSettings&);
+
+/** A set of keys written out the way MPE Roll names notes (middle C is C5, as in FL Studio), in
+    ranges where it can: "C0-B2", or "C0-B3, black C4-C6" for the black keys between C4 and C6.
+    Empty for no keys.
+*/
+juce::String formatKeySet (const std::bitset<128>&);
+
+/** Reads what formatKeySet() writes, and more loosely what a user types: note names or MIDI note
+    numbers, single keys or ranges ("C1-B2", "36 to 47"), each optionally "black" or "white" keys
+    only, separated by commas. Whatever can't be read is left out. */
+std::bitset<128> parseKeySet (const juce::String&);
 
 /** How incoming MIDI (controllers, files, FL's own piano roll) is interpreted. */
 struct InputSettings

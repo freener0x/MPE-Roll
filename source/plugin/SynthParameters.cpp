@@ -160,7 +160,7 @@ float SynthParameterBank::getValue (int slot) const
 void SynthParameterBank::setValue (int slot, float value)
 {
     cachedValues[(size_t) slot] = value;
-    synth.withParameter (getHostedIndex (slot), [value] (juce::AudioProcessorParameter& p) { p.setValue (value); });
+    synth.setParameterValue (getHostedIndex (slot), value);     // and the same on every copy of it
 }
 
 void SynthParameterBank::parameterValueChanged (int hostedIndex, float newValue)

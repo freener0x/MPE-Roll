@@ -95,10 +95,13 @@ private:
 
     /** After a synth is loaded over MPE: if it can't take each note's own expression whatever is set
         in it (one MPE Roll knows has no MPE, or a VST3 that takes pitch bend on one channel and no
-        note expressions), offers to play it with Plain MIDI. */
+        note expressions), offers to play it with Plain MIDI, or with one copy of it per note. */
     void offerPlainMidi();
 
     void warnSynthSilent();
+
+    /** Switches the project to Plain MIDI, or to one copy per note, and says so. */
+    void playWithoutMpe (const juce::String& synthName, bool oneCopyPerNote);
     void showLoadFailure (const juce::String& error, const juce::PluginDescription* plugin);
 
     void showMidiMenu();

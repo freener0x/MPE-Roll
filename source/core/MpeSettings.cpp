@@ -1,5 +1,7 @@
 #include "MpeSettings.h"
 
+#include <juce_audio_basics/juce_audio_basics.h>
+
 namespace mperoll
 {
 
@@ -61,6 +63,181 @@ juce::String ZoneLayout::describeMemberChannels() const
 }
 
 //==============================================================================
+OutputSettings copyStreamSettings (const OutputSettings& s)
+{
+    if (s.mode != OutputSettings::Mode::copies)
+        return s;
+
+    // Read back by CopyRouter: every channel a note's own, and both bend ranges the copies' own (the
+    // Plain MIDI one), so a glide reaches a copy as far, and as finely, as the copy can bend. Also
+    // MPE Roll's MIDI output, so plain MPE without MPE+.
+    auto stream = s;
+    stream.mode = OutputSettings::Mode::mpe;
+    stream.zones = { 15, 0 };
+    stream.memberBendRange = s.masterBendRange;
+    stream.pressureTarget = OutputSettings::PressureTarget::channelPressure;
+    stream.timbreController = 74;
+    stream.timbreLsbController = -1;
+    stream.mpePlus = false;
+    return stream;
+}
+
+OutputSettings copyPlaySettings (const OutputSettings& s)
+{
+    auto play = s;
+    play.mode = OutputSettings::Mode::singleChannel;
+    play.mpePlus = false;       // Haken's CC87 means nothing to a synth without MPE
+    return play;
+}
+
+//==============================================================================
+namespace
+{
+    bool isBlackKey (int key) noexcept
+    {
+        const auto note = key % 12;
+        return note == 1 || note == 3 || note == 6 || note == 8 || note == 10;
+    }
+
+    juce::String keyName (int key)
+    {
+        return juce::MidiMessage::getMidiNoteName (key, true, true, 5);
+    }
+
+    /** A note name ("C5", "F#3", "Bb2", middle C being C5) or a MIDI note number, or -1. */
+    int readKey (juce::String text)
+    {
+        text = text.trim();
+
+        if (text.isEmpty())
+            return -1;
+
+        if (text.containsOnly ("0123456789"))
+            return text.getIntValue() <= 127 ? text.getIntValue() : -1;
+
+        static const int offsets[] = { 9, 11, 0, 2, 4, 5, 7 };     // A to G
+        const auto letter = juce::CharacterFunctions::toUpperCase (text[0]);
+
+        if (letter < 'A' || letter > 'G')
+            return -1;
+
+        auto key = offsets[letter - 'A'];
+        auto rest = text.substring (1);
+
+        if (rest.startsWithChar ('#'))
+        {
+            ++key;
+            rest = rest.substring (1);
+        }
+        else if (rest.startsWithChar ('b'))
+        {
+            --key;
+            rest = rest.substring (1);
+        }
+
+        if (rest.isEmpty() || ! rest.containsOnly ("0123456789"))
+            return -1;
+
+        key += rest.getIntValue() * 12;
+        return juce::isPositiveAndBelow (key, 128) ? key : -1;
+    }
+}
+
+juce::String formatKeySet (const std::bitset<128>& keys)
+{
+    juce::StringArray parts;
+
+    for (int key = 0; key < 128; ++key)
+    {
+        if (! keys[(size_t) key])
+            continue;
+
+        // A run of neighbouring keys.
+        auto last = key;
+
+        while (last + 1 < 128 && keys[(size_t) (last + 1)])
+            ++last;
+
+        if (last > key)
+        {
+            parts.add (keyName (key) + "-" + keyName (last));
+            key = last;
+            continue;
+        }
+
+        // A run of black keys with the white ones between them left out, three or more of them.
+        if (isBlackKey (key))
+        {
+            int blackKeys = 1;
+            auto end = key;
+
+            for (auto next = key + 1; next < 128; ++next)
+            {
+                if (isBlackKey (next) != (bool) keys[(size_t) next])
+                    break;
+
+                if (isBlackKey (next))
+                {
+                    end = next;
+                    ++blackKeys;
+                }
+            }
+
+            if (blackKeys >= 3)
+            {
+                parts.add ("black " + keyName (key) + "-" + keyName (end));
+                key = end;
+                continue;
+            }
+        }
+
+        parts.add (keyName (key));
+    }
+
+    return parts.joinIntoString (", ");
+}
+
+std::bitset<128> parseKeySet (const juce::String& text)
+{
+    std::bitset<128> keys;
+
+    for (auto item : juce::StringArray::fromTokens (text, ",;", {}))
+    {
+        item = item.trim();
+        auto only = 0;      // 1: black keys only, 2: white keys only
+
+        if (item.startsWithIgnoreCase ("black"))
+        {
+            only = 1;
+            item = item.substring (5).trim();
+        }
+        else if (item.startsWithIgnoreCase ("white"))
+        {
+            only = 2;
+            item = item.substring (5).trim();
+        }
+
+        auto from = readKey (item), to = from;
+
+        if (from < 0)
+        {
+            const auto separator = item.containsIgnoreCase ("to") ? juce::String ("to") : juce::String ("-");
+            from = readKey (item.upToFirstOccurrenceOf (separator, false, true));
+            to = readKey (item.fromFirstOccurrenceOf (separator, false, true));
+        }
+
+        if (from < 0 || to < 0)
+            continue;
+
+        for (auto key = juce::jmin (from, to); key <= juce::jmax (from, to); ++key)
+            if (only == 0 || (only == 1) == isBlackKey (key))
+                keys.set ((size_t) key);
+    }
+
+    return keys;
+}
+
+//==============================================================================
 namespace
 {
     template <typename Enum>
@@ -92,6 +269,11 @@ std::unique_ptr<juce::XmlElement> EngineSettings::toXml() const
     out->setAttribute ("defaultTimbre", output.defaultTimbre);
     out->setAttribute ("singleChannel", output.singleChannel);
     out->setAttribute ("clapNoteExpressions", output.clapNoteExpressions);
+    out->setAttribute ("copies", output.copies);
+    out->setAttribute ("everyCopyKeys", formatKeySet (output.everyCopyKeys));
+    out->setAttribute ("copiesSleep", output.copiesSleep);
+    out->setAttribute ("copiesUseCores", output.copiesUseCores);
+    out->setAttribute ("copiesFollow", output.copiesFollow);
 
     auto* in = xml->createNewChildElement ("Input");
     in->setAttribute ("mode", (int) input.mode);
@@ -126,7 +308,7 @@ EngineSettings EngineSettings::fromXml (const juce::XmlElement* xml)
     if (auto* out = xml->getChildByName ("Output"))
     {
         auto& o = s.output;
-        o.mode = enumFromInt (out->getIntAttribute ("mode"), o.mode, 2);
+        o.mode = enumFromInt (out->getIntAttribute ("mode"), o.mode, 3);
         o.zones.lowerMembers = out->getIntAttribute ("lowerMembers", o.zones.lowerMembers);
         o.zones.upperMembers = out->getIntAttribute ("upperMembers", o.zones.upperMembers);
         o.zones = o.zones.normalised();
@@ -144,6 +326,11 @@ EngineSettings EngineSettings::fromXml (const juce::XmlElement* xml)
         o.defaultTimbre = juce::jlimit (0.0f, 1.0f, (float) out->getDoubleAttribute ("defaultTimbre", o.defaultTimbre));
         o.singleChannel = juce::jlimit (1, 16, out->getIntAttribute ("singleChannel", o.singleChannel));
         o.clapNoteExpressions = out->getBoolAttribute ("clapNoteExpressions", o.clapNoteExpressions);
+        o.copies = juce::jlimit (OutputSettings::minCopies, OutputSettings::maxCopies, out->getIntAttribute ("copies", o.copies));
+        o.everyCopyKeys = parseKeySet (out->getStringAttribute ("everyCopyKeys"));
+        o.copiesSleep = out->getBoolAttribute ("copiesSleep", o.copiesSleep);
+        o.copiesUseCores = out->getBoolAttribute ("copiesUseCores", o.copiesUseCores);
+        o.copiesFollow = out->getBoolAttribute ("copiesFollow", o.copiesFollow);
     }
 
     if (auto* in = xml->getChildByName ("Input"))

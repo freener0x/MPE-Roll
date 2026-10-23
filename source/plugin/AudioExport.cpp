@@ -187,6 +187,8 @@ private:
     {
         // A second copy of the synth, with the same sound, plays the export so the one playing live
         // isn't disturbed. It loads like any synth, which can take a while for big sample libraries.
+        // With one copy per note, it gets its own copies too, and the export waits for them.
+        synth.setCopySettings (output);
         synth.restoreState (synthState, [this, alive = std::weak_ptr<int> (owner.lifetime)] (const juce::String& loadError)
         {
             if (alive.expired())
@@ -198,9 +200,18 @@ private:
                 return;
             }
 
-            prepareForRender (synth, options);
-            setStatusMessage ("Playing the clip through " + synth.getName() + "...");
-            launchThread();
+            if (output.mode == OutputSettings::Mode::copies)
+                setStatusMessage ("Loading copies of " + synth.getName() + " for the export...");
+
+            synth.whenCopiesLoaded ([this, alive]
+            {
+                if (alive.expired() || ! synth.isLoaded())
+                    return;
+
+                prepareForRender (synth, options);
+                setStatusMessage ("Playing the clip through " + synth.getName() + "...");
+                launchThread();
+            });
         });
     }
 
@@ -305,7 +316,10 @@ juce::AudioBuffer<float> render (const MpeClip& clip, const OutputSettings& outp
 
     // The lead-in: the synth gets the MPE setup and settles. Nothing of it is kept.
     if (output.sendConfiguration)
+    {
         encoder.writeConfiguration (midi, 0);
+        synth.requestConfiguration();
+    }
 
     for (auto pos = -(juce::int64) std::lround (leadInSeconds * sampleRate); pos < 0; pos += blockSize)
     {

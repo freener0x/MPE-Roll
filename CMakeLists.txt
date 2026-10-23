@@ -90,6 +90,7 @@ set(MPEROLL_CORE_SOURCES
     source/core/MidiFileIO.cpp
     source/core/FlScriptExporter.cpp
     source/core/ControllerPresets.cpp
+    source/core/CopyRouter.cpp
     source/core/NoteTools.cpp)
 
 set(MPEROLL_PLUGIN_SOURCES
@@ -97,6 +98,8 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/PluginProcessor.cpp
     source/plugin/PluginEditor.cpp
     source/plugin/ClipDocument.cpp
+    source/plugin/CopySafety.cpp
+    source/plugin/CopyWorkers.cpp
     source/plugin/CrashReport.cpp
     source/plugin/HostedSynth.cpp
     source/plugin/PluginLog.cpp
@@ -273,7 +276,11 @@ if(MPEROLL_BUILD_TESTS)
         tests/ClipPlayerTests.cpp
         tests/RoundTripTests.cpp
         tests/FlScriptExporterTests.cpp
-        tests/NoteToolsTests.cpp)
+        tests/NoteToolsTests.cpp
+        tests/CopyRouterTests.cpp
+        tests/CopyWorkersTests.cpp
+        source/plugin/CopySafety.cpp
+        source/plugin/CopyWorkers.cpp)
 
     if(MPEROLL_HOST_CLAP)
         target_sources(MpeRollTests PRIVATE
@@ -339,6 +346,28 @@ if(MPEROLL_BUILD_DEV_TOOLS)
     target_sources(MpeRollTestSynth PRIVATE tools/TestSynth.cpp)
     target_compile_definitions(MpeRollTestSynth PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
     target_link_libraries(MpeRollTestSynth
+        PRIVATE juce::juce_audio_processors
+        PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+    # A synth without MPE, for one copy per note: every note on a channel shares its pitch bend, as
+    # on most synths. Programs change its waveform in state that isn't a parameter, and a Crash
+    # parameter makes it crash on purpose, for the copies' crash protection.
+    juce_add_plugin(MpeRollPlainTestSynth
+        COMPANY_NAME "Glowing Pancake"
+        PLUGIN_MANUFACTURER_CODE Glpk
+        PLUGIN_CODE Mpt2
+        FORMATS ${MPEROLL_TEST_SYNTH_FORMATS}
+        PRODUCT_NAME "MPE Roll Plain Test Synth"
+        BUNDLE_ID com.glowingpancake.mperollplaintestsynth
+        IS_SYNTH TRUE
+        NEEDS_MIDI_INPUT TRUE
+        NEEDS_MIDI_OUTPUT FALSE
+        VST3_CATEGORIES Instrument Synth
+        NEEDS_WEB_BROWSER FALSE
+        NEEDS_CURL FALSE)
+    target_sources(MpeRollPlainTestSynth PRIVATE tools/PlainTestSynth.cpp)
+    target_compile_definitions(MpeRollPlainTestSynth PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
+    target_link_libraries(MpeRollPlainTestSynth
         PRIVATE juce::juce_audio_processors
         PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 

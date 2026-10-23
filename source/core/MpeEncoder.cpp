@@ -39,8 +39,11 @@ MpeEncoder::MpeEncoder()
         c.clearValues();
 }
 
-void MpeEncoder::setSettings (const OutputSettings& newSettings)
+void MpeEncoder::setSettings (const OutputSettings& requested)
 {
+    // In copy mode the encoder writes the MPE stream CopyRouter shares out over the copies.
+    const auto newSettings = copyStreamSettings (requested);
+
     // The deduplication caches are in a format that depends on these, so start over when they change.
     if (newSettings.mpePlus != settings.mpePlus || newSettings.timbreController != settings.timbreController
         || newSettings.timbreLsbController != settings.timbreLsbController)

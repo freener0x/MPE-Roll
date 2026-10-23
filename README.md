@@ -62,8 +62,19 @@ makers, from an audit of what the major stores sell (October 2026): for one with
 Serum 2, Pigments and the other Arturia instruments, Omnisphere 3, Vital, Diva, Phase Plant, Surge
 XT, Equator2, Cherry Audio, SWAM, Icarus...), *MPE settings* and the status line say where its MPE
 switch is; for one without (Analog Lab, ZENOLOGY and the Roland Cloud instruments, Massive X,
-Sylenth1, Spire, Zebra2, Omnisphere 2, Waves...), MPE Roll offers *Plain MIDI* when you load it.
+Sylenth1, Spire, Zebra2, Omnisphere 2, Waves...), MPE Roll offers *Plain MIDI* or *One copy per
+note* when you load it.
 [docs/MPE_SYNTHS.md](docs/MPE_SYNTHS.md) lists them all, with where to turn MPE on and sources.
+
+**MPE for any synth: one copy per note.** For a synth without MPE (Serum 1.1, Analog Lab, Kontakt,
+Nexus...), MPE Roll can load several copies of it (8 to start with, up to 32) and play each note on
+a copy of its own, so every note keeps its own glide, vibrato, pressure and timbre. Copy 1 is the
+synth you edit: its parameters reach the other copies at once, and a new preset as soon as the synth
+reports it, its window closes, or you ask. Quiet copies sleep, the rest are played on several CPU
+cores, keyswitches and modifier keys can go to every copy, and on Windows a copy that crashes is
+switched off instead of taking FL with it. Copies stop loading when memory runs low, and after a
+crash while loading them they aren't loaded again until you ask. See
+[docs/FL_STUDIO.md](docs/FL_STUDIO.md#one-copy-per-note-mpe-for-any-synth).
 
 **Zone-wide (master channel) lanes:** pitch bend with its own range, pressure, timbre and any
 controller, including the sustain, sostenuto, soft, legato and hold pedals.
@@ -223,6 +234,10 @@ synth's channel, run it from the Scripts menu:
 - **VST3 note expressions are new.** They're tested automatically with a small non-JUCE VST3 test
   synth that maps pitch bend on channel 1 only, on Linux and Windows, but not yet with a commercial
   synth. Serum 2's guide says it takes note expressions with its own MPE switch off.
+- **One copy per note is new.** It's tested automatically with a small synth without MPE (VST3 and
+  VST2, on Linux and Windows, where a copy crashing on purpose is switched off), but not yet with a
+  commercial synth: Serum, Analog Lab, Kontakt, Nexus and Arcade are next. A synth may mind having
+  many copies of itself (licence checks, memory); please report what you find.
 - **CLAP and VST2 hosting are new.** Both are tested automatically with small test synths on
   Linux, and compiled for Windows and macOS. Showing a CLAP synth's own window hasn't been tried
   with a real synth on any system yet; if it fails, MPE Roll shows a message and the synth still
@@ -252,14 +267,17 @@ source/core/      The MPE engine. Only needs juce_core/juce_audio_basics, so it'
   FlScriptExporter  the FL Studio piano roll script bridge
   ControllerPresets setups for popular MPE controllers
   NoteTools         FL's piano roll tools (chop, arpeggiate, strum, glue...) on notes and their curves
+  CopyRouter        one copy per note: shares an MPE stream out over copies of a synth, one note each
 source/plugin/    The plugin: processor, hosted synth, automation slots, document/undo, the editor UI.
+  CopyWorkers       plays a synth's copies on several cores (the audio thread helps, never waits idle)
+  CopySafety        catches a copy that crashes (Windows), and how much memory is free
   clap/             CLAP hosting: plugin format, instance, and the MPE to note expression translator
 tests/            Unit tests, plus a Python stand-in for FL's flpianoroll module that runs the
                   generated scripts.
 tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUCE), CLAP (plain CLAP
-                  API, pitch only from note expressions), and a VST3 one on the plain VST3 interfaces
-                  that maps pitch bend on channel 1 only and takes note expressions. Needs
-                  -DMPEROLL_BUILD_DEV_TOOLS=ON.
+                  API, pitch only from note expressions), a VST3 one on the plain VST3 interfaces
+                  that maps pitch bend on channel 1 only and takes note expressions, and a plain one
+                  without MPE (VST3 and VST2) for one copy per note. Needs -DMPEROLL_BUILD_DEV_TOOLS=ON.
                   make_donate_page.py writes DONATE.md, docs/donate.html, the QR codes and
                   .github/FUNDING.yml from docs/donate.json. make_synth_list.py writes
                   docs/MPE_SYNTHS.md and source/plugin/KnownSynths.h, the synths MPE Roll knows the
