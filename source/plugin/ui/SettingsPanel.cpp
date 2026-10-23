@@ -261,7 +261,7 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
         [settings] { return settings().output.copiesFollow; },
         [this] (bool b) { edit ([b] (EngineSettings& e) { e.output.copiesFollow = b; }); }));
     copies.add (new ActionProp ("Sound", "Give every copy copy 1's sound", [this] { processor.getSynth().copySoundToAllCopies(); }));
-    copies.add (new ActionProp ("Copies", "Load the copies again", [this] { processor.getSynth().reloadCopies(); }));
+    copies.add (new ActionProp ("After a problem", "Load the copies again", [this] { processor.getSynth().reloadCopies(); }));
     panel.addSection ("One copy per note", copies);
 
     // Input from controllers, MIDI files and FL.
