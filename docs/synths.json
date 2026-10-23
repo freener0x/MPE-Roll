@@ -19857,8 +19857,8 @@
    "mpe": "yes",
    "enable": "MENU (top bar) > MPE Enabled",
    "bendRange": "MENU > MPE Bend Range (48 ST, apparently the default)",
-   "notes": "MPE arrived in the 1.2x series and is off by default. VST3 on Windows since 1.35b7 (2022). Since 1.36b8 per-note bend also feeds MPE X. Superseded by Serum 2, a separate plugin.",
-   "advice": "Turn on MPE in Serum: MENU (top bar) > MPE Enabled, with MPE Bend Range 48, MPE Roll's per-note bend range. Turn it off again for Plain MIDI, as normal bends track poorly with it on.",
+   "notes": "MPE arrived in the 1.2x updates (2019) and is off by default: older versions such as 1.1.5 have no MPE Enabled item, and updates are free for owners, Serum 2 included. VST3 on Windows since 1.35b7 (2022). Since 1.36b8 per-note bend also feeds MPE X.",
+   "advice": "Turn on MPE in Serum: MENU (top bar) > MPE Enabled, with MPE Bend Range 48, MPE Roll's per-note bend range. Serum before 1.2x (1.1.5, say) has no MPE: update it from your Xfer account, free for owners (Serum 2 too). Turn MPE off again for Plain MIDI.",
    "sources": [
     {
      "url": "https://support.jamstik.com/hc/en-us/articles/360050534752-How-to-use-your-Jamstik-Studio-with-Serum-in-Studio-One-5",
@@ -19871,6 +19871,10 @@
     {
      "url": "https://synthanatomy.com/2022/11/xfer-serum-v1-35b7-update-adds-vst3-support-for-macos-and-windows.html",
      "says": "Serum v1.35b7 adds VST3 support on macOS and Windows."
+    },
+    {
+     "url": "https://www.attackmagazine.com/news/serum-2-is-finally-here-and-its-free-for-previous-owners/",
+     "says": "Attack Magazine: Serum 2 is a free upgrade for existing Serum owners (lifetime free updates)."
     }
    ],
    "match": {

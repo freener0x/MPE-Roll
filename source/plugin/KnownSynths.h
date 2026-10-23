@@ -1605,7 +1605,7 @@ namespace mperoll::knownsynths
           "Xfer Records doesn't mention MPE for Nerve, so it most likely has none. Set Synth expects to Plain MIDI.",
           "" },
         { "Serum", "serum", "serumfx|serumfx|serum2", "", "", Mpe::yes,
-          "Turn on MPE in Serum: MENU (top bar) > MPE Enabled, with MPE Bend Range 48, MPE Roll's per-note bend range. Turn it off again for Plain MIDI, as normal bends track poorly with it on.",
+          "Turn on MPE in Serum: MENU (top bar) > MPE Enabled, with MPE Bend Range 48, MPE Roll's per-note bend range. Serum before 1.2x (1.1.5, say) has no MPE: update it from your Xfer account, free for owners (Serum 2 too). Turn MPE off again for Plain MIDI.",
           "" },
         { "Syn'X 2", "synx2|synx", "", "xilslab", "", Mpe::undocumented,
           "XILS-lab doesn't mention MPE for Syn'X 2, so it most likely has none. Set Synth expects to Plain MIDI.",

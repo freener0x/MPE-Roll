@@ -341,8 +341,10 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | Tone2 Icarus | Yes | *SETUP* page › *force MPE* (Icarus 2.5: *Enable MPE support*) |
 
 **Xfer Serum and Serum 2**
-- Serum 1 has MPE, off until you tick *MPE Enabled* in its main *MENU*; set the MPE bend range at the
-  bottom of that menu to MPE Roll's *Per-note bend range* (48). Its VST2 (`Serum_x64.dll`) gets MPE's
+- Serum 1 has MPE from its 1.2x updates (2019), off until you tick *MPE Enabled* in its main *MENU*;
+  set the MPE bend range at the bottom of that menu to MPE Roll's *Per-note bend range* (48). An older
+  Serum (1.1.5, say) has no *MPE Enabled* item: update it from your Xfer account, free for owners, as
+  is Serum 2. Its VST2 (`Serum_x64.dll`) gets MPE's
   per-channel MIDI whatever the VST3 does.
 - Serum 2 comes as VST3 (and AAX) only. Xfer's guide: with its MPE switch on it takes per-channel
   MIDI, and with it off it takes VST3 note expressions. Which of those reach it through MPE Roll
