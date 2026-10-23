@@ -117,6 +117,12 @@ MpeRollEditor::MpeRollEditor (MpeRollProcessor& p)
         }
     };
 
+    rollProcessor.onCopiesChanged = [safe = juce::Component::SafePointer<MpeRollEditor> (this)]
+    {
+        if (safe != nullptr)
+            safe->refreshToolbar();
+    };
+
     wireToolbar();
 
     setResizable (true, true);
@@ -155,6 +161,7 @@ MpeRollEditor::~MpeRollEditor()
 
     stopTimer();
     rollProcessor.onStatusChanged = nullptr;
+    rollProcessor.onCopiesChanged = nullptr;
     toolbar.midiButton.removeMouseListener (midiDragListener.get());
     skins->removeChangeListener (this);
     document.getUndoManager().removeChangeListener (this);
@@ -337,8 +344,9 @@ void MpeRollEditor::refreshToolbar()
 juce::String MpeRollEditor::describeOutput() const
 {
     // The "No sound from ..." box asks once. This stays until the synth is heard, for a box that
-    // went behind FL's window or was closed by reflex.
-    if (auto& synth = rollProcessor.getSynth(); synth.isSilentOverMpe() && synth.isLoaded())
+    // went behind FL's window or was closed by reflex. Played another way, its advice no longer applies.
+    if (auto& synth = rollProcessor.getSynth(); synth.isSilentOverMpe() && synth.isLoaded()
+                                                && document.getSettings().output.mode == OutputSettings::Mode::mpe)
         return "No sound from " + synth.getName() + " yet: turn MPE on in it (Omnisphere 3: its System page), "
                "or pick Plain MIDI in MPE settings";
 
@@ -768,7 +776,8 @@ void MpeRollEditor::playWithoutMpe (const juce::String& name, bool oneCopyPerNot
 
     setStatus (oneCopyPerNote ? "Playing " + name + " with one copy per note: loading " + juce::String (settings.output.copies - 1)
                                     + " more copies, one at a time. Set " + name + "'s pitch-bend range to "
-                                    + juce::String (juce::roundToInt (settings.output.masterBendRange)) + " (MPE settings, Zone bend range)"
+                                    + juce::String (juce::roundToInt (settings.output.masterBendRange)) + " (MPE settings, Zone bend range); "
+                                      "glides stop there, so for wider ones set both to 12 or 24"
                               : "Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
 }
 
@@ -1027,7 +1036,7 @@ void MpeRollEditor::exportMidi()
         {
             out.setPosition (0);
             out.truncate();
-            MidiFileIO::writeClip (safe->document.getEditClip(), safe->document.getSettings().output, options, out);
+            MidiFileIO::writeClip (safe->document.getEditClip(), safe->fileOutputSettings(), options, out);
             safe->setStatus ("Exported " + target.getFileName());
         }
         else
@@ -1057,8 +1066,20 @@ juce::File MpeRollEditor::writeTemporaryMidiFile()
 
     out.setPosition (0);
     out.truncate();
-    MidiFileIO::writeClip (clip, document.getSettings().output, options, out);
+    MidiFileIO::writeClip (clip, fileOutputSettings(), options, out);
     return file;
+}
+
+OutputSettings MpeRollEditor::fileOutputSettings() const
+{
+    // One copy per note plays the synth from an MPE stream with the Zone bend range for every
+    // note. A file is for other tools: plain MPE, with the zones and per-note bend range as set.
+    auto output = document.getSettings().output;
+
+    if (output.mode == OutputSettings::Mode::copies)
+        output.mode = OutputSettings::Mode::mpe;
+
+    return output;
 }
 
 void MpeRollEditor::sendToFl()

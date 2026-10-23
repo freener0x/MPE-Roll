@@ -159,6 +159,20 @@ public:
     bool unregisterFd (int fd);
     void fdReady (int fd, clap_posix_fd_flags_t happened);
 
+    /** The plugin crashed: nothing more is passed to it. Any thread. */
+    std::atomic<bool> quarantined { false };
+
+    /** And its timers stop and its file descriptors are let go. Main thread. */
+    void letGoOfPlugin()
+    {
+        quarantined = true;
+
+        for (auto& t : timers)
+            t.second->stopTimer();
+
+        unregisterAllFds();
+    }
+
 private:
     struct PluginTimer final : public juce::Timer
     {
@@ -612,6 +626,18 @@ public:
         return takesNoteEvents.load() && (s.clapNoteExpressions || ! takesMidi.load());
     }
 
+    void quarantine() noexcept override
+    {
+        quarantined = true;
+        hostContext->quarantined = true;
+        cancelPendingUpdate();
+        stopTimer();
+
+        // Its own timers and file descriptors are the main thread's to let go of: it's called there too.
+        if (onMessageThread())
+            hostContext->letGoOfPlugin();
+    }
+
     //==============================================================================
     // Called by the host callbacks.
     const clap_plugin_t* getClapPlugin() const noexcept         { return plugin; }
@@ -796,6 +822,7 @@ private:
 
     // Requests handled on the message thread.
     std::atomic<bool> restartPending { false }, flushRequested { false };
+    std::atomic<bool> quarantined { false };            // it crashed: never called again
     std::atomic<bool> resizeRequested { false }, hintsChanged { false }, guiClosedPending { false }, guiDestroyed { false };
     std::atomic<uint32_t> requestedWidth { 0 }, requestedHeight { 0 };
 
@@ -1160,6 +1187,9 @@ private:
     //==============================================================================
     void handleAsyncUpdate() override
     {
+        if (quarantined)
+            return;
+
         if (hostContext->callbackRequested.exchange (false))
             plugin->on_main_thread (plugin);
 
@@ -1965,7 +1995,7 @@ bool ClapHostContext::unregisterTimer (clap_id id)
 
 void ClapHostContext::timerFired (clap_id id)
 {
-    if (plugin == nullptr)
+    if (plugin == nullptr || quarantined.load())
         return;
 
     if (const auto* support = static_cast<const clap_plugin_timer_support_t*> (plugin->get_extension (plugin, CLAP_EXT_TIMER_SUPPORT)))
@@ -2130,7 +2160,7 @@ void ClapHostContext::unregisterAllFds()
 
 void ClapHostContext::fdReady (int fd, clap_posix_fd_flags_t happened)
 {
-    if (plugin == nullptr)
+    if (plugin == nullptr || quarantined.load())
         return;
 
     if (const auto* support = static_cast<const clap_plugin_posix_fd_support_t*> (plugin->get_extension (plugin, CLAP_EXT_POSIX_FD_SUPPORT)))

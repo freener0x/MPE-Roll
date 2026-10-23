@@ -117,10 +117,22 @@ public:
     {
         // Before the synth copy goes: the thread may be inside it.
         stopThread (-1);
+        synth.onCopiesChanged = nullptr;
     }
 
     void run() override
     {
+        // With one copy per note the window shows while the copies load, which can take a while.
+        if (waitForCopies)
+        {
+            while (! copiesReady.wait (50))
+                if (threadShouldExit())
+                    return;
+
+            if (error.isNotEmpty())     // they couldn't all be loaded
+                return;
+        }
+
         const auto audio = render (clip, output, synth, options, [this] (double p)
         {
             showProgress (p * 0.9);
@@ -175,6 +187,8 @@ private:
     juce::String error;
     bool written = false;   // the file is at the target
     std::atomic<double> progress { 0.0 };   // what the window shows, readable from the message thread
+    bool waitForCopies = false;             // the thread starts before the copies are loaded
+    juce::WaitableEvent copiesReady;        // they are, and the synth is prepared (or error says why not)
 
     /** Moves the window's progress bar and remembers where it is, for Jobs::getProgress(). */
     void showProgress (double p)
@@ -187,8 +201,25 @@ private:
     {
         // A second copy of the synth, with the same sound, plays the export so the one playing live
         // isn't disturbed. It loads like any synth, which can take a while for big sample libraries.
-        // With one copy per note, it gets its own copies too, and the export waits for them.
+        // With one copy per note, it gets its own copies too, and the export waits for them, in its
+        // window (Cancel works meanwhile).
+        synth.setRenderedOfflineOnly();
         synth.setCopySettings (output);
+        waitForCopies = output.mode == OutputSettings::Mode::copies;
+
+        if (waitForCopies)
+        {
+            setStatusMessage ("Loading the synth for the export...");
+            launchThread();
+
+            synth.onCopiesChanged = [this]
+            {
+                if (const auto status = synth.getCopyStatus(); status.on && status.loaded < status.wanted)
+                    setStatusMessage ("Loading copies of " + synth.getName() + " for the export: " + juce::String (status.loaded)
+                                      + " of " + juce::String (status.wanted) + "...");
+            };
+        }
+
         synth.restoreState (synthState, [this, alive = std::weak_ptr<int> (owner.lifetime)] (const juce::String& loadError)
         {
             if (alive.expired())
@@ -196,23 +227,50 @@ private:
 
             if (loadError.isNotEmpty() || ! synth.isLoaded())
             {
-                finish ("A copy of the synth couldn't be loaded for the export. " + loadError);
+                fail ("A copy of the synth couldn't be loaded for the export. " + loadError);
                 return;
             }
-
-            if (output.mode == OutputSettings::Mode::copies)
-                setStatusMessage ("Loading copies of " + synth.getName() + " for the export...");
 
             synth.whenCopiesLoaded ([this, alive]
             {
                 if (alive.expired() || ! synth.isLoaded())
                     return;
 
+                // Fewer copies than live would put notes together that each have a copy of their own there.
+                if (const auto status = synth.getCopyStatus(); status.on && status.loaded < status.wanted)
+                {
+                    const auto why = status.problem.isNotEmpty()
+                                       ? status.problem
+                                       : "Only " + juce::String (status.loaded) + " could be loaded. Close other programs, "
+                                         "or ask for fewer copies in MPE settings.";
+                    fail ("The export needs " + juce::String (status.wanted) + " copies of " + synth.getName()
+                          + " of its own, beside the ones playing live. " + why + " Then export again.");
+                    return;
+                }
+
                 prepareForRender (synth, options);
                 setStatusMessage ("Playing the clip through " + synth.getName() + "...");
-                launchThread();
+
+                if (waitForCopies)
+                    copiesReady.signal();
+                else
+                    launchThread();
             });
         });
+    }
+
+    /** Ends the export before anything is rendered. */
+    void fail (const juce::String& why)
+    {
+        if (! waitForCopies)
+        {
+            finish (why);
+            return;
+        }
+
+        // The thread is waiting: it ends, and the window reports why.
+        error = why;
+        copiesReady.signal();
     }
 
     /** Reports back and has the owner delete this job, once whatever called us (the progress

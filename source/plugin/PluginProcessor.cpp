@@ -107,8 +107,8 @@ MpeRollProcessor::MpeRollProcessor()
     // One copy per note: the copies are loaded as the settings ask, and the status line follows them.
     synth.onCopiesChanged = [this]
     {
-        if (onStatusChanged)
-            onStatusChanged();
+        if (onCopiesChanged)
+            onCopiesChanged();
     };
 
     synth.setCopySettings (settings.output);
@@ -171,6 +171,7 @@ void MpeRollProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     discard.ensureSize (1 << 14);
     player.stop (encoder, discard, 0);
     encoder.stopAllNotes (discard, 0);
+    encoder.forgetZoneValues();     // the synth (and its copies' router) start afresh, so every lane is sent again
     liveDecoder.reset();
 
     needsConfiguration = true;
@@ -361,7 +362,22 @@ void MpeRollProcessor::applySettings (const EngineSnapshot& snapshot, int)
 {
     const auto& s = snapshot.settings;
 
-    if (! (s.output == lastOutputSettings))
+    // Settings only the copies care about (how many, sleep, cores, following the first) change
+    // nothing in what's played: the notes play on, and the copies take them up themselves.
+    const auto playedAlike = [] (OutputSettings a, const OutputSettings& b)
+    {
+        a.copies = b.copies;
+        a.copiesSleep = b.copiesSleep;
+        a.copiesUseCores = b.copiesUseCores;
+        a.copiesFollow = b.copiesFollow;
+        return a == b;
+    };
+
+    if (playedAlike (s.output, lastOutputSettings))
+    {
+        lastOutputSettings = s.output;
+    }
+    else
     {
         player.stop (encoder, synthMidi, 0);
         encoder.stopAllNotes (synthMidi, 0);

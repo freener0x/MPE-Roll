@@ -70,8 +70,9 @@ note* when you load it.
 Nexus...), MPE Roll can load several copies of it (8 to start with, up to 32) and play each note on
 a copy of its own, so every note keeps its own glide, vibrato, pressure and timbre. Copy 1 is the
 synth you edit: its parameters reach the other copies at once, and a new preset as soon as the synth
-reports it, its window closes, or you ask. Quiet copies sleep, the rest are played on several CPU
-cores, keyswitches and modifier keys can go to every copy, and on Windows a copy that crashes is
+reports it, its window closes, or you ask, without cutting notes that are playing. Quiet copies
+sleep, the rest are played on several CPU cores (one set of threads for every MPE Roll), keyswitches
+and modifier keys can go to every copy, and a copy that crashes (on Windows) or throws an error is
 switched off instead of taking FL with it. Copies stop loading when memory runs low, and after a
 crash while loading them they aren't loaded again until you ask. See
 [docs/FL_STUDIO.md](docs/FL_STUDIO.md#one-copy-per-note-mpe-for-any-synth).
@@ -235,7 +236,8 @@ synth's channel, run it from the Scripts menu:
   synth that maps pitch bend on channel 1 only, on Linux and Windows, but not yet with a commercial
   synth. Serum 2's guide says it takes note expressions with its own MPE switch off.
 - **One copy per note is new.** It's tested automatically with a small synth without MPE (VST3 and
-  VST2, on Linux and Windows, where a copy crashing on purpose is switched off), but not yet with a
+  VST2, on Linux and Windows, where a copy crashing or throwing on purpose is switched off and never
+  called again), but not yet with a
   commercial synth: Serum, Analog Lab, Kontakt, Nexus and Arcade are next. A synth may mind having
   many copies of itself (licence checks, memory); please report what you find.
 - **CLAP and VST2 hosting are new.** Both are tested automatically with small test synths on
@@ -270,7 +272,7 @@ source/core/      The MPE engine. Only needs juce_core/juce_audio_basics, so it'
   CopyRouter        one copy per note: shares an MPE stream out over copies of a synth, one note each
 source/plugin/    The plugin: processor, hosted synth, automation slots, document/undo, the editor UI.
   CopyWorkers       plays a synth's copies on several cores (the audio thread helps, never waits idle)
-  CopySafety        catches a copy that crashes (Windows), and how much memory is free
+  CopySafety        catches a copy that crashes (Windows) or throws, and how much memory is free
   clap/             CLAP hosting: plugin format, instance, and the MPE to note expression translator
 tests/            Unit tests, plus a Python stand-in for FL's flpianoroll module that runs the
                   generated scripts.

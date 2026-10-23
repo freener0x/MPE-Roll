@@ -114,6 +114,7 @@ private:
     };
 
     OutputSettings settings;
+    bool copyStream = false;                    // writing the stream CopyRouter shares out over the copies
     std::vector<Voice> voices;                  // maxVoices of them, kept on the heap: see the constructor
     std::array<int, maxVoices> activeList {};   // indices into voices
     int numActive = 0;

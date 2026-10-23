@@ -226,6 +226,90 @@ public:
             expectGreaterOrEqual (suggested, 1);
             expectLessOrEqual (suggested, 7);
         }
+
+        beginTest ("Two threads running batches on the same workers at once each get all theirs done");
+        {
+            // Two MPE Rolls' audio threads sharing the process's workers: whichever finds them
+            // taken does its own jobs itself.
+            CopyWorkers workers (3);
+            std::array<Batches, 2> batches;
+            std::array<int, 2> wrong {};
+            std::atomic<bool> go { false };
+
+            auto play = [&] (int who)
+            {
+                auto& mine = batches[(size_t) who];
+                juce::Random random (who + 7);
+
+                while (! go.load())
+                    std::this_thread::yield();
+
+                for (int n = 1; n <= 5000; ++n)
+                {
+                    const auto count = 1 + random.nextInt (8);
+                    mine.number = n;
+                    mine.count = count;
+
+                    for (auto& c : mine.calls)
+                        c.store (0, std::memory_order_relaxed);
+
+                    workers.run (count, batchJob, &mine);
+
+                    for (int i = 0; i < Batches::slots; ++i)
+                        if (mine.calls[(size_t) i].load() != (i < count ? 1 : 0) || (i < count && mine.ranIn[(size_t) i] != n))
+                            ++wrong[(size_t) who];
+                }
+            };
+
+            std::thread other (play, 1);
+            go = true;
+            play (0);
+            other.join();
+
+            expectEquals (wrong[0] + wrong[1], 0);
+            expectEquals (batches[0].outOfRange.load() + batches[1].outOfRange.load(), 0);
+        }
+
+        beginTest ("begin() sets the workers going while the caller does something else, and finish() completes it");
+        {
+            CopyWorkers workers (3);
+            Record record;
+            record.jobLength = std::chrono::microseconds (200);
+
+            for (const int count : { 0, 1, 2, 9 })
+            {
+                record.reset();
+                const auto batch = workers.begin (count, recordJob, &record, true);
+                std::this_thread::sleep_for (std::chrono::milliseconds (2));     // the caller's own work
+                workers.finish (batch);
+
+                int wrongCalls = 0, unfinished = 0;
+
+                for (int i = 0; i < maxJobs; ++i)
+                {
+                    wrongCalls += record.calls[(size_t) i].load() != (i < count ? 1 : 0) ? 1 : 0;
+                    unfinished += record.finished[(size_t) i] != (i < count) ? 1 : 0;
+                }
+
+                expectEquals (wrongCalls, 0, juce::String (count) + " jobs");
+                expectEquals (unfinished, 0, juce::String (count) + " jobs");
+            }
+        }
+
+        beginTest ("The process's workers are shared while used, and stop when the last user lets go");
+        {
+            auto first = CopyWorkers::getShared (true);
+            auto second = CopyWorkers::getShared (true);
+            auto offline = CopyWorkers::getShared (false);
+            expect (first != nullptr && first == second, "one set for the whole process");
+            expect (offline != first, "and another for offline rendering");
+            expectEquals (first->getNumWorkers(), CopyWorkers::suggestedWorkers());
+
+            std::weak_ptr<CopyWorkers> watch = first;
+            first.reset();
+            second.reset();
+            expect (watch.expired(), "gone once nothing uses it");
+        }
     }
 };
 
@@ -266,6 +350,8 @@ public:
             expectEquals (describeException (0xc0000006u), juce::String ("an in-page error"));
             expectEquals (describeException (0xc000008cu), juce::String ("an array bounds error"));
             expectEquals (describeException (0xc000008eu), juce::String ("a floating-point error"));
+            expectEquals (describeException (0xc00002b4u), juce::String ("a floating-point error"));
+            expectEquals (describeException (0xc00002b5u), juce::String ("a floating-point error"));
             expectEquals (describeException (0xe06d7363u), juce::String ("a C++ exception the synth didn't catch"));
             expectEquals (describeException (0x80000003u), juce::String ("exception 0x80000003"));
             expectEquals (describeException (0x12345678u), juce::String ("exception 0x12345678"));
@@ -274,11 +360,15 @@ public:
 
         beginTest ("Memory figures, and pretending to have less");
         {
-           #if JUCE_LINUX || JUCE_WINDOWS
+           #if JUCE_LINUX || JUCE_WINDOWS || JUCE_MAC
             expectGreaterThan (CopySafety::getAvailableMemoryMB(), (juce::int64) 0);
-            expectGreaterThan (CopySafety::getProcessMemoryMB(), (juce::int64) 0);
            #else
             expectEquals (CopySafety::getAvailableMemoryMB(), (juce::int64) -1);
+           #endif
+
+           #if JUCE_LINUX || JUCE_WINDOWS
+            expectGreaterThan (CopySafety::getProcessMemoryMB(), (juce::int64) 0);
+           #else
             expectEquals (CopySafety::getProcessMemoryMB(), (juce::int64) -1);
            #endif
 
@@ -297,6 +387,17 @@ public:
             expect (known ? CopySafety::getAvailableMemoryMB() > 0 : CopySafety::getAvailableMemoryMB() == -1);
         }
 
+        beginTest ("A C++ exception that escapes inside call() is caught everywhere");
+        {
+            unsigned int code = 0;
+            expect (! CopySafety::call ([] (void*) { throw std::runtime_error ("from the synth"); }, nullptr, &code));
+            expectEquals (juce::String::toHexString (code), juce::String ("e06d7363"));
+
+            int calls = 0;
+            expect (CopySafety::call (addOne, &calls));
+            expectEquals (calls, 1);
+        }
+
         if (CopySafety::canCatchCrashes())
         {
             beginTest ("A crash inside call() is caught, and the program carries on");
@@ -310,10 +411,6 @@ public:
 
                 expect (! CopySafety::call (writeToNowhere, nullptr, &code));
                 expectEquals (juce::String::toHexString (code), juce::String ("c0000005"));
-
-                code = 0;
-                expect (! CopySafety::call ([] (void*) { throw std::runtime_error ("from the synth"); }, nullptr, &code));
-                expectEquals (juce::String::toHexString (code), juce::String ("e06d7363"));
 
                 int calls = 0;
                 expect (CopySafety::call (addOne, &calls));

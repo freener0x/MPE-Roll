@@ -110,6 +110,9 @@ private:
     void exportMidi();
     void exportAudio (AudioExport::Format);
     juce::File writeTemporaryMidiFile();
+
+    /** How MIDI files are written: as the output is set, but MPE in place of one copy per note. */
+    OutputSettings fileOutputSettings() const;
     void sendToFl();
     void showSettings();
 

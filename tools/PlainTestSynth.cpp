@@ -13,6 +13,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <stdexcept>
 
 namespace
 {
@@ -29,7 +30,7 @@ constexpr int quietProgram = 3;         // the square wave, set without telling 
 
 constexpr int stateMagic = 0x6e616c50;  // the state starts with the bytes "Plan"
 constexpr int stateVersion = 1;
-constexpr int numParameters = 4;
+constexpr int numParameters = 5;
 
 /** What a MIDI channel holds for every note on it. */
 struct Channel
@@ -93,7 +94,8 @@ void crashOnPurpose() noexcept
     *static_cast<volatile int*> (nowhere) = 1;
 }
 
-class PlainTestSynthProcessor : public juce::AudioProcessor
+class PlainTestSynthProcessor : public juce::AudioProcessor,
+                                private juce::AudioProcessorParameter::Listener
 {
 public:
     PlainTestSynthProcessor()
@@ -104,12 +106,23 @@ public:
         addParameter (release = new juce::AudioParameterFloat (juce::ParameterID ("release", 1), "Release",
                                                                0.0f, 2.0f, 0.05f));
         addParameter (crash = new juce::AudioParameterBool (juce::ParameterID ("crash", 1), "Crash", false));
+        addParameter (throwing = new juce::AudioParameterBool (juce::ParameterID ("throw", 1), "Throw", false));
 
         jassert (getParameters().size() == numParameters);
+
+        for (auto* p : getParameters())
+            p->addListener (this);
+    }
+
+    ~PlainTestSynthProcessor() override
+    {
+        for (auto* p : getParameters())
+            p->removeListener (this);
     }
 
     void prepareToPlay (double newSampleRate, int) override
     {
+        notedIfCrashed ("prepareToPlay");
         samplesPerSecond = newSampleRate > 0.0 ? newSampleRate : 44100.0;
         attackStep = (float) (1.0 / (0.002 * samplesPerSecond));
         appliedBendRange = bendRange->get();
@@ -124,12 +137,24 @@ public:
         }
     }
 
-    void releaseResources() override                            {}
+    void releaseResources() override                            { notedIfCrashed ("releaseResources"); }
 
     void processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override
     {
+        notedIfCrashed ("processBlock");
+
         if (crash->get())
+        {
+            crashed = true;
             crashOnPurpose();
+        }
+
+        // A C++ exception that escapes, which a host can catch on every system.
+        if (throwing->get())
+        {
+            crashed = true;
+            throw std::runtime_error ("MPE Roll Plain Test Synth: thrown on purpose");
+        }
 
         buffer.clear();
 
@@ -192,6 +217,7 @@ public:
 
     void getStateInformation (juce::MemoryBlock& data) override
     {
+        notedIfCrashed ("getStateInformation");
         juce::MemoryOutputStream out (data, false);
         out.writeInt (stateMagic);
         out.writeInt (stateVersion);
@@ -204,6 +230,7 @@ public:
 
     void setStateInformation (const void* data, int size) override
     {
+        notedIfCrashed ("setStateInformation");
         const auto& parameters = getParameters();
         const auto expectedSize = 4 * (int) sizeof (int) + numParameters * (int) sizeof (float);
 
@@ -244,6 +271,24 @@ private:
     juce::AudioParameterInt* bendRange = nullptr;
     juce::AudioParameterFloat* release = nullptr;
     juce::AudioParameterBool* crash = nullptr;
+    juce::AudioParameterBool* throwing = nullptr;
+    std::atomic<bool> crashed { false };    // it crashed on purpose: a host mustn't call it again
+
+    /** For the harness: a call a host makes after this synth crashed (it never should) is noted
+        in the file MPEROLL_TEST_AFTER_CRASH names. */
+    void notedIfCrashed (const char* what) const
+    {
+        if (! crashed.load())
+            return;
+
+        const auto path = juce::SystemStats::getEnvironmentVariable ("MPEROLL_TEST_AFTER_CRASH", {});
+
+        if (path.isNotEmpty())
+            juce::File (path).appendText (juce::String (what) + "\n");
+    }
+
+    void parameterValueChanged (int, float) override            { notedIfCrashed ("a parameter change"); }
+    void parameterGestureChanged (int, bool) override           {}
 
     std::atomic<Waveform> waveform { Waveform::sine };
     std::atomic<int> currentProgram { 0 };

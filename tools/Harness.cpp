@@ -36,6 +36,7 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -1241,15 +1242,16 @@ void silenceWatchChecks (Check& check, const juce::File& synthFile)
     }
 }
 
-/** The "No sound from ..." box the editor shows for the warning. Only its Use Plain MIDI button may
-    change the project: Return and Escape both keep MPE, as closing the box does.
+/** The "No sound from ..." box the editor shows for the warning. Only its Use Plain MIDI and One
+    copy per note buttons may change the project: Return and Escape both keep MPE, as closing the
+    box does.
 */
 void silenceAlertChecks (Check& check, const juce::File& synthFile)
 {
     if (synthFile.hasFileExtension ("clap"))     // played with note expressions, so never warned about
         return;
 
-    std::printf ("Only the box's Use Plain MIDI button switches the project to Plain MIDI\n");
+    std::printf ("Only the box's Use Plain MIDI and One copy per note buttons switch the project away from MPE\n");
     ignoreXErrors();
     auto& mm = *juce::MessageManager::getInstance();
     SilenceProbe probe (synthFile, OutputSettings::Mode::mpe, true);
@@ -1385,6 +1387,32 @@ void silenceAlertChecks (Check& check, const juce::File& synthFile)
 
         mm.runDispatchLoopUntil (100);
         check (findBox() == nullptr && mode() == OutputSettings::Mode::singleChannel, "Use Plain MIDI switches the project to Plain MIDI");
+    }
+
+    // Back to MPE, unheard again, for the box's other way out. Two copies are quick to load.
+    {
+        auto settings = probe.processor.getDocument().getSettings();
+        settings.output.mode = OutputSettings::Mode::mpe;
+        settings.output.copies = OutputSettings::minCopies;
+        probe.processor.getDocument().setSettings (settings);
+    }
+
+    listenAgain();
+    box = provoke();
+
+    if (box != nullptr)
+    {
+        if (auto* button = box->getButton ("One copy per note"))
+            button->triggerClick();
+
+        mm.runDispatchLoopUntil (100);
+        check (findBox() == nullptr && mode() == OutputSettings::Mode::copies, "One copy per note switches the project to copies");
+
+        // Past the message the switch puts up, the status line counts copies, with no word of the
+        // MPE advice that no longer applies.
+        mm.runDispatchLoopUntil (6200);
+        check (! statusSays ("No sound from") && statusSays ("One copy per note"),
+               "and the status line then speaks of the copies, not of turning MPE on");
     }
 
     probe.processor.editorBeingDeleted (editor.get());
@@ -3230,19 +3258,25 @@ struct CopyRig
         return false;
     }
 
-    /** Plays the clip in slot 1 from its start for this long and returns what came out. */
-    juce::AudioBuffer<float> play (const MpeClip& clip, double seconds)
+    /** Plays the clip in slot 1 from its start for this long and returns what came out. Given
+        `during`, it's called before each block with the time, and the blocks come in about real
+        time, the message loop running between them (timers fire as they would). */
+    juce::AudioBuffer<float> play (const MpeClip& clip, double seconds, const std::function<void (double)>& during = {})
     {
         processor.getDocument().replaceClip (0, clip, "Test");
         pump (10);
 
         const auto total = (int) (seconds * rate);
+        const auto blockMs = juce::jmax (1, (int) (block / rate * 1000.0));
         juce::AudioBuffer<float> output (2, total);
         output.clear();
         playHead.playing = true;
 
         for (int pos = 0; pos < total; pos += block)
         {
+            if (during)
+                during (pos / rate);
+
             const auto n = juce::jmin (block, total - pos);
             juce::AudioBuffer<float> audio (2, n);
             juce::MidiBuffer midi;
@@ -3251,6 +3285,9 @@ struct CopyRig
 
             for (int ch = 0; ch < 2; ++ch)
                 output.copyFrom (ch, pos, audio, ch, 0, n);
+
+            if (during)
+                pump (blockMs);
         }
 
         playHead.playing = false;
@@ -3325,6 +3362,16 @@ int copiesTest (const juce::File& synthFile)
 
     // The settings every MPE Roll shares (where the loading markers go) in a file of the test's own.
     const auto settingsFile = juce::File::createTempFile ("settings");
+
+    // Where the test synth notes any call made to it after it crashed (before it's loaded).
+    const auto afterCrash = juce::File::createTempFile ("after-crash");
+    afterCrash.deleteFile();
+   #if JUCE_WINDOWS
+    _putenv_s ("MPEROLL_TEST_AFTER_CRASH", afterCrash.getFullPathName().toRawUTF8());
+   #else
+    setenv ("MPEROLL_TEST_AFTER_CRASH", afterCrash.getFullPathName().toRawUTF8(), 1);
+   #endif
+
     auto rig = std::make_unique<CopyRig>();
     rig->synth().useSettingsFile (settingsFile);
 
@@ -3467,6 +3514,63 @@ int copiesTest (const juce::File& synthFile)
         check (rig->settle() && rig->copiesMatchFirst(), "Give every copy copy 1's sound does");
     }
 
+    std::printf ("Notes held while the copies are given a sound play on\n");
+    {
+        rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = false; });
+
+        MpeClip chord;
+        chord.length = 8.0;
+
+        for (const auto key : { 60, 64, 67 })
+            chord.addNote (note (key, 0.0, 3.0, 0.8f));     // 1.5 seconds at 120 bpm
+
+        // A program the synth reports, partway through: the copies are given it 0.4 s later, those
+        // holding the chord once it has ended.
+        bool changed = false;
+        const auto audio = rig->play (chord, 2.0, [&] (double t)
+        {
+            if (t >= 0.3 && ! changed)
+            {
+                changed = true;
+                rig->synth().getCopy (0)->setCurrentProgram (2);     // Saw
+            }
+        });
+
+        auto quietest = 1.0;
+
+        for (const auto key : { 60, 64, 67 })
+            quietest = juce::jmin (quietest, rig->level (audio, 1.3, juce::MidiMessage::getMidiNoteInHertz (key)));
+
+        std::printf ("  quietest note of the chord at 1.3 s: %.4f\n", quietest);
+        check (quietest > 0.01, "the chord sounds to its end");
+        check (rig->settle() && rig->copiesMatchFirst(), "and the copies that held it have the new sound after it");
+
+        // A knob turned with the synth's window open: the copies get it as it moves, and the look
+        // taken every 1.5 s while the window is open finds they have the sound already.
+        rig->synth().showEditor (nullptr);
+        PluginLog::add ("Harness: turning Release");
+        const auto turned = rig->play (chord, 3.5, [&] (double t)
+        {
+            if (t > 0.2 && t < 0.6)
+                rig->synth().getCopy (0)->getParameters()[2]->setValueNotifyingHost ((float) t);
+        });
+
+        rig->synth().closeEditor();
+        rig->idle (300);
+        const auto since = PluginLog::tail (40).fromLastOccurrenceOf ("Harness: turning Release", false, false);
+        std::printf ("  log since:%s\n", since.replace ("\n", "\n    ").toRawUTF8());
+        check (since.contains ("had its sound already") && ! since.contains ("Gave"),
+               "the copies, found to have the knob already, aren't given the whole sound again");
+        check (rig->settle() && rig->copiesMatchFirst(), "and they match the first copy");
+        juce::ignoreUnused (turned);
+
+        rig->synth().getCopy (0)->setCurrentProgram (0);
+        rig->synth().getCopy (0)->getParameters()[2]->setValueNotifyingHost (0.0f);
+        rig->idle (800);
+        check (rig->settle() && rig->copiesMatchFirst(), "back to the first program");
+        rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = true; });
+    }
+
     std::printf ("Quiet copies sleep, and a note wakes one\n");
     {
         rig->idle (1600);
@@ -3506,10 +3610,10 @@ int copiesTest (const juce::File& synthFile)
         rig->setOutput ([] (OutputSettings& o) { o.copies = 2; });
         check (rig->settle() && rig->status().loaded == 2 && rig->synth().getCopy (2) == nullptr, "down to two copies");
         rig->setOutput ([] (OutputSettings& o) { o.copies = 6; });
-        rig->synth().getCopy (0)->setCurrentProgram (3);     // while they load, and the synth doesn't say
+        rig->synth().getCopy (0)->setCurrentProgram (1);     // Square, picked while they load
         check (rig->settle() && rig->status().loaded == 6, "up to six copies");
         rig->idle (800);
-        check (rig->copiesMatchFirst(), "the new copies have the first one's sound, picked while they loaded");
+        check (rig->settle() && rig->copiesMatchFirst(), "the new copies have the first one's sound, picked while they loaded");
 
         rig->synth().getCopy (0)->setCurrentProgram (0);
         rig->synth().copySoundToAllCopies();
@@ -3535,8 +3639,18 @@ int copiesTest (const juce::File& synthFile)
         const auto* d = rig->synth().getDescription();
         const auto identity = d->pluginFormatName + ":" + juce::String (d->uniqueId != 0 ? d->uniqueId : d->deprecatedUid) + ":" + d->name;
 
-        // What a run that closed while loading a copy leaves behind.
-        rig->synth().getUserSettings()->setValue ("copiesLoading.earlier", "another run|" + identity);
+        // Another program loading copies right now (the MPE Roll app beside FL, say) isn't a crash.
+        rig->synth().getUserSettings()->setValue ("copiesLoading.elsewhere",
+                                                  "another program|" + juce::String (CopySafety::getProcessId()) + "|" + identity);
+        rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::singleChannel; });
+        rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::copies; o.copies = 4; });
+        check (rig->settle() && rig->status().loaded == 4 && rig->status().problem.isEmpty(),
+               "a running program's marker doesn't stop copies loading");
+        check (rig->synth().getUserSettings()->containsKey ("copiesLoading.elsewhere"), "and is left for it");
+        rig->synth().getUserSettings()->removeValue ("copiesLoading.elsewhere");
+
+        // What a run that closed while loading a copy leaves behind (its process is gone).
+        rig->synth().getUserSettings()->setValue ("copiesLoading.earlier", "another run|0|" + identity);
         rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::singleChannel; });
         rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::copies; o.copies = 4; });
         rig->settle();
@@ -3549,27 +3663,49 @@ int copiesTest (const juce::File& synthFile)
         check (! rig->synth().getUserSettings()->containsKey ("copiesLoading.earlier"), "and the marker is gone");
     }
 
-    if (CopySafety::canCatchCrashes())
+    // A copy that crashes, or throws a C++ exception the synth doesn't catch, in the first piece
+    // of a block longer than prepared, with a knob of the first copy just turned (so a change is
+    // on its way to it): it's switched off, the rest play on, and nothing calls it again, not the
+    // later pieces, nor the host's own timers passing the change on.
+    auto copyGoesWrong = [&] (int parameter, const char* how)
     {
-        std::printf ("A copy that crashes is switched off, and the rest play on\n");
+        std::printf ("A copy that %s is switched off, and the rest play on\n", how);
+        afterCrash.deleteFile();
         rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = false; });
-        rig->synth().getCopy (2)->getParameters()[3]->setValue (1.0f);     // the synth's Crash parameter
-        rig->idle (400);
+
+        rig->synth().getCopy (0)->getParameters()[2]->setValueNotifyingHost (0.3f);
+        rig->synth().getCopy (2)->getParameters()[parameter]->setValue (1.0f);     // the synth's Crash or Throw
+        {
+            juce::AudioBuffer<float> longBlock (2, CopyRig::block * 3);
+            juce::MidiBuffer midi;
+            rig->processor.processBlock (longBlock, midi);
+        }
+
+        rig->idle (600);
         auto s = rig->status();
         std::printf ("  %s\n", s.problem.toRawUTF8());
         check (s.crashed == 1 && s.problem.contains ("crashed"), "the copy is switched off, and it says so");
+
+        const auto calledAfter = afterCrash.loadFileAsString().trim();
+        check (calledAfter.isEmpty(), "and is never called again" + (calledAfter.isEmpty() ? juce::String() : ": " + calledAfter));
 
         const auto audio = rig->play (glideClip(), 1.0);
         check (rig->level (audio, 0.125, e4) > 0.01, "the other copies still play");
 
         rig->synth().reloadCopies();
         check (rig->settle() && rig->status().loaded == 4 && rig->status().crashed == 0, "Load the copies again replaces it");
+        check (afterCrash.loadFileAsString().trim().isEmpty(), "and the one that went wrong is still never called");
+        rig->synth().getCopy (0)->getParameters()[2]->setValueNotifyingHost (0.0f);
         rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = true; });
-    }
+    };
+
+    copyGoesWrong (4, "throws");
+
+    if (CopySafety::canCatchCrashes())
+        copyGoesWrong (3, "crashes");
     else
-    {
         std::printf ("(A crashing copy can only be caught on Windows: not checked here.)\n");
-    }
+
 
     std::printf ("An export plays its own copies\n");
     {
@@ -3593,6 +3729,104 @@ int copiesTest (const juce::File& synthFile)
         const auto lateC5 = rig->level (audio, 0.925, c5), lateE4 = rig->level (audio, 0.925, e4), earlyE4 = rig->level (audio, 0.125, e4);
         std::printf ("  end: C5 %.4f E4 %.4f (E4 at the start %.4f)\n", lateC5, lateE4, earlyE4);
         check (lateC5 > 0.01 && lateE4 > 0.5 * earlyE4, "in the export too, C4 glides while E4 holds");
+
+        // Through the export itself: its window shows while the copies load, and an export that
+        // can't load them all says so rather than playing notes together.
+        auto exportOnce = [&] (const juce::File& target)
+        {
+            AudioExport::Options exportOptions;
+            exportOptions.sampleRate = CopyRig::rate;
+            exportOptions.bpm = 120.0;
+            exportOptions.maxTailSeconds = 0.5;
+            bool finished = false;
+            juce::String result;
+            AudioExport::exportClip (rig->processor, glideClip(), target, exportOptions,
+                                     [&] (const juce::String& e) { result = e; finished = true; });
+
+            for (int i = 0; i < 1200 && ! finished; ++i)
+                CopyRig::pump (50);
+
+            return finished ? result : juce::String ("(didn't finish)");
+        };
+
+        const auto wav = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("MPE Roll copies export.wav");
+        wav.deleteFile();
+        const auto fine = exportOnce (wav);
+        check (fine.isEmpty() && wav.existsAsFile(), "an export with copies finishes: " + fine);
+        wav.deleteFile();
+
+        CopySafety::pretendAvailableMemoryMB (500);
+        const auto shortOfMemory = exportOnce (wav);
+        CopySafety::pretendAvailableMemoryMB (-2);
+        std::printf ("  %s\n", shortOfMemory.toRawUTF8());
+        check (shortOfMemory.contains ("The export needs 4 copies") && ! wav.existsAsFile(),
+               "an export that can't load every copy says so, and writes nothing");
+    }
+
+    std::printf ("The audio thread plays on while the copies come and go\n");
+    {
+        // As in FL: blocks on a thread of their own, a chord looping, while the message thread
+        // changes the copies under them (more, fewer, threads on and off, sleep, new sounds).
+        rig->setOutput ([] (OutputSettings& o) { o.copies = 4; o.copiesSleep = false; });
+        rig->settle();
+
+        MpeClip loop;
+        loop.length = 2.0;
+        loop.looping = true;
+
+        for (const auto key : { 60, 64, 67, 71 })
+            loop.addNote (note (key, 0.0, 1.5, 0.8f));
+
+        rig->processor.getDocument().replaceClip (0, loop, "Stress");
+        CopyRig::pump (20);
+
+        std::atomic<bool> stop { false };
+        std::atomic<int> blocks { 0 };
+        rig->playHead.playing = true;
+
+        std::thread audio ([&]
+        {
+            juce::AudioBuffer<float> buffer (2, CopyRig::block);
+            juce::MidiBuffer midi;
+
+            for (juce::int64 pos = 0; ! stop.load(); pos += CopyRig::block)
+            {
+                buffer.clear();
+                midi.clear();
+                rig->playHead.ppq = (double) pos / CopyRig::rate * rig->playHead.bpm / 60.0;
+                rig->processor.processBlock (buffer, midi);
+                ++blocks;
+                std::this_thread::sleep_for (std::chrono::milliseconds (2));
+            }
+        });
+
+        for (int round = 0; round < 8; ++round)
+        {
+            rig->setOutput ([round] (OutputSettings& o)
+            {
+                o.copies = round % 2 == 0 ? 8 : 3;
+                o.copiesUseCores = round % 3 != 0;
+                o.copiesSleep = round % 2 == 1;
+            });
+
+            CopyRig::pump (250);
+            rig->synth().copySoundToAllCopies();
+            CopyRig::pump (150);
+            rig->synth().getCopy (0)->setCurrentProgram (round % 3);
+            CopyRig::pump (450);
+        }
+
+        rig->synth().reloadCopies();
+        CopyRig::pump (1500);
+        stop = true;
+        audio.join();
+        rig->playHead.playing = false;
+
+        std::printf ("  %d blocks played meanwhile\n", blocks.load());
+        check (blocks.load() > 200, "the audio thread played throughout, never held up for long");
+        check (rig->settle() && rig->status().loaded == 3 && rig->copiesMatchFirst(), "and the copies end up loaded, with the first one's sound");
+        rig->setOutput ([] (OutputSettings& o) { o.copies = 4; o.copiesSleep = true; o.copiesUseCores = true; });
+        rig->settle();
     }
 
     std::printf ("A project keeps its copies\n");
@@ -3605,6 +3839,7 @@ int copiesTest (const juce::File& synthFile)
         rig.reset();
 
         auto reopened = std::make_unique<CopyRig>();
+        reopened->synth().useSettingsFile (settingsFile);     // not the real MPE Roll settings
         reopened->processor.setStateInformation (project.getData(), (int) project.getSize());
 
         for (int i = 0; i < 200 && reopened->synth().getCopy (0) == nullptr; ++i)
@@ -3615,6 +3850,7 @@ int copiesTest (const juce::File& synthFile)
     }
 
     settingsFile.deleteFile();
+    afterCrash.deleteFile();
     std::printf ("%s\n", check.failures == 0 ? "PASS" : "FAIL");
     return check.failures == 0 ? 0 : 1;
 }

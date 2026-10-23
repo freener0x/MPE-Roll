@@ -70,14 +70,14 @@ OutputSettings copyStreamSettings (const OutputSettings& s)
 
     // Read back by CopyRouter: every channel a note's own, and both bend ranges the copies' own (the
     // Plain MIDI one), so a glide reaches a copy as far, and as finely, as the copy can bend. Also
-    // MPE Roll's MIDI output, so plain MPE without MPE+.
+    // MPE Roll's MIDI output, so plain MPE without MPE+. Timbre on the copies' own controller (and
+    // its LSB, for 14 bits), so a Brightness (CC74) lane isn't read back as timbre when timbre goes
+    // to the copies as another controller.
     auto stream = s;
     stream.mode = OutputSettings::Mode::mpe;
     stream.zones = { 15, 0 };
     stream.memberBendRange = s.masterBendRange;
     stream.pressureTarget = OutputSettings::PressureTarget::channelPressure;
-    stream.timbreController = 74;
-    stream.timbreLsbController = -1;
     stream.mpePlus = false;
     return stream;
 }

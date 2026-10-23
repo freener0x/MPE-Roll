@@ -28,6 +28,7 @@ set(processors "modules/juce_audio_processors_headless")
 set(vst3_common "${processors}/format_types/juce_VST3Common.h")
 set(vst3_impl "${processors}/format_types/juce_VST3PluginFormatImpl.h")
 set(extensions "${processors}/utilities/juce_AudioPluginExtensions.h")
+set(vst2_gui "modules/juce_audio_processors/format_types/juce_VSTPluginFormat.cpp")
 
 # VST3 hosting: JUCE keeps a table of the parameter each MIDI controller is mapped to and sends
 # every controller, pitch bend and channel pressure message through it. The table starts out
@@ -75,6 +76,111 @@ mperoll_patch("${vst3_impl}"
     }
 ]=]
     "hosted VST3s hand out their edit controller")
+
+# Hosting a synth that crashed (MPE Roll catches a crash in a copy of the synth, on Windows, and
+# switches that copy off): JUCE's host would still call it from the message thread on its own,
+# from the timers that pass parameter changes to a VST3's edit controller and idle a VST2.
+# stopCallingPlugin() stops them; nothing calls the plugin after that. It may be called from the
+# thread that caught the crash, before those timers next fire.
+mperoll_patch("${extensions}"
+    [=[        virtual Steinberg::Vst::IEditController* getIEditControllerPtr() const noexcept { return nullptr; }
+]=]
+    [=[        virtual Steinberg::Vst::IEditController* getIEditControllerPtr() const noexcept { return nullptr; }
+        virtual void stopCallingPlugin() noexcept {}
+]=]
+    "VST3 client extensions can stop calling a plugin that crashed")
+
+mperoll_patch("${extensions}"
+    [=[        virtual AEffect* getAEffectPtr() const noexcept = 0;
+]=]
+    [=[        virtual AEffect* getAEffectPtr() const noexcept = 0;
+        virtual void stopCallingPlugin() noexcept {}
+]=]
+    "VST2 client extensions can stop calling a plugin that crashed")
+
+mperoll_patch("${vst3_impl}"
+    [=[    void flush()
+    {
+        cache.ifSet ([this] (Steinberg::int32 index, float value)]=]
+    [=[    void stop()
+    {
+        stopped = true;
+        stopTimer();
+    }
+
+    void flush()
+    {
+        if (stopped)
+            return;
+
+        cache.ifSet ([this] (Steinberg::int32 index, float value)]=]
+    "VST3 parameter dispatcher can be stopped")
+
+mperoll_patch("${vst3_impl}"
+    [=[    CachedParamValues cache;
+    Vst::IEditController* controller = nullptr;
+};]=]
+    [=[    CachedParamValues cache;
+    Vst::IEditController* controller = nullptr;
+    std::atomic<bool> stopped { false };
+};]=]
+    "VST3 parameter dispatcher knows it's stopped")
+
+mperoll_patch("${vst3_impl}"
+    [=[    Steinberg::Vst::IEditController* getIEditControllerPtr() const noexcept override
+    {
+        return editController.get();
+    }
+]=]
+    [=[    Steinberg::Vst::IEditController* getIEditControllerPtr() const noexcept override
+    {
+        return editController.get();
+    }
+
+    void stopCallingPlugin() noexcept override
+    {
+        parameterDispatcher.stop();
+    }
+]=]
+    "hosted VST3s stop passing parameter changes to a plugin that crashed")
+
+mperoll_patch("${vst2_gui}"
+    [=[    void needIdle() override
+    {
+        startTimer (50);
+    }
+]=]
+    [=[    void needIdle() override
+    {
+        if (! callsStopped)
+            startTimer (50);
+    }
+
+    void stopCallingPlugin() noexcept override
+    {
+        callsStopped = true;
+        stopTimer();
+        cancelPendingUpdate();
+    }
+]=]
+    "hosted VST2s stop idling a plugin that crashed")
+
+mperoll_patch("${vst2_gui}"
+    [=[private:
+    void timerCallback() override
+    {
+        if (dispatch (Vst2::effIdle, 0, 0, nullptr, 0) == 0)
+            stopTimer();
+    }]=]
+    [=[private:
+    std::atomic<bool> callsStopped { false };   // it crashed: never called again
+
+    void timerCallback() override
+    {
+        if (callsStopped || dispatch (Vst2::effIdle, 0, 0, nullptr, 0) == 0)
+            stopTimer();
+    }]=]
+    "hosted VST2s know they've stopped calling a plugin")
 
 # VST3 hosting: JUCE builds a hosted VST3's event list itself, from MIDI alone, so a host has no
 # way to give a synth VST3 note IDs or note expressions. MPE Roll hands them over inside the MIDI

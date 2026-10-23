@@ -71,7 +71,7 @@ CopyRouter::CopyRouter()
 CopyRouter::~CopyRouter() = default;
 
 //==============================================================================
-void CopyRouter::setSettings (const OutputSettings& newSettings, juce::MidiBuffer* outs, int samplePos)
+bool CopyRouter::setSettings (const OutputSettings& newSettings, juce::MidiBuffer* outs, int samplePos)
 {
     const auto newStream = streamInputSettings (newSettings);
     const bool streamChanged = ! (newStream == decoder.getSettings());
@@ -86,6 +86,16 @@ void CopyRouter::setSettings (const OutputSettings& newSettings, juce::MidiBuffe
 
         if (holdingNotes)
             stopAll (outs, samplePos);
+    }
+
+    // What the copies were played with goes back to rest the old way: a controller pressure or
+    // timbre went on, the pedal, the bend on the old channel.
+    if (playChanged)
+    {
+        for (int c = 0; c < maxCopies; ++c)
+            encoders[(size_t) c]->resetControllers (outs != nullptr ? outs[c] : discard, samplePos);
+
+        discard.clear();
     }
 
     settings = newSettings;
@@ -125,6 +135,8 @@ void CopyRouter::setSettings (const OutputSettings& newSettings, juce::MidiBuffe
                 encoders[(size_t) c]->forgetZoneValues();
         }
     }
+
+    return playChanged;
 }
 
 //==============================================================================
@@ -457,7 +469,9 @@ void CopyRouter::wake (int copy)
     if (sleepingCopies == nullptr || ! (*sleepingCopies)[(size_t) copy])
         return;
 
-    sendZoneState (copy, outputs[copy], position);
+    // Its bend range too: one sent again while it slept (the range changed, the transport started)
+    // went with the MIDI it wasn't processed for.
+    introduce (copy, outputs[copy], position);
     sleepingCopies->reset ((size_t) copy);
 }
 
@@ -540,6 +554,8 @@ void CopyRouter::dropCopy (int copy)
     if (! juce::isPositiveAndBelow (copy, maxCopies))
         return;
 
+    auto& owed = owedNoteOffs[(size_t) copy];
+
     for (auto& n : notes)
     {
         if (! n.inUse)
@@ -548,15 +564,49 @@ void CopyRouter::dropCopy (int copy)
         if (n.copy == copy)
             n.copy = -1;
 
+        if (n.everyCopy[(size_t) copy])
+        {
+            owed.set ((size_t) n.key);
+            owedChannel[(size_t) copy] = channel();
+        }
+
         n.everyCopy.reset ((size_t) copy);
     }
 
+    // The note-offs its encoder would send are owed to it, for when it's back.
     auto& encoder = *encoders[(size_t) copy];
     encoder.stopAllNotes (discard, 0);
+
+    for (const auto metadata : discard)
+    {
+        if (metadata.numBytes == 3 && (metadata.data[0] & 0xf0) == 0x80)
+        {
+            owed.set ((size_t) (metadata.data[1] & 0x7f));
+            owedChannel[(size_t) copy] = (metadata.data[0] & 0x0f) + 1;
+        }
+    }
+
     encoder.forgetZoneValues();
     discard.clear();
 
     copies[(size_t) copy] = Copy {};
+}
+
+void CopyRouter::endDroppedNotes (int copy, juce::MidiBuffer& out, int samplePos)
+{
+    if (! juce::isPositiveAndBelow (copy, maxCopies))
+        return;
+
+    auto& owed = owedNoteOffs[(size_t) copy];
+
+    for (int key = 0; key < 128 && owed.any(); ++key)
+    {
+        if (owed[(size_t) key])
+        {
+            out.addEvent (juce::MidiMessage::noteOff (owedChannel[(size_t) copy], key, (juce::uint8) 64), samplePos);
+            owed.reset ((size_t) key);
+        }
+    }
 }
 
 void CopyRouter::introduce (int copy, juce::MidiBuffer& out, int samplePos)
@@ -588,6 +638,15 @@ bool CopyRouter::isBusy (int copy) const noexcept
     return c.held > 0 || c.sustained > 0 || c.everyCopyKeys > 0;
 }
 
+bool CopyRouter::holdsNotes (int copy) const noexcept
+{
+    if (! juce::isPositiveAndBelow (copy, maxCopies))
+        return false;
+
+    const auto& c = copies[(size_t) copy];
+    return c.held > 0 || c.sustained > 0;
+}
+
 int CopyRouter::getNumCopiesPlaying() const noexcept
 {
     int count = 0;
@@ -616,6 +675,9 @@ void CopyRouter::reset()
 
     for (auto& c : copies)
         c = Copy {};
+
+    for (auto& owed : owedNoteOffs)
+        owed.reset();
 
     clock = 0;
     zonePitch = zonePressure = 0.0f;

@@ -46,6 +46,13 @@ public:
         rather than MIDI. That depends on what its note input accepts, as well as the settings.
     */
     virtual bool playsNoteExpressions (const OutputSettings&) const noexcept = 0;
+
+    /** The synth crashed (where that's caught): from now on nothing calls into it, not its own
+        timers, file descriptors or main-thread callbacks either. It's left alone, never deleted.
+        Any thread, at once by the thread that caught the crash; called on the message thread too,
+        where its timers and file descriptors are let go of.
+    */
+    virtual void quarantine() noexcept = 0;
 };
 
 } // namespace mperoll

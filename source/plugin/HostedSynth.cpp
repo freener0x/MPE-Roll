@@ -27,8 +27,11 @@ namespace
     constexpr double quietBeforeSleep = 1.0;        // seconds of it before the copy stops being processed
     constexpr juce::int64 minimumFreeMegabytes = 1024;
     constexpr int checkAfterReportMs = 400;         // a synth picking presets reports several changes in a row
+    constexpr int longestCheckWaitMs = 1000;        // ...but one that never stops reporting is still looked at
     constexpr int checkWhileOpenMs = 1500;          // while the first copy's window is open...
     constexpr double cheapStateMs = 30.0;           // ...if its state is quick to get
+    constexpr int soundStepMs = 20;                 // between copies being given a sound
+    constexpr int heldCopyRetryMs = 100;            // a copy holding a note is given it once the note ends
     constexpr const char* markerPrefix = "copiesLoading.";
     constexpr const char* crashedWhileLoadingKey = "copiesCrashedWhileLoading";
 
@@ -38,6 +41,15 @@ namespace
     size_t hashOf (const juce::MemoryBlock& block)
     {
         return std::hash<std::string_view> {} (std::string_view (static_cast<const char*> (block.getData()), block.getSize()));
+    }
+
+    /** Every copy but the first. */
+    CopyRouter::CopySet everyFollower()
+    {
+        CopyRouter::CopySet copies;
+        copies.set();
+        copies.reset (0);
+        return copies;
     }
 
     /** Different every time FL (or the standalone app) starts: a loading marker with another one
@@ -65,11 +77,17 @@ namespace
         juce::AudioPluginInstance* plugin;
         juce::AudioBuffer<float>* audio;
         juce::MidiBuffer* midi;
+        void (*first) (void*) = nullptr;    // what else calls into the synth first (its parameters catching up)
+        void* firstContext = nullptr;
     };
 
     void callProcess (void* context)
     {
         auto& call = *static_cast<ProcessCall*> (context);
+
+        if (call.first != nullptr)
+            call.first (call.firstContext);
+
         call.plugin->processBlock (*call.audio, *call.midi);
     }
 
@@ -83,6 +101,36 @@ namespace
     {
         auto& call = *static_cast<SetStateCall*> (context);
         call.plugin->setStateInformation (call.state->getData(), (int) call.state->getSize());
+    }
+
+    struct GetStateCall
+    {
+        juce::AudioPluginInstance* plugin;
+        juce::MemoryBlock* state;
+    };
+
+    void callGetState (void* context)
+    {
+        auto& call = *static_cast<GetStateCall*> (context);
+        call.plugin->getStateInformation (*call.state);
+    }
+
+    /** A copy that crashed is never called again: the host around it stops calling it on its own
+        too (JUCE's timers for a VST3's parameters and a VST2's idling, a CLAP's callbacks). Its
+        own code isn't called, only the host's. Any thread: the one that caught the crash, at once,
+        and the message thread when the crash is reported. */
+    void stopCalling (juce::AudioPluginInstance& plugin) noexcept
+    {
+        if (auto* vst3 = plugin.getVST3Client())
+            vst3->stopCallingPlugin();
+
+        if (auto* vst2 = plugin.getVSTClient())
+            vst2->stopCallingPlugin();
+
+       #if MPEROLL_HOST_CLAP
+        if (auto* clap = dynamic_cast<ClapSynthControls*> (&plugin))
+            clap->quarantine();
+       #endif
     }
 
     juce::String describeFlStudioNativePlugin (const juce::File& file)
@@ -624,10 +672,8 @@ void HostedSynth::install (std::unique_ptr<juce::AudioPluginInstance> newInstanc
     ++copiesGeneration;
     copiesProblem.clear();
     crashNote.clear();
-    stateChangesByItself = false;
-    unexplainedChanges = 0;
-    soundCopy = {};
-    soundCopyStep.stopTimer();
+    lastCopyMegabytes = 0;      // another synth's copies may take more memory or less
+    forgetSoundChecks();        // the old synth's, the one its window just closing asked for included
 
     configure (*newInstance);
 
@@ -694,8 +740,8 @@ void HostedSynth::unload()
     ++copiesGeneration;
     copiesProblem.clear();
     crashNote.clear();
-    soundCopy = {};
-    soundCopyStep.stopTimer();
+    lastCopyMegabytes = 0;
+    forgetSoundChecks();
 
     auto old = takeInstance();
 
@@ -836,9 +882,7 @@ void HostedSynth::showEditor (const juce::Component* near)
     // The first copy keeps playing while its window is open (its own keyboard may be clicked), and
     // what's changed in it is copied to the others every few seconds.
     windowOpen = true;
-
-    if (copiesWanted() && copySettings.copiesFollow)
-        soundCheck.startTimer (checkWhileOpenMs);
+    keepLookingWhileOpen();
 
     CrashReport::setActivity ("playing the synth " + getName() + ", with its window open");
 }
@@ -865,7 +909,8 @@ void HostedSynth::closeEditor()
     if (copiesWanted() && copySettings.copiesFollow)
     {
         windowJustClosed = true;
-        soundCheck.startTimer (50);
+        ++soundGeneration;      // a copy loading now took the sound from before
+        askForSoundCheck (50);
     }
 }
 
@@ -978,6 +1023,18 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
     if (modeChanged)
     {
         midiPiece.clear();
+
+        // Out of copy mode: the notes the synth played as the first copy end as they started, on
+        // its channel (a VST3 synth only hears All Notes Off if it maps that controller).
+        for (auto& m : copyMidi)
+            m.clear();
+
+        router.stopAll (copyMidi.data(), 0);
+        midiPiece.addEvents (copyMidi[0], 0, -1, 0);
+
+        for (auto& m : copyMidi)
+            m.clear();
+
         addEndOfAllNotes (midiPiece, 0);
         midiPiece.addEvents (midi, 0, -1, 0);
         midi.swapWith (midiPiece);
@@ -1143,24 +1200,7 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
     if (instance == nullptr)
         return "No synth loaded.";
 
-    const auto profile = getProfile();
-
-    if (playsNoteExpressions (settings))
-    {
-        if (clapControls != nullptr)
-            return "CLAP notes, each with its own tuning, pressure, brightness, volume, pan, vibrato and expression.";
-
-        return "VST3 notes on channel 1, each with its own " + vst3Support.describeNoteExpressions()
-             + ". This VST3 synth takes pitch bend " + vst3Support.describeBend()
-             + ", so MPE over MIDI couldn't reach its notes one by one."
-             + (profile.has_value() && profile->name == "Serum 2"
-                    ? juce::String (" Xfer's guide says Serum 2 takes note expressions with its own MPE switch off "
-                                    "(MENU > MPE Enabled).")
-                    : juce::String());
-    }
-
-    const auto via = clapControls != nullptr ? juce::String (" (the CLAP synth accepts MIDI)") : juce::String();
-
+    // Each copy is played on one channel, whatever else the synth could take.
     if (settings.mode == OutputSettings::Mode::copies)
     {
         const auto status = getCopyStatus();
@@ -1182,20 +1222,37 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
             s << ", spread over " << (status.workers + 1) << " CPU cores";
 
         s << ". Each copy plays its note as Plain MIDI on channel " << settings.singleChannel << ": pitch bend "
-          << "(set " << name << "'s pitch-bend range to " << range << " semitones, MPE Roll's Zone bend range), "
+          << "(set " << name << "'s pitch-bend range to " << range << " semitones, MPE Roll's Zone bend range; "
+          << "glides stop there, so for wider ones set both to 12 or 24), "
           << (settings.pressureTarget == OutputSettings::PressureTarget::channelPressure ? juce::String ("channel pressure")
               : settings.pressureTarget == OutputSettings::PressureTarget::polyAftertouch ? juce::String ("poly aftertouch")
               : "CC" + juce::String (settings.pressureController))
           << " for pressure and CC" << settings.timbreController << " for timbre.";
 
+        // A problem is under Copies now, with the button that deals with it.
         if (status.copyingSound)
             s << " Giving the copies " << name << "'s sound...";
 
-        if (status.problem.isNotEmpty())
-            s << " " << status.problem;
-
         return s;
     }
+
+    const auto profile = getProfile();
+
+    if (playsNoteExpressions (settings))
+    {
+        if (clapControls != nullptr)
+            return "CLAP notes, each with its own tuning, pressure, brightness, volume, pan, vibrato and expression.";
+
+        return "VST3 notes on channel 1, each with its own " + vst3Support.describeNoteExpressions()
+             + ". This VST3 synth takes pitch bend " + vst3Support.describeBend()
+             + ", so MPE over MIDI couldn't reach its notes one by one."
+             + (profile.has_value() && profile->name == "Serum 2"
+                    ? juce::String (" Xfer's guide says Serum 2 takes note expressions with its own MPE switch off "
+                                    "(MENU > MPE Enabled).")
+                    : juce::String());
+    }
+
+    const auto via = clapControls != nullptr ? juce::String (" (the CLAP synth accepts MIDI)") : juce::String();
 
     if (settings.mode == OutputSettings::Mode::singleChannel)
         return "Plain MIDI on channel " + juce::String (settings.singleChannel) + via + ".";
@@ -1347,7 +1404,7 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
                 const auto versions = mirror.snapshot();
                 juce::MemoryBlock leadState;
                 instance->getStateInformation (leadState);
-                startCopyingSound (std::move (leadState), versions, true, "the project gave the synth its sound");
+                startCopyingSound (std::move (leadState), versions, everyFollower(), true, "the project gave the synth its sound");
             }
         }
 
@@ -1403,7 +1460,9 @@ void HostedSynth::ParameterMirror::setUp (const juce::Array<juce::AudioProcessor
     values = std::make_unique<std::atomic<float>[]> ((size_t) numParameters);
     versions = std::make_unique<std::atomic<uint32_t>[]> ((size_t) numParameters);
     chunkVersions = std::make_unique<std::atomic<uint32_t>[]> ((size_t) numChunks);
+    stamps = std::make_unique<std::atomic<uint32_t>[]> ((size_t) numParameters);
     copied.assign ((size_t) numParameters, false);
+    lastLeadPlayed = 0;
 
     for (int i = 0; i < numParameters; ++i)
         copied[(size_t) i] = parameters.getUnchecked (i)->isAutomatable() && parameters.getUnchecked (i) != bypass;
@@ -1419,31 +1478,57 @@ void HostedSynth::ParameterMirror::set (int index, float value) noexcept
     values[(size_t) index].store (value, std::memory_order_release);
     versions[(size_t) index].fetch_add (1, std::memory_order_acq_rel);
     chunkVersions[(size_t) (index / chunkSize)].fetch_add (1, std::memory_order_acq_rel);
-    changes.fetch_add (1, std::memory_order_relaxed);
+
+    // When it changed, counted in changes: never back, though two threads may change it at once.
+    const auto stamp = changes.fetch_add (1, std::memory_order_acq_rel) + 1;
+    auto& last = stamps[(size_t) index];
+
+    for (auto seen = last.load (std::memory_order_relaxed);
+         seen < stamp && ! last.compare_exchange_weak (seen, stamp, std::memory_order_release, std::memory_order_relaxed);)
+    {
+    }
 }
 
-std::vector<uint32_t> HostedSynth::ParameterMirror::snapshot() const
+void HostedSynth::ParameterMirror::leadPlayed (uint32_t changesBefore) noexcept
 {
-    std::vector<uint32_t> result ((size_t) numParameters);
+    for (auto seen = lastLeadPlayed.load (std::memory_order_relaxed);
+         seen < changesBefore
+         && ! lastLeadPlayed.compare_exchange_weak (seen, changesBefore, std::memory_order_release, std::memory_order_relaxed);)
+    {
+    }
+}
+
+HostedSynth::ParameterMirror::Snapshot HostedSynth::ParameterMirror::snapshot() const
+{
+    // What the first copy has played first: what it played may be in the state taken next, what
+    // it hasn't, maybe not.
+    Snapshot result;
+    result.leadPlayed = lastLeadPlayed.load (std::memory_order_acquire);
+    result.versions.resize ((size_t) numParameters);
 
     for (int i = 0; i < numParameters; ++i)
-        result[(size_t) i] = versions[(size_t) i].load (std::memory_order_acquire);
+        result.versions[(size_t) i] = versions[(size_t) i].load (std::memory_order_acquire);
 
     return result;
 }
 
-void HostedSynth::ParameterMirror::markSeen (Follower& f, const std::vector<uint32_t>& snapshot) const
+void HostedSynth::ParameterMirror::markSeen (Follower& f, const Snapshot& snapshot) const
 {
     f.seenParameter.assign ((size_t) numParameters, 0);
 
-    for (int i = 0; i < juce::jmin (numParameters, (int) snapshot.size()); ++i)
-        f.seenParameter[(size_t) i] = snapshot[(size_t) i];
+    for (int i = 0; i < juce::jmin (numParameters, (int) snapshot.versions.size()); ++i)
+    {
+        // A change the first copy hadn't played a block with by then is caught up with again:
+        // setting a parameter to the value it has already does no harm.
+        const auto played = stamps[(size_t) i].load (std::memory_order_acquire) <= snapshot.leadPlayed;
+        f.seenParameter[(size_t) i] = snapshot.versions[(size_t) i] - (played ? 0u : 1u);
+    }
 
     // Every chunk is looked through once, for the changes made since the snapshot.
     f.seenChunk.assign ((size_t) numChunks, ~0u);
 }
 
-void HostedSynth::ParameterMirror::catchUp (Follower& f, juce::AudioPluginInstance& plugin) const noexcept
+void HostedSynth::ParameterMirror::catchUp (Follower& f, juce::AudioPluginInstance& plugin) const
 {
     if ((int) f.seenChunk.size() != numChunks || (int) f.seenParameter.size() != numParameters)
         return;
@@ -1505,8 +1590,14 @@ int HostedSynth::getWantedCopies() const noexcept
     return juce::jlimit (OutputSettings::minCopies, maxCopies, copySettings.copies);
 }
 
-void HostedSynth::setCopySettings (const OutputSettings& settings)
+void HostedSynth::setCopySettings (const OutputSettings& requested)
 {
+    auto settings = requested;
+
+    // An export's copies are loaded with the sound to render, and keep it.
+    if (offlineOnly)
+        settings.copiesFollow = false;
+
     const auto changed = settings.mode != copySettings.mode || settings.copies != copySettings.copies
                       || settings.copiesUseCores != copySettings.copiesUseCores
                       || settings.copiesFollow != copySettings.copiesFollow;
@@ -1522,7 +1613,12 @@ void HostedSynth::setCopySettings (const OutputSettings& settings)
         copiesProblem.clear();
 
     if (! settings.copiesFollow)
+    {
         soundCheck.stopTimer();
+        checkAskedAt = 0.0;
+        soundChangeReported = false;
+        windowJustClosed = false;
+    }
 
     updateCopies();
 }
@@ -1538,6 +1634,7 @@ void HostedSynth::updateCopies()
         soundCheck.stopTimer();
         soundCopyStep.stopTimer();
         soundCopy = {};
+        checkAskedAt = 0.0;
         settleCopies();
         notifyCopiesChanged();
         return;
@@ -1565,9 +1662,8 @@ void HostedSynth::updateCopies()
         }
     }
 
-    // Each copy took the sound the first had when it started loading: one look, in case it changed since.
-    if (copiesJustLoaded && copySettings.copiesFollow)
-        soundCheck.startTimer (checkAfterReportMs);
+    // Copy mode or Follow turned on with the first copy's window already open.
+    keepLookingWhileOpen();
 
     settleCopies();
     notifyCopiesChanged();
@@ -1623,7 +1719,8 @@ void HostedSynth::loadCopy (int index)
     CrashReport::setActivity ("loading copy " + juce::String (index + 1) + " of the synth " + describe (*description));
 
     formatManager.createPluginInstanceAsync (*description, sampleRate, blockSize,
-        [this, index, generation = copiesGeneration, state, versions, before, started, alive = std::weak_ptr<int> (lifetime)]
+        [this, index, generation = copiesGeneration, sound = soundGeneration, state, versions, before, started,
+         alive = std::weak_ptr<int> (lifetime)]
         (std::unique_ptr<juce::AudioPluginInstance> plugin, const juce::String& error)
         {
             if (alive.expired())
@@ -1641,13 +1738,13 @@ void HostedSynth::loadCopy (int index)
                 return;
             }
 
-            finishLoadingCopy (index, std::move (plugin), error, state, versions, before, started);
+            finishLoadingCopy (index, std::move (plugin), error, state, versions, sound, before, started);
         });
 }
 
 void HostedSynth::finishLoadingCopy (int index, std::unique_ptr<juce::AudioPluginInstance> plugin, const juce::String& error,
-                                     const juce::MemoryBlock& state, const std::vector<uint32_t>& versions,
-                                     juce::int64 megabytesBefore, double started)
+                                     const juce::MemoryBlock& state, const ParameterMirror::Snapshot& versions,
+                                     uint32_t soundGenerationThen, juce::int64 megabytesBefore, double started)
 {
     auto& f = followers[(size_t) index];
     const auto name = getName();
@@ -1679,6 +1776,7 @@ void HostedSynth::finishLoadingCopy (int index, std::unique_ptr<juce::AudioPlugi
     if (state.getSize() > 0 && ! CopySafety::call (callSetState, &call, &code))
     {
         // Whatever it held when it crashed may still be held: it's never called again, not even to be deleted.
+        stopCalling (*plugin);
         (void) plugin.release();
         f.crashed = true;
         f.state = Follower::State::ready;
@@ -1705,7 +1803,25 @@ void HostedSynth::finishLoadingCopy (int index, std::unique_ptr<juce::AudioPlugi
 
     f.state.store (Follower::State::ready, std::memory_order_release);
     setLoadingMarker (false);
-    copiesJustLoaded = true;
+
+    // It took the first copy's sound as it was when it started loading. If that may have changed
+    // since (a preset picked, a project opened), it's given the sound as it is now.
+    if (soundGenerationThen != soundGeneration)
+    {
+        if (soundCopy.running)
+        {
+            soundCopy.copies.set ((size_t) index);
+        }
+        else
+        {
+            const auto nowVersions = mirror.snapshot();
+            juce::MemoryBlock now;
+            instance->getStateInformation (now);
+            CopyRouter::CopySet just;
+            just.set ((size_t) index);
+            startCopyingSound (std::move (now), nowVersions, just, false, "it changed while " + copyName + " loaded");
+        }
+    }
 
     if (const auto after = CopySafety::getProcessMemoryMB(); megabytesBefore >= 0 && after >= 0)
         lastCopyMegabytes = juce::jmax ((juce::int64) 0, after - megabytesBefore);
@@ -1729,9 +1845,14 @@ void HostedSynth::removeCopy (int index)
 
     if (f.crashed.load())
     {
-        // Whatever it held when it crashed may still be held: it's never called again, not even to be deleted.
-        (void) f.plugin.release();
-        f.clap = nullptr;
+        // Whatever it held when it crashed may still be held: it's never called again, not even to be
+        // deleted. The block it crashed in may not have ended yet.
+        {
+            const ScopedExclusive exclusive (f.guard);
+            (void) f.plugin.release();
+            f.clap = nullptr;
+        }
+
         f.crashed = false;
         f.stateHash = 0;
         crashCodes[(size_t) index] = 0;     // reported or not, it isn't the next copy's
@@ -1750,6 +1871,22 @@ void HostedSynth::removeCopy (int index)
     }
 
     f.stateHash = 0;
+
+    // It crashed in the block that was being played when it was asked to go.
+    if (f.crashed.load())
+    {
+        if (old != nullptr)
+        {
+            stopCalling (*old);
+            (void) old.release();
+        }
+
+        f.crashed = false;
+
+        if (const auto code = crashCodes[(size_t) index].exchange (0); code != 0)
+            copyCrashed (index, code, "while playing");
+    }
+
     f.state = Follower::State::empty;
 
     if (old != nullptr)
@@ -1774,7 +1911,7 @@ void HostedSynth::updateWorkers()
     if (wanted == (workers != nullptr))
         return;
 
-    auto next = wanted ? std::make_unique<CopyWorkers> (CopyWorkers::suggestedWorkers()) : nullptr;
+    auto next = wanted ? CopyWorkers::getShared (! offlineOnly) : nullptr;
 
     {
         const ScopedExclusive exclusive (guard);
@@ -1792,7 +1929,7 @@ bool HostedSynth::copiesSettled() const
     if (! copiesWanted())
         return true;
 
-    if (loadingCopy)
+    if (loadingCopy || soundCopy.running)
         return false;
 
     if (copiesProblem.isNotEmpty())
@@ -1833,6 +1970,9 @@ void HostedSynth::notifyCopiesChanged()
 
 void HostedSynth::copyCrashed (int index, unsigned int exceptionCode, const juce::String& doing)
 {
+    if (auto* plugin = followers[(size_t) index].plugin.get())
+        stopCalling (*plugin);
+
     crashNote = "Copy " + juce::String (index + 1) + " of " + getName() + " crashed (" + CopySafety::describeException (exceptionCode)
               + ") " + doing + ", and was switched off; the others play on. Save your project soon: a synth that has "
                 "crashed once may do it again.";
@@ -1889,7 +2029,7 @@ HostedSynth::CopyStatus HostedSynth::getCopyStatus() const
         {
             ++s.loaded;
 
-            if (! soundCopy.running || f.stateHash == soundCopy.hash)
+            if (! (soundCopy.running && soundCopy.copies[(size_t) c]))
                 ++s.inStep;
         }
     }
@@ -1952,7 +2092,7 @@ void HostedSynth::setLoadingMarker (bool isLoading)
         return;
 
     if (isLoading)
-        settings->setValue (loadingMarker, thisRun() + "|" + getCopyIdentity());
+        settings->setValue (loadingMarker, thisRun() + "|" + juce::String (CopySafety::getProcessId()) + "|" + getCopyIdentity());
     else
         settings->removeValue (loadingMarker);
 
@@ -1969,7 +2109,10 @@ bool HostedSynth::copiesBlockedAfterCrash()
     auto crashed = juce::StringArray::fromLines (settings->getValue (crashedWhileLoadingKey));
     crashed.removeEmptyStrings();
 
-    // A marker left by an earlier run: it closed while that copy was loading.
+    // A marker left by an earlier run: it closed while that copy was loading. Not one of another
+    // program still running (FL Studio and the MPE Roll app share the settings file), nor of
+    // another MPE Roll plugin file in this one (the VST2 and the VST3 in one project), which is
+    // loading copies right now.
     const auto properties = settings->getAllProperties();   // a copy: markers are removed as they're found
     bool found = false;
 
@@ -1981,7 +2124,13 @@ bool HostedSynth::copiesBlockedAfterCrash()
         if (! key.startsWith (markerPrefix) || value.upToFirstOccurrenceOf ("|", false, false) == thisRun())
             continue;
 
-        const auto identity = value.fromFirstOccurrenceOf ("|", false, false);
+        const auto afterRun = value.fromFirstOccurrenceOf ("|", false, false);
+        const auto processId = afterRun.upToFirstOccurrenceOf ("|", false, false).getLargeIntValue();
+
+        if (CopySafety::isProcessRunning (processId))
+            continue;
+
+        const auto identity = afterRun.fromFirstOccurrenceOf ("|", false, false);
         crashed.addIfNotAlreadyThere (identity);
         settings->removeValue (key);
         found = true;
@@ -2008,7 +2157,44 @@ void HostedSynth::soundMayHaveChanged()
 
     // A synth picking a preset may say so several times in a row: one look once it's settled.
     soundChangeReported = true;
-    soundCheck.startTimer (checkAfterReportMs);
+    ++soundGeneration;      // a copy loading now took the sound from before
+    askForSoundCheck (checkAfterReportMs);
+}
+
+void HostedSynth::askForSoundCheck (int delayMs)
+{
+    // Each report puts the look off again, but never more than a second past the first one asked
+    // for: a synth that reports changes all the time (on every parameter change, say) is still
+    // looked at.
+    const auto now = juce::Time::getMillisecondCounterHiRes();
+
+    if (checkAskedAt <= 0.0)
+        checkAskedAt = now;
+
+    const auto due = juce::jmin (now + delayMs, checkAskedAt + longestCheckWaitMs);
+    soundCheck.startTimer (juce::jmax (1, juce::roundToInt (due - now)));
+}
+
+void HostedSynth::keepLookingWhileOpen()
+{
+    if (windowOpen.load() && copiesWanted() && copySettings.copiesFollow && ! soundCheck.isTimerRunning())
+        soundCheck.startTimer (checkWhileOpenMs);
+}
+
+void HostedSynth::forgetSoundChecks()
+{
+    soundCheck.stopTimer();
+    soundCopyStep.stopTimer();
+    soundCopy = {};
+    checkAskedAt = 0.0;
+    soundChangeReported = false;
+    windowJustClosed = false;
+    stateChangesByItself = false;
+    unexplainedChanges = 0;
+    hashAtLastCheck = 0;
+    changesAtLastCheck = mirror.getChanges();
+    stateMilliseconds = 0.0;
+    ++soundGeneration;
 }
 
 void HostedSynth::copySoundToAllCopies()
@@ -2019,19 +2205,19 @@ void HostedSynth::copySoundToAllCopies()
     const auto versions = mirror.snapshot();
     juce::MemoryBlock state;
     instance->getStateInformation (state);
-    startCopyingSound (std::move (state), versions, true, "asked for");
+    startCopyingSound (std::move (state), versions, everyFollower(), true, "asked for");
 }
 
 void HostedSynth::checkSound()
 {
     soundCheck.stopTimer();
+    checkAskedAt = 0.0;
 
     if (! copiesWanted() || ! copySettings.copiesFollow)
         return;
 
     const auto reported = std::exchange (soundChangeReported, false);
     const auto closed = std::exchange (windowJustClosed, false);
-    const auto loaded = std::exchange (copiesJustLoaded, false);
     const auto changes = mirror.getChanges();
     const auto parametersMoved = changes != changesAtLastCheck;
     changesAtLastCheck = changes;
@@ -2039,10 +2225,20 @@ void HostedSynth::checkSound()
     // Otherwise it's the look taken every few seconds while the first copy's window is open. Not
     // for a synth whose state is slow to get (a big sample library), nor one whose state changes
     // by itself: theirs are copied when the synth reports a change, or when its window closes.
-    const auto justLooking = ! reported && ! closed && ! loaded;
+    const auto justLooking = ! reported && ! closed;
 
     if (justLooking && (stateChangesByItself || stateMilliseconds > cheapStateMs))
         return;
+
+    // Knobs being turned: the copies get those as they move. Whatever else changed is looked at
+    // once they've been left alone for a moment, so the copies aren't given the whole sound over
+    // and over meanwhile.
+    if (justLooking && parametersMoved)
+    {
+        hashAtLastCheck = 0;
+        soundCheck.startTimer (checkWhileOpenMs);
+        return;
+    }
 
     const auto versions = mirror.snapshot();
     juce::MemoryBlock state;
@@ -2053,7 +2249,7 @@ void HostedSynth::checkSound()
 
     // A state that changes with nothing done to the synth (a time stamp in it, say) would be
     // copied every few seconds for nothing.
-    if (justLooking && hashAtLastCheck != 0 && hash != hashAtLastCheck && ! parametersMoved)
+    if (justLooking && hashAtLastCheck != 0 && hash != hashAtLastCheck)
     {
         if (++unexplainedChanges >= 6)
         {
@@ -2074,28 +2270,32 @@ void HostedSynth::checkSound()
         if (const auto& f = followers[(size_t) c]; f.plugin != nullptr && ! f.crashed.load() && f.stateHash != hash)
             behind = true;
 
-    if (behind)
-        startCopyingSound (std::move (state), versions, false,
-                           reported ? "it reported a change" : closed ? "its window closed"
-                                    : loaded ? "it changed while they loaded" : "it changed");
+    if (behind && ! (soundCopy.running && soundCopy.hash == hash))
+        startCopyingSound (std::move (state), versions, everyFollower(), false,
+                           reported ? "it reported a change" : closed ? "its window closed" : "it changed");
 
     if (windowOpen.load())
         soundCheck.startTimer (checkWhileOpenMs);
 }
 
-void HostedSynth::startCopyingSound (juce::MemoryBlock state, std::vector<uint32_t> versions, bool everyCopy, const juce::String& reason)
+void HostedSynth::startCopyingSound (juce::MemoryBlock state, ParameterMirror::Snapshot versions, CopyRouter::CopySet copies,
+                                     bool evenIfInStep, const juce::String& reason)
 {
+    soundCopy = {};
     soundCopy.hash = hashOf (state);
     soundCopy.state = std::move (state);
     soundCopy.versions = std::move (versions);
+    soundCopy.copies = copies;
     soundCopy.reason = reason;
-    soundCopy.copied = 0;
     soundCopy.running = true;
     hashAtLastCheck = soundCopy.hash;
+    ++soundGeneration;
 
-    if (everyCopy)
-        for (auto& f : followers)
-            f.stateHash = 0;
+    // Asked for: each copy is looked at, even one given this very state before.
+    if (evenIfInStep)
+        for (int c = 1; c < maxCopies; ++c)
+            if (copies[(size_t) c])
+                followers[(size_t) c].stateHash = 0;
 
     copySoundToNext();
 }
@@ -2110,17 +2310,65 @@ void HostedSynth::copySoundToNext()
     if (! copiesWanted())
     {
         soundCopy = {};
+        settleCopies();
         return;
     }
 
+    const auto holdingNotes = copiesHoldingNotes.load();
+    bool waitingForNotes = false;
+
     for (int c = 1; c < maxCopies; ++c)
     {
-        auto& f = followers[(size_t) c];
-
-        if (f.state.load() != Follower::State::ready || f.plugin == nullptr || f.crashed.load() || f.stateHash == soundCopy.hash)
+        if (! soundCopy.copies[(size_t) c])
             continue;
 
-        // This copy stops playing while it takes the sound (its notes end); the others play on.
+        auto& f = followers[(size_t) c];
+
+        // Gone, crashed, or still loading (it takes the sound as it is when it's loaded), or has it.
+        if (f.state.load() != Follower::State::ready || f.plugin == nullptr || f.crashed.load() || f.stateHash == soundCopy.hash)
+        {
+            soundCopy.copies.reset ((size_t) c);
+            continue;
+        }
+
+        // Most often a copy has the sound already, its parameters having followed the first
+        // copy's: its own state says so, and it's left alone.
+        if (! soundCopy.lacking[(size_t) c])
+        {
+            juce::MemoryBlock own;
+            GetStateCall look { f.plugin.get(), &own };
+            unsigned int code = 0;
+
+            if (! CopySafety::call (callGetState, &look, &code))
+            {
+                f.crashed = true;
+                soundCopy.copies.reset ((size_t) c);
+                copyCrashed (c, code, "while MPE Roll looked at its sound");
+                soundCopyStep.startTimer (soundStepMs);
+                return;
+            }
+
+            if (hashOf (own) == soundCopy.hash)
+            {
+                f.stateHash = soundCopy.hash;
+                soundCopy.copies.reset ((size_t) c);
+                ++soundCopy.alreadyHad;
+                soundCopyStep.startTimer (soundStepMs);
+                return;
+            }
+
+            soundCopy.lacking.set ((size_t) c);
+        }
+
+        // New state would cut its notes short: it's given it once they've ended. New notes go to
+        // the copies that have it meanwhile, those being free.
+        if ((holdingNotes & (1u << c)) != 0)
+        {
+            waitingForNotes = true;
+            continue;
+        }
+
+        // This copy stops playing while it takes the sound; the others play on.
         f.state = Follower::State::busy;
         bool crashedNow = false;
         unsigned int code = 0;
@@ -2142,26 +2390,38 @@ void HostedSynth::copySoundToNext()
             }
         }
 
+        // Crashed before it's ready again, so the audio thread never sees it ready and not crashed.
+        if (crashedNow)
+            f.crashed = true;
+
         f.state.store (Follower::State::ready, std::memory_order_release);
+        soundCopy.copies.reset ((size_t) c);
 
         if (crashedNow)
-        {
-            f.crashed = true;
             copyCrashed (c, code, "while taking the first copy's sound");
-        }
 
         ++soundCopy.copied;
         notifyCopiesChanged();
-        soundCopyStep.startTimer (20);     // the next one after a breath
+        soundCopyStep.startTimer (soundStepMs);     // the next one after a breath
+        return;
+    }
+
+    if (waitingForNotes)
+    {
+        soundCopyStep.startTimer (heldCopyRetryMs);
         return;
     }
 
     if (soundCopy.copied > 0)
         PluginLog::add ("Gave " + juce::String (soundCopy.copied) + (soundCopy.copied == 1 ? " copy of " : " copies of ")
-                        + getName() + " its sound: " + soundCopy.reason);
+                        + getName() + " its sound (" + soundCopy.reason + ")"
+                        + (soundCopy.alreadyHad > 0 ? "; " + juce::String (soundCopy.alreadyHad) + " had it already" : juce::String()));
+    else if (soundCopy.alreadyHad > 0)
+        PluginLog::add ("The copies of " + getName() + " had its sound already (" + soundCopy.reason + ")");
 
     soundCopy = {};
     notifyCopiesChanged();
+    settleCopies();
 }
 
 //==============================================================================
@@ -2188,10 +2448,33 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
     for (auto& m : copyMidi)
         m.clear();
 
-    // What the copies are played with. A change ends their notes (written to the MIDI just cleared).
-    router.setSettings (outputSettings, copyMidi.data(), 0);
+    // Into copy mode afresh: nothing the router knew from an earlier time in it holds now (the
+    // pedal, the zone values, what the notes' channels last had).
+    if (justStarted)
+        router.reset();
+
+    // What the copies are played with. A change ends their notes and puts their controllers back
+    // at rest (written to the MIDI just cleared): the copies asleep wake for it.
+    if (router.setSettings (outputSettings, copyMidi.data(), 0))
+        for (auto& r : renders)
+            r.asleep = false;
+
     copyPlay = copyPlaySettings (outputSettings);
     const auto numCopies = router.getNumCopies();
+
+    // Into copy mode: the notes the first copy was playing the other way end as they started. The
+    // processor sent their note-offs the old way, which mean nothing to the router, and a VST3
+    // synth only hears All Notes Off if it maps that controller.
+    if (justStarted)
+    {
+        for (const auto metadata : midi)
+        {
+            const auto status = metadata.data[0] & 0xf0;
+
+            if (metadata.numBytes == 3 && (status == 0x80 || (status == 0x90 && metadata.data[2] == 0)))
+                copyMidi[0].addEvent (metadata.data, metadata.numBytes, 0);
+        }
+    }
 
     // The copies to play this block: the first, and the others that are ready. Each is held until
     // the block ends, so the message thread can't change it meanwhile.
@@ -2216,11 +2499,27 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
         }
     }
 
-    // Copies that went (removed, crashed, or taking new state) lose their notes. Copies that came,
-    // or were given new state, start afresh: their notes end, and they're told their bend range
-    // and every zone-wide value.
-    const auto everyone = introduceAll.exchange (false);
-    const auto leadIsFresh = leadFresh.exchange (false) || justStarted;
+    // Let go at the end of the block however it ends: if the first copy's crash is caught further
+    // up (by the host), a copy left held would wait forever for whoever removes it.
+    struct LetGo
+    {
+        HostedSynth& synth;
+
+        ~LetGo()
+        {
+            for (int c = 1; c < maxCopies; ++c)
+                if (synth.enteredCopies[(size_t) c])
+                    synth.followers[(size_t) c].guard.exit();
+
+            synth.enteredCopies.reset();
+        }
+    } letGo { *this };
+
+    // Copies that went (removed, crashed, or taking new state) lose their notes, which are owed
+    // note-offs. Copies that came, or were given new state, start afresh: their notes end, and
+    // they're told their bend range and every zone-wide value.
+    const auto everyone = introduceAll.exchange (false) || justStarted;
+    const auto leadIsFresh = leadFresh.exchange (false);
 
     for (int c = 0; c < maxCopies; ++c)
     {
@@ -2233,6 +2532,7 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
         if (is && (everyone || flagged || ! was))
         {
             router.dropCopy (c);
+            router.endDroppedNotes (c, copyMidi[(size_t) c], 0);
             addEndOfAllNotes (copyMidi[(size_t) c], 0);
             router.introduce (c, copyMidi[(size_t) c], 0);
 
@@ -2287,12 +2587,15 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
         processCopiesPiece (piece, *pieceMidi, start == 0 ? head : &pieceHead);
     }
 
-    for (int c = 1; c < maxCopies; ++c)
-        if (enteredCopies[(size_t) c])
-            followers[(size_t) c].guard.exit();
-
-    enteredCopies.reset();
     copiesPlaying = router.getNumCopiesPlaying();
+
+    uint32_t holding = 0;
+
+    for (int c = 0; c < maxCopies; ++c)
+        if (router.holdsNotes (c))
+            holding |= 1u << c;
+
+    copiesHoldingNotes = holding;
 }
 
 void HostedSynth::processCopiesPiece (juce::AudioBuffer<float>& out, const juce::MidiBuffer& in, juce::AudioPlayHead* head)
@@ -2330,11 +2633,34 @@ void HostedSynth::processCopiesPiece (juce::AudioBuffer<float>& out, const juce:
     jobSamples = numSamples;
     jobHead = head;
 
-    if (workers != nullptr && outputSettings.copiesUseCores && numJobs > 1)
-        workers->run (numJobs, renderJob, this);
+    // The first copy is always played on this thread (the host's), never a worker's: only the
+    // others are protected from crashing (where that can be caught), so a crash of the first is
+    // the host's to handle, as it would be without copies. The workers are set going on the others
+    // first, and are waited for even if it is handled further up.
+    const auto withLead = numJobs > 0 && jobs[0] == 0;
+    jobOffset = withLead ? 1 : 0;
+    const auto numFollowers = numJobs - jobOffset;
+
+    if (workers != nullptr && outputSettings.copiesUseCores && numFollowers > 0)
+    {
+        struct Finish
+        {
+            CopyWorkers& workers;
+            CopyWorkers::Batch batch;
+            ~Finish()                   { workers.finish (batch); }
+        } finish { *workers, workers->begin (numFollowers, renderJob, this, withLead) };
+
+        if (withLead)
+            renderCopy (0);
+    }
     else
-        for (int i = 0; i < numJobs; ++i)
-            renderCopy (jobs[(size_t) i]);
+    {
+        for (int i = 0; i < numFollowers; ++i)
+            renderCopy (jobs[(size_t) (jobOffset + i)]);
+
+        if (withLead)
+            renderCopy (0);
+    }
 
     // Mixed down, in the copies' order (so it comes out the same however they were spread over
     // cores), and each copy's level noted.
@@ -2381,14 +2707,18 @@ void HostedSynth::processCopiesPiece (juce::AudioBuffer<float>& out, const juce:
 void HostedSynth::renderJob (void* context, int index) noexcept
 {
     auto& self = *static_cast<HostedSynth*> (context);
-    self.renderCopy (self.jobs[(size_t) index]);
+    self.renderCopy (self.jobs[(size_t) (self.jobOffset + index)]);
 }
 
-void HostedSynth::renderCopy (int c) noexcept
+void HostedSynth::renderCopy (int c)
 {
     auto& r = renders[(size_t) c];
     r.outputs = 0;
     r.level = 0.0f;
+
+    // One that crashed in an earlier piece of this block is never called again.
+    if (c > 0 && followers[(size_t) c].crashed.load())
+        return;
 
     auto* plugin = c == 0 ? instance.get() : followers[(size_t) c].plugin.get();
 
@@ -2401,10 +2731,6 @@ void HostedSynth::renderCopy (int c) noexcept
     if (needed > r.audio.getNumChannels() || jobSamples > r.audio.getNumSamples())
         return;
 
-    // The first copy's parameter changes reach this one before its block.
-    if (c > 0)
-        mirror.catchUp (followers[(size_t) c], *plugin);
-
    #if MPEROLL_HOST_CLAP
     if (auto* clap = c == 0 ? clapControls : followers[(size_t) c].clap)
         clap->setMpeOutputSettings (copyPlay);
@@ -2416,18 +2742,38 @@ void HostedSynth::renderCopy (int c) noexcept
 
     if (c == 0)
     {
+        // The parameter changes made so far reach it with this block (a VST3 or CLAP synth is only
+        // given them with one).
+        const auto changes = mirror.getChanges();
         playingFirstCopy = true;
         plugin->processBlock (view, copyMidi[0]);
         playingFirstCopy = false;
+        mirror.leadPlayed (changes);
     }
     else
     {
-        // A copy that crashes is switched off, where a crash can be caught, rather than taking FL with it.
-        ProcessCall call { plugin, &view, &copyMidi[(size_t) c] };
+        // The first copy's parameter changes reach this one before its block. A copy that crashes,
+        // in either, is switched off where a crash can be caught, rather than taking FL with it.
+        struct CatchUp
+        {
+            const ParameterMirror* mirror;
+            Follower* follower;
+            juce::AudioPluginInstance* plugin;
+        } catchUp { &mirror, &followers[(size_t) c], plugin };
+
+        ProcessCall call { plugin, &view, &copyMidi[(size_t) c],
+                           [] (void* context)
+                           {
+                               auto& u = *static_cast<CatchUp*> (context);
+                               u.mirror->catchUp (*u.follower, *u.plugin);
+                           },
+                           &catchUp };
         unsigned int code = 0;
 
         if (! CopySafety::call (callProcess, &call, &code))
         {
+            // At once, before the host's timers (a VST3's parameter changes, say) next call it.
+            stopCalling (*plugin);
             followers[(size_t) c].crashed = true;
             crashCodes[(size_t) c] = code != 0 ? code : 1u;
             anyCopyCrashed = true;

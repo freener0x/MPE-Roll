@@ -35,8 +35,8 @@ namespace mperoll
 
     Copies that sleep: the caller may stop processing a copy that has gone quiet (it then
     discards that copy's MIDI). The router is told which copies sleep; when a note or an
-    every-copy key goes to a sleeping copy, it first sends that copy the zone-wide state it missed
-    (forgetting what it sent, then setting every zone value again), wakes it and reports it woken.
+    every-copy key goes to a sleeping copy, it first sends that copy what it missed, as
+    introduce() does (its bend range, then every zone value again), wakes it and reports it woken.
 
     Audio thread only. Real-time safe: nothing allocates after construction.
 */
@@ -50,9 +50,11 @@ public:
     ~CopyRouter() override;
 
     /** The output settings, mode copies. Changes to what the copies are played with
-        (copyPlaySettings) stop every note first, written to outs (maxCopies buffers).
+        (copyPlaySettings) stop every note first and put the copies' controllers back at rest,
+        written to outs (maxCopies buffers). Returns true for such a change: every copy then has
+        MIDI to be given, a sleeping one included.
     */
-    void setSettings (const OutputSettings& settings, juce::MidiBuffer* outs, int samplePos);
+    bool setSettings (const OutputSettings& settings, juce::MidiBuffer* outs, int samplePos);
     const OutputSettings& getSettings() const noexcept      { return settings; }
 
     /** How many copies notes may go to: settings.copies, clamped to minCopies..maxCopies. */
@@ -72,10 +74,14 @@ public:
     /** Note-offs for every note held in every copy (and the every-copy keys), then forgets them. */
     void stopAll (juce::MidiBuffer* outs, int samplePos);
 
-    /** The copy is going away, or is being given new state: its notes are forgotten without a
-        word (it won't be processed again until it's back), and the stream's later events for
-        them are ignored. Its encoder starts afresh. */
+    /** The copy is going away, or is being given new state: its notes are forgotten (it won't be
+        processed again until it's back), and the stream's later events for them are ignored. Its
+        encoder starts afresh. The note-offs they'd need are owed to it: endDroppedNotes(). */
     void dropCopy (int copy);
+
+    /** Note-offs for the notes the copy held when it was dropped, if it's back: real ones, as a
+        VST3 synth only hears All Notes Off if it maps that controller. */
+    void endDroppedNotes (int copy, juce::MidiBuffer& out, int samplePos);
 
     /** Sends a copy what it needs before it plays: with settings.sendConfiguration, its pitch-bend
         range (RPN 0) on its channel; then every zone-wide value (forgetting what was sent before).
@@ -88,6 +94,9 @@ public:
     /** True if the copy holds a note, a note the sustain pedal holds, or an every-copy key: it
         mustn't sleep. */
     bool isBusy (int copy) const noexcept;
+
+    /** True if the copy holds a note, or a note the sustain pedal holds: new state would cut it. */
+    bool holdsNotes (int copy) const noexcept;
 
     /** Copies holding a note right now (not counting the sustain pedal or every-copy keys). */
     int getNumCopiesPlaying() const noexcept;
@@ -122,6 +131,8 @@ private:
     std::vector<std::unique_ptr<MpeEncoder>> encoders;     // maxCopies, made in the constructor
     std::array<Copy, maxCopies> copies;
     std::array<Note, MpeDecoder::maxNotes> notes;
+    std::array<std::bitset<128>, maxCopies> owedNoteOffs;  // keys a dropped copy held
+    std::array<int, maxCopies> owedChannel {};              // and the channel they were on
     juce::MidiBuffer discard;                               // where dropped copies' note-offs go
     int numCopies = 8;
     uint64_t clock = 0;

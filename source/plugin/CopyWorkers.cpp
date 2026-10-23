@@ -26,7 +26,9 @@
  #include <intrin.h>
 #endif
 
+#include <array>
 #include <climits>
+#include <mutex>
 #include <system_error>
 
 namespace mperoll
@@ -207,8 +209,8 @@ private:
     const int index;
 };
 
-CopyWorkers::CopyWorkers (int numWorkers)
-    : wakeUp (std::make_unique<Semaphore>())
+CopyWorkers::CopyWorkers (int numWorkers, bool atAudioPriority)
+    : wakeUp (std::make_unique<Semaphore>()), audioPriority (atAudioPriority)
 {
     // Workers that couldn't sleep would spin: without the semaphore, the caller does it all.
     if (! wakeUp->isValid())
@@ -242,21 +244,34 @@ int CopyWorkers::suggestedWorkers()
     return juce::jlimit (1, 7, juce::SystemStats::getNumPhysicalCpus() - 1);
 }
 
+std::shared_ptr<CopyWorkers> CopyWorkers::getShared (bool atAudioPriority)
+{
+    static std::mutex lock;
+    static std::array<std::weak_ptr<CopyWorkers>, 2> shared;
+
+    const std::scoped_lock sl (lock);
+    auto& slot = shared[atAudioPriority ? 1 : 0];
+
+    if (auto existing = slot.lock())
+        return existing;
+
+    auto made = std::make_shared<CopyWorkers> (suggestedWorkers(), atAudioPriority);
+    slot = made;
+    return made;
+}
+
 void CopyWorkers::run (int count, Job job, void* context) noexcept
 {
-    if (count <= 0)
-        return;
+    finish (begin (count, job, context, false));
+}
 
-    if (count == 1 || threads.empty())
-    {
-        for (int i = 0; i < count; ++i)
-        {
-            juce::ScopedNoDenormals noDenormals;
-            job (context, i);
-        }
+CopyWorkers::Batch CopyWorkers::begin (int count, Job job, void* context, bool callerBusy) noexcept
+{
+    Batch b { juce::jmax (0, count), job, context, false };
 
-        return;
-    }
+    // One job, no workers, or the workers busy with another MPE Roll's block: all done here, by finish().
+    if (count <= 1 || threads.empty() || taken.exchange (true, std::memory_order_acquire))
+        return b;
 
     // The last batch's ticket is closed before its job and count are replaced: see work().
     ticket.store (((uint64_t) batch << 32) | closedIndex, std::memory_order_relaxed);
@@ -269,7 +284,25 @@ void CopyWorkers::run (int count, Job job, void* context) noexcept
     ++batch;
     ticket.store ((uint64_t) batch << 32, std::memory_order_release);
 
-    wakeUp->release (juce::jmin (getNumWorkers(), count - 1));
+    // As many as there are jobs, less the one the caller takes straight away if it isn't busy first.
+    wakeUp->release (juce::jmin (getNumWorkers(), callerBusy ? count : count - 1));
+    b.shared = true;
+    return b;
+}
+
+void CopyWorkers::finish (const Batch& b) noexcept
+{
+    if (! b.shared)
+    {
+        for (int i = 0; i < b.count; ++i)
+        {
+            juce::ScopedNoDenormals noDenormals;
+            b.job (b.context, i);
+        }
+
+        return;
+    }
+
     work (batch);
 
     // Jobs the workers took may still be running. Spinning keeps this wait as short as it can be;
@@ -287,12 +320,16 @@ void CopyWorkers::run (int count, Job job, void* context) noexcept
             std::this_thread::yield();
         }
     }
+
+    taken.store (false, std::memory_order_release);
 }
 
 void CopyWorkers::workerLoop (int index)
 {
     juce::Thread::setCurrentThreadName ("MPE Roll copies");
-    raisePriority (index);
+
+    if (audioPriority)
+        raisePriority (index);
 
     for (;;)
     {

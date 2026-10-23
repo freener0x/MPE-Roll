@@ -13,10 +13,23 @@
   #define PSAPI_VERSION 2     // the K32 functions, which are in kernel32: no psapi.lib needed
  #endif
  #include <psapi.h>
-#elif JUCE_LINUX
- #include <cstdio>
- #include <cstdlib>
- #include <cstring>
+ #include <float.h>
+
+ #if JUCE_INTEL
+  #include <xmmintrin.h>
+ #endif
+#else
+ #include <cerrno>
+ #include <csignal>
+ #include <unistd.h>
+
+ #if JUCE_LINUX
+  #include <cstdio>
+  #include <cstdlib>
+  #include <cstring>
+ #elif JUCE_MAC
+  #include <mach/mach.h>
+ #endif
 #endif
 
 #include <atomic>
@@ -38,6 +51,8 @@ namespace
     constexpr unsigned int privilegedInstruction    = 0xc0000096;
     constexpr unsigned int stackOverflow            = 0xc00000fd;
     constexpr unsigned int datatypeMisalignment     = 0x80000002;
+    constexpr unsigned int floatMultipleFaults      = 0xc00002b4;     // SSE/AVX floating-point faults...
+    constexpr unsigned int floatMultipleTraps       = 0xc00002b5;     // ...and traps, on x64
     constexpr unsigned int cppException             = 0xe06d7363;     // what MSVC's throw raises ("msc")
 
    #if JUCE_WINDOWS
@@ -77,6 +92,8 @@ namespace
             case EXCEPTION_FLT_OVERFLOW:
             case EXCEPTION_FLT_STACK_CHECK:
             case EXCEPTION_FLT_UNDERFLOW:
+            case floatMultipleFaults:
+            case floatMultipleTraps:
             case cppException:
                 return EXCEPTION_EXECUTE_HANDLER;
 
@@ -144,19 +161,40 @@ bool canCatchCrashes() noexcept
 bool call (void (*fn) (void*), void* context, unsigned int* exceptionCode) noexcept
 {
    #if JUCE_WINDOWS && JUCE_MSVC
+    // A synth that unmasked floating-point exceptions and then faulted would leave the thread
+    // that way: every later copy on it would fault too.
+   #if JUCE_INTEL
+    const auto floatControl = _mm_getcsr();
+   #endif
+
     DWORD code = 0;
 
     if (callGuarded (fn, context, &code))
         return true;
+
+   #if JUCE_INTEL
+    _clearfp();
+    _mm_setcsr (floatControl);
+   #endif
 
     if (exceptionCode != nullptr)
         *exceptionCode = (unsigned int) code;
 
     return false;
    #else
-    juce::ignoreUnused (exceptionCode);
-    fn (context);
-    return true;
+    // Elsewhere only a C++ exception that escaped the synth is caught.
+    try
+    {
+        fn (context);
+        return true;
+    }
+    catch (...)
+    {
+        if (exceptionCode != nullptr)
+            *exceptionCode = cppException;
+
+        return false;
+    }
    #endif
 }
 
@@ -173,6 +211,8 @@ juce::String describeException (unsigned int exceptionCode)
         case inPageError:               return "an in-page error";
         case arrayBoundsExceeded:       return "an array bounds error";
         case datatypeMisalignment:      return "a misaligned memory access";
+        case floatMultipleFaults:
+        case floatMultipleTraps:        return "a floating-point error";
         case cppException:              return "a C++ exception the synth didn't catch";
         default:                        break;
     }
@@ -192,13 +232,25 @@ juce::int64 getAvailableMemoryMB()
     MEMORYSTATUSEX status {};
     status.dwLength = (DWORD) sizeof (status);
 
+    // What can still be committed counts too: with the page file off (as many audio computers
+    // have it) that runs out first, memory a synth has committed without touching it yet included.
     if (GlobalMemoryStatusEx (&status))
-        return (juce::int64) (status.ullAvailPhys / (1024 * 1024));
+        return (juce::int64) (juce::jmin (status.ullAvailPhys, status.ullAvailPageFile) / (1024 * 1024));
 
     return -1;
    #elif JUCE_LINUX
     const auto kilobytes = readProcKilobytes ("/proc/meminfo", "MemAvailable");
     return kilobytes >= 0 ? kilobytes / 1024 : -1;
+   #elif JUCE_MAC
+    // Free pages, and inactive ones the system takes back first.
+    vm_statistics64_data_t stats {};
+    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+
+    if (host_statistics64 (mach_host_self(), HOST_VM_INFO64, reinterpret_cast<host_info64_t> (&stats), &count) != KERN_SUCCESS)
+        return -1;
+
+    return (juce::int64) (((juce::uint64) stats.free_count + (juce::uint64) stats.inactive_count) * (juce::uint64) vm_page_size
+                          / (1024 * 1024));
    #else
     return -1;
    #endif
@@ -225,6 +277,36 @@ juce::int64 getProcessMemoryMB()
 void pretendAvailableMemoryMB (juce::int64 megabytes)
 {
     pretendedMB = megabytes;
+}
+
+juce::int64 getProcessId()
+{
+   #if JUCE_WINDOWS
+    return (juce::int64) GetCurrentProcessId();
+   #else
+    return (juce::int64) getpid();
+   #endif
+}
+
+bool isProcessRunning (juce::int64 processId)
+{
+    if (processId <= 0)
+        return false;
+
+   #if JUCE_WINDOWS
+    if (auto* process = OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, (DWORD) processId))
+    {
+        DWORD exitCode = 0;
+        const auto running = GetExitCodeProcess (process, &exitCode) && exitCode == STILL_ACTIVE;
+        CloseHandle (process);
+        return running;
+    }
+
+    // There, but not ours to look at (another user's, say).
+    return GetLastError() == ERROR_ACCESS_DENIED;
+   #else
+    return kill ((pid_t) processId, 0) == 0 || errno == EPERM;
+   #endif
 }
 
 } // namespace mperoll::CopySafety

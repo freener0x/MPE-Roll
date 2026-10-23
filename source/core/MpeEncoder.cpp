@@ -53,6 +53,7 @@ void MpeEncoder::setSettings (const OutputSettings& requested)
     settings = newSettings;
     settings.zones = settings.zones.normalised();
     settings.singleChannel = juce::jlimit (1, 16, settings.singleChannel);
+    copyStream = requested.mode == OutputSettings::Mode::copies;
 }
 
 //==============================================================================
@@ -470,6 +471,26 @@ void MpeEncoder::startNote (juce::MidiBuffer& out, int samplePos, Handle handle,
     else
     {
         out.addEvent (juce::MidiMessage::noteOn (ch, v->key, (juce::uint8) juce::jmax (1, toSevenBit (strike))), samplePos);
+    }
+
+    // In the stream the copies are played from, a lane of the note's own that starts at the usual
+    // value is sent again once the note has started: before it, CopyRouter can't tell that value
+    // from the one every note without a lane is given, which it leaves to the copy's preset.
+    if (copyStream && ! isSingleChannelMode())
+    {
+        if (st.timbreTouched && toSevenBit (v->timbre) == toSevenBit (settings.defaultTimbre))
+            sendTimbre (out, samplePos, ch, v->timbre, true);
+
+        for (int cc = 0; cc < 128; ++cc)
+        {
+            if (! v->ownControllers[(size_t) cc] || cc == settings.timbreLsbController)
+                continue;
+
+            const auto usual = cc == settings.timbreController ? settings.defaultTimbre : defaultControllerValue (cc);
+
+            if (v->ownValues[(size_t) cc] == toSevenBit (usual))
+                sendController (out, samplePos, ch, cc, v->ownValues[(size_t) cc], true);
+        }
     }
 
     v->started = true;

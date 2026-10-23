@@ -119,9 +119,12 @@ Set its sound there; MPE Roll gives the other copies the same.
 
 **Settings** (*MPE settings › One copy per note*):
 - **Copies** (2 to 32, 8 to start with): one for each note held at once, plus a few for release
-  tails. Up to 15 notes at once each keep their own expression; past that they share, as in MPE.
-  When every copy holds a note, *Out of channels* says what happens: *Share a channel* puts the new
-  note in the copy holding the fewest, *Steal oldest note* ends the oldest.
+  tails. Up to 15 notes held at once each keep their own expression. Past 15, *Out of channels*
+  applies whatever the number of copies: *Share a channel* still gives the new note a copy, but its
+  glides and pressure move with another note's; *Steal oldest note* ends the oldest note. So
+  copies past 15 only give release tails room. With fewer copies than notes, when every copy holds
+  one, *Share a channel* puts the new note in the copy holding the fewest and *Steal oldest note*
+  ends the oldest.
 - **Keys to every copy**: keys that don't play notes but change how the synth plays, so every copy
   must hear them. *Keyswitches (C0-B2)* for Kontakt libraries with keyswitches low on the keyboard;
   *Output Arcade* for its pitch keys and modifiers; or type your own: note names as on MPE Roll's
@@ -135,11 +138,13 @@ Set its sound there; MPE Roll gives the other copies the same.
   turn it off if a synth misbehaves (crackles, or crashes) with it.
 - **Follow copy 1's sound** (on): parameter changes in copy 1 (its knobs, FL automation of *Synth*
   parameters) reach the other copies before their next block. A new preset, or other changes that
-  aren't parameters, reach them as copy 1's whole state: when the synth reports the change, when
-  copy 1's window closes, every 1.5 seconds while it's open (for a synth whose state is quick to
-  get), and once the copies have finished loading (in case you changed the preset while they
-  loaded). A copy taking a new sound goes quiet for that moment. Off: only when you ask, with **Give
-  every copy copy 1's sound**.
+  aren't parameters, reach them as copy 1's whole state: within a second of the synth reporting the
+  change, when copy 1's window closes, every 1.5 seconds while it's open (for a synth whose state
+  is quick to get, and not while you're turning its knobs), and when a copy finishes loading after
+  a change. Each copy is asked for its own state first and only given copy 1's if it differs (the
+  plugin log says "had its sound already" otherwise). A copy holding a note gets the new sound when
+  its note ends, so no note is cut short. Off: only when you ask, with **Give every copy copy 1's
+  sound**.
 - **Load the copies again**: after loading stopped short (below), or a copy crashed.
 
 **Running smoothly, and not crashing:**
@@ -152,14 +157,23 @@ Set its sound there; MPE Roll gives the other copies the same.
   Roll doesn't load copies of that synth on its own again, so the project opens: *Load the copies
   again* tries once more.
 - On Windows, a copy that crashes while it plays is switched off and the rest play on, instead of
-  taking FL with it; *MPE settings* says which. Save your project soon after: a synth that crashed
-  once may again. (Copy 1, the synth itself, isn't covered: it's what you edit.)
+  taking FL with it; *MPE settings* says which. On every system, a copy that throws an error it
+  doesn't catch is switched off the same way. A switched-off copy is never called again, not even
+  by its own timers, and is let go only when FL closes. Save your project soon after: a synth that
+  crashed once may again. (Copy 1, the synth itself, isn't covered: it's what you edit, and it
+  always plays on FL's own thread, as it would outside MPE Roll.)
 - Every copy is given a transport (tempo, position) even when the host gives none: some synths
   crash without one.
 - In FL: keep *Options › Audio settings › Multithreaded generator processing* on, and MPE Roll's
   *Allow threaded processing* (wrapper › *Processing*) on. If a synth crackles inside MPE Roll, tick
   *Use fixed size buffers* there (Output recommends it for Arcade).
-- An audio export loads its own copies, so it needs as much memory again while it runs.
+- An audio export loads its own copies, so it needs as much memory again while it runs. Its
+  progress window counts them as they load (*Cancel* stops it), and the export stops with a message
+  if fewer than asked for load, rather than rendering a file with notes missing. It renders on
+  threads at normal priority, so FL keeps playing smoothly meanwhile.
+- Every MPE Roll in FL shares one set of threads for its copies, so ten MPE Rolls in copy mode
+  don't start ten sets (and fight over the cores). An MPE Roll that finds them busy with another's
+  block plays its own copies on FL's thread for that block.
 
 **The synths you'll likely try** (from their makers' manuals and user reports):
 
@@ -525,7 +539,7 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | "The MPE Roll Scanner installed here is older than this MPE Roll" | The `MPE Roll Scanner.exe` next to `MPE Roll.dll` is from an older version, so it can't check plugins, and MPE Roll won't load them unchecked. Copy the scanner from the download that this MPE Roll came in (it's also inside the `.vst3` folder) over the old one. |
 | A synth scanned in one MPE Roll channel is missing from another's menu, or the scanned list is gone after a restart | Every MPE Roll of the same kind in FL shares one list and one settings file on this computer (`MPE Roll.settings`), so this shouldn't happen any more. Mixing `MPE Roll.vst3` and `MPE Roll.dll` in one project, a bridged (*Make bridged*) MPE Roll or the standalone app alongside can still overwrite the list: the last to save wins, and scanning again brings it back. If it happens otherwise, please tell us. |
 | One copy per note: glides stop short, or overshoot | Each copy bends within the synth's own pitch-bend range, so set it (in copy 1's window) and *Zone bend range* in *MPE settings* to the same value, up and down. Many synths save the range with each preset, so check it after picking a new one. |
-| One copy per note: some notes sound like the old preset | The copies get copy 1's new sound when the synth reports the change, when its window closes, or every 1.5 seconds while it's open, and a copy taking it goes quiet for that moment. Close the synth's window, or click *Give every copy copy 1's sound* in *MPE settings*. If *Follow copy 1's sound* is off, only that button does it. |
+| One copy per note: some notes sound like the old preset | The copies get copy 1's new sound when the synth reports the change, when its window closes, or every 1.5 seconds while it's open; a copy holding a note gets it when the note ends. Close the synth's window, or click *Give every copy copy 1's sound* in *MPE settings*. If *Follow copy 1's sound* is off, only that button does it. |
 | One copy per note: fewer copies than asked for | *MPE settings › One copy per note* says why: too little memory free (close other programs, or ask for fewer), a copy that wouldn't load, or loading cut short by a crash last time. *Load the copies again* tries again. |
 | One copy per note: a copy "crashed … and was switched off" | The synth crashed in that copy, and MPE Roll stopped using it so FL carried on. Save your project, then *Load the copies again*; if it happens again, try fewer copies or turn off *Use several CPU cores*, and please report the synth. |
 | One copy per note: CPU is high | Each copy runs a whole synth. Fewer copies, fewer unison voices, effects moved from the synth to FL's mixer, and *Sleep while quiet* on all help. Keep FL's *Multithreaded generator processing* and MPE Roll's *Use several CPU cores* on. |

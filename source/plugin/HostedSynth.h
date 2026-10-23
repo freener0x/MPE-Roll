@@ -151,6 +151,11 @@ public:
     /** Tells the synth whether it's being rendered offline, where it can take its time. Message thread. */
     void setNonRealtime (bool isNonRealtime);
 
+    /** This one is only ever rendered offline (an audio export), beside the one playing live: its
+        copies are played on threads that don't take the cores from the live ones, and they keep
+        the sound they're loaded with. Message thread, before setCopySettings(). */
+    void setRenderedOfflineOnly()                       { offlineOnly = true; }
+
     //==============================================================================
     std::unique_ptr<juce::XmlElement> saveState() const;
     void restoreState (const juce::XmlElement& xml, LoadCallback onDone = {});
@@ -386,23 +391,37 @@ private:
         void set (int index, float value) noexcept;
 
         /** Goes up with every change: for telling whether any parameter moved. */
-        uint32_t getChanges() const noexcept                { return changes.load (std::memory_order_relaxed); }
+        uint32_t getChanges() const noexcept                { return changes.load (std::memory_order_acquire); }
+
+        struct Snapshot
+        {
+            std::vector<uint32_t> versions;             // every parameter's
+            uint32_t leadPlayed = 0;                    // the changes the first copy had played a block with
+        };
 
         /** Every parameter's version now: taken just before the first copy's state is. Message thread. */
-        std::vector<uint32_t> snapshot() const;
+        Snapshot snapshot() const;
 
         /** The copy was given state taken right after `snapshot`: changes up to it are in that
-            state, later ones are still to be caught up with. Message thread, while the copy isn't played. */
-        void markSeen (Follower&, const std::vector<uint32_t>& snapshot) const;
+            state, later ones are still to be caught up with. So are changes the first copy hadn't
+            played a block with yet, which a synth may keep out of its state until it has (a VST3
+            or CLAP synth's automation, while it sleeps). Message thread, while the copy isn't played. */
+        void markSeen (Follower&, const Snapshot&) const;
 
-        /** Sets on the copy every parameter that changed since it last caught up. */
-        void catchUp (Follower&, juce::AudioPluginInstance&) const noexcept;
+        /** The first copy has played a block with the changes made up to getChanges() == changesBefore.
+            The thread playing it. */
+        void leadPlayed (uint32_t changesBefore) noexcept;
+
+        /** Sets on the copy every parameter that changed since it last caught up. Not noexcept: it
+            calls into the synth, inside CopySafety::call(), which a C++ exception may have to reach. */
+        void catchUp (Follower&, juce::AudioPluginInstance&) const;
 
     private:
         std::unique_ptr<std::atomic<float>[]> values;
         std::unique_ptr<std::atomic<uint32_t>[]> versions, chunkVersions;
+        std::unique_ptr<std::atomic<uint32_t>[]> stamps;    // each parameter's last change, counted in changes
         std::vector<bool> copied;                       // which parameters are copied at all
-        std::atomic<uint32_t> changes { 0 };
+        std::atomic<uint32_t> changes { 0 }, lastLeadPlayed { 0 };
         int numParameters = 0, numChunks = 0;
     };
 
@@ -490,7 +509,7 @@ private:
     OutputSettings copySettings;
     std::array<Follower, maxCopies> followers;          // [0] unused: the first copy is `instance`
     ParameterMirror mirror;                             // sized under the guard, with the first copy
-    std::unique_ptr<CopyWorkers> workers;               // swapped under the guard
+    std::shared_ptr<CopyWorkers> workers;               // the process's; swapped under the guard
     int copiesGeneration = 0;                           // a copy loaded for an earlier first copy is let go
     bool loadingCopy = false;
     juce::String copiesProblem;                         // why loading stopped short
@@ -502,21 +521,25 @@ private:
     {
         juce::MemoryBlock state;                        // the first copy's, being copied to the others
         size_t hash = 0;
-        std::vector<uint32_t> versions;                 // its parameters' versions when it was taken
+        ParameterMirror::Snapshot versions;             // its parameters' versions when it was taken
+        CopyRouter::CopySet copies;                     // the copies it's for (each only while it lacks it)
+        CopyRouter::CopySet lacking;                    // looked at, and found to lack it
         bool running = false;
-        int copied = 0;
+        int copied = 0, alreadyHad = 0;
         juce::String reason;                            // for the log
     } soundCopy;
 
     bool soundChangeReported = false;                   // the first copy said its sound changed
     bool windowJustClosed = false;
-    bool copiesJustLoaded = false;                      // its sound may have changed while they loaded
+    double checkAskedAt = 0.0;                          // when a check was first asked for since the last one ran
+    uint32_t soundGeneration = 0;                       // moves on whenever the first copy's sound may have changed
     bool stateChangesByItself = false;                  // its state changes with nothing done to it
     int unexplainedChanges = 0;                         // checks in a row that found it so
     size_t hashAtLastCheck = 0;
     uint32_t changesAtLastCheck = 0;
     double stateMilliseconds = 0.0;                     // how long its state took to get, last time
     bool nonRealtime = false;
+    bool offlineOnly = false;                           // an export's
     juce::String crashNote;                             // which copies crashed, for the user
 
     // One copy per note, audio thread.
@@ -526,7 +549,7 @@ private:
     OutputSettings copyPlay;                            // what each copy is played with
     CopyRouter::CopySet playedCopies, enteredCopies;
     std::array<int, maxCopies> jobs {};
-    int numJobs = 0, jobSamples = 0;
+    int numJobs = 0, jobSamples = 0, jobOffset = 0;     // jobs from jobOffset on go to the workers
     juce::AudioPlayHead* jobHead = nullptr;
     OutputSettings::Mode lastMode = OutputSettings::Mode::mpe;
     std::atomic<bool> leadFresh { true };               // the first copy is new, or was given state
@@ -534,6 +557,8 @@ private:
     std::atomic<bool> configurationRequested { false };
     std::atomic<bool> windowOpen { false };             // the first copy's window: it doesn't sleep
     std::atomic<int> copiesPlaying { 0 }, copiesAsleep { 0 };
+    std::atomic<uint32_t> copiesHoldingNotes { 0 };     // a bit per copy with a note held or sustained
+    static_assert (maxCopies <= 32);
     std::array<std::atomic<unsigned int>, maxCopies> crashCodes {};   // set by the thread that caught a copy's crash
     std::atomic<bool> anyCopyCrashed { false };
     int lastPlaying = 0, lastAsleep = 0;               // message thread: what the status last showed
@@ -557,8 +582,8 @@ private:
     void updateCopies();
     void loadCopy (int index);
     void finishLoadingCopy (int index, std::unique_ptr<juce::AudioPluginInstance>, const juce::String& error,
-                            const juce::MemoryBlock& state, const std::vector<uint32_t>& versions,
-                            juce::int64 megabytesBefore, double started);
+                            const juce::MemoryBlock& state, const ParameterMirror::Snapshot& versions,
+                            uint32_t soundGenerationThen, juce::int64 megabytesBefore, double started);
     void removeCopy (int index);
     void removeAllCopies();
     void updateWorkers();
@@ -567,7 +592,11 @@ private:
     void notifyCopiesChanged();
     void copyCrashed (int index, unsigned int exceptionCode, const juce::String& doing);
     void soundMayHaveChanged();
-    void startCopyingSound (juce::MemoryBlock state, std::vector<uint32_t> versions, bool everyCopy, const juce::String& reason);
+    void askForSoundCheck (int delayMs);
+    void keepLookingWhileOpen();
+    void forgetSoundChecks();
+    void startCopyingSound (juce::MemoryBlock state, ParameterMirror::Snapshot versions, CopyRouter::CopySet copies,
+                            bool evenIfInStep, const juce::String& reason);
     void checkSound();
     void copySoundToNext();
     void watchCopies();
@@ -577,7 +606,7 @@ private:
 
     void processCopies (juce::AudioBuffer<float>&, juce::MidiBuffer&, juce::AudioPlayHead*, bool justStarted);
     void processCopiesPiece (juce::AudioBuffer<float>&, const juce::MidiBuffer&, juce::AudioPlayHead*);
-    void renderCopy (int copy) noexcept;
+    void renderCopy (int copy);
     static void renderJob (void* context, int index) noexcept;
     void finishLoadFromFile (const juce::File&, PluginScanner::Outcome, juce::OwnedArray<juce::PluginDescription>& found,
                              LoadCallback, const std::function<void()>& onChecked);

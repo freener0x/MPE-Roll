@@ -91,6 +91,9 @@ public:
     juce::String getStatusMessage() const               { return statusMessage; }
     std::function<void()> onStatusChanged;
 
+    /** One copy per note: the copies changed (loaded, given a sound, playing, asleep). Message thread. */
+    std::function<void()> onCopiesChanged;
+
 private:
     //==============================================================================
     struct LiveRouter : MpeDecoder::Listener

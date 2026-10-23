@@ -431,10 +431,14 @@ public:
                 expectEquals (m.front().sample, 20);
             }
 
+            // Its bend range first (one sent again while it slept went with the MIDI it wasn't
+            // processed for), then the zone state, then the key.
             const auto woken = rig->out (1);
-            expectEquals ((int) woken.size(), 2);
-            expect (controller (1, 64) (woken[0].message));
-            expect (woken[1].message.isNoteOn());
+            expectEquals ((int) woken.size(), 8);
+            expect (controller (101, 0) (woken[0].message));
+            expect (controller (6, 2) (woken[2].message));
+            expect (controller (1, 64) (woken[6].message));
+            expect (woken[7].message.isNoteOn());
             expectEquals (woken[0].sample, 20);
             expect (! rig->asleep[1]);
             expect (rig->out (3).empty());
@@ -471,7 +475,7 @@ public:
             expect (! rig->router->isBusy (2));
         }
 
-        beginTest ("A sleeping copy is sent the zone state it missed before the note that wakes it");
+        beginTest ("A sleeping copy is sent its bend range and the zone state it missed before the note that wakes it");
         {
             auto rig = std::make_unique<Rig> (copySettings());
             rig->asleep = rig->available;
@@ -485,12 +489,15 @@ public:
             rig->play (1, 60, 37);
             rig->route();
 
+            // RPN 0 (six messages, the RPN closed after), then the zone state, then the note.
             const auto m = rig->out (0);
-            expect (m.size() > 3);
-            expect (m[0].message.isPitchWheel());
-            expectWithinAbsoluteError (m[0].message.getPitchWheelValue(), MpeEncoder::semitonesToPitchBend (1.0f, 2.0f), 1);
-            expect (controller (1, 64) (m[1].message));
-            expect (controller (64, 127) (m[2].message));
+            expect (m.size() > 9);
+            expect (controller (101, 0) (m[0].message));
+            expect (controller (6, 2) (m[2].message));
+            expect (m[6].message.isPitchWheel());
+            expectWithinAbsoluteError (m[6].message.getPitchWheelValue(), MpeEncoder::semitonesToPitchBend (1.0f, 2.0f), 1);
+            expect (controller (1, 64) (m[7].message));
+            expect (controller (64, 127) (m[8].message));
             expect (m.back().message.isNoteOn());
 
             for (const auto& t : m)
@@ -858,6 +865,82 @@ public:
             expect (back.output.mode == OutputSettings::Mode::copies && back.output.copies == 12);
             expect (back.output.everyCopyKeys == e.output.everyCopyKeys);
             expect (! back.output.copiesSleep && ! back.output.copiesUseCores && ! back.output.copiesFollow);
+
+            // Timbre keeps the copies' own controller and resolution, so a CC74 lane stays a CC74 lane.
+            auto withOwnTimbre = copySettings();
+            withOwnTimbre.timbreController = 71;
+            withOwnTimbre.timbreLsbController = 103;
+            expectEquals (copyStreamSettings (withOwnTimbre).timbreController, 71);
+            expectEquals (copyStreamSettings (withOwnTimbre).timbreLsbController, 103);
+        }
+
+        beginTest ("A dropped copy is owed real note-offs for what it held, sent when it's back");
+        {
+            // A VST3 synth only hears All Notes Off if it maps that controller: the copy is given
+            // the note-offs themselves.
+            auto rig = std::make_unique<Rig> (withEveryCopyKeys (copySettings()));
+            rig->play (1, 60);
+            rig->play (2, 12);      // a key to every copy
+            rig->route();
+            rig->clearOuts();
+
+            rig->router->dropCopy (0);
+            rig->router->endDroppedNotes (0, rig->outs[0], 4);
+            const auto m = rig->out (0);
+            expectEquals (countIf (m, isNoteOff), 2);
+            expect (indexOf (m, [] (const juce::MidiMessage& msg) { return msg.isNoteOff() && msg.getNoteNumber() == 60; }) >= 0);
+            expect (indexOf (m, [] (const juce::MidiMessage& msg) { return msg.isNoteOff() && msg.getNoteNumber() == 12; }) >= 0);
+            expectEquals (m.front().sample, 4);
+            expectEquals (m.front().message.getChannel(), 1);
+
+            // Owed once only.
+            rig->clearOuts();
+            rig->router->endDroppedNotes (0, rig->outs[0], 0);
+            expect (rig->out (0).empty());
+        }
+
+        beginTest ("Changing how the copies are played puts their controllers back at rest, and says so");
+        {
+            auto s = copySettings (2);
+            s.pressureTarget = OutputSettings::PressureTarget::controller;
+            s.pressureController = 11;
+            auto rig = std::make_unique<Rig> (s);
+            rig->play (1, 60);
+            rig->stream.setPressure (rig->in, 0, 1, 0.2f);
+            rig->release (1, 1);
+            rig->route();
+            rig->clearOuts();
+
+            expect (! rig->router->setSettings (s, rig->outs.data(), 0), "the same settings change nothing");
+            expect (rig->allEmpty());
+
+            auto channelPressure = s;
+            channelPressure.pressureTarget = OutputSettings::PressureTarget::channelPressure;
+            expect (rig->router->setSettings (channelPressure, rig->outs.data(), 0));
+            expectEquals (countIf (rig->out (0), controller (11, 127)), 1);
+        }
+
+        beginTest ("A lane of a note's own that starts at the usual value reaches the copy from the note's start");
+        {
+            // Before the note the router can't tell it from the usual value a note without a lane
+            // is given (and leaves to the preset), so the stream sends it again once the note has started.
+            auto rig = std::make_unique<Rig> (copySettings (2));
+            rig->stream.prepareNote (rig->in, 0, 1, 60);
+            rig->stream.setTimbre (rig->in, 0, 1, 0.5f);
+            rig->stream.setController (rig->in, 0, 1, 1, 0.0f);
+            rig->stream.startNote (rig->in, 0, 1, 0.8f);
+            rig->route();
+
+            const auto m = rig->out (0);
+            const auto on = indexOf (m, isNoteOn);
+            const auto timbre = indexOf (m, controller (74, 64));
+            const auto modWheel = indexOf (m, controller (1, 0));
+            expect (on >= 0 && timbre > on && modWheel > on, "sent just after the note starts");
+
+            // A note without a lane still leaves the preset alone.
+            rig->play (2, 62);
+            rig->route();
+            expectEquals (countIf (rig->out (1), [] (const juce::MidiMessage& msg) { return msg.isController(); }), 0);
         }
     }
 };

@@ -101,7 +101,8 @@ namespace
             refresh();
         }
 
-        void setText (const juce::String& newText) override     { setter (newText); }
+        // Shows what was taken: text that comes to the setting as it was isn't sent back otherwise.
+        void setText (const juce::String& newText) override     { setter (newText); refresh(); }
         juce::String getText() const override                   { return getter(); }
 
     private:
@@ -198,9 +199,12 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
 
     // One copy of the synth per note, each played with Plain MIDI.
     Comps copies;
-    copies.add (copyStatus = new InfoProp ("Copies now", [this]
+    copies.add (copyStatus = new InfoProp ("Copies now", [this, settings]
     {
         const auto status = processor.getSynth().getCopyStatus();
+
+        if (! status.on && settings().output.mode == OutputSettings::Mode::copies)
+            return "Load a synth: MPE Roll loads " + juce::String (settings().output.copies) + " copies of it, one note to each.";
 
         if (! status.on)
             return juce::String ("Set Synth expects to One copy per note to play a synth without MPE with each note's own "
@@ -220,7 +224,7 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
             s << ". " << status.problem;
 
         return s;
-    }, 66));
+    }, 110));       // room for a problem and what to do about it
     copies.add (new NumberProp ("Copies", OutputSettings::minCopies, OutputSettings::maxCopies, 1,
         [settings] { return (double) settings().output.copies; },
         [this] (double v) { edit ([v] (EngineSettings& e) { e.output.copies = (int) v; }); }));
