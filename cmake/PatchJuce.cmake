@@ -100,10 +100,42 @@ mperoll_patch("${extensions}"
 ]=]
     "VST2 client extensions can stop calling a plugin that crashed")
 
+# In three steps, each anchored on text a checkout patched by an earlier version of this file
+# has too, so patching it again gives the same result as patching JUCE afresh.
 mperoll_patch("${vst3_impl}"
     [=[    void flush()
     {
         cache.ifSet ([this] (Steinberg::int32 index, float value)]=]
+    [=[    void flush()
+    {
+        if (stopped)
+            return;
+
+        cache.ifSet ([this] (Steinberg::int32 index, float value)]=]
+    "VST3 parameter dispatcher flushes nothing once stopped")
+
+mperoll_patch("${vst3_impl}"
+    [=[        startTimerHz (60);
+    }
+]=]
+    [=[        startTimerHz (60);
+    }
+
+    void stop()
+    {
+        stopped = true;
+        stopTimer();
+    }
+]=]
+    "VST3 parameter dispatcher can be stopped")
+
+mperoll_patch("${vst3_impl}"
+    [=[    void stop()
+    {
+        stopped = true;
+        stopTimer();
+    }
+]=]
     [=[    void stop()
     {
         stopped = true;
@@ -114,14 +146,8 @@ mperoll_patch("${vst3_impl}"
     {
         return stopped;
     }
-
-    void flush()
-    {
-        if (stopped)
-            return;
-
-        cache.ifSet ([this] (Steinberg::int32 index, float value)]=]
-    "VST3 parameter dispatcher can be stopped")
+]=]
+    "VST3 parameter dispatcher says whether it's stopped")
 
 # Looked at again before each call: it may be stopped from another thread during a flush.
 mperoll_patch("${vst3_impl}"

@@ -528,9 +528,11 @@ private:
         size_t hash = 0;
         ParameterMirror::Snapshot versions;             // its parameters' versions when it was taken
         CopyRouter::CopySet copies;                     // the copies it's for (each only while it lacks it)
-        int due = 0;                                   // the copy closed to new notes, to be given it next (0: none)
-        double dueAt = 0.0;                             // ms: since when
-        uint32_t blocksAtDue = 0;                       // copyBlocks then
+        double lookingSince = 0.0;                      // ms: since choosing the next copy began (0: not yet)
+        int due = 0;                                    // the copy closed to new notes, given it next (0: none)
+        uint32_t blocksAtClose = 0;                     // copyBlocks once it was closed
+        uint32_t blocksSeen = 0;                        // copyBlocks at the last look
+        double blockSeenAt = 0.0;                       // ms: when that changed
         bool running = false;
         int copied = 0, alreadyHad = 0;
         juce::String reason;                            // for the log
@@ -574,7 +576,7 @@ private:
     std::atomic<uint32_t> copiesDueSound { 0 };
     std::atomic<uint64_t> copiesSeen { 0 };
     std::atomic<uint32_t> copiesSounding { 0 };
-    std::atomic<uint32_t> copyBlocks { 0 };             // blocks played in copy mode
+    std::atomic<uint32_t> copyBlocksStarted { 0 }, copyBlocks { 0 };   // blocks in copy mode begun, and ended
     static_assert (maxCopies <= 32);
     std::array<std::atomic<unsigned int>, maxCopies> crashCodes {};   // set by the thread that caught a copy's crash
     std::atomic<bool> anyCopyCrashed { false };

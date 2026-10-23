@@ -34,7 +34,7 @@ namespace
     constexpr int soundStepMs = 20;                 // between copies being given a sound
     constexpr int heldCopyRetryMs = 100;            // a copy holding a note is given it once the note ends
     constexpr double catchUpWaitMs = 300.0;         // for a copy to play the knob moves its sound is compared after
-    constexpr double tailWaitMs = 3000.0;           // for a copy's last note to die away before it's given a sound
+    constexpr double longestTailWaitMs = 10000.0;   // for a free copy whose sound has died away, before one still sounding is given it
     constexpr double hostIdleMs = 500.0;            // with no block played for this long, nothing is routed meanwhile
     constexpr const char* markerPrefix = "copiesLoading.";
     constexpr const char* crashedWhileLoadingKey = "copiesCrashedWhileLoading";
@@ -2366,44 +2366,69 @@ void HostedSynth::copySoundToNext()
         return;
     }
 
-    // One copy at a time is closed to new notes, so the others go on taking them: a free one whose
-    // sound has died away first, then a free one still sounding its last note. A copy holding
-    // notes is given the sound once they've ended: new state would cut them short.
+    if (soundCopy.copies.none())
+    {
+        if (soundCopy.copied > 0)
+            PluginLog::add ("Gave " + juce::String (soundCopy.copied) + (soundCopy.copied == 1 ? " copy of " : " copies of ")
+                            + getName() + " its sound (" + soundCopy.reason + ")"
+                            + (soundCopy.alreadyHad > 0 ? "; " + juce::String (soundCopy.alreadyHad) + " had it already" : juce::String()));
+        else if (soundCopy.alreadyHad > 0)
+            PluginLog::add ("The copies of " + getName() + " had its sound already (" + soundCopy.reason + ")");
+
+        endSoundCopy();
+        notifyCopiesChanged();
+        settleCopies();
+        return;
+    }
+
+    const auto now = juce::Time::getMillisecondCounterHiRes();
+
+    if (soundCopy.lookingSince <= 0.0)
+        soundCopy.lookingSince = now;
+
+    const auto looked = now - soundCopy.lookingSince;
+
+    // The copies are given it one at a time, each chosen afresh at every look while it's still
+    // open to new notes: one holding no note whose sound has died away, or, with none such for a
+    // while (a drone, long tails in dense playing), one still sounding. A copy holding notes is
+    // given it once they've ended: new state would cut them short.
     const auto holding = (uint32_t) copiesSeen.load (std::memory_order_acquire);
     const auto sounding = copiesSounding.load (std::memory_order_acquire);
     int next = 0;
 
     for (const bool quietOnly : { true, false })
+    {
+        if (! quietOnly && looked < longestTailWaitMs)
+            break;
+
         for (int c = 1; c < maxCopies && next == 0; ++c)
             if (soundCopy.copies[(size_t) c] && (holding & (1u << c)) == 0 && ! (quietOnly && (sounding & (1u << c)) != 0))
                 next = c;
-
-    if (next != 0)
-    {
-        soundCopy.due = next;
-        soundCopy.dueAt = juce::Time::getMillisecondCounterHiRes();
-        soundCopy.blocksAtDue = copyBlocks.load (std::memory_order_acquire);
-        copiesDueSound.fetch_or (1u << next, std::memory_order_acq_rel);
-        soundCopyStep.startTimer (soundStepMs);
-        return;
     }
 
-    if (soundCopy.copies.any())
+    if (next == 0)
     {
         soundCopyStep.startTimer (heldCopyRetryMs);
         return;
     }
 
-    if (soundCopy.copied > 0)
-        PluginLog::add ("Gave " + juce::String (soundCopy.copied) + (soundCopy.copied == 1 ? " copy of " : " copies of ")
-                        + getName() + " its sound (" + soundCopy.reason + ")"
-                        + (soundCopy.alreadyHad > 0 ? "; " + juce::String (soundCopy.alreadyHad) + " had it already" : juce::String()));
-    else if (soundCopy.alreadyHad > 0)
-        PluginLog::add ("The copies of " + getName() + " had its sound already (" + soundCopy.reason + ")");
+    // It has played the knob moves made before the first copy's state was taken, else its own
+    // state would seem to lack them (or a moment has passed: a copy asleep plays none).
+    if (looked < catchUpWaitMs
+        && (int32_t) (followers[(size_t) next].playedChanges.load (std::memory_order_acquire) - soundCopy.versions.changes) < 0)
+    {
+        soundCopyStep.startTimer (soundStepMs);
+        return;
+    }
 
-    endSoundCopy();
-    notifyCopiesChanged();
-    settleCopies();
+    // Closed to new notes for a block or two: then given the sound, once a block that knew shows
+    // no note reached it just before. Closed first and the blocks counted after, so any block
+    // counted later either knew or shows it was still open.
+    copiesDueSound.fetch_or (1u << next, std::memory_order_seq_cst);
+    soundCopy.due = next;
+    soundCopy.blocksAtClose = soundCopy.blocksSeen = copyBlocks.load (std::memory_order_seq_cst);
+    soundCopy.blockSeenAt = now;
+    soundCopyStep.startTimer (soundStepMs);
 }
 
 void HostedSynth::giveDueCopyTheSound()
@@ -2411,40 +2436,36 @@ void HostedSynth::giveDueCopyTheSound()
     const auto c = soundCopy.due;
     const auto bit = 1u << c;
     auto& f = followers[(size_t) c];
-    const auto waited = juce::Time::getMillisecondCounterHiRes() - soundCopy.dueAt;
+    const auto now = juce::Time::getMillisecondCounterHiRes();
 
-    // The blocks played say when it's ready: one that was told it's closed shows whether a note
-    // reached it just before, and then whether its sound has died away and it has played the knob
-    // moves made before the first copy's state was taken (else it would seem to lack them). With
-    // no block played for a while, nothing is sent to it either.
-    if (copyBlocks.load (std::memory_order_acquire) != soundCopy.blocksAtDue || waited < hostIdleMs)
+    const auto ended = copyBlocks.load (std::memory_order_seq_cst);
+
+    if (ended != soundCopy.blocksSeen)
     {
-        const auto seen = copiesSeen.load (std::memory_order_acquire);
+        soundCopy.blocksSeen = ended;
+        soundCopy.blockSeenAt = now;
+    }
 
-        if (((seen >> 32) & bit) == 0)
-        {
-            soundCopyStep.startTimer (soundStepMs);
-            return;
-        }
+    // A block that ended since it was closed, and knew: no note can reach it from then on. Or no
+    // block has ended for a while and none is under way (the host has stopped playing): the next
+    // one will know.
+    const auto seen = copiesSeen.load (std::memory_order_acquire);
+    const auto knew = ended != soundCopy.blocksAtClose && ((seen >> 32) & bit) != 0;
+    const auto idle = now - soundCopy.blockSeenAt >= hostIdleMs && copyBlocksStarted.load (std::memory_order_seq_cst) == ended;
 
-        // A note reached it before it was closed: it's open again, and another copy goes first.
-        if ((seen & bit) != 0)
-        {
-            copiesDueSound.fetch_and (~bit, std::memory_order_acq_rel);
-            soundCopy.due = 0;
-            soundCopyStep.startTimer (soundStepMs);
-            return;
-        }
+    if (! knew && ! idle)
+    {
+        soundCopyStep.startTimer (soundStepMs);
+        return;
+    }
 
-        const auto stillSounding = waited < tailWaitMs && (copiesSounding.load (std::memory_order_acquire) & bit) != 0;
-        const auto behindOnKnobs = waited < catchUpWaitMs
-                                   && (int32_t) (f.playedChanges.load (std::memory_order_acquire) - soundCopy.versions.changes) < 0;
-
-        if (stillSounding || behindOnKnobs)
-        {
-            soundCopyStep.startTimer (soundStepMs);
-            return;
-        }
+    // A note reached it before it was closed: it's open again, and another copy goes first.
+    if ((seen & bit) != 0)
+    {
+        copiesDueSound.fetch_and (~bit, std::memory_order_seq_cst);
+        soundCopy.due = 0;
+        soundCopyStep.startTimer (soundStepMs);
+        return;
     }
 
     // Out of play while it's looked at and given the sound, so nothing else calls it meanwhile and
@@ -2497,6 +2518,7 @@ void HostedSynth::giveDueCopyTheSound()
 
     f.state.store (Follower::State::ready, std::memory_order_release);
     leaveSoundCopy (c);
+    soundCopy.lookingSince = 0.0;
 
     if (crashedNow)
         copyCrashed (c, code, outcome == Outcome::crashedLooking ? "while MPE Roll looked at its sound"
@@ -2517,13 +2539,13 @@ void HostedSynth::leaveSoundCopy (int copy)
     if (soundCopy.due == copy)
         soundCopy.due = 0;
 
-    copiesDueSound.fetch_and (~(1u << copy), std::memory_order_acq_rel);
+    copiesDueSound.fetch_and (~(1u << copy), std::memory_order_seq_cst);
 }
 
 void HostedSynth::endSoundCopy()
 {
     soundCopy = {};
-    copiesDueSound.store (0, std::memory_order_release);
+    copiesDueSound.store (0, std::memory_order_seq_cst);
 }
 
 //==============================================================================
@@ -2547,8 +2569,10 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
 {
     const auto numSamples = buffer.getNumSamples();
 
-    // Copies about to be given the first copy's sound, closed to new notes for the whole block.
-    const auto due = copiesDueSound.load (std::memory_order_acquire);
+    // Copies about to be given the first copy's sound, closed to new notes for the whole block. The
+    // block is counted as begun first, so the message thread can tell that it's under way.
+    copyBlocksStarted.fetch_add (1, std::memory_order_seq_cst);
+    const auto due = copiesDueSound.load (std::memory_order_seq_cst);
 
     for (auto& m : copyMidi)
         m.clear();
@@ -2719,7 +2743,7 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
 
     copiesSounding.store (sounding, std::memory_order_release);
     copiesSeen.store (holding | ((uint64_t) due << 32), std::memory_order_release);
-    copyBlocks.fetch_add (1, std::memory_order_acq_rel);
+    copyBlocks.fetch_add (1, std::memory_order_seq_cst);
 }
 
 void HostedSynth::processCopiesPiece (juce::AudioBuffer<float>& out, const juce::MidiBuffer& in, juce::AudioPlayHead* head)
@@ -2801,8 +2825,9 @@ void HostedSynth::processCopiesPiece (juce::AudioBuffer<float>& out, const juce:
 
         // A copy with no note left whose sound has died away is preferred for the next note, and
         // after a second of quiet it stops being processed (but not the first copy while its
-        // window is open: its own keyboard may be played).
-        if (router.isBusy (c) || r.level > quietLevel)
+        // window is open: its own keyboard may be played, nor one holding a key to every copy,
+        // which would miss its note-off). A key to every copy alone makes no sound.
+        if (router.holdsNotes (c) || r.level > quietLevel)
         {
             r.quietSeconds = 0.0;
             r.quiet = false;
@@ -2812,7 +2837,7 @@ void HostedSynth::processCopiesPiece (juce::AudioBuffer<float>& out, const juce:
         r.quietSeconds += seconds;
         r.quiet = r.quietSeconds >= 0.05;
 
-        if (outputSettings.copiesSleep && r.quietSeconds >= quietBeforeSleep && ! (c == 0 && windowOpen.load()))
+        if (outputSettings.copiesSleep && ! router.isBusy (c) && r.quietSeconds >= quietBeforeSleep && ! (c == 0 && windowOpen.load()))
             r.asleep = true;
     }
 
