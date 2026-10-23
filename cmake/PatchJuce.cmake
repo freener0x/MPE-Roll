@@ -28,6 +28,7 @@ set(processors "modules/juce_audio_processors_headless")
 set(vst3_common "${processors}/format_types/juce_VST3Common.h")
 set(vst3_impl "${processors}/format_types/juce_VST3PluginFormatImpl.h")
 set(extensions "${processors}/utilities/juce_AudioPluginExtensions.h")
+set(vst2_impl "${processors}/format_types/juce_VSTPluginFormatImpl.h")
 set(vst2_gui "modules/juce_audio_processors/format_types/juce_VSTPluginFormat.cpp")
 
 # VST3 hosting: JUCE keeps a table of the parameter each MIDI controller is mapped to and sends
@@ -173,13 +174,22 @@ mperoll_patch("${vst2_gui}"
             stopTimer();
     }]=]
     [=[private:
-    std::atomic<bool> callsStopped { false };   // it crashed: never called again
-
     void timerCallback() override
     {
         if (callsStopped || dispatch (Vst2::effIdle, 0, 0, nullptr, 0) == 0)
             stopTimer();
     }]=]
+    "hosted VST2s don't idle a plugin they've stopped calling")
+
+# The flag lives in the headless instance: the one above takes that class's constructors with
+# `using`, and with a member of its own added MSVC failed to compile it (it asked for the
+# definition of Timer's private TimerThread, which only juce_events has).
+mperoll_patch("${vst2_impl}"
+    [=[    std::unique_ptr<VSTPluginFormatHeadless::ExtraFunctions> extraFunctions;
+]=]
+    [=[    std::unique_ptr<VSTPluginFormatHeadless::ExtraFunctions> extraFunctions;
+    std::atomic<bool> callsStopped { false };   // it crashed: never called again
+]=]
     "hosted VST2s know they've stopped calling a plugin")
 
 # VST3 hosting: JUCE builds a hosted VST3's event list itself, from MIDI alone, so a host has no
