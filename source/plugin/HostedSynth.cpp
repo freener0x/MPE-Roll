@@ -28,10 +28,12 @@ namespace
     constexpr juce::int64 minimumFreeMegabytes = 1024;
     constexpr int checkAfterReportMs = 400;         // a synth picking presets reports several changes in a row
     constexpr int longestCheckWaitMs = 1000;        // ...but one that never stops reporting is still looked at
+    constexpr double longestReportWaitMs = 2000.0;  // ...as is one reported while knobs keep moving
     constexpr int checkWhileOpenMs = 1500;          // while the first copy's window is open...
     constexpr double cheapStateMs = 30.0;           // ...if its state is quick to get
     constexpr int soundStepMs = 20;                 // between copies being given a sound
     constexpr int heldCopyRetryMs = 100;            // a copy holding a note is given it once the note ends
+    constexpr double catchUpWaitMs = 300.0;         // for a copy to play the knob moves its sound is compared after
     constexpr const char* markerPrefix = "copiesLoading.";
     constexpr const char* crashedWhileLoadingKey = "copiesCrashedWhileLoading";
 
@@ -1503,6 +1505,7 @@ HostedSynth::ParameterMirror::Snapshot HostedSynth::ParameterMirror::snapshot() 
     // What the first copy has played first: what it played may be in the state taken next, what
     // it hasn't, maybe not.
     Snapshot result;
+    result.changes = changes.load (std::memory_order_acquire);
     result.leadPlayed = lastLeadPlayed.load (std::memory_order_acquire);
     result.versions.resize ((size_t) numParameters);
 
@@ -2156,7 +2159,9 @@ void HostedSynth::soundMayHaveChanged()
         return;
 
     // A synth picking a preset may say so several times in a row: one look once it's settled.
-    soundChangeReported = true;
+    if (! std::exchange (soundChangeReported, true))
+        reportedAt = juce::Time::getMillisecondCounterHiRes();
+
     ++soundGeneration;      // a copy loading now took the sound from before
     askForSoundCheck (checkAfterReportMs);
 }
@@ -2221,6 +2226,17 @@ void HostedSynth::checkSound()
     const auto changes = mirror.getChanges();
     const auto parametersMoved = changes != changesAtLastCheck;
     changesAtLastCheck = changes;
+
+    // A change reported while knobs are still being turned (some synths report every move): it's
+    // looked at once they've been still for a moment, or after two seconds of automation, when
+    // the copies have played the moves too and are found to have the sound rather than given it.
+    if (reported && ! closed && parametersMoved
+        && juce::Time::getMillisecondCounterHiRes() - reportedAt < longestReportWaitMs)
+    {
+        soundChangeReported = true;
+        soundCheck.startTimer (checkAfterReportMs);
+        return;
+    }
 
     // Otherwise it's the look taken every few seconds while the first copy's window is open. Not
     // for a synth whose state is slow to get (a big sample library), nor one whose state changes
@@ -2287,6 +2303,7 @@ void HostedSynth::startCopyingSound (juce::MemoryBlock state, ParameterMirror::S
     soundCopy.versions = std::move (versions);
     soundCopy.copies = copies;
     soundCopy.reason = reason;
+    soundCopy.startedAt = juce::Time::getMillisecondCounterHiRes();
     soundCopy.running = true;
     hashAtLastCheck = soundCopy.hash;
     ++soundGeneration;
@@ -2315,7 +2332,8 @@ void HostedSynth::copySoundToNext()
     }
 
     const auto holdingNotes = copiesHoldingNotes.load();
-    bool waitingForNotes = false;
+    const auto mayWaitForBlocks = juce::Time::getMillisecondCounterHiRes() - soundCopy.startedAt < catchUpWaitMs;
+    bool waitingForNotes = false, waitingForBlocks = false;
 
     for (int c = 1; c < maxCopies; ++c)
     {
@@ -2332,7 +2350,16 @@ void HostedSynth::copySoundToNext()
         }
 
         // Most often a copy has the sound already, its parameters having followed the first
-        // copy's: its own state says so, and it's left alone.
+        // copy's: its own state says so, and it's left alone. Not before it has played a block with
+        // the parameter changes made before the first copy's state was taken, or it would seem to
+        // lack them. A copy that isn't being played (asleep) is looked at after a moment anyway.
+        if (! soundCopy.lacking[(size_t) c] && mayWaitForBlocks
+            && (int32_t) (f.playedChanges.load (std::memory_order_acquire) - soundCopy.versions.changes) < 0)
+        {
+            waitingForBlocks = true;
+            continue;
+        }
+
         if (! soundCopy.lacking[(size_t) c])
         {
             juce::MemoryBlock own;
@@ -2406,9 +2433,9 @@ void HostedSynth::copySoundToNext()
         return;
     }
 
-    if (waitingForNotes)
+    if (waitingForNotes || waitingForBlocks)
     {
-        soundCopyStep.startTimer (heldCopyRetryMs);
+        soundCopyStep.startTimer (waitingForNotes ? heldCopyRetryMs : soundStepMs);
         return;
     }
 
@@ -2769,6 +2796,7 @@ void HostedSynth::renderCopy (int c)
                            },
                            &catchUp };
         unsigned int code = 0;
+        const auto changes = mirror.getChanges();      // all caught up with below
 
         if (! CopySafety::call (callProcess, &call, &code))
         {
@@ -2779,6 +2807,8 @@ void HostedSynth::renderCopy (int c)
             anyCopyCrashed = true;
             return;
         }
+
+        followers[(size_t) c].playedChanges.store (changes, std::memory_order_release);
     }
 
     r.outputs = outputs;

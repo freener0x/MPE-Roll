@@ -368,7 +368,10 @@ private:
         // How far it has caught up with the first copy's parameter changes. Owned by whoever holds
         // the copy: the thread playing it, or the message thread while it's busy.
         std::vector<uint32_t> seenParameter, seenChunk;
-        uint32_t seenLatest = 0;
+
+        // The first copy's parameter changes it has played a block with, counted as the mirror's
+        // getChanges() counts them. Set by the thread playing it.
+        std::atomic<uint32_t> playedChanges { 0 };
     };
 
     /** The first copy's parameter changes, as they happen, for the others to catch up with right
@@ -396,6 +399,7 @@ private:
         struct Snapshot
         {
             std::vector<uint32_t> versions;             // every parameter's
+            uint32_t changes = 0;                       // getChanges() then
             uint32_t leadPlayed = 0;                    // the changes the first copy had played a block with
         };
 
@@ -524,12 +528,14 @@ private:
         ParameterMirror::Snapshot versions;             // its parameters' versions when it was taken
         CopyRouter::CopySet copies;                     // the copies it's for (each only while it lacks it)
         CopyRouter::CopySet lacking;                    // looked at, and found to lack it
+        double startedAt = 0.0;                         // ms, as getMillisecondCounterHiRes() counts
         bool running = false;
         int copied = 0, alreadyHad = 0;
         juce::String reason;                            // for the log
     } soundCopy;
 
     bool soundChangeReported = false;                   // the first copy said its sound changed
+    double reportedAt = 0.0;                            // ms: when it first said so, since the last look
     bool windowJustClosed = false;
     double checkAskedAt = 0.0;                          // when a check was first asked for since the last one ran
     uint32_t soundGeneration = 0;                       // moves on whenever the first copy's sound may have changed
