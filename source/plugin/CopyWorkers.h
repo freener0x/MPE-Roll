@@ -2,6 +2,7 @@
 
 #include <juce_core/juce_core.h>
 
+#include <array>
 #include <atomic>
 #include <memory>
 #include <thread>
@@ -28,9 +29,9 @@ namespace mperoll
     take the cores from the audio threads playing live meanwhile.
 
     Every MPE Roll in the process shares one set (getShared()), so two of them in copy mode don't
-    start twice as many threads as there are cores: a run() that finds them busy with another's
-    block does its jobs on its own thread. Made and deleted on the message thread, never while
-    run() is in progress.
+    start twice as many threads as there are cores. Up to four callers' batches are run at once,
+    the workers taking jobs from any of them; a fifth caller at the same moment does its jobs on
+    its own thread. Made and deleted on the message thread, never while run() is in progress.
 */
 class CopyWorkers
 {
@@ -53,50 +54,57 @@ public:
     int getNumWorkers() const noexcept                  { return (int) threads.size(); }
 
     /** Calls job (context, i) once for every i in 0..count-1, spread over this thread and the
-        workers, and returns once every call has returned. Any thread; while another thread's
-        run() has the workers, the calls are all made on this one. Real-time safe: no allocation
-        and no lock; it only signals a semaphore to wake the workers.
+        workers, and returns once every call has returned. Any thread; while four other threads'
+        batches have the workers, the calls are all made on this one. Real-time safe: no
+        allocation and no lock; it only signals a semaphore to wake the workers.
     */
     void run (int count, Job job, void* context) noexcept;
 
     /** run() in two halves, for a caller with something of its own to do meanwhile: begin() sets
         the workers going on the jobs (callerBusy: all of them, the caller being busy first) and
         finish() takes the rest on this thread and waits for the workers. Every begin() must be
-        followed by its finish(), on the same thread, before anything else uses these workers.
+        followed by its finish(), on the same thread.
     */
     struct Batch
     {
         int count = 0;
         Job job = nullptr;
         void* context = nullptr;
-        bool shared = false;            // the workers have it (otherwise finish() does it all)
+        int slot = -1;                  // the workers have it (otherwise finish() does it all)
+        bool shared = false;
     };
 
     Batch begin (int count, Job job, void* context, bool callerBusy) noexcept;
     void finish (const Batch&) noexcept;
 
+    static constexpr int numSlots = 4;  // batches run at once
+
 private:
     class Semaphore;
     class Worker;
 
+    /** A batch being run. ticket holds the batch's number in its top 32 bits and the next index to
+        hand out in its bottom 32: an index is taken by a compare-and-swap that also checks the
+        batch, so a worker that wakes late can never take an index of a later batch. */
+    struct Slot
+    {
+        std::atomic<bool> taken { false };      // a caller has it, until its finish()
+        std::atomic<uint64_t> ticket { 0 };
+        std::atomic<int> remaining { 0 };
+        std::atomic<int> count { 0 };
+        std::atomic<Job> job { nullptr };
+        std::atomic<void*> context { nullptr };
+        uint32_t batch = 0;                     // its caller's
+    };
+
     std::unique_ptr<Semaphore> wakeUp;
     std::vector<std::unique_ptr<Worker>> threads;
     std::atomic<bool> quit { false };
-    std::atomic<bool> taken { false };      // a run() has the workers
     const bool audioPriority;
-
-    // The batch being run. ticket holds the batch's number in its top 32 bits and the next index
-    // to hand out in its bottom 32: an index is taken by a compare-and-swap that also checks the
-    // batch, so a worker that wakes late can never take an index of a later batch.
-    std::atomic<uint64_t> ticket { 0 };
-    std::atomic<int> remaining { 0 };
-    std::atomic<int> batchCount { 0 };
-    std::atomic<Job> batchJob { nullptr };
-    std::atomic<void*> batchContext { nullptr };
-    uint32_t batch = 0;
+    std::array<Slot, numSlots> slots;
 
     void workerLoop (int index);
-    void work (uint32_t batchNumber) noexcept;
+    static void work (Slot&, uint32_t batchNumber) noexcept;
     static void raisePriority (int index);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CopyWorkers)

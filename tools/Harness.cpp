@@ -3571,6 +3571,45 @@ int copiesTest (const juce::File& synthFile)
         rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = true; });
     }
 
+    std::printf ("Notes started while the copies are given a sound play to their end\n");
+    {
+        // A run of notes a quarter of a second apart, each 0.4 s long, and a new program given to
+        // every copy as it starts: each copy is given it in turn, between notes, and the copy about
+        // to be given it is given no new note meanwhile.
+        rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = false; });
+
+        MpeClip run;
+        run.length = 8.0;
+
+        for (int i = 0; i < 6; ++i)
+            run.addNote (note (60 + 2 * i, 0.5 * i, 0.8, 0.8f));
+
+        bool asked = false;
+        const auto audio = rig->play (run, 2.2, [&] (double t)
+        {
+            if (t >= 0.2 && ! asked)
+            {
+                asked = true;
+                rig->synth().getCopy (0)->setCurrentProgram (2);     // Saw
+                rig->synth().copySoundToAllCopies();
+            }
+        });
+
+        auto quietest = 1.0;
+
+        for (int i = 0; i < 6; ++i)
+            quietest = juce::jmin (quietest, rig->level (audio, 0.25 * i + 0.3, juce::MidiMessage::getMidiNoteInHertz (60 + 2 * i)));
+
+        std::printf ("  quietest note near its end: %.4f\n", quietest);
+        check (quietest > 0.01, "every note sounds to its end");
+        check (rig->settle() && rig->copiesMatchFirst(), "and every copy has the new program after");
+
+        rig->synth().getCopy (0)->setCurrentProgram (0);
+        rig->synth().copySoundToAllCopies();
+        check (rig->settle() && rig->copiesMatchFirst(), "back to the first program");
+        rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = true; });
+    }
+
     std::printf ("Quiet copies sleep, and a note wakes one\n");
     {
         rig->idle (1600);
@@ -3640,8 +3679,11 @@ int copiesTest (const juce::File& synthFile)
         const auto identity = d->pluginFormatName + ":" + juce::String (d->uniqueId != 0 ? d->uniqueId : d->deprecatedUid) + ":" + d->name;
 
         // Another program loading copies right now (the MPE Roll app beside FL, say) isn't a crash.
+        const auto processId = CopySafety::getProcessId();
+        const auto started = CopySafety::getProcessStartTime (processId);
+        check (started != 0, "a process's start time can be told");
         rig->synth().getUserSettings()->setValue ("copiesLoading.elsewhere",
-                                                  "another program|" + juce::String (CopySafety::getProcessId()) + "|" + identity);
+                                                  "another program|" + juce::String (processId) + "@" + juce::String (started) + "|" + identity);
         rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::singleChannel; });
         rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::copies; o.copies = 4; });
         check (rig->settle() && rig->status().loaded == 4 && rig->status().problem.isEmpty(),
@@ -3649,8 +3691,10 @@ int copiesTest (const juce::File& synthFile)
         check (rig->synth().getUserSettings()->containsKey ("copiesLoading.elsewhere"), "and is left for it");
         rig->synth().getUserSettings()->removeValue ("copiesLoading.elsewhere");
 
-        // What a run that closed while loading a copy leaves behind (its process is gone).
-        rig->synth().getUserSettings()->setValue ("copiesLoading.earlier", "another run|0|" + identity);
+        // What a run that closed while loading a copy leaves behind. Its process ID has since been
+        // given to another (this one): that process started later, so it isn't the one.
+        rig->synth().getUserSettings()->setValue ("copiesLoading.earlier", "another run|" + juce::String (processId) + "@"
+                                                                               + juce::String (started - 1) + "|" + identity);
         rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::singleChannel; });
         rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::copies; o.copies = 4; });
         rig->settle();

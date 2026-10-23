@@ -490,6 +490,7 @@ private:
 
     juce::AudioBuffer<float> scratch;
     juce::MidiBuffer midiPiece;                         // audio thread: a long block's MIDI, one piece at a time
+    juce::MidiBuffer noMidi;                            // audio thread: always empty, for ending notes
     PieceHead pieceHead;                                // audio thread: and its transport position
     SilenceWatch silenceWatch;
     std::atomic<bool> silenceWarning { false };
@@ -527,8 +528,9 @@ private:
         size_t hash = 0;
         ParameterMirror::Snapshot versions;             // its parameters' versions when it was taken
         CopyRouter::CopySet copies;                     // the copies it's for (each only while it lacks it)
-        CopyRouter::CopySet lacking;                    // looked at, and found to lack it
-        double startedAt = 0.0;                         // ms, as getMillisecondCounterHiRes() counts
+        int due = 0;                                   // the copy closed to new notes, to be given it next (0: none)
+        double dueAt = 0.0;                             // ms: since when
+        uint32_t blocksAtDue = 0;                       // copyBlocks then
         bool running = false;
         int copied = 0, alreadyHad = 0;
         juce::String reason;                            // for the log
@@ -563,7 +565,16 @@ private:
     std::atomic<bool> configurationRequested { false };
     std::atomic<bool> windowOpen { false };             // the first copy's window: it doesn't sleep
     std::atomic<int> copiesPlaying { 0 }, copiesAsleep { 0 };
-    std::atomic<uint32_t> copiesHoldingNotes { 0 };     // a bit per copy with a note held or sustained
+    CopyRouter::CopySet openCopies;                     // audio thread: the played copies new notes may go to
+
+    // A bit per copy each. The message thread closes a copy to new notes before giving it the
+    // first copy's sound (copiesDueSound); each block says, as it ends, which copies hold a note
+    // (held or sustained: the low half of copiesSeen) and which of them it was told were closed
+    // (the high half), and which still sound (copiesSounding).
+    std::atomic<uint32_t> copiesDueSound { 0 };
+    std::atomic<uint64_t> copiesSeen { 0 };
+    std::atomic<uint32_t> copiesSounding { 0 };
+    std::atomic<uint32_t> copyBlocks { 0 };             // blocks played in copy mode
     static_assert (maxCopies <= 32);
     std::array<std::atomic<unsigned int>, maxCopies> crashCodes {};   // set by the thread that caught a copy's crash
     std::atomic<bool> anyCopyCrashed { false };
@@ -605,12 +616,16 @@ private:
                             bool evenIfInStep, const juce::String& reason);
     void checkSound();
     void copySoundToNext();
+    void giveDueCopyTheSound();
+    void leaveSoundCopy (int copy);
+    void endSoundCopy();
     void watchCopies();
     bool copiesBlockedAfterCrash();
     void setLoadingMarker (bool loading);
     juce::String getCopyIdentity() const;
 
-    void processCopies (juce::AudioBuffer<float>&, juce::MidiBuffer&, juce::AudioPlayHead*, bool justStarted);
+    void processCopies (juce::AudioBuffer<float>&, juce::MidiBuffer&, juce::AudioPlayHead*, bool justStarted,
+                        const juce::MidiBuffer* leadEndings);
     void processCopiesPiece (juce::AudioBuffer<float>&, const juce::MidiBuffer&, juce::AudioPlayHead*);
     void renderCopy (int copy);
     static void renderJob (void* context, int index) noexcept;

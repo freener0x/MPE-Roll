@@ -267,26 +267,42 @@ void CopyWorkers::run (int count, Job job, void* context) noexcept
 
 CopyWorkers::Batch CopyWorkers::begin (int count, Job job, void* context, bool callerBusy) noexcept
 {
-    Batch b { juce::jmax (0, count), job, context, false };
+    Batch b;
+    b.count = juce::jmax (0, count);
+    b.job = job;
+    b.context = context;
 
-    // One job, no workers, or the workers busy with another MPE Roll's block: all done here, by finish().
-    if (count <= 1 || threads.empty() || taken.exchange (true, std::memory_order_acquire))
+    // No jobs, one the caller takes at once anyway, or no workers: all done here, by finish().
+    if (count <= 0 || (count == 1 && ! callerBusy) || threads.empty())
         return b;
 
-    // The last batch's ticket is closed before its job and count are replaced: see work().
-    ticket.store (((uint64_t) batch << 32) | closedIndex, std::memory_order_relaxed);
+    // A slot no other caller has. With all of them taken (four MPE Rolls' blocks at once), this
+    // caller does its own jobs.
+    for (int s = 0; s < numSlots; ++s)
+    {
+        auto& slot = slots[(size_t) s];
 
-    batchJob.store (job, std::memory_order_relaxed);
-    batchContext.store (context, std::memory_order_relaxed);
-    batchCount.store (count, std::memory_order_release);
-    remaining.store (count, std::memory_order_relaxed);
+        if (slot.taken.exchange (true, std::memory_order_acquire))
+            continue;
 
-    ++batch;
-    ticket.store ((uint64_t) batch << 32, std::memory_order_release);
+        // The slot's last batch's ticket is closed before its job and count are replaced: see work().
+        slot.ticket.store (((uint64_t) slot.batch << 32) | closedIndex, std::memory_order_relaxed);
 
-    // As many as there are jobs, less the one the caller takes straight away if it isn't busy first.
-    wakeUp->release (juce::jmin (getNumWorkers(), callerBusy ? count : count - 1));
-    b.shared = true;
+        slot.job.store (job, std::memory_order_relaxed);
+        slot.context.store (context, std::memory_order_relaxed);
+        slot.count.store (count, std::memory_order_release);
+        slot.remaining.store (count, std::memory_order_relaxed);
+
+        ++slot.batch;
+        slot.ticket.store ((uint64_t) slot.batch << 32, std::memory_order_release);
+
+        // As many as there are jobs, less the one the caller takes straight away if it isn't busy first.
+        wakeUp->release (juce::jmin (getNumWorkers(), callerBusy ? count : count - 1));
+        b.slot = s;
+        b.shared = true;
+        return b;
+    }
+
     return b;
 }
 
@@ -303,12 +319,13 @@ void CopyWorkers::finish (const Batch& b) noexcept
         return;
     }
 
-    work (batch);
+    auto& slot = slots[(size_t) b.slot];
+    work (slot, slot.batch);
 
     // Jobs the workers took may still be running. Spinning keeps this wait as short as it can be;
     // after a while the core is offered to other threads between looks, in case one of them is
     // a worker waiting for it.
-    for (int spins = 0; remaining.load (std::memory_order_acquire) > 0;)
+    for (int spins = 0; slot.remaining.load (std::memory_order_acquire) > 0;)
     {
         if (spins < 4000)
         {
@@ -321,7 +338,7 @@ void CopyWorkers::finish (const Batch& b) noexcept
         }
     }
 
-    taken.store (false, std::memory_order_release);
+    slot.taken.store (false, std::memory_order_release);
 }
 
 void CopyWorkers::workerLoop (int index)
@@ -338,7 +355,9 @@ void CopyWorkers::workerLoop (int index)
         if (quit.load (std::memory_order_acquire))
             break;
 
-        work ((uint32_t) (ticket.load (std::memory_order_acquire) >> 32));
+        // Woken for one caller's batch, it helps with whichever have jobs left.
+        for (auto& slot : slots)
+            work (slot, (uint32_t) (slot.ticket.load (std::memory_order_acquire) >> 32));
     }
 
    #if JUCE_WINDOWS
@@ -346,8 +365,9 @@ void CopyWorkers::workerLoop (int index)
    #endif
 }
 
-void CopyWorkers::work (uint32_t batchNumber) noexcept
+void CopyWorkers::work (Slot& slot, uint32_t batchNumber) noexcept
 {
+    auto& ticket = slot.ticket;
     auto current = ticket.load (std::memory_order_acquire);
 
     for (;;)
@@ -360,15 +380,15 @@ void CopyWorkers::work (uint32_t batchNumber) noexcept
         // it can't take one of a later batch.
         //
         // Nor one past the end of its own: the count it reads may already be the next batch's,
-        // and the ticket of a finished batch still holds its number. That's why run() closes the
+        // and the ticket of a finished batch still holds its number. That's why begin() closes the
         // ticket before replacing the count: a thread that sees the new count (an acquire, after
-        // run()'s release) also sees the closed ticket, and its compare-and-swap fails.
+        // begin()'s release) also sees the closed ticket, and its compare-and-swap fails.
         //
         // So when the compare-and-swap succeeds, the ticket held this batch and an index below
-        // its count. The batch can't finish until that index has run, so run() is still waiting
-        // in it, and the job and context read below are this batch's.
+        // its count. The batch can't finish until that index has run, so its caller is still
+        // waiting in finish(), and the job and context read below are this batch's.
         if ((uint32_t) (current >> 32) != batchNumber
-            || index >= (uint32_t) batchCount.load (std::memory_order_acquire))
+            || index >= (uint32_t) slot.count.load (std::memory_order_acquire))
             return;
 
         if (! ticket.compare_exchange_weak (current, current + 1, std::memory_order_acq_rel, std::memory_order_acquire))
@@ -376,10 +396,10 @@ void CopyWorkers::work (uint32_t batchNumber) noexcept
 
         {
             juce::ScopedNoDenormals noDenormals;
-            batchJob.load (std::memory_order_relaxed) (batchContext.load (std::memory_order_relaxed), (int) index);
+            slot.job.load (std::memory_order_relaxed) (slot.context.load (std::memory_order_relaxed), (int) index);
         }
 
-        remaining.fetch_sub (1, std::memory_order_release);
+        slot.remaining.fetch_sub (1, std::memory_order_release);
         current = ticket.load (std::memory_order_acquire);
     }
 }

@@ -80,9 +80,10 @@ mperoll_patch("${vst3_impl}"
 
 # Hosting a synth that crashed (MPE Roll catches a crash in a copy of the synth, on Windows, and
 # switches that copy off): JUCE's host would still call it from the message thread on its own,
-# from the timers that pass parameter changes to a VST3's edit controller and idle a VST2.
-# stopCallingPlugin() stops them; nothing calls the plugin after that. It may be called from the
-# thread that caught the crash, before those timers next fire.
+# from the timers that pass parameter changes to a VST3's edit controller and idle a VST2, and
+# for a restart a VST3 asked for. stopCallingPlugin() stops them; nothing calls the plugin after
+# that, but for the one call a timer may have under way. It may be called from the thread that
+# caught the crash, before those timers next fire.
 mperoll_patch("${extensions}"
     [=[        virtual Steinberg::Vst::IEditController* getIEditControllerPtr() const noexcept { return nullptr; }
 ]=]
@@ -109,6 +110,11 @@ mperoll_patch("${vst3_impl}"
         stopTimer();
     }
 
+    bool isStopped() const noexcept
+    {
+        return stopped;
+    }
+
     void flush()
     {
         if (stopped)
@@ -116,6 +122,52 @@ mperoll_patch("${vst3_impl}"
 
         cache.ifSet ([this] (Steinberg::int32 index, float value)]=]
     "VST3 parameter dispatcher can be stopped")
+
+# Looked at again before each call: it may be stopped from another thread during a flush.
+mperoll_patch("${vst3_impl}"
+    [=[        cache.ifSet ([this] (Steinberg::int32 index, float value)
+        {
+            controller->setParamNormalized (cache.getParamID (index), value);
+        });]=]
+    [=[        cache.ifSet ([this] (Steinberg::int32 index, float value)
+        {
+            if (! stopped)
+                controller->setParamNormalized (cache.getParamID (index), value);
+        });]=]
+    "VST3 parameter dispatcher stops in the middle of a flush")
+
+mperoll_patch("${vst3_impl}"
+    [=[        if (MessageManager::getInstance()->isThisTheMessageThread())
+            controller->setParamNormalized (cache.getParamID (index), value);]=]
+    [=[        if (stopped)
+            return;
+
+        if (MessageManager::getInstance()->isThisTheMessageThread())
+            controller->setParamNormalized (cache.getParamID (index), value);]=]
+    "VST3 parameter dispatcher passes nothing on once stopped")
+
+mperoll_patch("${vst3_impl}"
+    [=[void VST3HostContextHeadless::restartComponentOnMessageThread (int32 flags)
+{
+    if (plugin == nullptr)
+    {
+        jassertfalse;
+        return;
+    }
+]=]
+    [=[void VST3HostContextHeadless::restartComponentOnMessageThread (int32 flags)
+{
+    if (plugin == nullptr)
+    {
+        jassertfalse;
+        return;
+    }
+
+    // Asked for before it crashed, but carried out after: a plugin that crashed is never called again.
+    if (plugin->parameterDispatcher.isStopped())
+        return;
+]=]
+    "hosted VST3s carry out no restart for a plugin that crashed")
 
 mperoll_patch("${vst3_impl}"
     [=[    CachedParamValues cache;

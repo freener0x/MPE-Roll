@@ -30,8 +30,8 @@ namespace mperoll
       4. all copies hold notes: with Overflow::stealOldest the oldest note is stopped and its copy
          taken; with Overflow::shareChannel the note joins the copy holding the fewest notes (the
          one whose newest note is oldest, on a tie), and the copy's newest note drives its bend.
-    A note is never given a copy outside numCopies or outside the available set; if no copy is
-    available at all the note isn't played (its events are ignored until it ends).
+    A note is never given a copy outside numCopies or outside the copies that may take new notes;
+    if no copy may take it at all the note isn't played (its events are ignored until it ends).
 
     Copies that sleep: the caller may stop processing a copy that has gone quiet (it then
     discards that copy's MIDI). The router is told which copies sleep; when a note or an
@@ -63,13 +63,23 @@ public:
     /** Routes a block of the MPE stream. Copy i's MIDI is added to outs[i] (outs holds maxCopies
         buffers, not cleared here), at the sample positions of the events it comes from.
 
-        available: copies a new note may go to (loaded, in step with the first copy).
+        available: copies being played (loaded, in step with the first copy). Every-copy keys go
+                   to all of them.
+        takesNewNotes: those of them a new note may go to; the others play on the notes they
+                   hold (a copy about to be given new state, say).
         quiet: copies whose output has gone quiet; preferred for new notes (rule 1).
         asleep: copies the caller isn't processing. A copy the router wakes is removed from it,
                 and its zone state is written ahead of the note that woke it.
     */
     void route (const juce::MidiBuffer& in, juce::MidiBuffer* outs, const CopySet& available,
-                const CopySet& quiet, CopySet& asleep);
+                const CopySet& takesNewNotes, const CopySet& quiet, CopySet& asleep);
+
+    /** route() with every available copy taking new notes. */
+    void route (const juce::MidiBuffer& in, juce::MidiBuffer* outs, const CopySet& available,
+                const CopySet& quiet, CopySet& asleep)
+    {
+        route (in, outs, available, available, quiet, asleep);
+    }
 
     /** Note-offs for every note held in every copy (and the every-copy keys), then forgets them. */
     void stopAll (juce::MidiBuffer* outs, int samplePos);
@@ -87,6 +97,11 @@ public:
         range (RPN 0) on its channel; then every zone-wide value (forgetting what was sent before).
         For a copy that has just been loaded or given new state. */
     void introduce (int copy, juce::MidiBuffer& out, int samplePos);
+
+    /** Note Ons for the every-copy keys held now that the copy doesn't hold (a keyswitch, a loop
+        instrument's modifier), as they were first played. For a copy that came back, after its
+        dropped notes were ended and it was introduced. */
+    void resendEveryCopyKeys (int copy, juce::MidiBuffer& out, int samplePos);
 
     /** Sends every copy its pitch-bend range again, when settings.sendConfiguration is on. */
     void writeConfiguration (juce::MidiBuffer* outs, int samplePos);
@@ -112,6 +127,7 @@ private:
         int key = 0;
         uint64_t started = 0;   // order, for stealing the oldest
         CopySet everyCopy;      // an every-copy key: the copies its Note On went to
+        juce::uint8 velocity = 0;   // and that Note On's velocity
         bool everyCopyKey = false;
         bool inUse = false;
         bool startedPlaying = false;
@@ -147,6 +163,7 @@ private:
     // While routing a block.
     juce::MidiBuffer* outputs = nullptr;
     const CopySet* availableCopies = nullptr;
+    const CopySet* newNoteCopies = nullptr;
     const CopySet* quietCopies = nullptr;
     CopySet* sleepingCopies = nullptr;
     int position = 0;

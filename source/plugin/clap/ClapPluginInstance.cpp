@@ -1187,20 +1187,30 @@ private:
     //==============================================================================
     void handleAsyncUpdate() override
     {
+        // Looked at before each call into the plugin: it may crash on another thread meanwhile.
         if (quarantined)
             return;
 
         if (hostContext->callbackRequested.exchange (false))
             plugin->on_main_thread (plugin);
 
+        if (quarantined)
+            return;
+
         deliverPluginEdits();
 
         if (restartPending.load())
             restart();
 
+        if (quarantined)
+            return;
+
         // While the audio thread is running it passes these on; keep checking in case it stops.
         if ((flushRequested.load() || parametersPending.load()) && ! flushParametersNow())
             startTimer (100);
+
+        if (quarantined)
+            return;
 
         handleGuiRequests();
         hostContext->clearRetiredTimers();
@@ -1216,6 +1226,10 @@ private:
 
     void restart()
     {
+        // Before the lock: a crash on the audio thread may have left it held.
+        if (quarantined)
+            return;
+
         {
             const juce::SpinLock::ScopedLockType lock (processLock);
 
@@ -1264,6 +1278,9 @@ private:
     */
     bool flushParametersNow()
     {
+        if (quarantined)
+            return true;
+
         if (params == nullptr || params->flush == nullptr)
         {
             flushRequested = false;

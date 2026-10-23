@@ -229,8 +229,8 @@ public:
 
         beginTest ("Two threads running batches on the same workers at once each get all theirs done");
         {
-            // Two MPE Rolls' audio threads sharing the process's workers: whichever finds them
-            // taken does its own jobs itself.
+            // Two MPE Rolls' audio threads sharing the process's workers, each batch in a slot of
+            // its own: no job of one may be run as the other's, or twice.
             CopyWorkers workers (3);
             std::array<Batches, 2> batches;
             std::array<int, 2> wrong {};
@@ -294,6 +294,58 @@ public:
                 expectEquals (wrongCalls, 0, juce::String (count) + " jobs");
                 expectEquals (unfinished, 0, juce::String (count) + " jobs");
             }
+        }
+
+        beginTest ("A busy caller's one job goes to a worker, so the two run at once");
+        {
+            // The first copy on the caller's thread, one other copy on a worker's.
+            CopyWorkers workers (2);
+            Record record;
+            record.jobLength = std::chrono::microseconds (500);
+            const auto batch = workers.begin (1, recordJob, &record, true);
+            expect (batch.shared, "the workers have it");
+
+            std::this_thread::sleep_for (std::chrono::milliseconds (50));      // the caller's own work
+            const auto doneMeanwhile = record.calls[0].load() == 1;
+            workers.finish (batch);
+
+            expect (doneMeanwhile, "done while the caller was busy");
+            expect (record.threads[0] != std::this_thread::get_id(), "on a worker");
+        }
+
+        beginTest ("Two callers at once both have the workers' help");
+        {
+            // Two MPE Rolls' blocks at the same moment: neither is left to do all its copies alone.
+            CopyWorkers workers (4);
+            std::array<Record, 2> records;
+            std::array<bool, 2> shared {}, helped {};
+            std::atomic<int> started { 0 };
+
+            auto play = [&] (int who)
+            {
+                auto& record = records[(size_t) who];
+                record.jobLength = std::chrono::microseconds (500);
+                record.sleep = true;
+                const auto batch = workers.begin (2, recordJob, &record, true);
+                shared[(size_t) who] = batch.shared;
+                started.fetch_add (1);
+
+                while (started.load() < 2)      // both batches out before either is finished
+                    std::this_thread::yield();
+
+                std::this_thread::sleep_for (std::chrono::milliseconds (50));
+                workers.finish (batch);
+
+                for (int i = 0; i < 2; ++i)
+                    helped[(size_t) who] = helped[(size_t) who] || record.threads[(size_t) i] != std::this_thread::get_id();
+            };
+
+            std::thread other (play, 1);
+            play (0);
+            other.join();
+
+            expect (shared[0] && shared[1], "each has a slot of its own");
+            expect (helped[0] && helped[1], "and the workers do jobs of each");
         }
 
         beginTest ("The process's workers are shared while used, and stop when the last user lets go");
@@ -385,6 +437,23 @@ public:
 
             CopySafety::pretendAvailableMemoryMB (-2);
             expect (known ? CopySafety::getAvailableMemoryMB() > 0 : CopySafety::getAvailableMemoryMB() == -1);
+        }
+
+        beginTest ("A process is told apart from a later one given the same ID");
+        {
+            const auto self = CopySafety::getProcessId();
+            const auto started = CopySafety::getProcessStartTime (self);
+
+           #if JUCE_LINUX || JUCE_WINDOWS || JUCE_MAC
+            expect (started != 0, "its start time can be told");
+            expectEquals (CopySafety::getProcessStartTime (self), started, "and stays the same");
+            expect (CopySafety::isProcessRunning (self, started), "running, and the same process");
+            expect (! CopySafety::isProcessRunning (self, started - 1), "a process that started at another time isn't it");
+           #endif
+
+            expect (CopySafety::isProcessRunning (self, 0), "without a start time, any process with the ID");
+            expect (! CopySafety::isProcessRunning (0, 0));
+            expectEquals (CopySafety::getProcessStartTime (0), (juce::int64) 0);
         }
 
         beginTest ("A C++ exception that escapes inside call() is caught everywhere");

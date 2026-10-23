@@ -29,6 +29,7 @@
   #include <cstring>
  #elif JUCE_MAC
   #include <mach/mach.h>
+  #include <sys/sysctl.h>
  #endif
 #endif
 
@@ -307,6 +308,64 @@ bool isProcessRunning (juce::int64 processId)
    #else
     return kill ((pid_t) processId, 0) == 0 || errno == EPERM;
    #endif
+}
+
+juce::int64 getProcessStartTime (juce::int64 processId)
+{
+    if (processId <= 0)
+        return 0;
+
+   #if JUCE_WINDOWS
+    // In 100 ns steps since 1601.
+    juce::int64 started = 0;
+
+    if (auto* process = OpenProcess (PROCESS_QUERY_LIMITED_INFORMATION, FALSE, (DWORD) processId))
+    {
+        FILETIME creation {}, exited {}, kernel {}, user {};
+
+        if (GetProcessTimes (process, &creation, &exited, &kernel, &user))
+            started = (juce::int64) (((uint64_t) creation.dwHighDateTime << 32) | creation.dwLowDateTime);
+
+        CloseHandle (process);
+    }
+
+    return started;
+   #elif JUCE_LINUX
+    // In clock ticks since the system started: the 22nd field of /proc/<id>/stat, counted after the
+    // program's name, which is in brackets and may hold spaces and brackets of its own.
+    const auto stat = juce::File ("/proc/" + juce::String (processId) + "/stat").loadFileAsString();
+    const auto fields = juce::StringArray::fromTokens (stat.fromLastOccurrenceOf (")", false, false), " ", "");
+
+    // The state is the 3rd field, the 1st after the name: the start time is 19 after it.
+    juce::StringArray afterName;
+
+    for (const auto& field : fields)
+        if (field.isNotEmpty())
+            afterName.add (field);
+
+    return afterName.size() > 19 ? afterName[19].getLargeIntValue() : 0;
+   #elif JUCE_MAC
+    // In microseconds since 1970.
+    int request[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, (int) processId };
+    kinfo_proc info {};
+    size_t size = sizeof (info);
+
+    if (sysctl (request, 4, &info, &size, nullptr, 0) != 0 || size == 0)
+        return 0;
+
+    return (juce::int64) info.kp_proc.p_starttime.tv_sec * 1000000 + info.kp_proc.p_starttime.tv_usec;
+   #else
+    return 0;
+   #endif
+}
+
+bool isProcessRunning (juce::int64 processId, juce::int64 startTime)
+{
+    if (startTime == 0)
+        return isProcessRunning (processId);
+
+    // A process given the same ID later, or one not ours to look at, isn't the one that started then.
+    return getProcessStartTime (processId) == startTime && isProcessRunning (processId);
 }
 
 } // namespace mperoll::CopySafety

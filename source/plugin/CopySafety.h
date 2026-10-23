@@ -43,4 +43,14 @@ juce::int64 getProcessId();
 /** True if a process with this ID is running (or can't be told apart from one that is). */
 bool isProcessRunning (juce::int64 processId);
 
+/** When the process with this ID started, in the system's own units, or 0 where that can't be
+    told (no such process, or not ours to look at). With the ID it tells one run of a program from
+    a later process given the same ID: Windows reuses IDs soon, and every system starts again from
+    the bottom after a restart. */
+juce::int64 getProcessStartTime (juce::int64 processId);
+
+/** True if the process with this ID is running and started at startTime (from
+    getProcessStartTime()); with startTime 0, isProcessRunning (processId). */
+bool isProcessRunning (juce::int64 processId, juce::int64 startTime);
+
 } // namespace mperoll::CopySafety

@@ -34,6 +34,8 @@ namespace
     constexpr int soundStepMs = 20;                 // between copies being given a sound
     constexpr int heldCopyRetryMs = 100;            // a copy holding a note is given it once the note ends
     constexpr double catchUpWaitMs = 300.0;         // for a copy to play the knob moves its sound is compared after
+    constexpr double tailWaitMs = 3000.0;           // for a copy's last note to die away before it's given a sound
+    constexpr double hostIdleMs = 500.0;            // with no block played for this long, nothing is routed meanwhile
     constexpr const char* markerPrefix = "copiesLoading.";
     constexpr const char* crashedWhileLoadingKey = "copiesCrashedWhileLoading";
 
@@ -1010,6 +1012,13 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
                           && (copyMode || lastMode == OutputSettings::Mode::copies);
     lastMode = outputSettings.mode;
 
+    // Into copy mode from VST3 note expressions: the notes played that way end by their IDs, on
+    // channel 1 where they were (the processor's note-offs are on the MPE channels).
+    const juce::MidiBuffer* leadEndings = nullptr;
+
+    if (modeChanged && copyMode)
+        leadEndings = &vst3Expressions.process (noMidi, buffer.getNumSamples(), outputSettings);
+
     if (modeChanged)
     {
         silenceWatch.heldNotes = 0;
@@ -1018,7 +1027,7 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
 
     if (copyMode)
     {
-        processCopies (buffer, midi, playHead, modeChanged);
+        processCopies (buffer, midi, playHead, modeChanged, leadEndings);
         return;
     }
 
@@ -1636,7 +1645,7 @@ void HostedSynth::updateCopies()
         copiesWatch.stopTimer();
         soundCheck.stopTimer();
         soundCopyStep.stopTimer();
-        soundCopy = {};
+        endSoundCopy();
         checkAskedAt = 0.0;
         settleCopies();
         notifyCopiesChanged();
@@ -2094,8 +2103,13 @@ void HostedSynth::setLoadingMarker (bool isLoading)
     if (settings == nullptr)
         return;
 
+    // Which run of which program left it: its ID, and when it started (the ID alone may be another
+    // program's by the time it's read).
+    const auto processId = CopySafety::getProcessId();
+
     if (isLoading)
-        settings->setValue (loadingMarker, thisRun() + "|" + juce::String (CopySafety::getProcessId()) + "|" + getCopyIdentity());
+        settings->setValue (loadingMarker, thisRun() + "|" + juce::String (processId) + "@"
+                                               + juce::String (CopySafety::getProcessStartTime (processId)) + "|" + getCopyIdentity());
     else
         settings->removeValue (loadingMarker);
 
@@ -2128,9 +2142,11 @@ bool HostedSynth::copiesBlockedAfterCrash()
             continue;
 
         const auto afterRun = value.fromFirstOccurrenceOf ("|", false, false);
-        const auto processId = afterRun.upToFirstOccurrenceOf ("|", false, false).getLargeIntValue();
+        const auto process = afterRun.upToFirstOccurrenceOf ("|", false, false);
+        const auto processId = process.upToFirstOccurrenceOf ("@", false, false).getLargeIntValue();
+        const auto startTime = process.fromFirstOccurrenceOf ("@", false, false).getLargeIntValue();
 
-        if (CopySafety::isProcessRunning (processId))
+        if (CopySafety::isProcessRunning (processId, startTime))
             continue;
 
         const auto identity = afterRun.fromFirstOccurrenceOf ("|", false, false);
@@ -2190,7 +2206,7 @@ void HostedSynth::forgetSoundChecks()
 {
     soundCheck.stopTimer();
     soundCopyStep.stopTimer();
-    soundCopy = {};
+    endSoundCopy();
     checkAskedAt = 0.0;
     soundChangeReported = false;
     windowJustClosed = false;
@@ -2280,13 +2296,17 @@ void HostedSynth::checkSound()
     }
 
     hashAtLastCheck = hash;
-    bool behind = false;
+    CopyRouter::CopySet behind;
 
     for (int c = 1; c < maxCopies; ++c)
         if (const auto& f = followers[(size_t) c]; f.plugin != nullptr && ! f.crashed.load() && f.stateHash != hash)
-            behind = true;
+            behind.set ((size_t) c);
 
-    if (behind && ! (soundCopy.running && soundCopy.hash == hash))
+    // This very sound being given already (to a copy that just loaded, say): the copies behind
+    // are given it too, with the rest.
+    if (behind.any() && soundCopy.running && soundCopy.hash == hash)
+        soundCopy.copies |= behind;
+    else if (behind.any())
         startCopyingSound (std::move (state), versions, everyFollower(), false,
                            reported ? "it reported a change" : closed ? "its window closed" : "it changed");
 
@@ -2297,13 +2317,12 @@ void HostedSynth::checkSound()
 void HostedSynth::startCopyingSound (juce::MemoryBlock state, ParameterMirror::Snapshot versions, CopyRouter::CopySet copies,
                                      bool evenIfInStep, const juce::String& reason)
 {
-    soundCopy = {};
+    endSoundCopy();
     soundCopy.hash = hashOf (state);
     soundCopy.state = std::move (state);
     soundCopy.versions = std::move (versions);
     soundCopy.copies = copies;
     soundCopy.reason = reason;
-    soundCopy.startedAt = juce::Time::getMillisecondCounterHiRes();
     soundCopy.running = true;
     hashAtLastCheck = soundCopy.hash;
     ++soundGeneration;
@@ -2326,116 +2345,52 @@ void HostedSynth::copySoundToNext()
 
     if (! copiesWanted())
     {
-        soundCopy = {};
+        endSoundCopy();
         settleCopies();
         return;
     }
 
-    const auto holdingNotes = copiesHoldingNotes.load();
-    const auto mayWaitForBlocks = juce::Time::getMillisecondCounterHiRes() - soundCopy.startedAt < catchUpWaitMs;
-    bool waitingForNotes = false, waitingForBlocks = false;
-
+    // Gone, crashed, or still loading (it takes the sound as it is when it's loaded), or has it.
     for (int c = 1; c < maxCopies; ++c)
     {
-        if (! soundCopy.copies[(size_t) c])
-            continue;
+        const auto& f = followers[(size_t) c];
 
-        auto& f = followers[(size_t) c];
+        if (soundCopy.copies[(size_t) c]
+            && (f.state.load() != Follower::State::ready || f.plugin == nullptr || f.crashed.load() || f.stateHash == soundCopy.hash))
+            leaveSoundCopy (c);
+    }
 
-        // Gone, crashed, or still loading (it takes the sound as it is when it's loaded), or has it.
-        if (f.state.load() != Follower::State::ready || f.plugin == nullptr || f.crashed.load() || f.stateHash == soundCopy.hash)
-        {
-            soundCopy.copies.reset ((size_t) c);
-            continue;
-        }
-
-        // Most often a copy has the sound already, its parameters having followed the first
-        // copy's: its own state says so, and it's left alone. Not before it has played a block with
-        // the parameter changes made before the first copy's state was taken, or it would seem to
-        // lack them. A copy that isn't being played (asleep) is looked at after a moment anyway.
-        if (! soundCopy.lacking[(size_t) c] && mayWaitForBlocks
-            && (int32_t) (f.playedChanges.load (std::memory_order_acquire) - soundCopy.versions.changes) < 0)
-        {
-            waitingForBlocks = true;
-            continue;
-        }
-
-        if (! soundCopy.lacking[(size_t) c])
-        {
-            juce::MemoryBlock own;
-            GetStateCall look { f.plugin.get(), &own };
-            unsigned int code = 0;
-
-            if (! CopySafety::call (callGetState, &look, &code))
-            {
-                f.crashed = true;
-                soundCopy.copies.reset ((size_t) c);
-                copyCrashed (c, code, "while MPE Roll looked at its sound");
-                soundCopyStep.startTimer (soundStepMs);
-                return;
-            }
-
-            if (hashOf (own) == soundCopy.hash)
-            {
-                f.stateHash = soundCopy.hash;
-                soundCopy.copies.reset ((size_t) c);
-                ++soundCopy.alreadyHad;
-                soundCopyStep.startTimer (soundStepMs);
-                return;
-            }
-
-            soundCopy.lacking.set ((size_t) c);
-        }
-
-        // New state would cut its notes short: it's given it once they've ended. New notes go to
-        // the copies that have it meanwhile, those being free.
-        if ((holdingNotes & (1u << c)) != 0)
-        {
-            waitingForNotes = true;
-            continue;
-        }
-
-        // This copy stops playing while it takes the sound; the others play on.
-        f.state = Follower::State::busy;
-        bool crashedNow = false;
-        unsigned int code = 0;
-
-        {
-            const ScopedExclusive exclusive (f.guard);
-
-            if (! f.crashed.load())     // it may have crashed in the block that just ended
-            {
-                SetStateCall call { f.plugin.get(), &soundCopy.state };
-                crashedNow = ! CopySafety::call (callSetState, &call, &code);
-
-                if (! crashedNow)
-                {
-                    mirror.markSeen (f, soundCopy.versions);
-                    f.stateHash = soundCopy.hash;
-                    f.fresh = true;
-                }
-            }
-        }
-
-        // Crashed before it's ready again, so the audio thread never sees it ready and not crashed.
-        if (crashedNow)
-            f.crashed = true;
-
-        f.state.store (Follower::State::ready, std::memory_order_release);
-        soundCopy.copies.reset ((size_t) c);
-
-        if (crashedNow)
-            copyCrashed (c, code, "while taking the first copy's sound");
-
-        ++soundCopy.copied;
-        notifyCopiesChanged();
-        soundCopyStep.startTimer (soundStepMs);     // the next one after a breath
+    if (soundCopy.due != 0)
+    {
+        giveDueCopyTheSound();
         return;
     }
 
-    if (waitingForNotes || waitingForBlocks)
+    // One copy at a time is closed to new notes, so the others go on taking them: a free one whose
+    // sound has died away first, then a free one still sounding its last note. A copy holding
+    // notes is given the sound once they've ended: new state would cut them short.
+    const auto holding = (uint32_t) copiesSeen.load (std::memory_order_acquire);
+    const auto sounding = copiesSounding.load (std::memory_order_acquire);
+    int next = 0;
+
+    for (const bool quietOnly : { true, false })
+        for (int c = 1; c < maxCopies && next == 0; ++c)
+            if (soundCopy.copies[(size_t) c] && (holding & (1u << c)) == 0 && ! (quietOnly && (sounding & (1u << c)) != 0))
+                next = c;
+
+    if (next != 0)
     {
-        soundCopyStep.startTimer (waitingForNotes ? heldCopyRetryMs : soundStepMs);
+        soundCopy.due = next;
+        soundCopy.dueAt = juce::Time::getMillisecondCounterHiRes();
+        soundCopy.blocksAtDue = copyBlocks.load (std::memory_order_acquire);
+        copiesDueSound.fetch_or (1u << next, std::memory_order_acq_rel);
+        soundCopyStep.startTimer (soundStepMs);
+        return;
+    }
+
+    if (soundCopy.copies.any())
+    {
+        soundCopyStep.startTimer (heldCopyRetryMs);
         return;
     }
 
@@ -2446,9 +2401,129 @@ void HostedSynth::copySoundToNext()
     else if (soundCopy.alreadyHad > 0)
         PluginLog::add ("The copies of " + getName() + " had its sound already (" + soundCopy.reason + ")");
 
-    soundCopy = {};
+    endSoundCopy();
     notifyCopiesChanged();
     settleCopies();
+}
+
+void HostedSynth::giveDueCopyTheSound()
+{
+    const auto c = soundCopy.due;
+    const auto bit = 1u << c;
+    auto& f = followers[(size_t) c];
+    const auto waited = juce::Time::getMillisecondCounterHiRes() - soundCopy.dueAt;
+
+    // The blocks played say when it's ready: one that was told it's closed shows whether a note
+    // reached it just before, and then whether its sound has died away and it has played the knob
+    // moves made before the first copy's state was taken (else it would seem to lack them). With
+    // no block played for a while, nothing is sent to it either.
+    if (copyBlocks.load (std::memory_order_acquire) != soundCopy.blocksAtDue || waited < hostIdleMs)
+    {
+        const auto seen = copiesSeen.load (std::memory_order_acquire);
+
+        if (((seen >> 32) & bit) == 0)
+        {
+            soundCopyStep.startTimer (soundStepMs);
+            return;
+        }
+
+        // A note reached it before it was closed: it's open again, and another copy goes first.
+        if ((seen & bit) != 0)
+        {
+            copiesDueSound.fetch_and (~bit, std::memory_order_acq_rel);
+            soundCopy.due = 0;
+            soundCopyStep.startTimer (soundStepMs);
+            return;
+        }
+
+        const auto stillSounding = waited < tailWaitMs && (copiesSounding.load (std::memory_order_acquire) & bit) != 0;
+        const auto behindOnKnobs = waited < catchUpWaitMs
+                                   && (int32_t) (f.playedChanges.load (std::memory_order_acquire) - soundCopy.versions.changes) < 0;
+
+        if (stillSounding || behindOnKnobs)
+        {
+            soundCopyStep.startTimer (soundStepMs);
+            return;
+        }
+    }
+
+    // Out of play while it's looked at and given the sound, so nothing else calls it meanwhile and
+    // a crash on either side is seen before it's called again; the others play on.
+    enum class Outcome { skipped, had, given, crashedLooking, crashedTaking };
+    auto outcome = Outcome::skipped;
+    unsigned int code = 0;
+    f.state = Follower::State::busy;
+
+    {
+        const ScopedExclusive exclusive (f.guard);
+
+        if (! f.crashed.load())     // it may have crashed in the block that just ended
+        {
+            // Most often it has the sound already, its parameters having followed the first copy's:
+            // its own state says so, and it's left as it is.
+            juce::MemoryBlock own;
+            GetStateCall look { f.plugin.get(), &own };
+
+            if (! CopySafety::call (callGetState, &look, &code))
+            {
+                outcome = Outcome::crashedLooking;
+            }
+            else if (hashOf (own) == soundCopy.hash)
+            {
+                outcome = Outcome::had;
+            }
+            else
+            {
+                SetStateCall call { f.plugin.get(), &soundCopy.state };
+                outcome = CopySafety::call (callSetState, &call, &code) ? Outcome::given : Outcome::crashedTaking;
+
+                if (outcome == Outcome::given)
+                {
+                    mirror.markSeen (f, soundCopy.versions);
+                    f.fresh = true;
+                }
+            }
+
+            if (outcome == Outcome::had || outcome == Outcome::given)
+                f.stateHash = soundCopy.hash;
+        }
+    }
+
+    // Crashed before it's ready again, so the audio thread never sees it ready and not crashed.
+    const auto crashedNow = outcome == Outcome::crashedLooking || outcome == Outcome::crashedTaking;
+
+    if (crashedNow)
+        f.crashed = true;
+
+    f.state.store (Follower::State::ready, std::memory_order_release);
+    leaveSoundCopy (c);
+
+    if (crashedNow)
+        copyCrashed (c, code, outcome == Outcome::crashedLooking ? "while MPE Roll looked at its sound"
+                                                                 : "while taking the first copy's sound");
+    else if (outcome == Outcome::had)
+        ++soundCopy.alreadyHad;
+    else if (outcome == Outcome::given)
+        ++soundCopy.copied;
+
+    notifyCopiesChanged();
+    soundCopyStep.startTimer (soundStepMs);     // the next one after a breath
+}
+
+void HostedSynth::leaveSoundCopy (int copy)
+{
+    soundCopy.copies.reset ((size_t) copy);
+
+    if (soundCopy.due == copy)
+        soundCopy.due = 0;
+
+    copiesDueSound.fetch_and (~(1u << copy), std::memory_order_acq_rel);
+}
+
+void HostedSynth::endSoundCopy()
+{
+    soundCopy = {};
+    copiesDueSound.store (0, std::memory_order_release);
 }
 
 //==============================================================================
@@ -2468,9 +2543,12 @@ juce::Optional<juce::AudioPlayHead::PositionInfo> HostedSynth::FallbackHead::get
 }
 
 void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, juce::AudioPlayHead* playHead,
-                                 bool justStarted)
+                                 bool justStarted, const juce::MidiBuffer* leadEndings)
 {
     const auto numSamples = buffer.getNumSamples();
+
+    // Copies about to be given the first copy's sound, closed to new notes for the whole block.
+    const auto due = copiesDueSound.load (std::memory_order_acquire);
 
     for (auto& m : copyMidi)
         m.clear();
@@ -2501,6 +2579,10 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
             if (metadata.numBytes == 3 && (status == 0x80 || (status == 0x90 && metadata.data[2] == 0)))
                 copyMidi[0].addEvent (metadata.data, metadata.numBytes, 0);
         }
+
+        if (leadEndings != nullptr)
+            for (const auto metadata : *leadEndings)
+                copyMidi[0].addEvent (metadata.data, metadata.numBytes, 0);
     }
 
     // The copies to play this block: the first, and the others that are ready. Each is held until
@@ -2562,6 +2644,7 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
             router.endDroppedNotes (c, copyMidi[(size_t) c], 0);
             addEndOfAllNotes (copyMidi[(size_t) c], 0);
             router.introduce (c, copyMidi[(size_t) c], 0);
+            router.resendEveryCopyKeys (c, copyMidi[(size_t) c], 0);     // a keyswitch still held, say
 
             auto& r = renders[(size_t) c];
             r.quietSeconds = 0.0;
@@ -2571,6 +2654,11 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
     }
 
     playedCopies = available;
+    openCopies = available;
+
+    for (int c = 1; c < maxCopies; ++c)
+        if ((due & (1u << c)) != 0)
+            openCopies.reset ((size_t) c);
 
     if (configurationRequested.exchange (false))
         router.writeConfiguration (copyMidi.data(), 0);
@@ -2616,13 +2704,22 @@ void HostedSynth::processCopies (juce::AudioBuffer<float>& buffer, juce::MidiBuf
 
     copiesPlaying = router.getNumCopiesPlaying();
 
-    uint32_t holding = 0;
+    // For the message thread, giving copies a sound: which hold notes and which still sound, as
+    // the block ends, and which it was told were closed to new notes.
+    uint32_t holding = 0, sounding = 0;
 
     for (int c = 0; c < maxCopies; ++c)
+    {
         if (router.holdsNotes (c))
             holding |= 1u << c;
 
-    copiesHoldingNotes = holding;
+        if (playedCopies[(size_t) c] && ! renders[(size_t) c].quiet)
+            sounding |= 1u << c;
+    }
+
+    copiesSounding.store (sounding, std::memory_order_release);
+    copiesSeen.store (holding | ((uint64_t) due << 32), std::memory_order_release);
+    copyBlocks.fetch_add (1, std::memory_order_acq_rel);
 }
 
 void HostedSynth::processCopiesPiece (juce::AudioBuffer<float>& out, const juce::MidiBuffer& in, juce::AudioPlayHead* head)
@@ -2637,7 +2734,7 @@ void HostedSynth::processCopiesPiece (juce::AudioBuffer<float>& out, const juce:
         asleep.set ((size_t) c, renders[(size_t) c].asleep);
     }
 
-    router.route (in, copyMidi.data(), playedCopies, quiet, asleep);
+    router.route (in, copyMidi.data(), playedCopies, openCopies, quiet, asleep);
 
     // The copies to process: the ones playing and awake, a note having woken some. The MIDI of the
     // rest goes: a sleeping copy is sent what it missed when it wakes.

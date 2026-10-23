@@ -141,10 +141,11 @@ bool CopyRouter::setSettings (const OutputSettings& newSettings, juce::MidiBuffe
 
 //==============================================================================
 void CopyRouter::route (const juce::MidiBuffer& in, juce::MidiBuffer* outs, const CopySet& available,
-                        const CopySet& quiet, CopySet& asleep)
+                        const CopySet& takesNewNotes, const CopySet& quiet, CopySet& asleep)
 {
     outputs = outs;
     availableCopies = &available;
+    newNoteCopies = &takesNewNotes;
     quietCopies = &quiet;
     sleepingCopies = &asleep;
 
@@ -160,6 +161,7 @@ void CopyRouter::route (const juce::MidiBuffer& in, juce::MidiBuffer* outs, cons
 
     outputs = nullptr;
     availableCopies = nullptr;
+    newNoteCopies = nullptr;
     quietCopies = nullptr;
     sleepingCopies = nullptr;
 }
@@ -258,6 +260,7 @@ void CopyRouter::handleEvent (const MpeDecoder::Event& e)
             if (note->everyCopyKey)
             {
                 const auto velocity = (juce::uint8) juce::jmax (1, MpeEncoder::toSevenBit (e.value));
+                note->velocity = velocity;
 
                 for (int c = 0; c < numCopies; ++c)
                 {
@@ -389,7 +392,7 @@ CopyRouter::Note* CopyRouter::addNote (uint32_t id, int key) noexcept
 
 int CopyRouter::chooseCopy (int)
 {
-    auto mayTake = [this] (int c) { return (*availableCopies)[(size_t) c]; };
+    auto mayTake = [this] (int c) { return (*availableCopies)[(size_t) c] && (*newNoteCopies)[(size_t) c]; };
     int best = -1;
 
     // A free copy, quiet ones first, then one still sounding: the one whose last note ended longest ago.
@@ -618,6 +621,22 @@ void CopyRouter::introduce (int copy, juce::MidiBuffer& out, int samplePos)
         encoders[(size_t) copy]->writeConfiguration (out, samplePos);
 
     sendZoneState (copy, out, samplePos);
+}
+
+void CopyRouter::resendEveryCopyKeys (int copy, juce::MidiBuffer& out, int samplePos)
+{
+    if (! juce::isPositiveAndBelow (copy, numCopies))
+        return;
+
+    for (auto& n : notes)
+    {
+        if (! n.inUse || ! n.everyCopyKey || ! n.startedPlaying || n.everyCopy[(size_t) copy])
+            continue;
+
+        out.addEvent (juce::MidiMessage::noteOn (channel(), n.key, juce::jmax ((juce::uint8) 1, n.velocity)), samplePos);
+        n.everyCopy.set ((size_t) copy);
+        ++copies[(size_t) copy].everyCopyKeys;
+    }
 }
 
 void CopyRouter::writeConfiguration (juce::MidiBuffer* outs, int samplePos)

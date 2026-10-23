@@ -141,10 +141,11 @@ Set its sound there; MPE Roll gives the other copies the same.
   aren't parameters, reach them as copy 1's whole state: within a second of the synth reporting the
   change, when copy 1's window closes, every 1.5 seconds while it's open (for a synth whose state
   is quick to get, and not while you're turning its knobs), and when a copy finishes loading after
-  a change. Each copy is asked for its own state first and only given copy 1's if it differs (the
-  plugin log says "had its sound already" otherwise). A copy holding a note gets the new sound when
-  its note ends, so no note is cut short. Off: only when you ask, with **Give every copy copy 1's
-  sound**.
+  a change. The copies are given it one at a time, each once it holds no note and its last note
+  has died away, so no note is cut short; new notes go to the other copies meanwhile. Each copy is
+  asked for its own state first and only given copy 1's if it differs (the plugin log says "had its
+  sound already" otherwise). Keys held for every copy (a keyswitch, Arcade's modifiers) are played
+  to it again afterwards. Off: only when you ask, with **Give every copy copy 1's sound**.
 - **Load the copies again**: after loading stopped short (below), or a copy crashed.
 
 **Running smoothly, and not crashing:**
@@ -172,8 +173,8 @@ Set its sound there; MPE Roll gives the other copies the same.
   if fewer than asked for load, rather than rendering a file with notes missing. It renders on
   threads at normal priority, so FL keeps playing smoothly meanwhile.
 - Every MPE Roll in FL shares one set of threads for its copies, so ten MPE Rolls in copy mode
-  don't start ten sets (and fight over the cores). An MPE Roll that finds them busy with another's
-  block plays its own copies on FL's thread for that block.
+  don't start ten sets (and fight over the cores). The threads help up to four MPE Rolls' blocks at
+  once; a fifth at the same moment plays its own copies on FL's thread for that block.
 
 **The synths you'll likely try** (from their makers' manuals and user reports):
 

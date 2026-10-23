@@ -942,6 +942,62 @@ public:
             rig->route();
             expectEquals (countIf (rig->out (1), [] (const juce::MidiMessage& msg) { return msg.isController(); }), 0);
         }
+
+        beginTest ("A copy closed to new notes plays on the ones it holds; keys to every copy still reach it");
+        {
+            // A copy about to be given new state: its notes mustn't be cut, nor new ones started on it.
+            auto rig = std::make_unique<Rig> (withEveryCopyKeys (copySettings (3)));
+            rig->play (1, 60);
+            rig->route();
+            const auto held = rig->copyWithNoteOn (60);
+            expect (held >= 0);
+            rig->clearOuts();
+
+            auto open = rig->available;
+            open.reset ((size_t) held);
+            rig->stream.setPitch (rig->in, 0, 1, 1.0f);
+            rig->play (2, 64);
+            rig->play (3, 12);          // a key to every copy
+            rig->router->route (rig->in, rig->outs.data(), rig->available, open, rig->quiet, rig->asleep);
+            rig->in.clear();
+
+            const auto other = rig->copyWithNoteOn (64);
+            expect (other >= 0 && other != held, "the new note goes to a copy still open to them");
+            expect (lastPitchWheel (rig->out (held)) > 8192, "the held note's glide still reaches its copy");
+            expectEquals (countIf (rig->out (held), [] (const juce::MidiMessage& m) { return m.isNoteOn() && m.getNoteNumber() == 12; }), 1);
+        }
+
+        beginTest ("A copy that came back is given the keys to every copy still held");
+        {
+            // A keyswitch or a loop instrument's modifier, held while the copy was given new state.
+            auto rig = std::make_unique<Rig> (withEveryCopyKeys (copySettings (2)));
+            rig->play (1, 12);
+            rig->route();
+            const auto firstOn = rig->out (1);
+            const auto on = indexOf (firstOn, isNoteOn);
+            expect (on >= 0);
+            const auto velocity = on >= 0 ? firstOn[(size_t) on].message.getVelocity() : 0;
+            rig->clearOuts();
+
+            rig->router->dropCopy (1);
+            rig->router->endDroppedNotes (1, rig->outs[1], 0);
+            rig->router->introduce (1, rig->outs[1], 0);
+            rig->router->resendEveryCopyKeys (1, rig->outs[1], 0);
+
+            const auto m = rig->out (1);
+            const auto off = indexOf (m, isNoteOff), again = indexOf (m, isNoteOn);
+            expect (off >= 0 && again > off, "its note-off as it went, then the key again");
+            expect (again >= 0 && m[(size_t) again].message.getNoteNumber() == 12 && m[(size_t) again].message.getVelocity() == velocity);
+
+            rig->clearOuts();
+            rig->router->resendEveryCopyKeys (1, rig->outs[1], 0);
+            expect (rig->out (1).empty(), "once only");
+
+            rig->release (1);
+            rig->route();
+            expectEquals (countIf (rig->out (1), [] (const juce::MidiMessage& msg) { return msg.isNoteOff() && msg.getNoteNumber() == 12; }), 1,
+                          "and letting go of the key ends it there too");
+        }
     }
 };
 
