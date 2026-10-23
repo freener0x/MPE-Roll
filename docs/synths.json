@@ -803,13 +803,14 @@
     ],
     "makers": [
      "Ample Sound"
-    ]
+    ],
+    "ownName": true
    }
   },
   {
    "name": "Ample Metal Hellrazer",
    "maker": "Ample Sound",
-   "category": "orchestral-acoustic",
+   "category": "sampler-rompler",
    "formats": [
     "VST2",
     "VST3",
@@ -2030,7 +2031,8 @@
    ],
    "match": {
     "names": [
-     "KORG MS-20 V"
+     "KORG MS-20 V",
+     "MS-20 V"
     ],
     "makers": [
      "Arturia"
@@ -2350,6 +2352,9 @@
    "match": {
     "names": [
      "Pigments"
+    ],
+    "excludes": [
+     "Pigments Play"
     ]
    }
   },
@@ -2909,7 +2914,7 @@
    ],
    "mpe": "yes",
    "notes": "Released August 2026, inspired by the Roland MC-202: one oscillator, 24 dB ladder filter, 8-voice poly, MTS-ESP microtuning, no DRM. How to set up MPE and CLAP note expressions are not documented.",
-   "advice": "AD-202 has MPE; its setup is not documented, so look in its settings for an MPE switch, and set any bend range there to 48, MPE Roll's per-note bend range.",
+   "advice": "AD-202 has MPE; its setup isn't documented, so look in its settings for an MPE switch, and set any bend range there to 48, MPE Roll's per-note bend range. If chords play one note, switch its voice mode to poly.",
    "sources": [
     {
      "url": "https://sonicstate.com/news/2026/08/17/ad-202-roland-mc-202-plugin-/",
@@ -3098,16 +3103,18 @@
     "Standalone"
    ],
    "mpe": "limited",
-   "enable": "MIDI settings > MIDI Profile: MPE",
+   "enable": "MIDI icon > MIDI mapping presets: MPE Default (MIDI Profile: MPE in older manuals)",
    "notes": "One note at a time",
-   "advice": "Set its MIDI Profile to MPE (MIDI settings). SWAM instruments play one note at a time.",
+   "advice": "Load SWAM's MPE MIDI profile: MIDI icon > presets > MPE Default (MIDI Profile: MPE in older versions), with its pitch-bend range at 48, MPE Roll's per-note bend range. SWAM instruments play one note at a time.",
    "match": {
     "names": [
-     "SWAM",
-     ""
+     "SWAM"
     ],
     "makers": [
      "Audio Modeling"
+    ],
+    "excludes": [
+     "PolySWAM"
     ]
    },
    "sources": [
@@ -3698,7 +3705,7 @@
   },
   {
    "name": "Charlatan",
-   "maker": "Blaukraut Audio",
+   "maker": "Blaukraut Engineering",
    "category": "synth",
    "formats": [],
    "mpe": "undocumented",
@@ -5485,7 +5492,7 @@
    "enable": "PARM (top panel) > MPE row > MPE (on by default)",
    "bendRange": "PARM > MPE row > Bend Range, 0-96 (default 24)",
    "notes": "MPE since 0.9.5 (from the Surge Synth Team). Only per-note pitch bend works; pressure and timbre do nothing. MPE settings aren't saved with the project, so check them after reloading.",
-   "advice": "Dexed has MPE on by default but turns it off when two notes arrive on one channel (re-tick PARM > MPE); set PARM > Bend Range to 48, MPE Roll's per-note bend range. Only per-note pitch bend works.",
+   "advice": "Dexed has MPE on by default but turns it off when two notes arrive on one channel (re-tick PARM > MPE); set PARM > Bend Range to 48, MPE Roll's per-note bend range, and set both again after reopening the project (Dexed doesn't save them). Only per-note pitch bend works.",
    "sources": [
     {
      "url": "https://github.com/asb2m10/dexed/blob/master/source/ui/window/ParamDialog.cpp",
@@ -5779,7 +5786,6 @@
    "mpe": "undocumented",
    "checked": false,
    "notes": "Vocal synth that sings from its own score, so notes from MPE Roll don't perform it like a synth. A keyboard can enter notes into its editor in real time.",
-   "instead": "Write the melody and pitch curves in its own editor, or drag MIDI into it",
    "sources": [
     {
      "url": "https://www.sweetwater.com/store/detail/synthvstu2p",
@@ -5794,7 +5800,9 @@
     "names": [
      "Synthesizer V Studio 2"
     ]
-   }
+   },
+   "advice": "Synthesizer V Studio 2 Pro sings from its own score, not from notes it receives live: write the melody and pitch curves in its own editor, or drag MIDI into it.",
+   "plainMidi": false
   },
   {
    "name": "DSK free instruments (DSK ChoirZ and others)",
@@ -5835,11 +5843,10 @@
     "AAX",
     "Standalone"
    ],
-   "mpe": "yes",
+   "mpe": "unclear",
    "enable": "Not documented; check Opus Preferences > MIDI and the instrument's Inspector",
    "bendRange": "Opus Inspector > Pitch Bend Range (about 1 semitone by default on some instruments); FL's own setting has no effect",
    "notes": "Engine for Hollywood Orchestra Opus Edition and ComposerCloud (succeeded PLAY). A review and a retailer call it MPE-capable; EastWest's own pages don't mention MPE. No VST2.",
-   "advice": "Opus reportedly has MPE, but EastWest doesn't say where it is: check Opus Preferences > MIDI, and set the Inspector's Pitch Bend Range to 48, MPE Roll's per-note bend range. If held notes bend together, use Plain MIDI.",
    "sources": [
     {
      "url": "https://www.bonedo.de/artikel/eastwest-hollywood-orchestra-opus-edition-test/",
@@ -5928,7 +5935,6 @@
    "mpe": "undocumented",
    "checked": false,
    "notes": "Cloud-based vocal synth that needs internet. MIDI Listen records notes into its own piano roll; it isn't played live. Sources conflict on formats (VST3/AAX/AU vs VST/AU).",
-   "instead": "Record or write the melody in its own piano roll (MIDI Listen)",
    "sources": [
     {
      "url": "https://musictech.com/news/virtual-vocalist-emvoice-one-comes-to-pro-tools-and-introduces-midi-listen-mode",
@@ -5943,7 +5949,9 @@
     "names": [
      "Emvoice"
     ]
-   }
+   },
+   "advice": "Emvoice One isn't played live from incoming notes: record the melody into its own piano roll with MIDI Listen, or write it there.",
+   "plainMidi": false
   },
   {
    "name": "Bloom Bass Impulse",
@@ -6159,21 +6167,15 @@
    }
   },
   {
-   "name": "Noisy and Imagine",
+   "name": "Other Expressive E instruments",
    "maker": "Expressive E",
    "category": "physical-model",
-   "formats": [
-    "VST3",
-    "AAX",
-    "Standalone"
-   ],
+   "formats": [],
    "mpe": "yes",
    "enable": "Its MPE presets, or MPE on in its settings",
    "advice": "Use its MPE presets, or turn MPE on in its settings, with a per-note bend range of 48.",
    "match": {
     "names": [
-     "Noisy",
-     "Imagine",
      ""
     ],
     "makers": [
@@ -7032,7 +7034,9 @@
      "GForce"
     ],
     "excludes": [
-     "Oberheim OB-1"
+     "Oberheim OB-1",
+     "Oberheim TVS",
+     "Oberheim SEM"
     ]
    }
   },
@@ -9855,8 +9859,8 @@
    "enable": "Options > MIDI: keep the Pitch Bend row in the mapping list, and leave MIDI input on all channels",
    "bendRange": "Options > MIDI > pitch-bend range fields in cents; set -4800/+4800 (the maximum since 8.1.x). Default not confirmed",
    "noteExpressions": "No VST3 note expressions (2018 Modartt forum answer about Pianoteq 6)",
-   "notes": "Only pitch bend is per note: pressure and CC74 act on all notes. Use 8.1.4 or later, which allows +/-4800 cents and stops bends leaking across channels. Menus come from Modartt forum posts.",
-   "advice": "Pianoteq bends each note on its own, but pressure and timbre act on all notes: in Options > MIDI keep the Pitch Bend row and set the pitch-bend range to +/-4800 cents (48), MPE Roll's per-note bend range.",
+   "notes": "Only pitch bend is per note: pressure and CC74 act on all notes. Use 8.1.3 or later, which allows +/-4800 cents and stops bends leaking across channels. Menus come from Modartt forum posts.",
+   "advice": "Pianoteq bends each note on its own, but pressure and timbre act on all notes: in Options > MIDI keep the Pitch Bend row and set the pitch-bend range to +/-4800 cents (48), MPE Roll's per-note bend range (Pianoteq 8.1.3 or later).",
    "sources": [
     {
      "url": "https://mac.softpedia.com/progChangelog/Pianoteq-Changelog-41956.html",
@@ -10190,7 +10194,8 @@
     "names": [
      "Absynth 6"
     ]
-   }
+   },
+   "enable": "Not documented; look for an MPE option in its settings"
   },
   {
    "name": "Action Strings 2",
@@ -10507,7 +10512,7 @@
    ],
    "mpe": "undocumented",
    "notes": "Free hybrid synth delivered as a Kontakt instrument (Kontakt or Kontakt Player 7.5.0 or later). It ships with polyphonic aftertouch presets; no source mentions MPE.",
-   "instead": "Its polyphonic aftertouch presets give per-note pressure without MPE",
+   "instead": "Its polyphonic aftertouch presets give per-note pressure without MPE: use Plain MIDI with MPE settings > Pressure sent as: Poly aftertouch",
    "sources": [
     {
      "url": "https://www.native-instruments.com/fr/products/komplete/synths/hypha/",
@@ -11803,10 +11808,9 @@
     "VST3",
     "Standalone"
    ],
-   "mpe": "limited",
-   "enable": "Nothing to turn on: MPE is its core (incoming MPE is not documented)",
+   "mpe": "undocumented",
    "notes": "Turns held chords into MPE bends, played by its own wavetable synth and MPE sampler or a hosted MPE VST. The standalone is for MPE-capable DAWs only. Windows 10 or later, 64-bit.",
-   "advice": "Fluid Chords 2 makes its own MPE bends from held chords; whether it takes per-note MPE from MPE Roll isn't documented, so test it, and set Synth expects to Plain MIDI if held notes bend together.",
+   "advice": "Fluid Chords 2 makes its own MPE bends from ordinary held chords; whether it takes MPE in isn't documented.",
    "sources": [
     {
      "url": "https://www.pluginboutique.com/products/15093-Fluid-Chords-2",
@@ -12486,7 +12490,8 @@
      "reFX"
     ],
     "ownName": true
-   }
+   },
+   "advice": "reFX doesn't mention MPE for Nexus, so it most likely has none."
   },
   {
    "name": "Nexus 2",
@@ -13446,7 +13451,8 @@
     "makers": [
      "Roland"
     ]
-   }
+   },
+   "advice": "Roland doesn't mention MPE for its Roland Cloud instruments, so this one most likely has none."
   },
   {
    "name": "PROMARS",
@@ -13575,7 +13581,8 @@
     "makers": [
      "Roland"
     ]
-   }
+   },
+   "advice": "Roland doesn't mention MPE for its SRX plug-ins, so this one most likely has none."
   },
   {
    "name": "SYSTEM-100",
@@ -13705,7 +13712,8 @@
     "makers": [
      "Roland"
     ]
-   }
+   },
+   "advice": "Roland doesn't mention MPE for the TR-707 or TR-727, so it most likely has none."
   },
   {
    "name": "TR-808",
@@ -13820,33 +13828,6 @@
    }
   },
   {
-   "name": "ZENOLOGY and Roland Cloud instruments",
-   "maker": "Roland",
-   "category": "synth",
-   "formats": [
-    "VST3",
-    "AAX"
-   ],
-   "mpe": "no",
-   "advice": "Roland's ZENOLOGY and Roland Cloud instruments have no MPE.",
-   "match": {
-    "names": [
-     "ZENOLOGY",
-     ""
-    ],
-    "makers": [
-     "Roland"
-    ]
-   },
-   "sources": [
-    {
-     "url": "https://www.roland.com/dk/products/rc_zenology/",
-     "says": "ZENOLOGY product page: no MPE among its features"
-    }
-   ],
-   "page": false
-  },
-  {
    "name": "Cypher2",
    "maker": "ROLI",
    "category": "synth",
@@ -13908,7 +13889,8 @@
    ],
    "match": {
     "names": [
-     "Equator"
+     "Equator2",
+     "Equator 2"
     ]
    }
   },
@@ -14243,7 +14225,12 @@
    ],
    "match": {
     "names": [
+     "SSD5",
+     "SSD 5",
      "Steven Slate Drums"
+    ],
+    "makers": [
+     "Slate"
     ]
    }
   },
@@ -14476,7 +14463,7 @@
    "enable": "Add the free ROLI Seaboard RISE module > patch its per-voice CV outputs to the voices > voice mode: POLY ROTATE",
    "bendRange": "No setting on the module confirmed; ROLI's setup guide uses 48",
    "notes": "MPE only through the free ROLI Seaboard RISE module (November 2016): four voices, POLY ROTATE / POLY LOWEST / MONO. The normal MIDI-to-CV modules do not take MPE.",
-   "advice": "Turn on MPE in Modular: add the free ROLI Seaboard RISE module and patch its per-voice CV outputs to your voices. It has only 4 voices, so play at most 4 notes at once; ROLI's guide uses bend range 48, MPE Roll's per-note bend range.",
+   "advice": "Turn on MPE in Modular: add the free ROLI Seaboard RISE module, set its voice mode to POLY ROTATE and patch its per-voice outputs to your voices. It has only 4 voices: in MPE Roll's MPE settings set Lower zone channels to 4. Use a per-note bend range of 48, MPE Roll's.",
    "sources": [
     {
      "url": "https://support.roli.com/support/solutions/articles/36000024629-softube-modular-rise-grand",
@@ -14704,7 +14691,8 @@
     "names": [
      "Syntropy"
     ]
-   }
+   },
+   "enable": "Not documented; look for an MPE option in its settings"
   },
   {
    "name": "Big Bang Universal Drums",
@@ -14810,7 +14798,7 @@
    ],
    "mpe": "undocumented",
    "checked": false,
-   "notes": "Sound Magic's Neo Piano pages advertise MIDI 2.0 per-note control and polyphonic aftertouch, but not MPE. Poly aftertouch is not part of MPE Roll's MPE output.",
+   "notes": "Sound Magic's Neo Piano pages advertise MIDI 2.0 per-note control and polyphonic aftertouch, but not MPE. For per-note pressure, use Plain MIDI with MPE settings > Pressure sent as: Poly aftertouch.",
    "instead": "Sound Magic's free Piano One claims MPE support.",
    "sources": [
     {
@@ -14863,7 +14851,9 @@
     "makers": [
      "Sound Magic"
     ]
-   }
+   },
+   "enable": "Not documented; look for an MPE option in its settings",
+   "checked": false
   },
   {
    "name": "Soundpaint",
@@ -14938,7 +14928,6 @@
    ],
    "mpe": "no",
    "notes": "Discontinued: Omnisphere 3 replaced it in October 2025 as a paid upgrade. MPE is new in version 3, so 2.x has none.",
-   "instead": "Load the patch into Part 1",
    "sources": [
     {
      "url": "https://support.spectrasonics.net/manual/Omnisphere3/30/en/topic/using-mpe-sources",
@@ -14971,7 +14960,8 @@
    "formats": [
     "VST2",
     "VST3",
-    "AAX"
+    "AAX",
+    "Standalone"
    ],
    "mpe": "yes",
    "enable": "System page > MPE (turn on)",
@@ -15531,7 +15521,7 @@
    "bendRange": "MPE editor (Create Tab (+) > MPE); default not documented. Zone Pitchbend Up/Down reportedly caps at +24 up, -48 down",
    "noteExpressions": "VST3 Note Expression: Volume, Pan, Tuning and up to 8 custom controllers. Incoming MPE is mapped onto it (bend to Tuning, pressure to Volume).",
    "notes": "MPE came in the free 7.5 update (4 Aug 2026); older versions have none. MPE is turned into Note Expression, so some scripted patches (some basses, guitars) ignore it. CC74 mapping undocumented.",
-   "advice": "Update HALion to 7.5 or later and turn on MPE with the MPE button (upper right; pink when on). Set the bend range to 48, MPE Roll's per-note bend range, in Create Tab (+) > MPE. Some scripted patches ignore MPE.",
+   "advice": "Update HALion to 7.5 or later and turn on MPE with the MPE button (upper right; pink when on), with the bend range 48 in Create Tab (+) > MPE, MPE Roll's per-note bend range. If upward glides come out half size (HALion reportedly bends only +24 up), set both bend ranges to 24.",
    "sources": [
     {
      "url": "https://helpcenter.steinberg.de/hc/es/articles/37854448711442-Using-MIDI-Polyphonic-Expression-MPE-with-HALion",
@@ -15613,10 +15603,9 @@
     "AAX",
     "Standalone"
    ],
-   "mpe": "undocumented",
+   "mpe": "limited",
    "noteExpressions": "VST3 Note Expression: Volume, Pan and Tuning, plus up to 8 assignable controllers (HALion Sonic 7 manual).",
    "notes": "Steinberg's free player for HALion-format libraries. Steinberg's MPE article names only full HALion 7.5; a HALion Sonic 7.5 exists, but no MPE button for it is documented.",
-   "instead": "MPE Roll can play it with VST3 note expressions; full HALion 7.5 has MPE",
    "sources": [
     {
      "url": "https://helpcenter.steinberg.de/hc/es/articles/37854448711442-Using-MIDI-Polyphonic-Expression-MPE-with-HALion",
@@ -15635,7 +15624,9 @@
     "names": [
      "HALion Sonic"
     ]
-   }
+   },
+   "enable": "No MPE switch: it takes VST3 note expressions",
+   "advice": "HALion Sonic has no MPE switch but takes VST3 note expressions (tuning, volume, pan): MPE settings > Synth is played with says whether MPE Roll can play it that way; if not, set Synth expects to Plain MIDI."
   },
   {
    "name": "Iconica Sections & Players",
@@ -16155,7 +16146,8 @@
     "names": [
      "OB-Xf"
     ]
-   }
+   },
+   "followsSetup": true
   },
   {
    "name": "Shortcircuit XT",
@@ -16207,7 +16199,7 @@
    "noteExpressions": "CLAP: Tuning and Pan note expressions only. The VST3 (clap-wrapper) also offers Tuning and Pan note expressions.",
    "notes": "Free, open-source 6-operator FM synth (1.2.1). Since 1.2 the MPE settings are saved with the DAW session, not the patch. MPE pressure and timbre are modulation sources.",
    "advice": "Turn on MPE in Six Sines: click the play-mode area of the Main panel > MPE + Smoothing > MPE Active, and set MPE Bend Range to 48 (default 24), MPE Roll's per-note bend range.",
-   "clapAdvice": "Its CLAP version needs nothing set up when Note expressions are on in MPE settings.",
+   "clapAdvice": " Its CLAP version needs nothing set up when Note expressions are on in MPE settings.",
    "sources": [
     {
      "url": "https://github.com/baconpaul/six-sines/blob/main/doc/manual.md",
@@ -16496,7 +16488,7 @@
    "enable": "Not confirmed; the back panel has an MPE Advanced mode (v2.01) for Rise/Fall times",
    "bendRange": "Probably fixed at 48 in MPE mode, as in Dune 3 whose MPE came from it (not confirmed)",
    "notes": "Made with Hans Zimmer (May 2024), successor to The Legend. v2.01 added an MPE Advanced mode on the back panel. MPE reportedly works in Mono Legato mode too.",
-   "advice": "Turn on MPE in The Legend HZ (its back panel has MPE Advanced settings since v2.01); its bend range is probably fixed at 48, MPE Roll's per-note bend range.",
+   "advice": "Turn on MPE in The Legend HZ: look for an MPE Controller switch in its settings (as in Dune 3, whose MPE came from it); the back panel's MPE Advanced mode only sets Rise/Fall times. Its bend range is then probably fixed at 48, MPE Roll's per-note bend range.",
    "sources": [
     {
      "url": "https://www.synapse-audio.com/thelegendhz.html",
@@ -17039,7 +17031,8 @@
      "Tone2"
     ],
     "ownName": true
-   }
+   },
+   "advice": "Electra 3, Electra 2 and ElectraX have no MPE."
   },
   {
    "name": "Gladiator 4",
@@ -17811,7 +17804,7 @@
    "noteExpressions": "CLAP: micro-pitch, timbre, pressure, pan and gain (from 1.4.3).",
    "notes": "MPE added in 1.4.3 (August 2024), for polyphonic presets only. 1.4.3 is the last version with VST2. If timbre does nothing, map Control A to CC74 in the MIDI settings.",
    "advice": "Turn on MPE in ACE with its MPE button and use a polyphonic preset (MPE works only with those). ACE follows MPE Roll's per-note bend range (48).",
-   "clapAdvice": "Its CLAP version needs nothing set up when Note expressions are on in MPE settings.",
+   "clapAdvice": " Its CLAP version needs nothing set up when Note expressions are on in MPE settings.",
    "sources": [
     {
      "url": "https://u-he.com/products/plug-ins/ace/releases/1.4.3/",
@@ -17851,7 +17844,7 @@
    "noteExpressions": "CLAP: micro-pitch, timbre, pressure, pan and gain (from 1.1.3).",
    "notes": "MPE added in 1.1.3 (August 2024), for polyphonic presets only. 1.1.3 is the last version with VST2. If timbre does nothing, map Control A to CC74 in the MIDI settings.",
    "advice": "Turn on MPE in Bazille with its MPE button (on the original skin if you can't find it) and use a polyphonic preset (MPE works only with those). Bazille follows MPE Roll's per-note bend range (48).",
-   "clapAdvice": "Its CLAP version needs nothing set up when Note expressions are on in MPE settings.",
+   "clapAdvice": " Its CLAP version needs nothing set up when Note expressions are on in MPE settings.",
    "sources": [
     {
      "url": "https://u-he.com/products/plug-ins/bazille/releases/1.1.3/",
@@ -17936,6 +17929,9 @@
    "match": {
     "names": [
      "Diva"
+    ],
+    "makers": [
+     "u-he"
     ]
    }
   },
@@ -17986,7 +17982,7 @@
    "noteExpressions": "CLAP: micro-pitch, timbre, pressure, pan and gain (from 2.1.2).",
    "notes": "MPE added in 2.1.2 (August 2024), for polyphonic presets only; Ctrl A/B offset doesn't work in MPE mode. 2.1.2 is the last version with VST2. If timbre does nothing, map Control A to CC74.",
    "advice": "Turn on MPE in Hive with its MPE button (on the original skin if you can't find it) and use a polyphonic preset (MPE works only with those). Hive follows MPE Roll's per-note bend range (48).",
-   "clapAdvice": "Its CLAP version needs nothing set up when Note expressions are on in MPE settings.",
+   "clapAdvice": " Its CLAP version needs nothing set up when Note expressions are on in MPE settings.",
    "sources": [
     {
      "url": "https://u-he.com/products/hive/releasenotes.html",
@@ -18274,7 +18270,11 @@
    "name": "Beatmaker series",
    "maker": "UJAM",
    "category": "drums",
-   "formats": [],
+   "formats": [
+    "VST2",
+    "VST3",
+    "AAX"
+   ],
    "mpe": "undocumented",
    "notes": "Drum machines driven by phrase and style keys (Dope, Hype, Eden, Kaya, Cozy, Void...); MPE matters little here. Windows formats not confirmed per product.",
    "sources": [
@@ -18289,6 +18289,7 @@
    ],
    "match": {
     "names": [
+     "BM",
      "Beatmaker"
     ],
     "makers": [
@@ -18300,7 +18301,11 @@
    "name": "Symphonic Elements series",
    "maker": "UJAM",
    "category": "orchestral-acoustic",
-   "formats": [],
+   "formats": [
+    "VST2",
+    "VST3",
+    "AAX"
+   ],
    "mpe": "undocumented",
    "notes": "Orchestral instruments built on sounds from Hans Zimmer's library (e.g. STRIIIINGS). No MPE found for any UJAM series. Windows formats not confirmed.",
    "sources": [
@@ -18315,6 +18320,7 @@
    ],
    "match": {
     "names": [
+     "SE",
      "Symphonic Elements"
     ],
     "makers": [
@@ -18445,7 +18451,11 @@
    "name": "Virtual Pianist series",
    "maker": "UJAM",
    "category": "keys-piano",
-   "formats": [],
+   "formats": [
+    "VST2",
+    "VST3",
+    "AAX"
+   ],
    "mpe": "undocumented",
    "notes": "Simplified piano instruments (Vogue, Vibe, Score...). Vogue and Vibe's Player mode plays chords and melodies from one finger and reinterprets incoming notes. Windows formats not confirmed.",
    "sources": [
@@ -18456,6 +18466,7 @@
    ],
    "match": {
     "names": [
+     "VP",
      "Virtual Pianist"
     ],
     "makers": [
@@ -19235,7 +19246,6 @@
    "formats": [
     "VST2",
     "VST3",
-    "CLAP",
     "Standalone"
    ],
    "mpe": "yes",
@@ -19784,8 +19794,8 @@
     "VST3",
     "AAX"
    ],
-   "mpe": "no",
-   "advice": "Waves synths have no MPE.",
+   "mpe": "undocumented",
+   "advice": "Waves doesn't mention MPE for its instruments, so this one most likely has none.",
    "match": {
     "names": [
      ""
@@ -20211,7 +20221,6 @@
    "mpe": "undocumented",
    "checked": false,
    "notes": "Probably the VOCALOID4-era engine plug-in installed by the VOCALOID4 Editor or Piapro Studio (not confirmed). Nothing shows it singing from live notes. Legacy; VOCALOID6 loads V4 voicebanks.",
-   "instead": "Export the notes as a MIDI file (.mid) and import them into the VOCALOID4 Editor.",
    "sources": [
     {
      "url": "https://www.vocaloid.com/en/articles/vocaloid4_feature",
@@ -20231,7 +20240,9 @@
      "Vocaloid4P",
      "VOCALOID4"
     ]
-   }
+   },
+   "advice": "The VOCALOID4 plug-in sings only the notes and lyrics it gets from the VOCALOID4 Editor, so MPE Roll can't make it sing: export the notes as a MIDI file and import them into the VOCALOID4 Editor.",
+   "plainMidi": false
   },
   {
    "name": "VOCALOID5 Editor",
@@ -20244,7 +20255,6 @@
    "mpe": "undocumented",
    "checked": false,
    "notes": "Runs as a VST2 instrument and records live notes from an external keyboard, but sings only stored notes and lyrics, with no sound while stopped. No MPE found. Superseded by VOCALOID6.",
-   "instead": "Export the notes as a MIDI file and import them into the VOCALOID5 Editor.",
    "sources": [
     {
      "url": "https://www.vocaloid.com/en/support/faq/507",
@@ -20259,7 +20269,9 @@
     "names": [
      "VOCALOID5"
     ]
-   }
+   },
+   "advice": "VOCALOID5 Editor sings only the notes and lyrics stored in it, so MPE Roll can't make it sing: export the notes as a MIDI file and import them into the VOCALOID5 Editor.",
+   "plainMidi": false
   },
   {
    "name": "VOCALOID6 Editor",
@@ -20272,7 +20284,6 @@
    "mpe": "undocumented",
    "checked": false,
    "notes": "Singing synth that sings notes and lyrics stored in its own ARA2-linked track. Live MIDI only records, with a piano guide, so neither MPE nor live Plain MIDI makes it sing. VST3 format inferred.",
-   "instead": "Export the notes as a MIDI file and import them into the VOCALOID6 Editor.",
    "sources": [
     {
      "url": "https://vocaloid.com/en/support/faq/613",
@@ -20287,7 +20298,9 @@
     "names": [
      "VOCALOID6"
     ]
-   }
+   },
+   "advice": "VOCALOID6 Editor sings only the notes and lyrics stored in its own track, not notes played live, so MPE Roll can't make it sing: export the notes as a MIDI file and import them into the VOCALOID6 Editor.",
+   "plainMidi": false
   },
   {
    "name": "Independence",

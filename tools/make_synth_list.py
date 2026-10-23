@@ -21,6 +21,8 @@ docs/synths.json holds "checked" (when the list was last checked, e.g. "October 
   noteExpressions   what it does with VST3 or CLAP note expressions, if anything is known
   notes             anything else worth knowing (limits, versions, discontinued)
   instead           for one without MPE: what to do instead, if there's more to say than Plain MIDI
+  plainMidi         false for one that doesn't play the notes it receives (a vocal synth singing
+                    from its own score), so Plain MIDI isn't suggested for it
   advice            what MPE Roll says when it's loaded (needed for yes and limited)
   clapAdvice        added to the advice in builds that host CLAP plugins
   sources           [{url, says}]: where each claim comes from
@@ -132,8 +134,8 @@ def load() -> tuple[str, list[dict]]:
 # ---------------------------------------------------------------- docs/MPE_SYNTHS.md
 
 def anchor(heading: str) -> str:
-    """The anchor GitHub gives a heading."""
-    return re.sub(r"[^a-z0-9 _-]", "", heading.lower()).replace(" ", "-")
+    """The anchor GitHub gives a heading: lower case, punctuation dropped (letters with accents kept)."""
+    return re.sub(r"[^\w -]", "", heading.lower()).replace(" ", "-")
 
 
 def cell(text: str) -> str:
@@ -157,7 +159,8 @@ def how_to(s: dict) -> str:
         if s.get("noteExpressions"):
             parts.append(s["noteExpressions"])
     else:
-        parts.append("*Plain MIDI*")
+        if s.get("plainMidi", True):
+            parts.append("*Plain MIDI*")
         if s.get("instead"):
             parts.append(s["instead"])
     return ". ".join(cell(p).rstrip(".") for p in parts if p) + "."
@@ -249,19 +252,31 @@ def plugin_entry(s: dict) -> dict:
     excludes = [key(n) for n in match.get("excludes", [])]
     versions = [str(int(v)) for v in match.get("versions", [])]
 
+    # An entry for several instruments, or for any instrument of a maker, doesn't name one in the
+    # advice the plugin shows (the plugin calls it by its own name).
+    group = bool(match.get("ownName") or not names)
     if s["mpe"] in ("yes", "limited"):
         kind = "followsSetup" if s.get("followsSetup") else "yes"
         advice = s["advice"]
-    elif s["mpe"] == "no" and s.get("checked", True):
-        kind = "no"
-        advice = s.get("advice") or f"{s['name']} has no MPE."
+    else:
+        if s["mpe"] == "no" and s.get("checked", True):
+            kind = "no"
+            default = f"It has no MPE, {s['maker']} says." if group else f"{s['name']} has no MPE."
+        else:
+            kind = "undocumented"
+            default = (f"{s['maker']} doesn't mention MPE for it, so it most likely has none." if group
+                       else f"{s['maker']} doesn't mention MPE for {s['name']}, so it most likely has none.")
+        advice = s.get("advice") or default
         if s.get("instead"):
             advice += " " + s["instead"].rstrip(".") + "."
-        advice += " Set Synth expects to Plain MIDI."
-    else:
-        kind = "undocumented"
-        advice = (s.get("advice") or f"{s['name']}'s maker doesn't mention MPE for it, so it most likely has none.") \
-            + " Set Synth expects to Plain MIDI."
+        # "plainMidi": false for one that doesn't play notes it receives (a vocal synth singing from
+        # its own score), which Plain MIDI won't help.
+        if s.get("plainMidi", True):
+            advice += " Set Synth expects to Plain MIDI."
+
+    clap = s.get("clapAdvice", "")
+    if clap and not clap.startswith(" "):
+        clap = " " + clap      # the plugin adds it straight after the advice
 
     return {
         "name": "" if match.get("ownName") or not names else s["name"],
@@ -271,7 +286,7 @@ def plugin_entry(s: dict) -> dict:
         "versions": "|".join(versions),
         "kind": kind,
         "advice": advice,
-        "clapAdvice": s.get("clapAdvice", ""),
+        "clapAdvice": clap,
         # More particular entries first: those for some versions only, then longer names, and the
         # ones for any instrument of a maker (no name) last.
         "order": (0 if versions else 1, -max((len(n) for n in names), default=0)),
