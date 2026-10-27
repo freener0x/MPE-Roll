@@ -2,6 +2,7 @@
 // or hangs while being loaded takes down only this process, not MPE Roll and the DAW around it.
 // See PluginScanner.h for how the two talk.
 
+#include "plugin/LoadDiagnosis.h"
 #include "plugin/PluginScanner.h"
 
 #if MPEROLL_HOST_CLAP
@@ -82,11 +83,11 @@ juce::StringArray arguments ([[maybe_unused]] int argc, [[maybe_unused]] char* a
 // MPE Roll stops a scanner that takes too long, but can't once it has been closed (or has crashed),
 // and a scanner stuck inside a plugin would otherwise stay around for good. The main thread may be
 // stuck in the plugin, so the process is ended from here without waiting for it.
-void startWatchdog (const mperoll::PluginScanner::Job& job)
+void startWatchdog (juce::int64 parentProcessId, int timeoutMs)
 {
-    const auto deadlineMs = juce::jmax (0, job.timeoutMs) + mperoll::PluginScanner::watchdogMarginMs;
+    const auto deadlineMs = juce::jmax (0, timeoutMs) + mperoll::PluginScanner::watchdogMarginMs;
 
-    std::thread ([parent = job.parentProcessId, deadlineMs]
+    std::thread ([parent = parentProcessId, deadlineMs]
     {
        #if JUCE_WINDOWS
         if (auto* parentProcess = OpenProcess (SYNCHRONIZE, FALSE, (DWORD) parent))
@@ -111,6 +112,52 @@ void startWatchdog (const mperoll::PluginScanner::Job& job)
     }).detach();
 }
 
+void addFormats (juce::AudioPluginFormatManager& formats)
+{
+    juce::addDefaultFormatsToManager (formats);
+
+   #if MPEROLL_HOST_CLAP
+    formats.addFormat (std::make_unique<mperoll::ClapPluginFormat>());
+   #endif
+}
+
+// Retraces a load that failed in MPE Roll, writing each step to the result file as it's taken, so
+// that a plugin which crashes or hangs part way leaves the steps it got through.
+int diagnose (const juce::File& jobFile, const mperoll::PluginScanner::DiagnoseJob& job)
+{
+    juce::PluginDescription description;
+    const auto xml = juce::parseXML (mperoll::PluginScanner::descriptionFileFor (jobFile));
+
+    if (xml == nullptr || ! description.loadFromXml (*xml))
+        return 1;
+
+    mperoll::PluginScanner::readyMarkerFor (jobFile).create();
+    startWatchdog (job.parentProcessId, job.timeoutMs);
+
+    juce::ScopedJuceInitialiser_GUI juceInit;
+    juce::AudioPluginFormatManager formats;
+    addFormats (formats);
+
+    // From the running message loop, as a scan looks at a plugin (see below).
+    juce::MessageManager::callAsync ([&]
+    {
+        mperoll::PluginScanner::startedMarkerFor (jobFile).create();
+        juce::FileOutputStream out (mperoll::PluginScanner::resultFileFor (jobFile));
+
+        mperoll::LoadDiagnosis::diagnose (description, formats, [&out] (const juce::String& line)
+        {
+            out << line << "\n";
+            out.flush();
+        });
+
+        out.flush();
+        leave();
+    });
+
+    juce::MessageManager::getInstance()->runDispatchLoop();
+    return 0;
+}
+
 } // namespace
 
 int main (int argc, char* argv[])
@@ -131,24 +178,25 @@ int main (int argc, char* argv[])
     }
 
     const juce::File jobFile (args[1]);
+    const auto jobText = jobFile.loadFileAsString();
+
+    if (mperoll::PluginScanner::DiagnoseJob diagnoseJob; mperoll::PluginScanner::DiagnoseJob::parse (jobText, diagnoseJob))
+        return diagnose (jobFile, diagnoseJob);
+
     mperoll::PluginScanner::Job job;
 
     // A job in another layout comes from another version of MPE Roll: leave without the ready
     // marker, and that MPE Roll tells the user the two don't match.
-    if (! mperoll::PluginScanner::Job::parse (jobFile.loadFileAsString(), job))
+    if (! mperoll::PluginScanner::Job::parse (jobText, job))
         return 1;
 
     mperoll::PluginScanner::readyMarkerFor (jobFile).create();
-    startWatchdog (job);
+    startWatchdog (job.parentProcessId, job.timeoutMs);
 
     // Plugins are loaded on the message thread, as they expect.
     juce::ScopedJuceInitialiser_GUI juceInit;
     juce::AudioPluginFormatManager formats;
-    juce::addDefaultFormatsToManager (formats);
-
-   #if MPEROLL_HOST_CLAP
-    formats.addFormat (std::make_unique<mperoll::ClapPluginFormat>());
-   #endif
+    addFormats (formats);
 
     // The plugin is looked at from a message handled by the running message loop, as JUCE's own
     // plugin host does in its scanner process, rather than before the loop has ever run: some

@@ -1,5 +1,8 @@
 #include "PluginScanner.h"
+#include "LoadDiagnosis.h"
 #include "PluginLog.h"
+
+#include <algorithm>
 
 #if JUCE_WINDOWS
  #ifndef NOMINMAX
@@ -88,6 +91,46 @@ juce::int64 currentProcessId()
 }
 
 //==============================================================================
+namespace
+{
+    // Runs the scanner on the job in files and waits for it. Returns found once the scanner has
+    // ended after reading the job (what it wrote is for the caller to read), or why it didn't get that far.
+    Outcome runScanner (const juce::File& executable, const JobFolder& files, int timeoutMs, const std::function<bool()>& shouldStop)
+    {
+        juce::ChildProcess process;
+
+        // No output streams: nothing reads them, and a full pipe would stall the scanner.
+        if (! process.start (juce::StringArray { executable.getFullPathName(), scanArgument, files.job.getFullPathName() }, 0))
+            return Outcome::unavailable;
+
+        const auto startTime = juce::Time::getMillisecondCounterHiRes();
+        const auto stop = [&process] { process.kill(); process.waitForProcessToFinish (1000); };
+        const auto ready = [&files] { return readyMarkerFor (files.job).exists(); };
+        const auto started = [&files] { return startedMarkerFor (files.job).exists(); };
+
+        while (! process.waitForProcessToFinish (50))
+        {
+            if (shouldStop != nullptr && shouldStop())
+            {
+                stop();
+                return Outcome::cancelled;
+            }
+
+            const auto elapsed = juce::Time::getMillisecondCounterHiRes() - startTime;
+
+            if (elapsed > timeoutMs || (! started() && elapsed > startTimeoutMs))
+            {
+                stop();
+                return started() ? Outcome::timedOut : ready() ? Outcome::unavailable : Outcome::outdated;
+            }
+        }
+
+        // A scanner that left without reading the job is from another version of MPE Roll (it turns
+        // the job down) or is broken: either way, nothing can be said about the file.
+        return ready() ? Outcome::found : Outcome::outdated;
+    }
+}
+
 Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIdentifier,
                    juce::OwnedArray<juce::PluginDescription>& results, int timeoutMs,
                    const std::function<bool()>& shouldStop)
@@ -107,38 +150,8 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
     if (! files.job.replaceWithText (job.toText()))
         return Outcome::unavailable;
 
-    juce::ChildProcess process;
-
-    // No output streams: nothing reads them, and a full pipe would stall the scanner.
-    if (! process.start (juce::StringArray { executable.getFullPathName(), scanArgument, files.job.getFullPathName() }, 0))
-        return Outcome::unavailable;
-
-    const auto startTime = juce::Time::getMillisecondCounterHiRes();
-    const auto stop = [&process] { process.kill(); process.waitForProcessToFinish (1000); };
-    const auto ready = [&files] { return readyMarkerFor (files.job).exists(); };
-    const auto started = [&files] { return startedMarkerFor (files.job).exists(); };
-
-    while (! process.waitForProcessToFinish (50))
-    {
-        if (shouldStop != nullptr && shouldStop())
-        {
-            stop();
-            return Outcome::cancelled;
-        }
-
-        const auto elapsed = juce::Time::getMillisecondCounterHiRes() - startTime;
-
-        if (elapsed > timeoutMs || (! started() && elapsed > startTimeoutMs))
-        {
-            stop();
-            return started() ? Outcome::timedOut : ready() ? Outcome::unavailable : Outcome::outdated;
-        }
-    }
-
-    // A scanner that left without reading the job is from another version of MPE Roll (it turns
-    // the job down) or is broken: either way, nothing can be said about the file.
-    if (! ready())
-        return Outcome::outdated;
+    if (const auto outcome = runScanner (executable, files, timeoutMs, shouldStop); outcome != Outcome::found)
+        return outcome;
 
     // Written in one go once the plugin has been looked at, so a scanner that went down after that
     // (in the plugin's clean-up code, say) still counts.
@@ -155,7 +168,38 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
         return Outcome::found;
     }
 
-    return started() ? Outcome::crashed : Outcome::unavailable;
+    return startedMarkerFor (files.job).exists() ? Outcome::crashed : Outcome::unavailable;
+}
+
+Diagnosis diagnose (const juce::PluginDescription& description, int timeoutMs, const std::function<bool()>& shouldStop)
+{
+    Diagnosis diagnosis;
+    const auto executable = findExecutable();
+
+    if (executable == juce::File())
+        return diagnosis;
+
+    const JobFolder files;
+    DiagnoseJob job;
+    job.parentProcessId = currentProcessId();
+    job.timeoutMs = timeoutMs;
+
+    if (! files.job.replaceWithText (job.toText())
+        || ! descriptionFileFor (files.job).replaceWithText (description.createXml()->toString()))
+        return diagnosis;
+
+    diagnosis.outcome = runScanner (executable, files, timeoutMs, shouldStop);
+    diagnosis.lines.addLines (resultFileFor (files.job).loadFileAsString());
+    diagnosis.lines.removeEmptyStrings();
+
+    // It ends with a verdict, unless the plugin took the scanner down first.
+    const auto finished = std::any_of (diagnosis.lines.begin(), diagnosis.lines.end(),
+                                       [] (const juce::String& line) { return line.startsWith (LoadDiagnosis::verdictPrefix); });
+
+    if (diagnosis.outcome == Outcome::found && ! finished)
+        diagnosis.outcome = startedMarkerFor (files.job).exists() ? Outcome::crashed : Outcome::unavailable;
+
+    return diagnosis;
 }
 
 namespace

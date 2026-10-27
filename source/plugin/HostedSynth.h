@@ -3,6 +3,7 @@
 #include "core/CopyRouter.h"
 #include "core/MpeSettings.h"
 #include "CopyWorkers.h"
+#include "LoadDiagnosis.h"
 #include "PluginScanner.h"
 #include "SynthProfiles.h"
 #include "Vst3NoteExpressions.h"
@@ -48,6 +49,10 @@ public:
     //==============================================================================
     using LoadCallback = std::function<void (const juce::String& error)>;
 
+    /** Loads a synth. If it fails, the error says why as far as can be found out: for a VST2 or VST3,
+        Windows' own reason, or what the scanner found retracing the load step by step (see
+        LoadDiagnosis), which takes a moment longer (isFindingOutWhy()).
+    */
     void load (const juce::PluginDescription& description, LoadCallback onDone = {});
 
     /** Loads the first instrument in a plugin file, once the scanner has looked at it. onChecked is
@@ -79,6 +84,7 @@ public:
 
     bool isLoaded() const;
     bool isLoading() const noexcept                     { return loading; }
+    bool isFindingOutWhy() const noexcept               { return findingOutWhy; }   // a load failed; still loading
     juce::String getName() const;
 
     /** The name of a synth saved in the project that couldn't be loaded (e.g. not installed here). */
@@ -491,7 +497,8 @@ private:
     juce::Component::SafePointer<juce::DialogWindow> scanWindow;
 
     // loadFromFile checks the file in the scanner on this thread, so a plugin that hangs or shows a
-    // dialog there doesn't hold up the message thread. The flag stops the check early.
+    // dialog there doesn't hold up the message thread, and a failed load is retraced there too. The
+    // flag stops either early.
     std::thread checkThread;
     std::shared_ptr<std::atomic<bool>> checkCancelled;
 
@@ -515,6 +522,7 @@ private:
     int blockSize = 512;
     bool prepared = false;
     bool loading = false;
+    bool findingOutWhy = false;                         // retracing a failed load in the scanner
     int loadGeneration = 0;
     std::shared_ptr<int> lifetime = std::make_shared<int> (0);  // lets async callbacks detect that we're gone
 
@@ -653,6 +661,8 @@ private:
     static void renderJob (void* context, int index) noexcept;
     void finishLoadFromFile (const juce::File&, PluginScanner::Outcome, juce::OwnedArray<juce::PluginDescription>& found,
                              LoadCallback, const std::function<void()>& onChecked);
+    void explainLoadFailure (const juce::PluginDescription&, const juce::String& error, const LoadDiagnosis::PreFlight&,
+                             int generation, LoadCallback);
     void stopCheck();
     void configure (juce::AudioPluginInstance& plugin);
     void countHeldNotes (const juce::MidiBuffer&) noexcept;

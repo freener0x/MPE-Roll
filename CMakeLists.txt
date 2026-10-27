@@ -109,6 +109,7 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/CopyWorkers.cpp
     source/plugin/CrashReport.cpp
     source/plugin/HostedSynth.cpp
+    source/plugin/LoadDiagnosis.cpp
     source/plugin/PluginLog.cpp
     source/plugin/PluginScanner.cpp
     source/plugin/SynthParameters.cpp
@@ -240,7 +241,8 @@ endif()
 if(NOT APPLE)
     juce_add_console_app(MpeRollScanner PRODUCT_NAME "MPE Roll Scanner")
     set_target_properties(MpeRollScanner PROPERTIES OUTPUT_NAME "MPE Roll Scanner")
-    target_sources(MpeRollScanner PRIVATE source/scanner/ScannerMain.cpp ${MPEROLL_CORE_SOURCES} ${MPEROLL_CLAP_SOURCES})
+    target_sources(MpeRollScanner PRIVATE source/scanner/ScannerMain.cpp source/plugin/LoadDiagnosis.cpp
+        ${MPEROLL_CORE_SOURCES} ${MPEROLL_CLAP_SOURCES})
     target_include_directories(MpeRollScanner PRIVATE source third_party/fst)
     target_compile_definitions(MpeRollScanner PRIVATE ${MPEROLL_COMMON_DEFINITIONS})
     target_link_libraries(MpeRollScanner

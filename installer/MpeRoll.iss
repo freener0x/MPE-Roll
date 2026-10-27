@@ -76,6 +76,9 @@ Name: "app"; Description: "Standalone app"; Types: full
 Type: filesandordirs; Name: "{commoncf64}\VST3\MPE Roll.vst3"; Components: vst3
 
 [Files]
+; Always installed, and first: older copies are removed just before it, once programs holding them
+; have been closed (see RemoveOldCopies).
+Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion; BeforeInstall: RemoveOldCopies
 Source: "{#DistDir}\MPE Roll.vst3\*"; DestDir: "{commoncf64}\VST3\MPE Roll.vst3"; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#DistDir}\MPE Roll.dll"; DestDir: "{code:GetVst2Dir}"; Components: vst2; Flags: ignoreversion
 ; MPE Roll looks for its scanner next to its own binary (and in the installed VST3).
@@ -98,13 +101,18 @@ Filename: "{app}\MPE Roll.exe"; Description: "Open the MPE Roll app"; Components
 const
   // FILE_ATTRIBUTE_REPARSE_POINT: a link or junction.
   ReparsePoint = $400;
-  // How far below a plugin folder to look for older copies.
+  // How far below a plugin folder to look for older copies: the standard folders, then folders the
+  // user or the registry named (which may be a whole drive's root, looked at only at its top).
   SearchDepth = 4;
+  ChosenFolderDepth = 2;
 
 var
   Vst2Page: TInputDirWizardPage;
   OldCopiesPage: TInputOptionWizardPage;
-  OldCopies: TArrayOfString;
+  OldCopies: TArrayOfString;            // listed on OldCopiesPage
+  RescanCopies: Boolean;                // look for them again when the page next comes up
+  ChosenCopies: TArrayOfString;         // the ones to remove, settled once the wizard is done
+  CopiesChosen, CopiesRemoved: Boolean;
   NotRemoved: String;
 
 // ---------------------------------------------------------------------------------------------
@@ -251,12 +259,13 @@ end;
 // Copies this install doesn't replace, in the folders FL Studio and other hosts search.
 procedure FindOldCopies(var Copies: TArrayOfString);
 var
-  Roots, Found: TArrayOfString;
+  Roots, Chosen, Found: TArrayOfString;
   Folder, Vst3Path, Vst2Path: String;
   I: Integer;
 begin
   SetArrayLength(Copies, 0);
   SetArrayLength(Roots, 0);
+  SetArrayLength(Chosen, 0);
   SetArrayLength(Found, 0);
   AddUnique(Roots, ExpandConstant('{commoncf64}\VST3'));
   AddUnique(Roots, ExpandConstant('{commonpf64}\VST3'));
@@ -266,18 +275,28 @@ begin
   AddUnique(Roots, ExpandConstant('{commonpf64}\Steinberg\VSTPlugins'));
 
   if RegQueryStringValue(HKLM64, 'SOFTWARE\VST', 'VSTPluginsPath', Folder) and (Trim(Folder) <> '') then
-    AddUnique(Roots, RemoveBackslashUnlessRoot(Trim(Folder)));
+    AddUnique(Chosen, RemoveBackslashUnlessRoot(Trim(Folder)));
 
   Folder := GetPreviousData('VST2Folder', '');
   if Folder <> '' then
-    AddUnique(Roots, Folder);
+    AddUnique(Chosen, Folder);
 
   if WizardIsComponentSelected('vst2') then
-    AddUnique(Roots, GetVst2Dir(''));
+    AddUnique(Chosen, GetVst2Dir(''));
 
   for I := 0 to GetArrayLength(Roots) - 1 do
     if DirExists(Roots[I]) then
       FindCopies(Roots[I], SearchDepth, Found);
+
+  // A drive's root (D:\ as a plugin drive, say) only at its top.
+  for I := 0 to GetArrayLength(Chosen) - 1 do
+    if DirExists(Chosen[I]) then
+    begin
+      if Length(RemoveBackslash(Chosen[I])) <= 2 then
+        FindCopies(Chosen[I], 0, Found)
+      else
+        FindCopies(Chosen[I], ChosenFolderDepth, Found);
+    end;
 
   FindCopiesFlKnows(Found);
 
@@ -319,6 +338,15 @@ begin
       Result := True;
 end;
 
+// The scanner that goes with an old MPE Roll.dll, in the same folder.
+function ScannerBeside(const Path: String): String;
+begin
+  Result := '';
+
+  if CompareText(ExtractFileName(Path), 'MPE Roll.dll') = 0 then
+    Result := AddBackslash(ExtractFileDir(Path)) + 'MPE Roll Scanner.exe';
+end;
+
 function RemoveCopy(const Path: String): Boolean;
 var
   Scanner: String;
@@ -328,10 +356,9 @@ begin
   else
   begin
     Result := DeleteFile(Path);
+    Scanner := ScannerBeside(Path);
 
-    // The scanner beside an old .dll belongs to it.
-    Scanner := AddBackslash(ExtractFileDir(Path)) + 'MPE Roll Scanner.exe';
-    if Result and FileExists(Scanner) then
+    if Result and (Scanner <> '') and FileExists(Scanner) then
       DeleteFile(Scanner);
   end;
 
@@ -341,29 +368,72 @@ begin
     Log('Could not remove the older copy ' + Path);
 end;
 
+// Settles which copies go, once the wizard is done: those left ticked or, in a silent install,
+// every one found (unless /KEEPOLDCOPIES).
+procedure ChooseCopies;
+var
+  I: Integer;
+begin
+  if CopiesChosen then
+    exit;
+
+  CopiesChosen := True;
+  SetArrayLength(ChosenCopies, 0);
+
+  if WizardSilent then
+  begin
+    if not HasSwitch('KEEPOLDCOPIES') then
+      FindOldCopies(ChosenCopies);
+  end
+  else
+    for I := 0 to GetArrayLength(OldCopies) - 1 do
+      if OldCopiesPage.Values[I] then
+        AddUnique(ChosenCopies, OldCopies[I]);
+end;
+
+// So that Restart Manager names (and offers to close) a program holding an old copy open, as it
+// does for the files this install replaces.
+procedure RegisterExtraCloseApplicationsResources;
+var
+  I: Integer;
+  Path: String;
+begin
+  ChooseCopies;
+
+  for I := 0 to GetArrayLength(ChosenCopies) - 1 do
+  begin
+    Path := ChosenCopies[I];
+
+    if DirExists(Path) then
+    begin
+      RegisterExtraCloseApplicationsResource(False, AddBackslash(Path) + 'Contents\x86_64-win\MPE Roll.vst3');
+      RegisterExtraCloseApplicationsResource(False, AddBackslash(Path) + 'Contents\x86_64-win\MPE Roll Scanner.exe');
+    end
+    else
+    begin
+      RegisterExtraCloseApplicationsResource(False, Path);
+
+      if ScannerBeside(Path) <> '' then
+        RegisterExtraCloseApplicationsResource(False, ScannerBeside(Path));
+    end;
+  end;
+end;
+
+// Run as the first file is installed (BeforeInstall in [Files]): after Restart Manager has closed
+// the programs the user let it close, which happens later than ssInstall.
 procedure RemoveOldCopies;
 var
   I: Integer;
-  Chosen: Boolean;
 begin
-  if WizardSilent then
-  begin
-    if HasSwitch('KEEPOLDCOPIES') then
-      exit;
-    FindOldCopies(OldCopies);
-  end;
+  if CopiesRemoved then
+    exit;
 
-  for I := 0 to GetArrayLength(OldCopies) - 1 do
-  begin
-    // A silent install has no page to tick them on.
-    if WizardSilent then
-      Chosen := True
-    else
-      Chosen := OldCopiesPage.Values[I];
+  CopiesRemoved := True;
+  ChooseCopies;
 
-    if Chosen and not RemoveCopy(OldCopies[I]) then
-      NotRemoved := NotRemoved + #13#10 + '    ' + OldCopies[I];
-  end;
+  for I := 0 to GetArrayLength(ChosenCopies) - 1 do
+    if not RemoveCopy(ChosenCopies[I]) then
+      NotRemoved := NotRemoved + #13#10 + '    ' + ChosenCopies[I];
 end;
 
 // ---------------------------------------------------------------------------------------------
@@ -403,6 +473,7 @@ begin
   Vst2Page.Add('VST2 plugin folder:');
   Vst2Page.Values[0] := DefaultVst2Dir;
 
+  RescanCopies := True;
   OldCopiesPage := CreateInputOptionPage(Vst2Page.ID,
     'Older copies of MPE Roll',
     'These copies are in folders that FL Studio searches for plugins.',
@@ -422,10 +493,40 @@ begin
     SetPreviousData(PreviousDataKey, 'VST2Folder', GetPreviousData('VST2Folder', ''));
 end;
 
+// Lists the copies on OldCopiesPage, ticked except those the user unticked before.
+procedure ShowCopies(const Copies: TArrayOfString);
+var
+  Unticked: TArrayOfString;
+  I, J: Integer;
+  Tick: Boolean;
+begin
+  SetArrayLength(Unticked, 0);
+
+  for I := 0 to GetArrayLength(OldCopies) - 1 do
+    if not OldCopiesPage.Values[I] then
+      AddUnique(Unticked, OldCopies[I]);
+
+  OldCopies := Copies;
+  OldCopiesPage.CheckListBox.Items.Clear;
+
+  for I := 0 to GetArrayLength(OldCopies) - 1 do
+    OldCopiesPage.Add(OldCopies[I]);
+
+  for I := 0 to GetArrayLength(OldCopies) - 1 do
+  begin
+    Tick := True;
+
+    for J := 0 to GetArrayLength(Unticked) - 1 do
+      if CompareText(Unticked[J], OldCopies[I]) = 0 then
+        Tick := False;
+
+    OldCopiesPage.Values[I] := Tick;
+  end;
+end;
+
 function ShouldSkipPage(PageID: Integer): Boolean;
 var
   Copies: TArrayOfString;
-  I: Integer;
 begin
   Result := False;
 
@@ -433,20 +534,15 @@ begin
     Result := not WizardIsComponentSelected('vst2')
   else if PageID = OldCopiesPage.ID then
   begin
-    // Looked for again whenever the page comes up, since the choices before it change what this
-    // install replaces. The same list keeps the user's ticks.
-    FindOldCopies(Copies);
-
-    if not SameCopies(Copies, OldCopies) then
+    // Looked for again only on the way forward from the choices before it, which change what this
+    // install replaces: Setup also asks this on the way back from the Ready page.
+    if RescanCopies then
     begin
-      OldCopies := Copies;
-      OldCopiesPage.CheckListBox.Items.Clear;
+      RescanCopies := False;
+      FindOldCopies(Copies);
 
-      for I := 0 to GetArrayLength(OldCopies) - 1 do
-        OldCopiesPage.Add(OldCopies[I]);
-
-      for I := 0 to GetArrayLength(OldCopies) - 1 do
-        OldCopiesPage.Values[I] := True;
+      if not SameCopies(Copies, OldCopies) then
+        ShowCopies(Copies);
     end;
 
     Result := GetArrayLength(OldCopies) = 0;
@@ -462,6 +558,9 @@ begin
     SuppressibleMsgBox('Choose a folder for the VST2 plugin.', mbError, MB_OK, MB_OK);
     Result := False;
   end;
+
+  if (CurPageID = wpSelectComponents) or (CurPageID = Vst2Page.ID) then
+    RescanCopies := True;
 end;
 
 function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo,
@@ -505,13 +604,12 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssInstall then
-    RemoveOldCopies
-  else if (CurStep = ssPostInstall) and (NotRemoved <> '') then
+  if (CurStep = ssPostInstall) and (NotRemoved <> '') then
   begin
     Log('Older copies left in place:' + NotRemoved);
     if not WizardSilent then
-      SuppressibleMsgBox('These older copies couldn''t be removed (a program may have them open):' + NotRemoved + #13#10#13#10 +
-                         'Close FL Studio and delete them by hand.', mbInformation, MB_OK, MB_OK);
+      SuppressibleMsgBox('These older copies couldn''t be removed:' + NotRemoved + #13#10#13#10 +
+                         'A program may still have them open (FL Studio, or another one that uses plugins): ' +
+                         'close it, then delete them by hand.', mbInformation, MB_OK, MB_OK);
   end;
 end;

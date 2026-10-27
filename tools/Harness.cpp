@@ -14,6 +14,8 @@
 //                                                       to check the crash report
 //   MpeRollHarness scantest <scanner> <synth> <crashing.clap> <hanging.clap>
 //                                                       plugin files are looked at in the scanner process
+//   MpeRollHarness loadfailtest <scanner> <synth.vst3> <VST2 synth>
+//                                                       a load that fails says why
 
 #include "plugin/BuildInfo.h"
 #include "plugin/CopySafety.h"
@@ -3150,6 +3152,158 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
     return check.failures == 0 ? 0 : 1;
 }
 
+// A load that fails says why: the system's reason for a file it can't load, and otherwise the step
+// that failed when the scanner retraced the load (LoadDiagnosis).
+int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const juce::File& vst2Synth)
+{
+    Check check;
+    PluginScanner::setExecutableForTesting (scanner);
+    const auto folder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("MPE Roll load failures");
+    folder.deleteRecursively();
+    folder.createDirectory();
+    PluginLog::setFileForTesting (folder.getChildFile ("Plugin log.txt"));
+
+    const auto load = [&check] (const juce::PluginDescription& description)
+    {
+        HostedSynth synth;
+        juce::String error;
+        bool answered = false;
+        synth.load (description, [&] (const juce::String& e) { error = e; answered = true; });
+
+        const auto end = juce::Time::getMillisecondCounterHiRes() + 120000.0;
+
+        while (! answered && juce::Time::getMillisecondCounterHiRes() < end)
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
+
+        check (answered && ! synth.isLoaded() && ! synth.isLoading() && ! synth.isFindingOutWhy(),
+               "  (" + description.name + " didn't load, and the answer came)");
+        std::printf ("    %s\n", error.replace ("\n", "\n    ").toRawUTF8());
+        return error;
+    };
+
+    const auto describeOnly = [] (const juce::File& file)
+    {
+        juce::OwnedArray<juce::PluginDescription> found;
+
+        if (file.hasFileExtension (".vst3") && file.exists())
+        {
+            juce::VST3PluginFormat vst3;
+            vst3.findAllTypesForFile (found, file.getFullPathName());
+        }
+       #if JUCE_PLUGINHOST_VST
+        else if (file.existsAsFile())
+        {
+            juce::VSTPluginFormat vst2;
+            vst2.findAllTypesForFile (found, file.getFullPathName());
+        }
+       #endif
+
+        return found.isEmpty() ? juce::PluginDescription() : *found[0];
+    };
+
+    std::printf ("A file the system can't load: its reason\n");
+    {
+        juce::PluginDescription d;
+        d.pluginFormatName = "VST3";
+        d.name = "Broken Synth";
+        d.numOutputChannels = 2;
+        const auto bundle = folder.getChildFile ("Broken Synth.vst3");
+
+       #if JUCE_WINDOWS
+        d.fileOrIdentifier = bundle.getFullPathName();
+        bundle.replaceWithText ("not a plugin");
+       #else
+        // On Linux a VST3 is always a bundle, with the library inside.
+        bundle.createDirectory();
+        d.fileOrIdentifier = bundle.getFullPathName();
+        const auto inside = LoadDiagnosis::findBinaries (d)[0];
+        inside.getParentDirectory().createDirectory();
+        inside.replaceWithText ("not a plugin");
+       #endif
+
+        const auto error = load (d);
+       #if JUCE_WINDOWS
+        check (error.contains ("Windows couldn't load Broken Synth.vst3") && error.contains ("isn't a 64-bit Windows plugin")
+                   && error.contains ("Windows error 193"),
+               "Windows' own reason, in words, with its error number");
+       #else
+        check (error.contains ("Broken Synth.so couldn't be loaded:"), "the system's own reason");
+       #endif
+    }
+
+    const auto realVst3 = describeOnly (vst3Synth);
+    check (realVst3.name == "MPE Roll Test Synth", "the test synth's VST3 is found");
+
+   #if JUCE_PLUGINHOST_VST
+    std::printf ("A library that isn't a plugin, loaded as VST2: it says so\n");
+    if (realVst3.name.isNotEmpty())
+    {
+        // The VST3 test synth's own library has no VST2 entry point.
+       #if JUCE_WINDOWS
+        const auto library = folder.getChildFile ("Not A Synth.dll");
+       #else
+        const auto library = folder.getChildFile ("Not A Synth.so");
+       #endif
+        LoadDiagnosis::findBinaries (realVst3)[0].copyFileTo (library);
+
+        juce::PluginDescription d;
+        d.pluginFormatName = "VST";
+        d.name = "Not A Synth";
+        d.fileOrIdentifier = library.getFullPathName();
+        const auto error = load (d);
+        check (error.contains ("has no VSTPluginMain or main function, so it isn't a VST2 plugin"), "no VST2 entry point");
+    }
+   #endif
+
+    std::printf ("A VST3 that no longer holds the class a scan listed: the scanner finds which\n");
+    if (realVst3.name.isNotEmpty())
+    {
+        auto changed = realVst3;
+        changed.uniqueId ^= 0x5a5a;
+        changed.deprecatedUid ^= 0x5a5a;
+        const auto error = load (changed);
+        check (error.contains ("\"MPE Roll Test Synth\" has another ID"), "the class with its name has another ID");
+        check (error.contains ("Scan for plugins again") || error.contains ("moduleinfo.json"), "and what to do");
+
+        const auto log = PluginLog::getFile().loadFileAsString();
+        check (log.contains ("Retracing the load in the scanner") && log.contains ("Calling its GetPluginFactory")
+                   && log.contains ("No class is \"MPE Roll Test Synth\""),
+               "the plugin log has each step the scanner took");
+        std::printf ("    The plugin log so far:\n%s\n", ("      " + log.trimEnd().replace ("\n", "\n      ")).toRawUTF8());
+
+        auto renamed = realVst3;
+        renamed.name = "MPE Roll Old Synth";
+        check (load (renamed).contains ("\"MPE Roll Test Synth\" has the ID, under another name"), "and a renamed class too");
+    }
+
+    std::printf ("Plugins that load fine, retraced anyway: the plugin itself works\n");
+    for (const auto& synthFile : { vst3Synth, vst2Synth })
+    {
+        const auto d = describeOnly (synthFile);
+
+        if (d.name.isEmpty())
+            continue;
+
+        const auto diagnosis = PluginScanner::diagnose (d, 60000);
+        const auto why = LoadDiagnosis::summarise (diagnosis.lines, false, false, d.name);
+        check (diagnosis.outcome == PluginScanner::Outcome::found && why.contains ("loads fine in a separate process"),
+               d.pluginFormatName + ": " + why.upToFirstOccurrenceOf (",", false, false));
+    }
+
+    std::printf ("A scanner from before diagnoses turns the job down\n");
+    {
+        // The harness stands in for a scanner that only knows scan jobs.
+        PluginScanner::setExecutableForTesting (juce::File::getSpecialLocation (juce::File::currentExecutableFile));
+        check (PluginScanner::diagnose (realVst3, 20000).outcome == PluginScanner::Outcome::outdated, "and is reported as out of date");
+    }
+
+    PluginScanner::setExecutableForTesting ({});
+    PluginLog::setFileForTesting ({});
+    folder.deleteRecursively();
+    std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
+    return check.failures == 0 ? 0 : 1;
+}
+
 #if JUCE_WINDOWS
  #if JUCE_MSVC
 __declspec (noinline)
@@ -4039,6 +4193,9 @@ int main (int argc, char** argv)
         return scanTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]), cwd.getChildFile (args[3]),
                          cwd.getChildFile (args[4]));
 
+    if (args.size() >= 4 && args[0] == "loadfailtest")
+        return loadFailTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]), cwd.getChildFile (args[3]));
+
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
                  "  MpeRollHarness skins <folder>\n"
@@ -4052,6 +4209,7 @@ int main (int argc, char** argv)
                  "  MpeRollHarness vst3dialect <MPE Roll Note Expression Test Synth.vst3> <MPE Roll Test Synth.vst3>\n"
                  "  MpeRollHarness copies <MPE Roll Plain Test Synth>\n"
                  "  MpeRollHarness crashtest <report.txt> [overflow]\n"
-                 "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n");
+                 "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n"
+                 "  MpeRollHarness loadfailtest <MPE Roll Scanner> <synth.vst3> <VST2 synth>\n");
     return 2;
 }

@@ -445,6 +445,17 @@ void MpeRollEditor::timerCallback()
         refreshToolbar();
     }
 
+    // A load that failed is retraced in the scanner before its error shows, which takes a moment.
+    if (rollProcessor.getSynth().isFindingOutWhy() != showingFindingOutWhy)
+    {
+        showingFindingOutWhy = ! showingFindingOutWhy;
+
+        if (showingFindingOutWhy)
+            showStatusNow ("The synth didn't load: finding out why...");
+
+        refreshToolbar();
+    }
+
     if (toolbar.recordButton.getToggleState() != rollProcessor.isRecordArmed())
         toolbar.recordButton.setToggleState (rollProcessor.isRecordArmed(), juce::dontSendNotification);
 
@@ -612,22 +623,28 @@ void MpeRollEditor::loadSynth (const juce::PluginDescription& description)
 {
     showStatusNow ("Loading " + description.name + "...");
 
-    rollProcessor.getSynth().load (description, [safe = juce::Component::SafePointer<MpeRollEditor> (this), description]
-                                            (const juce::String& error)
+    rollProcessor.getSynth().load (description, [processor = &rollProcessor, description] (const juce::String& error)
     {
-        if (safe == nullptr)
+        // Answered by whichever editor is open by then: finding out why a load failed takes a moment,
+        // and this one may have been closed meanwhile. (The synth only calls back while it, and so the
+        // processor holding it, is still there.)
+        auto* editor = dynamic_cast<MpeRollEditor*> (processor->getActiveEditor());
+
+        if (error.isEmpty())
+            processor->requestConfiguration();
+
+        if (editor == nullptr)
             return;
 
         if (error.isNotEmpty())
         {
-            safe->setStatus ("Couldn't load " + description.name);
-            safe->showLoadFailure (error, &description);
+            editor->setStatus ("Couldn't load " + description.name);
+            editor->showLoadFailure (error, &description);
             return;
         }
 
-        safe->rollProcessor.requestConfiguration();
-        safe->setStatus (safe->describeLoaded (description.name));
-        safe->offerPlainMidi();
+        editor->setStatus (editor->describeLoaded (description.name));
+        editor->offerPlainMidi();
     });
 
     refreshToolbar();
@@ -846,9 +863,13 @@ void MpeRollEditor::browseForPlugin()
 
         // The file is checked in the scanner first, which can take a moment.
         safe->setStatus ("Checking " + file.getFileName() + "...");
-        safe->rollProcessor.getSynth().loadFromFile (file, [safe, file] (const juce::String& error)
+        safe->rollProcessor.getSynth().loadFromFile (file, [processor = &safe->rollProcessor, file] (const juce::String& error)
         {
-            if (safe == nullptr)
+            // As for loadSynth: answered by the editor open by then, if any.
+            processor->requestConfiguration();
+            auto* editor = dynamic_cast<MpeRollEditor*> (processor->getActiveEditor());
+
+            if (editor == nullptr)
                 return;
 
             if (error.isNotEmpty())
@@ -856,15 +877,13 @@ void MpeRollEditor::browseForPlugin()
                 juce::PluginDescription fileOnly;
                 fileOnly.name = file.getFileNameWithoutExtension();
                 fileOnly.fileOrIdentifier = file.getFullPathName();
-                safe->showLoadFailure (error, &fileOnly);
+                editor->showLoadFailure (error, &fileOnly);
             }
             else
             {
-                safe->setStatus (safe->describeLoaded (file.getFileNameWithoutExtension()));
-                safe->offerPlainMidi();
+                editor->setStatus (editor->describeLoaded (file.getFileNameWithoutExtension()));
+                editor->offerPlainMidi();
             }
-
-            safe->rollProcessor.requestConfiguration();
         },
         [safe, file]
         {

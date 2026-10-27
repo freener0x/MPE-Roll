@@ -148,11 +148,12 @@ It isn't signed, so Windows may say *Windows protected your PC*: choose *More in
 anyway*. It installs the VST3 in `C:\Program Files\Common Files\VST3` and, unless you untick them,
 the VST2 `MPE Roll.dll` (with `MPE Roll Scanner.exe` beside it) in a folder you choose, and the
 standalone app in `C:\Program Files\MPE Roll` with a Start menu entry. Before installing it looks
-for other copies of MPE Roll: every copy FL Studio's plugin database lists, and any in the plugin
-folders (`Common Files\VST3` and `VST2`, `Program Files\VST3`, the Steinberg folders,
-`Program Files\VSTPlugins`, the folder in the registry's `VSTPluginsPath`, and the VST2 folder you
-choose, up to four folders down). It removes the ones you leave ticked, so FL can't load an old
-build by mistake. Run a newer installer over it to update. To uninstall, use Windows'
+for other copies of MPE Roll: the ones FL Studio's plugin database lists (for the Windows account
+that runs the installer; copies inside FL's own folder aren't looked for), and any in the plugin
+folders (`Common Files\VST3` and `VST2`, `Program Files\VST3`, the Steinberg folders and
+`Program Files\VSTPlugins`, up to four folders down; the VST2 folder you choose and the registry's
+`VSTPluginsPath`, two down). It removes the ones you leave ticked once any program holding them is
+closed, so FL can't load an old build by mistake. Run a newer installer over it to update. To uninstall, use Windows'
 *Settings › Apps › Installed apps*; your settings, scans and plugin log in `%APPDATA%\MPE Roll` stay.
 
 **The Windows files**, to copy by hand instead:

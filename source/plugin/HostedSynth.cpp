@@ -404,13 +404,18 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
     stopCheck();
     const auto generation = ++loadGeneration;
     loading = true;
+    findingOutWhy = false;
     CrashReport::setActivity ("loading the synth " + describe (desc));
     PluginLog::add ("Loading " + PluginLog::describe (desc) + " at " + juce::String (sampleRate) + " Hz, "
                     + juce::String (blockSize) + " samples");
     const auto started = juce::Time::getMillisecondCounterHiRes();
 
+    // The plugin's binaries, loaded here just before JUCE loads them, so that if JUCE's load fails
+    // the system's reason is known (JUCE keeps it to itself). Held until JUCE has answered.
+    auto preFlight = std::make_shared<LoadDiagnosis::PreFlight> (desc);
+
     formatManager.createPluginInstanceAsync (desc, sampleRate, blockSize,
-        [this, generation, desc, onDone, started, alive = std::weak_ptr<int> (lifetime)]
+        [this, generation, desc, onDone, started, preFlight, alive = std::weak_ptr<int> (lifetime)]
         (std::unique_ptr<juce::AudioPluginInstance> plugin, const juce::String& error)
         {
             if (alive.expired() || generation != loadGeneration)
@@ -424,10 +429,7 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
                 CrashReport::setActivity ("failed to load the synth " + describe (desc));
                 const auto message = error.isNotEmpty() ? error : juce::String ("The plugin couldn't be loaded.");
                 PluginLog::add ("  failed after " + took + ": " + message);
-
-                if (onDone)
-                    onDone (message);
-
+                explainLoadFailure (desc, message, *preFlight, generation, onDone);
                 return;
             }
 
@@ -442,10 +444,76 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
         });
 }
 
+void HostedSynth::explainLoadFailure (const juce::PluginDescription& desc, const juce::String& error,
+                                      const LoadDiagnosis::PreFlight& preFlight, int generation, LoadCallback onDone)
+{
+    const auto finish = [onDone] (const juce::String& message)
+    {
+        if (onDone)
+            onDone (message);
+    };
+
+    if (! (desc.pluginFormatName == "VST3" || desc.pluginFormatName == "VST"))
+        return finish (error);
+
+    PluginLog::add ("  " + LoadDiagnosis::describe (desc));
+
+    for (const auto& line : LoadDiagnosis::inspectFiles (desc))
+        PluginLog::add ("  " + line);
+
+    for (const auto& line : preFlight.getLines())
+        PluginLog::add ("  " + line);
+
+    // The system's own reason: nothing more to find out.
+    if (preFlight.getProblem().isNotEmpty())
+        return finish (error + "\n\n" + preFlight.getProblem());
+
+    if (PluginScanner::findExecutable() == juce::File())
+        return finish (error);
+
+    // Retraced step by step in the scanner process, where the plugin may crash or hang without
+    // taking FL down, on the check thread so FL's window stays responsive meanwhile.
+    PluginLog::add ("  Retracing the load in the scanner...");
+    loading = findingOutWhy = true;
+    stopCheck();    // load() stopped any check already; this only makes sure
+    checkCancelled = std::make_shared<std::atomic<bool>> (false);
+
+    checkThread = std::thread ([this, desc, error, generation, onDone, cancelled = checkCancelled, alive = std::weak_ptr<int> (lifetime)]
+    {
+        auto diagnosis = std::make_shared<PluginScanner::Diagnosis> (
+            PluginScanner::diagnose (desc, PluginScanner::diagnoseTimeoutMs, [&cancelled] { return cancelled->load(); }));
+
+        juce::MessageManager::callAsync ([this, desc, error, generation, onDone, diagnosis, alive]
+        {
+            if (alive.expired() || generation != loadGeneration)
+                return;
+
+            loading = findingOutWhy = false;
+
+            for (const auto& line : diagnosis->lines)
+                PluginLog::add ("    " + line);
+
+            using Outcome = PluginScanner::Outcome;
+            const auto outcome = diagnosis->outcome;
+
+            if (outcome == Outcome::outdated)
+                PluginLog::add ("  The scanner couldn't retrace it: " + PluginScanner::describeFailure (outcome, desc.name));
+            else if (outcome == Outcome::unavailable)
+                PluginLog::add ("  The scanner couldn't retrace it: it couldn't be started, or stopped before it began");
+
+            const auto why = LoadDiagnosis::summarise (diagnosis->lines, outcome == Outcome::crashed, outcome == Outcome::timedOut, desc.name);
+
+            if (onDone)
+                onDone (why.isNotEmpty() ? error + "\n\n" + why : error);
+        });
+    });
+}
+
 void HostedSynth::loadFromFile (const juce::File& file, LoadCallback onDone, std::function<void()> onChecked)
 {
     stopCheck();
     const auto generation = ++loadGeneration;
+    findingOutWhy = false;      // a retrace still running was stopped just now
     const auto path = file.getFullPathName();
     CrashReport::setActivity ("reading the plugin file " + path);
 
@@ -537,8 +605,9 @@ void HostedSynth::finishLoadFromFile (const juce::File& file, PluginScanner::Out
         return;
     }
 
-    PluginLog::add ("Checked " + file.getFullPathName() + " in the scanner: " + juce::String (found.size())
-                    + (found.size() == 1 ? " plugin" : " plugins"));
+    PluginLog::add ("Checked " + file.getFullPathName()
+                    + (outcome == PluginScanner::Outcome::unavailable ? " here, without the scanner: " : " in the scanner: ")
+                    + juce::String (found.size()) + (found.size() == 1 ? " plugin" : " plugins"));
 
     auto* chosen = found.getFirst();
 
@@ -756,7 +825,7 @@ void HostedSynth::unload()
 {
     stopCheck();
     ++loadGeneration;
-    loading = false;
+    loading = findingOutWhy = false;
     closeEditor();
     removeAllCopies();
     ++copiesGeneration;
@@ -1406,7 +1475,7 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
     {
         stopCheck();        // a Load plugin file... check still running would otherwise keep its scanner going
         ++loadGeneration;   // a load still in flight would otherwise replace it
-        loading = false;
+        loading = findingOutWhy = false;
         unresolvedState.reset();
 
         if (state.getSize() > 0)
@@ -1803,6 +1872,14 @@ void HostedSynth::finishLoadingCopy (int index, std::unique_ptr<juce::AudioPlugi
         f.state = Follower::State::empty;
         setLoadingMarker (false);
         copiesProblem = copyName + " couldn't be loaded" + (error.isNotEmpty() ? ": " + error : juce::String ("."));
+
+        // The first copy loaded from the same file, so the file and its class are fine here: what
+        // failed is the plugin making one more of itself.
+        if (instance != nullptr)
+            copiesProblem << "\n\nThe first copy loaded from the same file, so the plugin works here; it wouldn't make "
+                             "another of itself. Some plugins allow only one or a few at a time (by their licence, "
+                             "say), and each copy needs its own memory: try fewer copies.";
+
         PluginLog::add (copiesProblem);
         settleCopies();
         notifyCopiesChanged();

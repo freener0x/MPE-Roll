@@ -150,6 +150,9 @@ jobs:
       - name: Plugin files are looked at in the scanner process (crashing and hanging ones too)
         run: '"$HARNESS" scantest "$SCANNER" "$VST3_SYNTH" "$CRASHING_PLUGIN" "$HANGING_PLUGIN"'
 
+      - name: A failed load says why (Windows' reason, or the step the scanner found failing)
+        run: '"$HARNESS" loadfailtest "$SCANNER" "$VST3_SYNTH" "$VST2_SYNTH"'
+
       - name: Package
         shell: pwsh
         run: |
@@ -349,3 +352,10 @@ jobs:
           "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
           "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Crashing Test Plugin.clap"
           "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Hanging Test Plugin.clap"
+
+      - name: A failed load says why (the system's reason, or the step the scanner found failing)
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness loadfailtest
+          "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner"
+          "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
+          "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"

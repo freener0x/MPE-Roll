@@ -1,6 +1,8 @@
 # Installs, upgrades and uninstalls MPE Roll with its installer, silently, and checks where every
-# file goes and that older copies are found and removed. The Windows CI job runs it on a fresh
-# runner: it writes to Program Files and leaves test folders behind.
+# file goes and that older copies are found and removed. Only for the Windows CI job's throwaway
+# runner: it installs into Program Files, deletes copies of MPE Roll it plants there, and points FL
+# Studio's user data folder (HKCU\Software\Image-Line\Shared\Paths, "Shared data") at a test folder,
+# so it refuses to run anywhere CI isn't set.
 #
 #   pwsh installer/test-installer.ps1 -Setup installer/output/MPE-Roll-Setup.exe -Dist dist
 
@@ -11,6 +13,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+if (-not $env:CI) {
+    throw 'This test changes Program Files and FL Studio''s settings: it only runs where CI is set (as on GitHub Actions).'
+}
 
 $Setup = (Resolve-Path $Setup).Path
 $Dist = (Resolve-Path $Dist).Path
@@ -98,7 +104,7 @@ $flKnownVst2 = Join-Path $testRoot 'Somewhere FL found\MPE Roll.dll'
 $flKnownVst3 = Join-Path $testRoot 'Somewhere FL found\Bundles\MPE Roll.vst3'
 Plant $flKnownVst2
 Plant (Join-Path $flKnownVst3 'Contents\x86_64-win\MPE Roll.vst3')
-New-Item -Force 'HKCU:\Software\Image-Line\Shared\Paths' | Out-Null
+if (-not (Test-Path 'HKCU:\Software\Image-Line\Shared\Paths')) { New-Item -Force 'HKCU:\Software\Image-Line\Shared\Paths' | Out-Null }
 Set-ItemProperty 'HKCU:\Software\Image-Line\Shared\Paths' -Name 'Shared data' -Value $flData
 $database = Join-Path $flData 'FL Studio\Presets\Plugin database\Installed\Generators'
 New-Item -ItemType Directory -Force (Join-Path $database 'VST'), (Join-Path $database 'VST3') | Out-Null
@@ -119,6 +125,7 @@ Expect (Same (Join-Path $vst2A 'MPE Roll Scanner.exe') (Join-Path $Dist 'MPE Rol
 Expect (Same (Join-Path $app 'MPE Roll.exe') (Join-Path $Dist 'MPE Roll.exe')) 'the app is installed'
 Expect (Same (Join-Path $app 'MPE Roll.pdb') (Join-Path $Dist 'MPE Roll.pdb')) 'the app''s .pdb is beside it'
 Expect (Same (Join-Path $app 'MPE Roll Scanner.exe') (Join-Path $Dist 'MPE Roll Scanner.exe')) 'the scanner is beside the app'
+Expect (Same (Join-Path $app 'LICENSE.txt') (Join-Path $PSScriptRoot '..\LICENSE')) 'the licence goes with it'
 Expect (Test-Path $shortcut) 'the Start menu has the app'
 Expect (-not (Test-Path -LiteralPath $oldVst2)) 'an older VST2 copy is removed'
 Expect (-not (Test-Path -LiteralPath $oldScanner)) 'the scanner beside it is removed with it'

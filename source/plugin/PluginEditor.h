@@ -67,6 +67,7 @@ private:
     juce::Component::SafePointer<juce::AlertWindow> silenceAlert;   // the "No sound from ..." box, while it's open
     juce::Component::SafePointer<juce::AlertWindow> mpeAdvice;      // the "... has no MPE" box, while it's open
     bool showingSilentStatus = false;                               // the status line says the synth hasn't sounded
+    bool showingFindingOutWhy = false;                              // ...or that a failed load is being retraced
 
     void timerCallback() override;
     void changeListenerCallback (juce::ChangeBroadcaster*) override;

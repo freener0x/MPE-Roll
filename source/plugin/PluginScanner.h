@@ -72,6 +72,42 @@ struct Job
     }
 };
 
+/** How long the scanner may take to retrace a load that failed. */
+inline constexpr int diagnoseTimeoutMs = 60000;
+
+/** A job asking the scanner to find out why a plugin didn't load (see LoadDiagnosis::diagnose). Its
+    first line isn't a scan job's, so a scanner from before there were such jobs turns it down. The
+    description to retrace is in descriptionFileFor (job), and the scanner writes what it finds to
+    the result file a line at a time, so a plugin that crashes or hangs leaves the steps it got through.
+*/
+struct DiagnoseJob
+{
+    juce::int64 parentProcessId = 0;
+    int timeoutMs = diagnoseTimeoutMs;
+
+    static constexpr const char* header = "MPE Roll diagnose job 1";
+
+    juce::String toText() const
+    {
+        return juce::String (header) + "\n" + juce::String (parentProcessId) + "\n" + juce::String (timeoutMs) + "\n";
+    }
+
+    /** False for text that isn't a diagnose job in this layout. */
+    static bool parse (const juce::String& text, DiagnoseJob& job)
+    {
+        const auto lines = juce::StringArray::fromLines (text);
+
+        if (lines.size() < 3 || lines[0] != header)
+            return false;
+
+        job.parentProcessId = lines[1].getLargeIntValue();
+        job.timeoutMs = lines[2].getIntValue();
+        return true;
+    }
+};
+
+inline juce::File descriptionFileFor (const juce::File& job)  { return job.getSiblingFile (job.getFileName() + ".description"); }
+
 /** This process's ID, as the job tells the scanner. */
 juce::int64 currentProcessId();
 
@@ -101,6 +137,19 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
 
 /** Describes an outcome other than found, for showing to the user. */
 juce::String describeFailure (Outcome, const juce::String& fileName);
+
+/** What a scanner process found out about a load that failed: its lines (LoadDiagnosis::diagnose),
+    and the outcome: found once it got to the end, crashed or timedOut when the plugin cut it short
+    (the lines then hold the steps it got through), or why it couldn't be run at all. */
+struct Diagnosis
+{
+    Outcome outcome = Outcome::unavailable;
+    juce::StringArray lines;
+};
+
+/** Retraces a failed load of a VST2 or VST3 in a scanner process of its own. Blocks; any thread. */
+Diagnosis diagnose (const juce::PluginDescription&, int timeoutMs = diagnoseTimeoutMs,
+                    const std::function<bool()>& shouldStop = {});
 
 /** Whether the path is one of FL Studio's own plugins (Harmor, Sytrus...), which live under FL's
     install folder in Plugins\Fruity. They come in Image-Line's own format: there's no VST or CLAP in

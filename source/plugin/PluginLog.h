@@ -17,7 +17,7 @@ void add (const juce::String& line);
 juce::String describe (const juce::PluginDescription&);
 
 /** The last `maxLines` lines of the log. */
-juce::String tail (int maxLines = 40);
+juce::String tail (int maxLines = 60);
 
 /** A report to paste into a message: MPE Roll's version, the system, the plugin, the error, and the
     end of the log. */
