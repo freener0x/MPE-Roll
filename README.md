@@ -308,7 +308,13 @@ going: see [DONATE.md](DONATE.md) (Cash App, or Bitcoin, Ethereum, Solana and Mo
 Inside the plugin, *File > Support MPE Roll* (or the link at the foot of *MPE settings*) opens the
 same details in a window of its own, QR codes and Copy buttons included, with nothing to load from
 the web. Once GitHub Pages is on for the repository, the page is also online at
-<https://freener0x.github.io/glowing-pancake/donate.html>.
+<https://freener0x.github.io/glowing-pancake/donate.html>. To switch it on: the repository's
+*Settings › Pages › Build and deployment*, *Source: Deploy from a branch*, then the branch that has
+`docs/donate.html` (`main` once this is merged) and the `/docs` folder, and *Save*. The site is up a
+minute or two later. A private repository needs GitHub Pro (or Team) for Pages, and its Pages site is
+public even then: everything in `docs/` can be read by anyone. While the repository is private,
+`"repoPublic": false` in `docs/donate.json` keeps the pages from linking into it, since visitors
+would get a 404 there.
 
 ## License
 

@@ -15,7 +15,8 @@ It writes, all of them committed so nobody needs this script to read them:
 
 Only plain links and QR codes: no payment widget or third-party script is ever involved, so the
 page is as private as the plugin. Empty values in donate.json are left out. "pageUrl" is where
-GitHub Pages serves docs/donate.html.
+GitHub Pages serves docs/donate.html. "repoPublic": false while the repository is private, so the
+web pages link to nothing in it (GitHub would show visitors a 404); true once it's public.
 
 Needs the segno package (pip install segno). Run it from anywhere:
 
@@ -50,6 +51,7 @@ FUNDING_OUT = ROOT / ".github" / "FUNDING.yml"
 PLUGIN_DATA_OUT = ROOT / "source" / "plugin" / "ui" / "DonateData.h"
 DONATE_MD_URL = f"{REPO_URL}/blob/main/DONATE.md"
 FL_GUIDE_URL = f"{REPO_URL}/blob/main/docs/FL_STUDIO.md"
+AGPL_URL = "https://www.gnu.org/licenses/agpl-3.0.html"
 
 ADDRESS = re.compile(r"^[A-Za-z0-9:]{20,120}$")
 
@@ -94,6 +96,21 @@ def page_url(config: dict) -> str:
     if not url.startswith("https://"):
         fail('"pageUrl" must be an https:// link')
     return url
+
+
+def repo_is_public(config: dict) -> bool:
+    """Whether visitors can open the repository. GitHub answers 404 to anyone who can't, so while
+    it's private the web pages link to nothing in it."""
+    public = config.get("repoPublic", True)
+    if not isinstance(public, bool):
+        fail('"repoPublic" must be true or false')
+    return public
+
+
+def license_link(public: bool) -> str:
+    if public:
+        return f'<a href="{html.escape(REPO_URL)}/blob/main/LICENSE">Source code (AGPL-3.0)</a>'
+    return f'<a href="{html.escape(AGPL_URL)}">Free software under the AGPL-3.0</a>'
 
 
 def build_links(config: dict) -> list[dict]:
@@ -239,7 +256,7 @@ SCRIPT = """\
 """
 
 
-def render_html(links: list[dict], coins: list[dict], svgs: dict[str, bytes]) -> str:
+def render_html(links: list[dict], coins: list[dict], svgs: dict[str, bytes], public: bool) -> str:
     e = html.escape
     out = [
         "<!doctype html>",
@@ -290,10 +307,11 @@ def render_html(links: list[dict], coins: list[dict], svgs: dict[str, bytes]) ->
                 out.append(f'<p class="muted small">{e(coin["note"])}</p>')
             out += ["</div>", "</div>"]
         out += ["</div>", "</section>"]
+    out += ['<footer class="muted small">']
+    if public:
+        out.append(f'<a href="{e(REPO_URL)}">{e(PROJECT)} on GitHub</a>')
     out += [
-        '<footer class="muted small">',
-        f'<a href="{e(REPO_URL)}">{e(PROJECT)} on GitHub</a>',
-        f'<a href="{e(REPO_URL)}/blob/main/LICENSE">Source code (AGPL-3.0)</a>',
+        license_link(public),
         "</footer>",
         "</main>",
         "<script>",
@@ -305,8 +323,9 @@ def render_html(links: list[dict], coins: list[dict], svgs: dict[str, bytes]) ->
     return "\n".join(out) + "\n"
 
 
-def render_index(url: str) -> str:
-    """The front page of the Pages site: where to read, download and donate."""
+def render_index(url: str, public: bool) -> str:
+    """The front page of the Pages site: where to read, download and donate (only donate while the
+    repository is private)."""
     e = html.escape
     out = [
         "<!doctype html>",
@@ -328,16 +347,21 @@ def render_index(url: str) -> str:
         "pitch glide, pressure and timbre. Free and open source.</p>",
         "<section>",
         '<ul class="donate-links">',
-        f'<li><a class="button-link" href="{e(REPO_URL)}">{e(PROJECT)} on GitHub</a>'
-        ' <span class="muted small">What it does, downloads, and the source code.</span></li>',
-        f'<li><a class="button-link" href="{e(FL_GUIDE_URL)}">Using it in FL Studio</a>'
-        ' <span class="muted small">Setup, routing, the native-synth bridge and troubleshooting.</span></li>',
+    ]
+    if public:
+        out += [
+            f'<li><a class="button-link" href="{e(REPO_URL)}">{e(PROJECT)} on GitHub</a>'
+            ' <span class="muted small">What it does, downloads, and the source code.</span></li>',
+            f'<li><a class="button-link" href="{e(FL_GUIDE_URL)}">Using it in FL Studio</a>'
+            ' <span class="muted small">Setup, routing, the native-synth bridge and troubleshooting.</span></li>',
+        ]
+    out += [
         f'<li><a class="button-link" href="{e(url.rsplit("/", 1)[-1])}">Support {e(PROJECT)}</a>'
         ' <span class="muted small">Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code.</span></li>',
         "</ul>",
         "</section>",
         '<footer class="muted small">',
-        f'<a href="{e(REPO_URL)}/blob/main/LICENSE">Source code (AGPL-3.0)</a>',
+        license_link(public),
         "</footer>",
         "</main>",
         "</body>",
@@ -453,6 +477,7 @@ def render_plugin_data(links: list[dict], coins: list[dict], svgs: dict[str, byt
 def main() -> None:
     config = load_config()
     url = page_url(config)
+    public = repo_is_public(config)
     links = build_links(config)
     coins = build_coins(config)
 
@@ -464,8 +489,8 @@ def main() -> None:
         svgs[coin["id"]] = qr_svg(coin)
         write(coin["file"], svgs[coin["id"]])
 
-    write(HTML_OUT, render_html(links, coins, svgs))
-    write(INDEX_OUT, render_index(url))
+    write(HTML_OUT, render_html(links, coins, svgs, public))
+    write(INDEX_OUT, render_index(url, public))
     write(MD_OUT, render_markdown(links, coins, url))
     write(FUNDING_OUT, render_funding(links, url))
     write(PLUGIN_DATA_OUT, render_plugin_data(links, coins, svgs))
