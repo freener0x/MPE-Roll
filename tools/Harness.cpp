@@ -3226,6 +3226,7 @@ int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const 
         check (error.contains ("Windows couldn't load Broken Synth.vst3") && error.contains ("isn't a 64-bit Windows plugin")
                    && error.contains ("Windows error 193"),
                "Windows' own reason, in words, with its error number");
+        check (! error.contains ("%1"), "the file named where Windows' own message has a placeholder");
        #else
         check (error.contains ("Broken Synth.so couldn't be loaded:"), "the system's own reason");
        #endif
@@ -3263,7 +3264,7 @@ int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const 
         changed.deprecatedUid ^= 0x5a5a;
         const auto error = load (changed);
         check (error.contains ("\"MPE Roll Test Synth\" has another ID"), "the class with its name has another ID");
-        check (error.contains ("Scan for plugins again") || error.contains ("moduleinfo.json"), "and what to do");
+        check (error.contains ("Load plugin file...") || error.contains ("moduleinfo.json"), "and what to do");
 
         const auto log = PluginLog::getFile().loadFileAsString();
         check (log.contains ("Retracing the load in the scanner") && log.contains ("Calling its GetPluginFactory")
@@ -3274,6 +3275,29 @@ int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const 
         auto renamed = realVst3;
         renamed.name = "MPE Roll Old Synth";
         check (load (renamed).contains ("\"MPE Roll Test Synth\" has the ID, under another name"), "and a renamed class too");
+
+        std::printf ("Load plugin file... on it, as the box says: the listing that no longer loads is replaced\n");
+        HostedSynth synth;
+        auto& known = synth.getKnownPlugins();
+        known.addType (changed);
+
+        bool answered = false;
+        juce::String loadError;
+        synth.loadFromFile (juce::File (realVst3.fileOrIdentifier), [&] (const juce::String& e) { loadError = e; answered = true; });
+        const auto end = juce::Time::getMillisecondCounterHiRes() + 120000.0;
+
+        while (! answered && juce::Time::getMillisecondCounterHiRes() < end)
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
+
+        juce::Array<juce::PluginDescription> listed;
+
+        for (const auto& type : known.getTypes())
+            if (type.pluginFormatName == "VST3" && type.fileOrIdentifier == realVst3.fileOrIdentifier)
+                listed.add (type);
+
+        check (answered && loadError.isEmpty() && synth.isLoaded(), "it loads");
+        check (listed.size() == 1 && listed[0].isDuplicateOf (realVst3), "and the file is listed once, as it is now");
+        synth.unload();
     }
 
     std::printf ("Plugins that load fine, retraced anyway: the plugin itself works\n");
@@ -3295,6 +3319,16 @@ int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const 
         // The harness stands in for a scanner that only knows scan jobs.
         PluginScanner::setExecutableForTesting (juce::File::getSpecialLocation (juce::File::currentExecutableFile));
         check (PluginScanner::diagnose (realVst3, 20000).outcome == PluginScanner::Outcome::outdated, "and is reported as out of date");
+
+        if (realVst3.name.isNotEmpty())
+        {
+            auto changed = realVst3;
+            changed.uniqueId ^= 0x5a5a;
+            changed.deprecatedUid ^= 0x5a5a;
+            const auto error = load (changed);
+            check (error.contains ("couldn't find out why MPE Roll Test Synth didn't load") && error.contains ("older than this MPE Roll"),
+                   "a failed load says the scanner couldn't find out why, and that it's out of date");
+        }
     }
 
     PluginScanner::setExecutableForTesting ({});

@@ -5,6 +5,7 @@
 #include "PluginScanner.h"
 #include "ui/WindowPlacement.h"
 
+#include <algorithm>
 #include <string_view>
 
 #if MPEROLL_HOST_CLAP
@@ -495,13 +496,18 @@ void HostedSynth::explainLoadFailure (const juce::PluginDescription& desc, const
 
             using Outcome = PluginScanner::Outcome;
             const auto outcome = diagnosis->outcome;
+            auto why = LoadDiagnosis::summarise (diagnosis->lines, outcome == Outcome::crashed, outcome == Outcome::timedOut, desc.name);
 
+            // The load had failed already; an outdated scanner only means there's no saying why.
             if (outcome == Outcome::outdated)
-                PluginLog::add ("  The scanner couldn't retrace it: " + PluginScanner::describeFailure (outcome, desc.name));
+            {
+                why = PluginScanner::describeOutdatedScanner ("MPE Roll couldn't find out why " + desc.name + " didn't load.");
+                PluginLog::add ("  The scanner couldn't retrace it: " + why);
+            }
             else if (outcome == Outcome::unavailable)
+            {
                 PluginLog::add ("  The scanner couldn't retrace it: it couldn't be started, or stopped before it began");
-
-            const auto why = LoadDiagnosis::summarise (diagnosis->lines, outcome == Outcome::crashed, outcome == Outcome::timedOut, desc.name);
+            }
 
             if (onDone)
                 onDone (why.isNotEmpty() ? error + "\n\n" + why : error);
@@ -618,6 +624,21 @@ void HostedSynth::finishLoadFromFile (const juce::File& file, PluginScanner::Out
             chosen = d;
             break;
         }
+    }
+
+    // The file was read afresh, so what it holds now replaces what was listed for it: an update can
+    // change a plugin's ID, leaving a listing that no longer loads beside the new one.
+    for (const auto& known : knownPlugins.getTypes())
+    {
+        const auto fromThisFile = std::any_of (found.begin(), found.end(), [&known] (const auto* d)
+        {
+            return d->pluginFormatName == known.pluginFormatName && d->fileOrIdentifier == known.fileOrIdentifier;
+        });
+
+        const auto stillThere = std::any_of (found.begin(), found.end(), [&known] (const auto* d) { return d->isDuplicateOf (known); });
+
+        if (fromThisFile && ! stillThere)
+            knownPlugins.removeType (known);
     }
 
     // A file can hold several plugins (a CLAP bundle, a VST2 shell): list them all in the synth

@@ -202,14 +202,11 @@ Diagnosis diagnose (const juce::PluginDescription& description, int timeoutMs, c
     return diagnosis;
 }
 
-namespace
+juce::String describeOutdatedScanner (const juce::String& consequence)
 {
-    juce::String describeOutdatedScanner (const juce::String& consequence)
-    {
-        return "The MPE Roll Scanner installed here is older than this MPE Roll (or isn't working), so "
-               + consequence + " Install the MPE Roll Scanner that came with this version of MPE Roll: it's inside "
-                 "the .vst3 folder, and goes next to MPE Roll.dll.";
-    }
+    return "The MPE Roll Scanner installed here is older than this MPE Roll (or isn't working), so "
+           + consequence + " Install the MPE Roll Scanner that came with this version of MPE Roll: it's inside "
+             "the .vst3 folder, and goes next to MPE Roll.dll.";
 }
 
 bool isFlStudioNativePluginFile (const juce::String& path)

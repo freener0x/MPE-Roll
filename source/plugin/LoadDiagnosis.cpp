@@ -89,15 +89,17 @@ namespace
     };
 
    #if JUCE_WINDOWS
-    juce::String systemMessage (DWORD code)
+    juce::String systemMessage (DWORD code, const juce::String& fileName)
     {
         wchar_t* text = nullptr;
         const auto length = FormatMessageW (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                                             nullptr, code, 0, (LPWSTR) &text, 0, nullptr);
         juce::String message;
 
+        // Some name the file as %1 ("%1 is not a valid Win32 application" for 193).
         if (length > 0 && text != nullptr)
-            message = juce::String (text).trim().trimCharactersAtEnd (".");
+            message = juce::String (text).trim().trimCharactersAtEnd (".")
+                          .replace ("%1", fileName.isNotEmpty() ? fileName : juce::String ("the file"));
 
         LocalFree (text);
         return message;
@@ -136,7 +138,7 @@ namespace
         loaded.handle = (void*) LoadLibraryW (binary.getFullPathName().toWideCharPointer());
 
         if (loaded.handle == nullptr)
-            loaded.error = describeWindowsError ((juce::uint32) GetLastError());
+            loaded.error = describeWindowsError ((juce::uint32) GetLastError(), binary.getFileName());
        #elif JUCE_LINUX || JUCE_BSD
         loaded.handle = dlopen (binary.getFullPathName().toRawUTF8(), RTLD_LOCAL | RTLD_NOW);
 
@@ -456,7 +458,7 @@ juce::StringArray inspectFiles (const juce::PluginDescription& d)
     return lines;
 }
 
-juce::String describeWindowsError (juce::uint32 code)
+juce::String describeWindowsError (juce::uint32 code, const juce::String& fileName)
 {
     const auto plain = [code]() -> juce::String
     {
@@ -483,9 +485,10 @@ juce::String describeWindowsError (juce::uint32 code)
     }();
 
    #if JUCE_WINDOWS
-    const auto system = systemMessage ((DWORD) code);
+    const auto system = systemMessage ((DWORD) code, fileName);
    #else
     const juce::String system;
+    juce::ignoreUnused (fileName);
    #endif
 
     auto s = plain.isNotEmpty() ? plain : system.isNotEmpty() ? system : juce::String ("Windows gave no reason");
@@ -766,12 +769,24 @@ namespace
                         for (const auto& c : *classes)
                             moduleInfoAgrees = moduleInfoAgrees || (c.matchesName && c.matchesId);
 
+                // On Windows the binary inside the bundle loads as a VST3 of its own, with no moduleinfo.json
+                // beside it. On Linux it's taken for a VST2, so there's no file that makes JUCE run the plugin.
+               #if JUCE_WINDOWS
+                const auto readThePlugin = " Use Load synth > Load plugin file... on " + binary.getFullPathName()
+                                         + ": MPE Roll then reads the plugin itself.";
+               #else
+                const juce::String readThePlugin (" Its maker would need to correct that file. Meanwhile, try its other "
+                                                  "format (VST2 or CLAP), and please send the details.");
+               #endif
+
+                // Load plugin file... reads a file afresh, where a scan skips one it has listed unless the
+                // bundle's folder changed, which an update replacing the files inside it doesn't do.
                 outcome = moduleInfoAgrees
                     ? d.name + "'s moduleinfo.json, which a scan reads instead of running the plugin, doesn't match the "
-                      "plugin itself: " + inThePlugin + ". Use Load plugin file... on " + binary.getFullPathName()
-                      + ": MPE Roll then reads the plugin itself."
+                      "plugin itself: " + inThePlugin + "." + readThePlugin
                     : d.name + " has changed since MPE Roll's list of plugins was made (by an update, say): " + inThePlugin
-                      + ". Scan for plugins again (Load synth > Scan for plugins...), then pick it again.";
+                      + ". Use Load synth > Load plugin file... on " + juce::File (d.fileOrIdentifier).getFullPathName()
+                      + ", which reads it afresh (a scan skips a plugin it has listed already).";
                 continue;
             }
 
@@ -1033,10 +1048,12 @@ void diagnose (const juce::PluginDescription& d, juce::AudioPluginFormatManager&
         say ("It loaded in " + milliseconds (started) + ": " + instance->getName());
         (void) instance.release();     // the scanner leaves without cleaning up after plugins
 
-        say (verdict (d.name + " loads fine in a separate process, so the plugin itself works: what stops it is "
-                      "something in the program MPE Roll runs in (FL Studio, say), such as another copy of a DLL it "
-                      "uses, loaded there already by that program or another plugin. Restart the program and load it "
-                      "before other plugins, or try its other format (VST2 or VST3) meanwhile, and please send the details."));
+        say (verdict (d.name + " loads fine in a separate process, so the plugin itself works. Load it again: it may "
+                      "have been waiting for something (a licence check, its maker's app, activation in a window it "
+                      "opened) that was ready by the second try. If it still fails, what stops it is something in the "
+                      "program MPE Roll runs in (FL Studio, say), such as another copy of a DLL it uses, loaded there "
+                      "already by that program or another plugin. Restart the program and load it before other "
+                      "plugins, or try its other format (VST2 or VST3) meanwhile, and please send the details."));
         return;
     }
 
@@ -1073,8 +1090,9 @@ juce::String summarise (const juce::StringArray& lines, bool crashed, bool timed
         return pluginName + " crashed in a separate process when MPE Roll retraced its load step by step" + where;
 
     if (timedOut)
-        return pluginName + " stopped responding in a separate process when MPE Roll retraced its load step by step" + where
-             + " It may be waiting for a window of its own (a licence or sign-in) that never showed.";
+        return pluginName + " didn't finish loading in a separate process when MPE Roll retraced its load step by step" + where
+             + " It may have been waiting for a window of its own (a licence or sign-in), which can open behind FL "
+               "Studio's: open it once directly in FL Studio, then try again.";
 
     return {};
 }

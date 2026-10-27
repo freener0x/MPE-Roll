@@ -15,6 +15,8 @@ namespace
     constexpr int rulerHeight = 24;
     constexpr int splitterHeight = 6;
     const juce::String dropDownArrow = juce::String::fromUTF8 (" \xe2\x96\xbe");
+    const juce::String findingOutWhyStatus = "The synth didn't load: finding out why (if it opens a window of its own, "
+                                             "answer it)...";
 }
 
 /** The handle between the grid and the expression lane. */
@@ -310,7 +312,9 @@ void MpeRollEditor::refreshToolbar()
     const auto& clip = document.getEditClip();
     const auto& settings = document.getSettings();
 
-    if (synth.isLoading())
+    if (synth.isFindingOutWhy())
+        toolbar.synthButton.setButtonText ("Finding out why...");
+    else if (synth.isLoading())
         toolbar.synthButton.setButtonText ("Loading...");
     else if (synth.isLoaded())
         toolbar.synthButton.setButtonText (synth.getName() + dropDownArrow);
@@ -344,6 +348,11 @@ void MpeRollEditor::refreshToolbar()
 
 juce::String MpeRollEditor::describeOutput() const
 {
+    // A failed load is retraced in the scanner, which can take a while; the plugin may open a
+    // window of its own there.
+    if (rollProcessor.getSynth().isFindingOutWhy())
+        return findingOutWhyStatus;
+
     // The "No sound from ..." box asks once. This stays until the synth is heard, for a box that
     // went behind FL's window or was closed by reflex. Played another way, its advice no longer applies.
     if (auto& synth = rollProcessor.getSynth(); synth.isSilentOverMpe() && synth.isLoaded()
@@ -451,7 +460,7 @@ void MpeRollEditor::timerCallback()
         showingFindingOutWhy = ! showingFindingOutWhy;
 
         if (showingFindingOutWhy)
-            showStatusNow ("The synth didn't load: finding out why...");
+            showStatusNow (findingOutWhyStatus);
 
         refreshToolbar();
     }

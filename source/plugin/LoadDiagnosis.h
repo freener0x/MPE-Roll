@@ -38,8 +38,9 @@ juce::StringArray inspectFiles (const juce::PluginDescription&);
     or an empty string when the file isn't a Windows binary. */
 juce::String describeMachine (const juce::File&);
 
-/** A Windows error code in plain words, with what usually causes it when loading a plugin. */
-juce::String describeWindowsError (juce::uint32 code);
+/** A Windows error code in plain words, with what usually causes it when loading a plugin. The
+    file's name stands in for the "%1" some of Windows' own messages have. */
+juce::String describeWindowsError (juce::uint32 code, const juce::String& fileName = {});
 
 /** Loads the description's binaries the way JUCE is about to, keeping them loaded until it's
     destroyed, so that if JUCE's load fails the system's reason is known. Loading a binary runs its

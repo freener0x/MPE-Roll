@@ -72,8 +72,9 @@ struct Job
     }
 };
 
-/** How long the scanner may take to retrace a load that failed. */
-inline constexpr int diagnoseTimeoutMs = 60000;
+/** How long the scanner may take to retrace a load that failed: as long as a scan, since the plugin
+    may open a window of its own there (a licence or sign-in) that someone is filling in. */
+inline constexpr int diagnoseTimeoutMs = defaultTimeoutMs;
 
 /** A job asking the scanner to find out why a plugin didn't load (see LoadDiagnosis::diagnose). Its
     first line isn't a scan job's, so a scanner from before there were such jobs turns it down. The
@@ -137,6 +138,9 @@ Outcome findTypes (const juce::String& formatName, const juce::String& fileOrIde
 
 /** Describes an outcome other than found, for showing to the user. */
 juce::String describeFailure (Outcome, const juce::String& fileName);
+
+/** Says the scanner is out of date, so (consequence, a sentence), and what to install. */
+juce::String describeOutdatedScanner (const juce::String& consequence);
 
 /** What a scanner process found out about a load that failed: its lines (LoadDiagnosis::diagnose),
     and the outcome: found once it got to the end, crashed or timedOut when the plugin cut it short
