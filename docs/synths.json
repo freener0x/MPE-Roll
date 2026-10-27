@@ -11631,7 +11631,7 @@
    "mpe": "undocumented",
    "notes": "Loop and sample instrument, Arcade 2.x (2.16.1 in August 2026). Samplers: 15 samples (loops, one-shots, phrases) on the white keys between Arcade's C2 and C4, modifiers on the black keys between, and Playable Pitch keys below that retune what's playing; Output gives note names, not numbers. Instruments (since 2.0): chromatic, up to 3 layers, no modifiers. No MPE or pitch-bend response documented; parameters can be MIDI-learned to CCs. Windows 10/11: 64-bit VST2, VST3, AAX. Needs an Output login and downloaded kits (works offline for 30 days).",
    "advice": "Output documents neither MPE nor pitch bend for Arcade.",
-   "copiesGive": "each sample's own MIDI-learned controls (right-click a macro > Learn MIDI, then play a timbre lane for CC74); glides only if the kit answers pitch bend, so draw one and listen. For Samplers, set Keys to every copy to Output Arcade Samplers",
+   "copiesGive": "each sample's own MIDI-learned controls (right-click a macro > Learn MIDI, then play the Zone timbre lane, which reaches every copy, for CC74); glides only if the kit answers pitch bend, so draw one and listen. For Samplers, set Keys to every copy to Output Arcade Samplers",
    "sources": [
     {
      "url": "https://www.bonedo.de/artikel/output-arcade-test",
@@ -19871,12 +19871,12 @@
    "mpe": "yes",
    "enable": "MENU (top bar) > MPE Enabled",
    "bendRange": "MENU > MPE Bend Range (48 ST, apparently the default)",
-   "notes": "MPE arrived in 1.23 (March 2019) and is off by default; use 1.26b8 or later, since earlier builds ignored channel 16, cut a note played on two channels at once, and could crash on MPE bend-range messages. The last 1.x is 1.36b8 (October 2023). Older versions such as 1.1.5 have no MPE Enabled item. VST3 on Windows since 1.35b7 (2022). Since 1.36b8 per-note bend also feeds MPE X.",
-   "advice": "Turn on MPE in Serum: MENU (top bar) > MPE Enabled, with MPE Bend Range 48, MPE Roll's per-note bend range. Serum before 1.23 (1.1.5, say) has no MPE: update it from your Xfer account (1.26b8 or later), or set Synth expects to One copy per note. Turn MPE off again for Plain MIDI.",
+   "notes": "MPE arrived in 1.23 (March 2019) and is off by default; use 1.26b8 or later, since earlier builds ignored channel 16, cut a note played on two channels at once, and could crash on MPE bend-range messages. The newest 1.x in a copy of Xfer's update log (May 2026) is 1.36b8 (October 2023). Older versions such as 1.1.5 have no MPE Enabled item. VST3 on Windows since 1.35b7 (2022). Since 1.36b8 per-note bend also feeds MPE X.",
+   "advice": "Turn on MPE in Serum 1.26b8 or later: MENU (top bar) > MPE Enabled, with MPE Bend Range 48, MPE Roll's per-note bend range. An older Serum has no MPE (1.1.5, say) or MPE bugs MPE Roll runs into (1.23 to 1.26b7): update it from your Xfer account, or set Synth expects to One copy per note. Turn MPE off again for Plain MIDI.",
    "sources": [
     {
      "url": "https://gist.github.com/0xdevalias/a537a59d1389d5aed3bc63b544c70c8d",
-     "says": "A copy of Xfer's own update log: 1.23b2 (6 March 2019) 'Preliminary MPE support'; 1.24b1 MPE off by default; 1.25b1 fixes MPE note-offs per channel and channel 16; 1.26b8 fixes a GUI crash on MPE bend-range messages; 1.36b8 (11 October 2023) the last 1.x."
+     "says": "A copy of Xfer's own update log: 1.23b2 (6 March 2019) 'Preliminary MPE support'; 1.24b1 MPE off by default; 1.25b1 fixes MPE note-offs per channel and channel 16; 1.26b8 fixes a GUI crash on MPE bend-range messages; 1.36b8 (11 October 2023) the newest 1.x listed."
     },
     {
      "url": "https://support.jamstik.com/hc/en-us/articles/360050534752-How-to-use-your-Jamstik-Studio-with-Serum-in-Studio-One-5",

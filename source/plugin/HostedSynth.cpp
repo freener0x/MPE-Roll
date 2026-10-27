@@ -1599,10 +1599,21 @@ void HostedSynth::audioProcessorParameterChanged (juce::AudioProcessor*, int ind
     // A change the first copy reports while it plays its block follows from the MIDI it was sent
     // (a parameter a synth maps a controller or the pitch bend to): that MIDI is its own, not the
     // other copies'. So does its pitch wheel or mod wheel parameter, which a synth may report from
-    // its window as the wheel it draws follows the notes. Other changes from its window, and its
+    // its window as the wheel it draws follows the notes: not copied, but counted, so the look at
+    // its sound waits for the wheels as for the knobs. Other changes from its window, and its
     // presets, are copied.
-    if (! playingFirstCopy && ! mirror.isPerformanceControl (index))
+    if (playingFirstCopy)
+        return;
+
+    if (mirror.isPerformanceControl (index))
+        wheelMoves.fetch_add (1, std::memory_order_relaxed);
+    else
         mirror.set (index, value);
+}
+
+bool HostedSynth::isFollowingItsNotes (int index) const noexcept
+{
+    return playingFirstCopy || mirror.isPerformanceControl (index);
 }
 
 bool HostedSynth::setParameterValue (int index, float value)
@@ -2239,6 +2250,7 @@ void HostedSynth::forgetSoundChecks()
     unexplainedChanges = 0;
     hashAtLastCheck = 0;
     changesAtLastCheck = mirror.getChanges();
+    wheelMovesAtLastCheck = wheelMoves.load (std::memory_order_relaxed);
     stateMilliseconds = 0.0;
     ++soundGeneration;
 }
@@ -2265,8 +2277,10 @@ void HostedSynth::checkSound()
     const auto reported = std::exchange (soundChangeReported, false);
     const auto closed = std::exchange (windowJustClosed, false);
     const auto changes = mirror.getChanges();
-    const auto parametersMoved = changes != changesAtLastCheck;
+    const auto wheels = wheelMoves.load (std::memory_order_relaxed);
+    const auto parametersMoved = changes != changesAtLastCheck || wheels != wheelMovesAtLastCheck;
     changesAtLastCheck = changes;
+    wheelMovesAtLastCheck = wheels;
 
     // A change reported while knobs are still being turned (some synths report every move): it's
     // looked at once they've been still for a moment, or after two seconds of automation, when

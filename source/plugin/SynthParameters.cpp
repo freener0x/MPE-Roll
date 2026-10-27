@@ -173,7 +173,12 @@ void SynthParameterBank::parameterValueChanged (int hostedIndex, float newValue)
     if (slot >= 0)
     {
         cachedValues[(size_t) slot] = newValue;
-        proxies[(size_t) slot]->sendValueChangedMessageToListeners (newValue);
+
+        // The synth following the notes it's sent (its wheels, or anything its first copy moves
+        // while it plays in copy mode) isn't an edit: reported to the host, it could come back as
+        // automation and move every copy with the first one's note.
+        if (! synth.isFollowingItsNotes (hostedIndex))
+            proxies[(size_t) slot]->sendValueChangedMessageToListeners (newValue);
     }
 }
 

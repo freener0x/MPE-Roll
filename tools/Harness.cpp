@@ -3527,9 +3527,27 @@ int copiesTest (const juce::File& synthFile)
             return true;
         };
 
+        // Nor is it told to the host, which could send it back as automation for every copy.
+        struct HeardByHost : juce::AudioProcessorParameter::Listener
+        {
+            void parameterValueChanged (int, float) override        { ++changes; }
+            void parameterGestureChanged (int, bool) override       {}
+            int changes = 0;
+        };
+
+        HeardByHost heard;
+
+        if (pitchWheelSlot != nullptr)
+            pitchWheelSlot->addListener (&heard);
+
         rig->synth().getCopy (0)->getParameters()[pitchWheel]->setValueNotifyingHost (0.9f);
         rig->idle (50);
         check (copiesWheelAt (0.5f), "the first copy's own Pitch Bend parameter moving reaches no other copy");
+        check (pitchWheelSlot != nullptr && heard.changes == 0, "nor the host, which could send it back as automation");
+
+        if (pitchWheelSlot != nullptr)
+            pitchWheelSlot->removeListener (&heard);
+
         check (pitchWheelSlot != nullptr, "the synth's Pitch Bend is one of MPE Roll's parameters");
 
         if (pitchWheelSlot != nullptr)

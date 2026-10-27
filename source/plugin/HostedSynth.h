@@ -227,6 +227,13 @@ public:
     */
     bool setParameterValue (int index, float value);
 
+    /** Whether a change the synth reports now, at this index, is the first copy following the notes
+        it's sent rather than an edit: one reported while it plays its block in copy mode, or of its
+        pitch-wheel, mod-wheel or aftertouch parameter. That's its own, not the other copies', so it
+        isn't passed on to the host either, which could send it back as automation for every copy.
+        Any thread, on the synth's parameter callback. */
+    bool isFollowingItsNotes (int index) const noexcept;
+
     /** Calls fn with the synth's parameter at this index, without ever blocking (safe on any thread,
         and never in the audio thread's way). Returns false if there's no such parameter, or the
         synth is being swapped, prepared or released right now.
@@ -558,6 +565,8 @@ private:
     int unexplainedChanges = 0;                         // checks in a row that found it so
     size_t hashAtLastCheck = 0;
     uint32_t changesAtLastCheck = 0;
+    std::atomic<uint32_t> wheelMoves { 0 };             // the first copy's own wheel parameters, reported moving (not copied)
+    uint32_t wheelMovesAtLastCheck = 0;
     double stateMilliseconds = 0.0;                     // how long its state took to get, last time
     bool nonRealtime = false;
     bool offlineOnly = false;                           // an export's
