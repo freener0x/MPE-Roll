@@ -11,7 +11,12 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 
 1. Download a build (see [Downloading a build](../README.md#downloading-a-build)) or build it
    yourself.
-2. Copy the whole `MPE Roll.vst3` folder to `C:\Program Files\Common Files\VST3` (macOS:
+2. On Windows, close FL Studio and run the installer, `MPE-Roll-Setup-build-N.exe` (if Windows says
+   *Windows protected your PC*, choose *More info*, then *Run anyway*). For the VST2, pick one of the
+   folders listed under *Options › Manage plugins*. The installer offers to remove older copies of
+   MPE Roll it finds in the plugin folders; leave them ticked unless a project of yours still needs
+   one. To install by hand instead,
+   copy the whole `MPE Roll.vst3` folder to `C:\Program Files\Common Files\VST3` (macOS:
    `/Library/Audio/Plug-Ins/VST3`). On Windows you can use `MPE Roll.dll`, the VST2 version, instead:
    put it in one of the plugin folders listed under *Options › Manage plugins*, with
    `MPE Roll Scanner.exe` beside it (see step 2 below). When you update, close FL Studio first
@@ -529,8 +534,8 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 
 | Problem | Fix |
 | --- | --- |
-| FL doesn't list MPE Roll | Check where the files went: the whole `MPE Roll.vst3` folder in `C:\Program Files\Common Files\VST3`, or `MPE Roll.dll` in one of the plugin folders listed under *Options › Manage plugins*. Then click *Find installed plugins*. |
-| After an update, new features (or the toolbar's icons) are missing | FL is loading an older MPE Roll. The bottom of the File menu (and of *MPE settings*) names the build that's loaded, e.g. "build 63": compare it with the number in the download's name (`MPE-Roll-Windows-build-63`). Close FL, then look in `C:\Program Files\Common Files\VST3` and every folder listed under *Options › Manage plugins* for `MPE Roll.vst3`, `MPE Roll.dll` and `MPE Roll Scanner.exe`, and replace or delete the old ones. A project or channel made with the `.dll` keeps loading the `.dll`, even with a newer `.vst3` installed. Then *Find installed plugins*. |
+| FL doesn't list MPE Roll | Check where the files went: the whole `MPE Roll.vst3` folder in `C:\Program Files\Common Files\VST3`, or `MPE Roll.dll` in one of the plugin folders listed under *Options › Manage plugins* (the installer puts the VST2 where you told it to). Then click *Find installed plugins*. |
+| After an update, new features (or the toolbar's icons) are missing | FL is loading an older MPE Roll. The bottom of the File menu (and of *MPE settings*) names the build that's loaded, e.g. "build 63": compare it with the number in the download's name (`MPE-Roll-Windows-build-63`). Close FL and run the installer, which finds older copies in the usual plugin folders and in the VST2 folder you give it. Copies elsewhere it can't see: look in every folder listed under *Options › Manage plugins* for `MPE Roll.vst3`, `MPE Roll.dll` and `MPE Roll Scanner.exe`, and replace or delete the old ones. A project or channel made with the `.dll` keeps loading the `.dll`, even with a newer `.vst3` installed. Then *Find installed plugins*. |
 | Scanning for plugins crashes FL | MPE Roll Scanner isn't installed, so plugins were looked at inside FL. It's inside the `.vst3` folder; with the `.dll`, put `MPE Roll Scanner.exe` next to it. |
 | "… crashed while MPE Roll was checking it" | That plugin crashes when it's loaded outside its usual host, so MPE Roll won't load it (FL would go down with it). Try updating the plugin, and please report which one it is. |
 | Per-note lanes do nothing, zone-wide ones work | The synth isn't in MPE mode, or has none. *MPE settings › Synth is played with* says which, and where the synth's MPE switch is if MPE Roll knows it (section 7). Turn MPE on in the synth, or set *Synth expects* to *Plain MIDI*, where the newest note's expression drives the whole synth. A VST3 synth that takes pitch bend on channel 1 only can't get each note's own expression over MIDI: MPE Roll plays it with VST3 note expressions if it takes them, and otherwise says so (section 2). |

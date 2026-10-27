@@ -167,6 +167,32 @@ jobs:
           name: MPE-Roll-Windows-build-${{ github.run_number }}
           path: dist
 
+      # The installer, made with Inno Setup from the files just packaged (installer/MpeRoll.iss).
+      - name: Installer
+        shell: pwsh
+        run: |
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE) { throw "Inno Setup couldn't be installed" }
+          }
+          $version = (Select-String -Path CMakeLists.txt -Pattern 'project\(MPE_ROLL VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          $buildName = "build ${{ github.run_number }}, $($env:HEAD_SHA.Substring(0, 7)), $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))"
+          & $iscc /Qp "/DDistDir=$PWD\dist" "/DAppVersion=$version" "/DBuildNumber=${{ github.run_number }}" `
+            "/DBuildName=$buildName" "/DOutputName=MPE-Roll-Setup-build-${{ github.run_number }}" installer\MpeRoll.iss
+          if ($LASTEXITCODE) { throw "ISCC failed with $LASTEXITCODE" }
+
+      - name: Installer installs, upgrades, removes older copies and uninstalls
+        shell: pwsh
+        run: ./installer/test-installer.ps1 -Setup "installer/output/MPE-Roll-Setup-build-${{ github.run_number }}.exe" -Dist dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MPE-Roll-Windows-Setup-build-${{ github.run_number }}
+          path: installer/output/MPE-Roll-Setup-build-${{ github.run_number }}.exe
+          compression-level: 0
+
   macos:
     name: macOS (VST3, AU, Standalone)
     needs: changes

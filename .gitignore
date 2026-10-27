@@ -8,3 +8,4 @@ out/
 *.user
 .DS_Store
 __pycache__/
+installer/output/

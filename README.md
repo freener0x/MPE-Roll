@@ -133,14 +133,28 @@ and a plain-MIDI mode for synths that don't do MPE.
 
 Every code change is built by GitHub Actions (a change to the documentation alone builds nothing).
 Open the repository's **Actions** tab (you need to be signed in to GitHub), pick the latest successful
-**Build** run, and download **MPE-Roll-Windows-build-N** under *Artifacts* (N is the run's number,
+**Build** run, and download **MPE-Roll-Windows-Setup-build-N** (the installer) or
+**MPE-Roll-Windows-build-N** (the files, to copy by hand) under *Artifacts* (N is the run's number,
 shown as #N beside it). The macOS bundles are built on request, since macOS runner minutes cost ten
 times Linux ones: in the Actions tab choose **Build**, then **Run workflow** with *Build the macOS
 bundles as well* ticked, and download **MPE-Roll-macOS-build-N** from that run (pushes to `main`
 build them too). Each build names itself at the bottom of the File menu and of *MPE settings*, e.g.
 "MPE Roll 0.1.0, build 63, f2ea3c4, 2026-10-26": the run number, the commit and the day it was built.
 If that isn't the build you downloaded, the DAW loaded an older copy (see the FL Studio guide's
-troubleshooting table). The Windows download contains:
+troubleshooting table).
+
+**The Windows installer.** Close FL Studio, unzip the download and run `MPE-Roll-Setup-build-N.exe`.
+It isn't signed, so Windows may say *Windows protected your PC*: choose *More info*, then *Run
+anyway*. It installs the VST3 in `C:\Program Files\Common Files\VST3` and, unless you untick them,
+the VST2 `MPE Roll.dll` (with `MPE Roll Scanner.exe` beside it) in a folder you choose, and the
+standalone app in `C:\Program Files\MPE Roll` with a Start menu entry. Before installing it looks
+for other copies of MPE Roll in the plugin folders (`Common Files\VST3` and `VST2`, the Steinberg
+folders, `Program Files\VSTPlugins`, the folder in the registry's `VSTPluginsPath`, and the VST2
+folder you choose, up to four folders down) and removes the ones you leave ticked, so FL can't load
+an old build by mistake. Run a newer installer over it to update. To uninstall, use Windows'
+*Settings › Apps › Installed apps*; your settings, scans and plugin log in `%APPDATA%\MPE Roll` stay.
+
+**The Windows files**, to copy by hand instead:
 - `MPE Roll.vst3`, the VST3 plugin: copy the whole folder to `C:\Program Files\Common Files\VST3`.
 - `MPE Roll.dll`, the same plugin as VST2: put it in a VST plugin folder that FL Studio scans (the
   folders are listed under *Options › Manage plugins*). Install either one, or both; used together in
@@ -158,7 +172,8 @@ Open that one with Finder (or `ditto -x -k MPE-Roll-bundles.zip .`); other unzip
 and the app then won't start. Inside are `MPE Roll.vst3` (for `/Library/Audio/Plug-Ins/VST3`),
 `MPE Roll.component` (for `/Library/Audio/Plug-Ins/Components`) and the standalone `MPE Roll.app`.
 
-These builds aren't code signed. Windows may show a SmartScreen warning for the standalone app, and
+These builds aren't code signed. Windows may show a SmartScreen warning for the installer and the
+standalone app, and
 on macOS you need to remove the quarantine flag from what you downloaded (for example
 `xattr -dr com.apple.quarantine "MPE Roll.vst3"`) before a DAW will load it.
 
