@@ -1253,7 +1253,7 @@
      "says": "Selector (Nov 2022), V Collection 9.1: customisable MPE settings are now in the software (Analog Lab)."
     }
    ],
-   "notes": "Arturia says Analog Lab itself isn't MPE compatible; in MPE Roll in FL Studio only the zone-wide lanes reach it. A 2022 V Collection 9.1 note mentions MPE settings in its side panel, which no Arturia document confirms."
+   "notes": "Arturia says Analog Lab itself isn't MPE compatible; in MPE Roll in FL Studio only the zone-wide lanes reach it. A 2022 V Collection 9.1 note mentions MPE settings in its side panel, which no Arturia document confirms. Analog Lab V was renamed Analog Lab Pro in 5.8 (the plugin is still installed as Analog Lab V), which also brought the free Analog Lab Play; Intro sits between them."
   },
   {
    "name": "ARP 2600 V3",
@@ -11629,11 +11629,25 @@
     "AAX"
    ],
    "mpe": "undocumented",
-   "notes": "Loop instrument: white keys trigger loops, black keys trigger performance modifiers, so per-note expression has little to act on. Windows formats not confirmed.",
+   "notes": "Loop and sample instrument, Arcade 2.x (2.16.1 in August 2026). Samplers: 15 samples (loops, one-shots, phrases) on the white keys between Arcade's C2 and C4, modifiers on the black keys between, and Playable Pitch keys below that retune what's playing; Output gives note names, not numbers. Instruments (since 2.0): chromatic, up to 3 layers, no modifiers. No MPE or pitch-bend response documented; parameters can be MIDI-learned to CCs. Windows 10/11: 64-bit VST2, VST3, AAX. Needs an Output login and downloaded kits (works offline for 30 days).",
+   "advice": "Output documents neither MPE nor pitch bend for Arcade.",
+   "copiesGive": "each sample's own MIDI-learned controls (right-click a macro > Learn MIDI, then play a timbre lane for CC74); glides only if the kit answers pitch bend, so draw one and listen. For Samplers, set Keys to every copy to Output Arcade Samplers",
    "sources": [
     {
      "url": "https://www.bonedo.de/artikel/output-arcade-test",
-     "says": "Review: white keys trigger loops, black keys trigger effects; no MPE."
+     "says": "Review: all 15 loops of a kit play from the white keys C2 to C4; the black keys trigger editable performance effects."
+    },
+    {
+     "url": "https://support.output.com/en/articles/10297585-the-keyboard-samplers",
+     "says": "Output: Samplers' modifiers are on the black keys between C2 and C4; the Pitch button shows the Sample Voice, Modifier and Playable Pitch layout (seen in search excerpts)."
+    },
+    {
+     "url": "https://support.output.com/en/articles/10297599-the-keyboard-instruments",
+     "says": "Output: in Instruments the black keys are chromatic notes, so there are no modifiers (seen in search excerpts)."
+    },
+    {
+     "url": "https://support.output.com/en/articles/10297711-arcade-system-requirements",
+     "says": "Output: Arcade 2.12 and later on Windows 10/11, 64-bit AAX, VST and VST3; 8 GB RAM required, 16 GB recommended (seen in search excerpts)."
     }
    ],
    "match": {
@@ -19857,9 +19871,13 @@
    "mpe": "yes",
    "enable": "MENU (top bar) > MPE Enabled",
    "bendRange": "MENU > MPE Bend Range (48 ST, apparently the default)",
-   "notes": "MPE arrived in the 1.2x updates (2019) and is off by default: older versions such as 1.1.5 have no MPE Enabled item, and updates are free for owners, Serum 2 included. VST3 on Windows since 1.35b7 (2022). Since 1.36b8 per-note bend also feeds MPE X.",
-   "advice": "Turn on MPE in Serum: MENU (top bar) > MPE Enabled, with MPE Bend Range 48, MPE Roll's per-note bend range. Serum before 1.2x (1.1.5, say) has no MPE: update it from your Xfer account, free for owners (Serum 2 too). Turn MPE off again for Plain MIDI.",
+   "notes": "MPE arrived in 1.23 (March 2019) and is off by default; use 1.26b8 or later, since earlier builds ignored channel 16, cut a note played on two channels at once, and could crash on MPE bend-range messages. The last 1.x is 1.36b8 (October 2023). Older versions such as 1.1.5 have no MPE Enabled item. VST3 on Windows since 1.35b7 (2022). Since 1.36b8 per-note bend also feeds MPE X.",
+   "advice": "Turn on MPE in Serum: MENU (top bar) > MPE Enabled, with MPE Bend Range 48, MPE Roll's per-note bend range. Serum before 1.23 (1.1.5, say) has no MPE: update it from your Xfer account (1.26b8 or later), or set Synth expects to One copy per note. Turn MPE off again for Plain MIDI.",
    "sources": [
+    {
+     "url": "https://gist.github.com/0xdevalias/a537a59d1389d5aed3bc63b544c70c8d",
+     "says": "A copy of Xfer's own update log: 1.23b2 (6 March 2019) 'Preliminary MPE support'; 1.24b1 MPE off by default; 1.25b1 fixes MPE note-offs per channel and channel 16; 1.26b8 fixes a GUI crash on MPE bend-range messages; 1.36b8 (11 October 2023) the last 1.x."
+    },
     {
      "url": "https://support.jamstik.com/hc/en-us/articles/360050534752-How-to-use-your-Jamstik-Studio-with-Serum-in-Studio-One-5",
      "says": "Jamstik guide: turn on MPE inside Serum from the Menu dropdown; MPE Bend Range shown at 48 ST. Turn MPE off when not using it."

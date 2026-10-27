@@ -182,6 +182,24 @@ namespace
 
         juce::AudioPluginFormatManager& formats;
     };
+
+    /** Whether a synth's parameter is named after a performance controller, the pitch wheel, mod
+        wheel or channel pressure, as Serum 1's "Pitch Bend" and "Mod Wheel" are. Only names that
+        are nothing else count: "Bend Range" or "Pressure" are a synth's own settings. */
+    bool namesPerformanceControl (const juce::String& name)
+    {
+        auto key = name.toLowerCase().retainCharacters ("abcdefghijklmnopqrstuvwxyz");
+
+        if (key.startsWith ("midi"))
+            key = key.substring (4);
+
+        for (const auto* control : { "pitchbend", "pitchbender", "pitchwheel", "modwheel", "modulationwheel",
+                                     "aftertouch", "channelaftertouch", "channelpressure" })
+            if (key == control)
+                return true;
+
+        return false;
+    }
 }
 
 class HostedSynth::EditorWindow : public juce::DocumentWindow
@@ -1473,10 +1491,15 @@ void HostedSynth::ParameterMirror::setUp (const juce::Array<juce::AudioProcessor
     chunkVersions = std::make_unique<std::atomic<uint32_t>[]> ((size_t) numChunks);
     stamps = std::make_unique<std::atomic<uint32_t>[]> ((size_t) numParameters);
     copied.assign ((size_t) numParameters, false);
+    performance.assign ((size_t) numParameters, false);
     lastLeadPlayed = 0;
 
     for (int i = 0; i < numParameters; ++i)
-        copied[(size_t) i] = parameters.getUnchecked (i)->isAutomatable() && parameters.getUnchecked (i) != bypass;
+    {
+        auto* p = parameters.getUnchecked (i);
+        copied[(size_t) i] = p->isAutomatable() && p != bypass;
+        performance[(size_t) i] = namesPerformanceControl (p->getName (64));
+    }
 }
 
 void HostedSynth::ParameterMirror::set (int index, float value) noexcept
@@ -1575,8 +1598,10 @@ void HostedSynth::audioProcessorParameterChanged (juce::AudioProcessor*, int ind
 {
     // A change the first copy reports while it plays its block follows from the MIDI it was sent
     // (a parameter a synth maps a controller or the pitch bend to): that MIDI is its own, not the
-    // other copies'. Changes from its window, and its presets, are copied.
-    if (! playingFirstCopy)
+    // other copies'. So does its pitch wheel or mod wheel parameter, which a synth may report from
+    // its window as the wheel it draws follows the notes. Other changes from its window, and its
+    // presets, are copied.
+    if (! playingFirstCopy && ! mirror.isPerformanceControl (index))
         mirror.set (index, value);
 }
 

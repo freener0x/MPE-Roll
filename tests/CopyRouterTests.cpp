@@ -813,6 +813,14 @@ public:
             expectEquals (formatKeySet (arcade), juce::String ("C0-B3, black C#4-A#5"));
             expect (parseKeySet (formatKeySet (arcade)) == arcade);
 
+            // The same an octave lower, for an Arcade whose C2 is MIDI 36: its pitch keys below 36,
+            // its modifiers 37 to 58, none of its loops (36 to 60, white).
+            const auto arcadeLower = parseKeySet ("C0-B2, black C3-C5");
+            expectEquals ((int) arcadeLower.count(), 36 + 10);
+            expect (arcadeLower[35] && arcadeLower[37] && arcadeLower[58] && ! arcadeLower[36] && ! arcadeLower[60]
+                    && ! arcadeLower[59] && ! arcadeLower[61]);
+            expect (parseKeySet (formatKeySet (arcadeLower)) == arcadeLower);
+
             // Two black keys alone are named one by one; nonsense is left out.
             expectEquals (formatKeySet (parseKeySet ("C#4, D#4")), juce::String ("C#4, D#4"));
             expect (parseKeySet ("H2, C99, -3, , white C5-C6").count() == 8);

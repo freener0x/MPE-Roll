@@ -29,8 +29,8 @@ constexpr std::array<const char*, 4> programNames { "Sine", "Square", "Saw", "Sq
 constexpr int quietProgram = 3;         // the square wave, set without telling the host
 
 constexpr int stateMagic = 0x6e616c50;  // the state starts with the bytes "Plan"
-constexpr int stateVersion = 1;
-constexpr int numParameters = 5;
+constexpr int stateVersion = 2;
+constexpr int numParameters = 6;
 
 /** What a MIDI channel holds for every note on it. */
 struct Channel
@@ -107,6 +107,11 @@ public:
                                                                0.0f, 2.0f, 0.05f));
         addParameter (crash = new juce::AudioParameterBool (juce::ParameterID ("crash", 1), "Crash", false));
         addParameter (throwing = new juce::AudioParameterBool (juce::ParameterID ("throw", 1), "Throw", false));
+
+        // Stands in for a synth's own pitch-wheel parameter (Serum 1 has one, and a Mod Wheel): it
+        // does nothing here.
+        addParameter (pitchWheel = new juce::AudioParameterFloat (juce::ParameterID ("pitchbend", 1), "Pitch Bend",
+                                                                  0.0f, 1.0f, 0.5f));
 
         jassert (getParameters().size() == numParameters);
 
@@ -272,6 +277,7 @@ private:
     juce::AudioParameterFloat* release = nullptr;
     juce::AudioParameterBool* crash = nullptr;
     juce::AudioParameterBool* throwing = nullptr;
+    juce::AudioParameterFloat* pitchWheel = nullptr;
     std::atomic<bool> crashed { false };    // it crashed on purpose: a host mustn't call it again
 
     /** For the harness: a call a host makes after this synth crashed (it never should) is noted

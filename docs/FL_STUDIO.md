@@ -117,8 +117,9 @@ Set its sound there; MPE Roll gives the other copies the same.
    *Aftertouch* in its mod matrix, and MIDI-learn CC74 to a control (filter cutoff, a macro).
 3. **Voices.** Each copy plays one note at a time, so turn off the synth's mono, legato and glide
    (portamento), or a copy glides from whatever note it played last. Leave polyphony at 2 or more,
-   so a copy's last note can finish its release when the copy is used again. Arpeggiator and
-   chord-pattern presets don't work: each copy only ever sees one note.
+   so a copy's last note can finish its release when the copy is used again. Arpeggiators and
+   chord patterns only ever see one note per copy: chords don't arpeggiate, though a one-note
+   pattern still runs.
 
 **Settings** (*MPE settings › One copy per note*):
 - **Copies** (2 to 32, 8 to start with): one for each note held at once, plus a few for release
@@ -130,7 +131,8 @@ Set its sound there; MPE Roll gives the other copies the same.
   ends the oldest.
 - **Keys to every copy**: keys that don't play notes but change how the synth plays, so every copy
   must hear them. *Keyswitches (C0-B2)* for Kontakt libraries with keyswitches low on the keyboard;
-  *Output Arcade* for its pitch keys and modifiers; or type your own: note names as on MPE Roll's
+  *Output Arcade Samplers* (or *Output Arcade Samplers, an octave lower*) for the Playable Pitch
+  keys and modifiers of Arcade's Samplers (its Instruments need *None*); or type your own: note names as on MPE Roll's
   keyboard (middle C is C5), ranges, `black` or `white` for those keys only, commas between
   (`C0-B2`, `C0-B3, black C4-C6`).
 - **Sleep while quiet** (on): a copy that holds no note and has been quiet for a second stops being
@@ -171,7 +173,7 @@ Set its sound there; MPE Roll gives the other copies the same.
   crash without one.
 - In FL: keep *Options › Audio settings › Multithreaded generator processing* on, and MPE Roll's
   *Allow threaded processing* (wrapper › *Processing*) on. If a synth crackles inside MPE Roll, tick
-  *Use fixed size buffers* there (Output recommends it for Arcade).
+  *Use fixed size buffers* there (Output strongly recommends it for Arcade in FL, crackles or not).
 - An audio export loads its own copies, so it needs as much memory again while it runs. Its
   progress window counts them as they load (*Cancel* stops it), and the export stops with a message
   if fewer than asked for load, rather than rendering a file with notes missing. It renders on
@@ -184,11 +186,11 @@ Set its sound there; MPE Roll gives the other copies the same.
 
 | Synth | Bend range (set the same as *Zone bend range*) | Pressure, timbre | Watch out for |
 | --- | --- | --- | --- |
-| Serum 1 (1.1.5 has no MPE, so copies are its way to per-note glides) | The two small boxes beside the bend wheel, bottom left: up and down, e.g. 24. Saved with the preset | *MATRIX* tab › a row with source *Aftertouch*; right-click a knob › *MIDI Learn* › play a timbre lane for CC74 | *VOICING*: MONO and LEGATO off, PORTA 0, POLY 2 (right-click POLY to lock it). With Serum 1.2x or later, untick *MENU › MPE Enabled* in copy mode. Updates are free and fix multi-instance bugs (1.23b8: "multiple instances not playing back") |
-| Analog Lab (V, Pro) | No setting in Analog Lab: it's the instrument's own (*Open instrument*, needs the full instrument), usually 2. If you can't change it, leave *Zone bend range* at 2 | Channel aftertouch reaches presets that use it (*Edit Preset* assigns it); CC74 is the *Brightness* macro on Arturia's controller setups, or MIDI-learn it | Slow to load (6–25 s a copy); pick single presets, not Multis; keep CC28, CC29 and program changes out of lanes (they change presets). A copy in demo mode stops after 20 minutes |
+| Serum 1 before 1.23 (1.1.5, say), which has no MPE, so copies are its way to per-note glides | The two small boxes at the bottom left, by the pitch wheel: up and down in semitones (2 and −2 to start with; the down box takes a negative number). Set 24 and −24, the most they take, and *Zone bend range* to 24. They change with the preset: check them after loading one | *MATRIX* tab › a row with source *Aftertouch* (it has no drag tile). For CC74: right-click a knob › *MIDI Learn*, then play the *Zone timbre* lane (it reaches every copy, copy 1 included), or learn it with *Plain MIDI* before choosing *One copy per note*. The knob keeps CC 74, saved with the preset | *VOICING*: MONO off, PORTA 0, POLY 2 (right-click POLY to lock it). Serum has MPE of its own from 1.23 (*MENU › MPE Enabled*), working with MPE Roll from 1.26b8: with such a Serum, use that instead of copies (the last 1.x is 1.36b8, October 2023). Keeping copies, untick *MPE Enabled*: with it on, Serum bends past its bend boxes (a user report). Avoid 1.23 builds before 1.23b8 ("multiple instances not playing back") |
+| Analog Lab (Pro, called V before 5.8; Intro, Play) | No setting in Analog Lab: it's the instrument's own (*Open instrument*, needs the full instrument), usually 2 (user reports). If you can't change it, leave *Zone bend range* at 2 | Channel aftertouch reaches presets whose instrument uses it. Analog Lab can't reassign aftertouch itself (Arturia lists it as reserved), so changing what it does needs the full instrument. CC74 is the *Brightness* macro on Arturia's controller setups, or MIDI-learn it | Slow to load (5–25 s a copy, the first slowest; user reports). Pick single, polyphonic presets without glide (mono and glide live in the instrument), not Multis. Keep CC28 and CC29 (they step presets by default) and program changes out of lanes, and bank select CC0 and CC32 (they choose what a program change recalls). A copy in demo mode stops after 20 minutes |
 | Kontakt 7, 8 | The instrument's own settings page; in full Kontakt, Edit (wrench) › *Edit All Groups* › Source module's *Pitch Bend* modulation (up to 12) | Most libraries ignore aftertouch: set *Pressure sent as* to CC1 or CC11; right-click a knob › *Learn MIDI CC# Automation* for CC74 | Copies share no samples: memory × copies (lower the preload in *Options › Memory*). Keyswitches: *Keys to every copy*. Turn off the library's own legato and glide, and *Options › Engine › Multiprocessor support* (plug-in). A library in DEMO mode goes silent in every copy |
 | reFX Nexus 5 | Modulation page › *Pitch Bend*: Max +24, Min −24 (negative), *Speed* 127 so glides aren't smoothed. Saved with the preset | Mod matrix: source *at+* to a destination; CC74 moves the filter cutoff already | Portamento *Mode* off; *Voices* 4 or more; avoid arpeggiator and trance-gate presets. Update to 5.1.9 or later (fixes a crash when several instances close) |
-| Output Arcade | None documented: draw a glide and listen; if nothing bends, only MIDI-learned controls vary per note | *Learn MIDI* on a macro (CC74; set *Pressure sent as* to a CC for pressure) | Set *Keys to every copy* to *Output Arcade*, so the modifier and pitch keys reach every copy's loop (if they're an octave off, type the keys in yourself). Log in and download kits in the Arcade app first; *Use fixed size buffers* in FL |
+| Output Arcade (2.x) | None documented: draw a glide and listen; if nothing bends, only MIDI-learned controls vary per note | Right-click a macro › *LEARN MIDI* (CC74; set *Pressure sent as* to a CC for pressure, since learning aftertouch isn't documented) | **Samplers:** *Keys to every copy* › *Output Arcade Samplers*, so the modifiers and Playable Pitch keys reach every copy. Output gives no note numbers, so check first: with *Plain MIDI* and Arcade's window open, FL C4 should light Arcade's first sample key (its C2); if FL C3 does, choose *Output Arcade Samplers, an octave lower*. Turn *Hold* off on the sample keys (pressed again, a key goes to another copy, so it can't stop a held loop), and *Legato* can't line samples up across copies. **Instruments:** *Keys to every copy* › *None*. Log in and download the kit in copy 1 before turning copies on. Output asks for 8 GB of RAM (16 recommended), and one user measured about 2 GB an instance: start with 4 copies. *Use fixed size buffers* in FL |
 
 ### Automating the synth from FL
 
@@ -415,11 +417,11 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 
 | Synth | MPE | Where to turn it on |
 | --- | --- | --- |
-| Serum (1.x) | Yes | *MENU* (top bar) › *MPE Enabled*; MPE bend range at the bottom of that menu |
+| Serum (1.x) | From 1.23 (use 1.26b8 or later) | *MENU* (top bar) › *MPE Enabled*; MPE bend range at the bottom of that menu. Earlier builds: *One copy per note* |
 | Serum 2 (VST3 only) | Yes | *MENU* › *MPE Enabled* (usually on); *MPE Bend Range* on its Global page. Takes VST3 note expressions with MPE off |
 | Pigments | Yes | Gear icon (top toolbar) › *Settings* tab › *MPE Settings* › *MPE: Enabled*, *Bend Range* |
 | Arturia V Collection | Many | Gear icon › *Settings* tab › *Enable MPE*; one without that setting has none |
-| Analog Lab (V, Pro) | **No** | *One copy per note* or *Plain MIDI*, or load the instrument itself (Pigments, a V Collection instrument) |
+| Analog Lab (Pro, V, Intro, Play) | **No** | *One copy per note* or *Plain MIDI*, or load the instrument itself (Pigments, a V Collection instrument) |
 | Omnisphere 3 | Yes | *System* page (gear icon) › MPE on, *MPE Pitch Bend Range*; patch in Part 1 only |
 | Omnisphere 2 | **No** | *One copy per note* or *Plain MIDI*, patch in Part 1 |
 | Vital | Yes | *ADVANCED* tab › *MPE ENABLED* (saved per preset); per-note range fixed at 48 |
@@ -438,10 +440,12 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | Tone2 Icarus | Yes | *SETUP* page › *force MPE* (Icarus 2.5: *Enable MPE support*) |
 
 **Xfer Serum and Serum 2**
-- Serum 1 has MPE from its 1.2x updates (2019), off until you tick *MPE Enabled* in its main *MENU*;
-  set the MPE bend range at the bottom of that menu to MPE Roll's *Per-note bend range* (48). An older
-  Serum (1.1.5, say) has no *MPE Enabled* item: update it from your Xfer account, free for owners, as
-  is Serum 2. Or play it with *One copy per note* (section 2), which needs no MPE in Serum. Its VST2 (`Serum_x64.dll`) gets MPE's
+- Serum 1 has MPE from 1.23 (March 2019), off until you tick *MPE Enabled* in its main *MENU*;
+  set the MPE bend range at the bottom of that menu to MPE Roll's *Per-note bend range* (48). Use
+  1.26b8 or later: earlier builds ignored channel 16, cut a note played on two channels at once, and
+  could crash on the bend range MPE Roll sends. The last 1.x is 1.36b8 (October 2023). An older
+  Serum (1.1.5, say) has no *MPE Enabled* item: update it from your Xfer account, or play it with
+  *One copy per note* (section 2), which needs no MPE in Serum. Its VST2 (`Serum_x64.dll`) gets MPE's
   per-channel MIDI whatever the VST3 does.
 - Serum 2 comes as VST3 (and AAX) only. Xfer's guide: with its MPE switch on it takes per-channel
   MIDI, and with it off it takes VST3 note expressions. Which of those reach it through MPE Roll
@@ -506,14 +510,17 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
   own, at the cost of an Analog Lab per copy (each takes a while to load).
 - Set *Zone bend range* to the preset's pitch-bend range (often 2). The newest note's glide bends the
   whole channel and stops at the edge of that range.
-- Analog Lab responds to channel aftertouch, not poly aftertouch, so keep *Pressure sent as* on
-  **Channel pressure**. The newest note's pressure then goes out as aftertouch, added to the
-  zone-wide *Channel pressure* lane.
+- Users report Analog Lab responding to channel aftertouch, and nothing says it takes poly
+  aftertouch, so keep *Pressure sent as* on **Channel pressure**. The newest note's pressure then
+  goes out as aftertouch, added to the zone-wide *Channel pressure* lane.
 - The newest note's timbre is sent as CC74 (once any note has a timbre lane). Whether that changes
   the sound depends on the *MIDI Controller* map in Analog Lab's settings; with *Generic MIDI
   Controller*, MIDI-learn CC74 to a control.
-- From FL you can automate the macros, the assignable controls and the effects. To automate an
-  engine parameter, assign it to one of Analog Lab's controls first.
+- From FL you can automate the macros and the effects. An engine parameter generally can't be
+  automated until it's assigned to one of Analog Lab's controls (user reports, matching the
+  manual's rule for MIDI learn).
+- Keep CC28 and CC29 (they step presets by default) and program changes out of lanes, and bank
+  select (CC0, CC32), which picks what a program change recalls.
 
 ## Troubleshooting
 
@@ -549,4 +556,5 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | One copy per note: fewer copies than asked for | *MPE settings › One copy per note* says why: too little memory free (close other programs, or ask for fewer), a copy that wouldn't load, or loading cut short by a crash last time. *Load the copies again* tries again. |
 | One copy per note: a copy "crashed … and was switched off" | The synth crashed in that copy, and MPE Roll stopped using it so FL carried on. Save your project, then *Load the copies again*; if it happens again, try fewer copies or turn off *Use several CPU cores*, and please report the synth. |
 | One copy per note: CPU is high | Each copy runs a whole synth. Fewer copies, fewer unison voices, effects moved from the synth to FL's mixer, and *Sleep while quiet* on all help. Keep FL's *Multithreaded generator processing* and MPE Roll's *Use several CPU cores* on. |
-| One copy per note: a keyswitch, or Arcade's modifiers, act on one note only | Those keys must reach every copy: set *Keys to every copy* (*Keyswitches*, *Output Arcade*, or the keys typed in). |
+| One copy per note: a keyswitch, or Arcade's modifiers, act on one note only | Those keys must reach every copy: set *Keys to every copy* (*Keyswitches*, *Output Arcade Samplers*, or the keys typed in). |
+| One copy per note: some of Arcade's loops play on every copy at once, or some modifiers and pitch keys change one loop only | The *Output Arcade Samplers* keys are an octave off for your Arcade: choose the other one (*…, an octave lower* or back), and check as in section 2's table. With an Arcade Instrument, choose *None*. |

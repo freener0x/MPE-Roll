@@ -3507,6 +3507,40 @@ int copiesTest (const juce::File& synthFile)
 
         rig->synth().getCopy (0)->getParameters()[0]->setValueNotifyingHost (1.0f);
         rig->idle (50);
+
+        // A synth's own pitch-wheel parameter (Serum 1's "Pitch Bend") follows the notes the first
+        // copy is sent, and the synth may report it from its window as the wheel it draws moves:
+        // that's not handed on. Automating it from the host still reaches every copy.
+        constexpr int pitchWheel = 5;
+        juce::AudioProcessorParameter* pitchWheelSlot = nullptr;
+
+        for (auto* p : rig->processor.getParameters())
+            if (p->getName (100) == "Pitch Bend")
+                pitchWheelSlot = p;
+
+        auto copiesWheelAt = [&] (float value)
+        {
+            for (int c = 1; c < 4; ++c)
+                if (auto* copy = rig->synth().getCopy (c); copy == nullptr || std::abs (copy->getParameters()[pitchWheel]->getValue() - value) > 1.0e-4f)
+                    return false;
+
+            return true;
+        };
+
+        rig->synth().getCopy (0)->getParameters()[pitchWheel]->setValueNotifyingHost (0.9f);
+        rig->idle (50);
+        check (copiesWheelAt (0.5f), "the first copy's own Pitch Bend parameter moving reaches no other copy");
+        check (pitchWheelSlot != nullptr, "the synth's Pitch Bend is one of MPE Roll's parameters");
+
+        if (pitchWheelSlot != nullptr)
+        {
+            pitchWheelSlot->setValue (0.7f);
+            rig->idle (50);
+            check (copiesWheelAt (0.7f), "automating it from the host reaches every copy");
+            pitchWheelSlot->setValue (0.5f);
+            rig->idle (50);
+        }
+
         rig->setOutput ([] (OutputSettings& o) { o.copiesSleep = true; });
     }
 

@@ -23,6 +23,8 @@ docs/synths.json holds "checked" (when the list was last checked, e.g. "October 
   instead           for one without MPE: what to do instead, if there's more to say than Plain MIDI
   plainMidi         false for one that doesn't play the notes it receives (a vocal synth singing
                     from its own score), so Plain MIDI isn't suggested for it
+  copiesGive        for one without MPE: what One copy per note gives it, ending the plugin's
+                    advice (default: "each note's own glides")
   advice            what MPE Roll says when it's loaded (needed for yes and limited)
   clapAdvice        added to the advice in builds that host CLAP plugins
   sources           [{url, says}]: where each claim comes from
@@ -274,7 +276,8 @@ def plugin_entry(s: dict) -> dict:
         # "plainMidi": false for one that doesn't play notes it receives (a vocal synth singing from
         # its own score), which Plain MIDI won't help.
         if s.get("plainMidi", True):
-            advice += " Set Synth expects to Plain MIDI, or to One copy per note for each note's own glides."
+            gives = s.get("copiesGive", "each note's own glides").rstrip(".")
+            advice += f" Set Synth expects to Plain MIDI, or to One copy per note for {gives}."
 
     clap = s.get("clapAdvice", "")
     if clap and not clap.startswith(" "):

@@ -113,9 +113,13 @@ namespace
 
     /** Keys that go to every copy, ready made for some instruments. Names as MPE Roll's keyboard
         has them (middle C is C5, as in FL Studio). Kontakt libraries mostly keep their keyswitches
-        below its C1, which is C3 here. Output Arcade plays loops from the white keys between its
-        C2 and C4 (C4 to C6 here) and changes them with the black keys between, and the keys below
-        retune what's playing: those go to every copy, so every copy's loop hears them. */
+        below its C1, which is C3 here. Output Arcade's Samplers play their 15 samples from the
+        white keys between its C2 and C4, the black keys between (modifiers) change them, and a
+        two-octave window of keys below C2 (Playable Pitch: G-1 to G1 in G major) retunes what's
+        playing: those go to every copy, so every copy's sample hears them. Output gives no note
+        numbers. The first Arcade preset reads its C2 as MIDI 48 (C4 here; middle C named C3, as
+        Ableton and Cubase do), the second as MIDI 36 (C3 here). Arcade's Instruments are
+        chromatic, without modifiers: None for them. */
     struct KeyPreset
     {
         const char* name;
@@ -126,7 +130,8 @@ namespace
     {
         { "None", "" },
         { "Keyswitches (C0-B2)", "C0-B2" },
-        { "Output Arcade (pitch keys and modifiers)", "C0-B3, black C4-C6" },
+        { "Output Arcade Samplers (pitch keys and modifiers)", "C0-B3, black C4-C6" },
+        { "Output Arcade Samplers, an octave lower", "C0-B2, black C3-C5" },
     };
 }
 
