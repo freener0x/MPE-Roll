@@ -32,6 +32,7 @@ private:
     juce::SharedResourcePointer<SkinManager> skins;
     juce::PropertyPanel panel;
     juce::HyperlinkButton supportLink;
+    juce::Label buildName;
     bool detached = false;
     InfoProp* copyStatus = nullptr;     // owned by the panel: lines refreshed as the copies change
     InfoProp* playedWith = nullptr;

@@ -15,6 +15,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Each build names itself inside the plugin (File menu, MPE settings, plugin log) with the run
+# number, the commit and the date, so a tester can tell which build their DAW loaded. For a pull
+# request that's the branch's own commit, not the merge commit GitHub builds.
+env:
+  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   # Runner minutes are paid for, so a push that only touches documentation builds nothing, and the
   # macOS bundles (ten minutes of allowance for each real minute) are built on request (Run workflow)
@@ -76,7 +82,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure
-        run: cmake -S . -B build -A x64 -DMPEROLL_BUILD_DEV_TOOLS=ON
+        run: >
+          cmake -S . -B build -A x64 -DMPEROLL_BUILD_DEV_TOOLS=ON
+          -DMPEROLL_BUILD_ID="build ${{ github.run_number }}, ${HEAD_SHA::7}, $(date -u +%F)"
 
       - name: Build
         run: >
@@ -156,7 +164,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MPE-Roll-Windows
+          name: MPE-Roll-Windows-build-${{ github.run_number }}
           path: dist
 
   macos:
@@ -177,6 +185,7 @@ jobs:
         run: >
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+          -DMPEROLL_BUILD_ID="build ${{ github.run_number }}, ${HEAD_SHA::7}, $(date -u +%F)"
 
       - name: Build
         run: cmake --build build --parallel --target MpeRoll_VST3 MpeRoll_AU MpeRoll_Standalone MpeRollTests
@@ -198,7 +207,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MPE-Roll-macOS
+          name: MPE-Roll-macOS-build-${{ github.run_number }}
           path: MPE-Roll-bundles.zip
           compression-level: 0
 
@@ -217,7 +226,9 @@ jobs:
             libxcursor-dev libxi-dev libxext-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DMPEROLL_BUILD_DEV_TOOLS=ON
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DMPEROLL_BUILD_DEV_TOOLS=ON
+          -DMPEROLL_BUILD_ID="build ${{ github.run_number }}, ${HEAD_SHA::7}, $(date -u +%F)"
 
       - name: Build
         run: cmake --build build --parallel

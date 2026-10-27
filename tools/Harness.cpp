@@ -15,6 +15,7 @@
 //   MpeRollHarness scantest <scanner> <synth> <crashing.clap> <hanging.clap>
 //                                                       plugin files are looked at in the scanner process
 
+#include "plugin/BuildInfo.h"
 #include "plugin/CopySafety.h"
 #include "plugin/CrashReport.h"
 #include "plugin/Links.h"
@@ -2136,6 +2137,12 @@ void editorUiChecks (Check& check)
                 auto* link = panel != nullptr ? findChild<juce::HyperlinkButton> (*panel) : nullptr;
                 check (link != nullptr && link->isShowing() && panel->getLocalBounds().contains (link->getBounds()),
                        "a Support MPE Roll link is in view at the foot of the settings");
+
+                // So a tester can tell which build their DAW loaded.
+                auto* build = panel != nullptr ? findLabelSaying (*panel, getBuildName()) : nullptr;
+                check (build != nullptr && build->isShowing() && panel->getLocalBounds().contains (build->getBounds())
+                           && ! build->getBounds().intersects (link != nullptr ? link->getBounds() : juce::Rectangle<int>()),
+                       "and beside it, which build this is: " + getBuildName());
 
                 // It opens the donation details in MPE Roll itself, not a web page that may not be there.
                 if (link != nullptr)

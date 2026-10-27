@@ -1,4 +1,5 @@
 #include "CrashReport.h"
+#include "MpeRollBuildInfo.h"   // made by CMake, in the build folder
 
 #if JUCE_WINDOWS
  #ifndef NOMINMAX
@@ -78,11 +79,7 @@ namespace
         report.length = 0;
         report.text[0] = 0;
 
-       #ifdef JucePlugin_VersionString
-        report.add ("MPE Roll %s crashed with %s.\r\n", JucePlugin_VersionString, what);
-       #else
-        report.add ("MPE Roll crashed with %s.\r\n", what);
-       #endif
+        report.add ("MPE Roll %s, %s, crashed with %s.\r\n", MPEROLL_VERSION, MPEROLL_BUILD_ID, what);
 
         SYSTEMTIME time {};
         GetLocalTime (&time);

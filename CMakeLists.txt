@@ -93,8 +93,15 @@ set(MPEROLL_CORE_SOURCES
     source/core/CopyRouter.cpp
     source/core/NoteTools.cpp)
 
+# Which build this is, shown in the File menu, MPE settings and the plugin log, so a tester can tell
+# which build their DAW loaded. CI passes its run number, the commit and the date.
+set(MPEROLL_BUILD_ID "local build" CACHE STRING "Names this build in the plugin, e.g. \"build 63, f2ea3c4, 2026-10-26\"")
+string(REGEX REPLACE "[\"\\\\]" "" MPEROLL_BUILD_ID_TEXT "${MPEROLL_BUILD_ID}")
+configure_file(source/plugin/BuildInfo.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/MpeRollBuildInfo.h @ONLY)
+
 set(MPEROLL_PLUGIN_SOURCES
     source/plugin/AudioExport.cpp
+    source/plugin/BuildInfo.cpp
     source/plugin/PluginProcessor.cpp
     source/plugin/PluginEditor.cpp
     source/plugin/ClipDocument.cpp
@@ -206,7 +213,7 @@ juce_add_plugin(MpeRoll
     NEEDS_CURL FALSE)
 
 target_sources(MpeRoll PRIVATE ${MPEROLL_CORE_SOURCES} ${MPEROLL_PLUGIN_SOURCES})
-target_include_directories(MpeRoll PRIVATE source third_party/fst)
+target_include_directories(MpeRoll PRIVATE source third_party/fst ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_compile_definitions(MpeRoll PUBLIC ${MPEROLL_COMMON_DEFINITIONS})
 target_link_libraries(MpeRoll
     PRIVATE
@@ -485,7 +492,7 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         ${MPEROLL_CORE_SOURCES}
         ${MPEROLL_PLUGIN_SOURCES}
         tools/Harness.cpp)
-    target_include_directories(MpeRollHarness PRIVATE source third_party/fst)
+    target_include_directories(MpeRollHarness PRIVATE source third_party/fst ${CMAKE_CURRENT_BINARY_DIR}/generated)
     target_compile_definitions(MpeRollHarness PRIVATE
         ${MPEROLL_COMMON_DEFINITIONS}
         MPEROLL_HARNESS=1

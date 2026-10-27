@@ -1,8 +1,5 @@
 #include "PluginLog.h"
-
-#ifndef JucePlugin_VersionString
- #define JucePlugin_VersionString "0.1.0"
-#endif
+#include "BuildInfo.h"
 
 namespace mperoll::PluginLog
 {
@@ -91,7 +88,7 @@ juce::String tail (int maxLines)
 juce::String report (const juce::PluginDescription* plugin, const juce::String& error)
 {
     juce::String s;
-    s << "MPE Roll " << JucePlugin_VersionString << " on " << juce::SystemStats::getOperatingSystemName()
+    s << getBuildName() << " on " << juce::SystemStats::getOperatingSystemName()
       << ", in " << juce::File::getSpecialLocation (juce::File::hostApplicationPath).getFileName() << "\n";
 
     if (plugin != nullptr)

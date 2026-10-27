@@ -4,6 +4,7 @@
 #include "WindowDrawing.h"
 #include "core/ControllerPresets.h"
 #include "DonatePanel.h"
+#include "plugin/BuildInfo.h"
 
 namespace mperoll
 {
@@ -407,6 +408,14 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     supportLink.setColour (juce::HyperlinkButton::textColourId, Theme::glide);
     addAndMakeVisible (supportLink);
 
+    // Which build this is, so a tester can tell which one the DAW loaded.
+    buildName.setText (getBuildName(), juce::dontSendNotification);
+    buildName.setJustificationType (juce::Justification::centredRight);
+    buildName.setFont (juce::FontOptions (12.0f));
+    buildName.setMinimumHorizontalScale (0.7f);
+    buildName.setColour (juce::Label::textColourId, Theme::textDim);
+    addAndMakeVisible (buildName);
+
     document.addChangeListener (this);
     skins->addChangeListener (this);
     setSize (460, 640);
@@ -467,6 +476,7 @@ void SettingsPanel::changeListenerCallback (juce::ChangeBroadcaster*)
 {
     panel.refreshAll();
     supportLink.setColour (juce::HyperlinkButton::textColourId, Theme::glide);   // the skin may have changed
+    buildName.setColour (juce::Label::textColourId, Theme::textDim);
     repaint();
 }
 
@@ -478,7 +488,9 @@ void SettingsPanel::paint (juce::Graphics& g)
 void SettingsPanel::resized()
 {
     auto area = getLocalBounds().reduced (4);
-    supportLink.setBounds (area.removeFromBottom (24).withTrimmedLeft (4));
+    auto bottom = area.removeFromBottom (24);
+    supportLink.setBounds (bottom.removeFromLeft (190).withTrimmedLeft (4));
+    buildName.setBounds (bottom);
     panel.setBounds (area);
 }
 

@@ -133,10 +133,14 @@ and a plain-MIDI mode for synths that don't do MPE.
 
 Every code change is built by GitHub Actions (a change to the documentation alone builds nothing).
 Open the repository's **Actions** tab (you need to be signed in to GitHub), pick the latest successful
-**Build** run, and download **MPE-Roll-Windows** under *Artifacts*. The macOS bundles are built on
-request, since macOS runner minutes cost ten times Linux ones: in the Actions tab choose **Build**,
-then **Run workflow** with *Build the macOS bundles as well* ticked, and download **MPE-Roll-macOS**
-from that run (pushes to `main` build them too). The Windows download contains:
+**Build** run, and download **MPE-Roll-Windows-build-N** under *Artifacts* (N is the run's number,
+shown as #N beside it). The macOS bundles are built on request, since macOS runner minutes cost ten
+times Linux ones: in the Actions tab choose **Build**, then **Run workflow** with *Build the macOS
+bundles as well* ticked, and download **MPE-Roll-macOS-build-N** from that run (pushes to `main`
+build them too). Each build names itself at the bottom of the File menu and of *MPE settings*, e.g.
+"MPE Roll 0.1.0, build 63, f2ea3c4, 2026-10-26": the run number, the commit and the day it was built.
+If that isn't the build you downloaded, the DAW loaded an older copy (see the FL Studio guide's
+troubleshooting table). The Windows download contains:
 - `MPE Roll.vst3`, the VST3 plugin: copy the whole folder to `C:\Program Files\Common Files\VST3`.
 - `MPE Roll.dll`, the same plugin as VST2: put it in a VST plugin folder that FL Studio scans (the
   folders are listed under *Options › Manage plugins*). Install either one, or both; used together in
