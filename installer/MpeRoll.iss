@@ -4,8 +4,9 @@
 ;
 ; It installs the VST3 where every host looks, the VST2 .dll (with the scanner beside it) in a
 ; folder the user picks, and the standalone app. Before installing it looks for other copies of
-; MPE Roll in the plugin folders and offers to remove them: FL Studio loads whichever copy a project
-; was saved with, so an old copy left behind keeps loading an old build.
+; MPE Roll in the plugin folders and in FL Studio's plugin database, and offers to remove them: FL
+; loads whichever copy a project was saved with, so an old copy left behind keeps loading an old
+; build.
 ;
 ; Silent install, as the CI test runs it:
 ;   MPE-Roll-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /COMPONENTS=vst3,vst2,app
@@ -110,11 +111,9 @@ var
 // The VST2 folder
 
 function DefaultVst2Dir: String;
-var
-  Folder: String;
 begin
-  // A folder given on the command line, then the one chosen last time, then the folder Steinberg's
-  // convention names in the registry, then the common one.
+  // A folder given on the command line, then the one chosen last time, then the folder FL Studio's
+  // manual names for 64-bit VST2 plugins (which Steinberg recommends too).
   Result := ExpandConstant('{param:VST2DIR|}');
   if Result <> '' then
     exit;
@@ -123,10 +122,7 @@ begin
   if Result <> '' then
     exit;
 
-  if RegQueryStringValue(HKLM64, 'SOFTWARE\VST', 'VSTPluginsPath', Folder) and (Trim(Folder) <> '') then
-    Result := RemoveBackslashUnlessRoot(Trim(Folder))
-  else
-    Result := ExpandConstant('{commoncf64}\VST2');
+  Result := ExpandConstant('{commoncf64}\VST2');
 end;
 
 function GetVst2Dir(Param: String): String;
@@ -181,6 +177,77 @@ begin
   end;
 end;
 
+// FL Studio's user data folder, which holds its plugin database. Image-Line doesn't document the
+// registry value; other tools read it the same way.
+function FlUserDataDir: String;
+begin
+  Result := '';
+
+  if not RegQueryStringValue(HKCU, 'SOFTWARE\Image-Line\Shared\Paths', 'Shared data', Result) then
+    if not RegQueryStringValue(HKLM, 'SOFTWARE\Image-Line\Shared\Paths', 'Shared data', Result) then
+      Result := '';
+
+  Result := Trim(Result);
+
+  if Result = '' then
+    Result := ExpandConstant('{userdocs}\Image-Line');
+
+  Result := RemoveBackslashUnlessRoot(Result);
+end;
+
+// The copies of MPE Roll that FL Studio's plugin database lists, wherever they are: these are the
+// ones FL can load, from its own search folders as well as the user's.
+procedure FindCopiesFlKnows(var Found: TArrayOfString);
+var
+  Database, Folder, Line, Path: String;
+  Lines: TArrayOfString;
+  FindRec: TFindRec;
+  Kind, I, Cut: Integer;
+begin
+  // Each plugin's .nfo has a line ps_file_filename_N=<path> for every file FL found it in. For a
+  // VST3 bundle that's the binary inside it.
+  Database := FlUserDataDir + '\FL Studio\Presets\Plugin database\Installed\Generators\';
+
+  for Kind := 0 to 1 do
+  begin
+    if Kind = 0 then
+      Folder := Database + 'VST'
+    else
+      Folder := Database + 'VST3';
+
+    if FindFirst(Folder + '\*.nfo', FindRec) then
+    begin
+      try
+        repeat
+          if LoadStringsFromFile(Folder + '\' + FindRec.Name, Lines) then
+            for I := 0 to GetArrayLength(Lines) - 1 do
+            begin
+              Line := Lines[I];
+
+              if (Pos('ps_file_filename_', Line) = 1) and (Pos('=', Line) > 0) then
+              begin
+                Path := Trim(Copy(Line, Pos('=', Line) + 1, Length(Line)));
+                Cut := Pos('\MPE ROLL.VST3\', Uppercase(Path) + '\');
+
+                if Cut > 0 then
+                  Path := Copy(Path, 1, Cut + Length('\MPE Roll.vst3') - 1)
+                else if CompareText(ExtractFileName(Path), 'MPE Roll.dll') <> 0 then
+                  Path := '';
+
+                // Paths under FL's own folder start with %FLPath%, which isn't documented: skipped.
+                if (Path <> '') and (Pos('%', Path) = 0) then
+                  if FileExists(Path) or DirExists(Path) then
+                    AddUnique(Found, Path);
+              end;
+            end;
+        until not FindNext(FindRec);
+      finally
+        FindClose(FindRec);
+      end;
+    end;
+  end;
+end;
+
 // Copies this install doesn't replace, in the folders FL Studio and other hosts search.
 procedure FindOldCopies(var Copies: TArrayOfString);
 var
@@ -192,6 +259,7 @@ begin
   SetArrayLength(Roots, 0);
   SetArrayLength(Found, 0);
   AddUnique(Roots, ExpandConstant('{commoncf64}\VST3'));
+  AddUnique(Roots, ExpandConstant('{commonpf64}\VST3'));
   AddUnique(Roots, ExpandConstant('{commoncf64}\VST2'));
   AddUnique(Roots, ExpandConstant('{commoncf64}\Steinberg\VST2'));
   AddUnique(Roots, ExpandConstant('{commonpf64}\VSTPlugins'));
@@ -210,6 +278,8 @@ begin
   for I := 0 to GetArrayLength(Roots) - 1 do
     if DirExists(Roots[I]) then
       FindCopies(Roots[I], SearchDepth, Found);
+
+  FindCopiesFlKnows(Found);
 
   // What this install puts back isn't an older copy.
   Vst3Path := ExpandConstant('{commoncf64}\VST3\MPE Roll.vst3');
@@ -344,8 +414,12 @@ end;
 
 procedure RegisterPreviousData(PreviousDataKey: Integer);
 begin
+  // Setup rewrites what it keeps on every install, so a folder not used this time is kept too: the
+  // next install still looks there for an older MPE Roll.dll.
   if WizardIsComponentSelected('vst2') then
-    SetPreviousData(PreviousDataKey, 'VST2Folder', GetVst2Dir(''));
+    SetPreviousData(PreviousDataKey, 'VST2Folder', GetVst2Dir(''))
+  else
+    SetPreviousData(PreviousDataKey, 'VST2Folder', GetPreviousData('VST2Folder', ''));
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -385,7 +459,7 @@ begin
 
   if (CurPageID = Vst2Page.ID) and (GetVst2Dir('') = '') then
   begin
-    MsgBox('Choose a folder for the VST2 plugin.', mbError, MB_OK);
+    SuppressibleMsgBox('Choose a folder for the VST2 plugin.', mbError, MB_OK, MB_OK);
     Result := False;
   end;
 end;
@@ -421,8 +495,8 @@ begin
     if WizardSilent then
       exit;
 
-    if MsgBox('FL Studio is running, and Windows can''t replace or remove a plugin it has loaded.' + #13#10#13#10 +
-              'Save your project, close FL Studio, then click Retry.', mbInformation, MB_RETRYCANCEL) = IDCANCEL then
+    if SuppressibleMsgBox('FL Studio is running, and Windows can''t replace or remove a plugin it has loaded.' + #13#10#13#10 +
+                          'Save your project, close FL Studio, then click Retry.', mbInformation, MB_RETRYCANCEL, IDCANCEL) = IDCANCEL then
       exit;
 
     Result := '';
@@ -437,7 +511,7 @@ begin
   begin
     Log('Older copies left in place:' + NotRemoved);
     if not WizardSilent then
-      MsgBox('These older copies couldn''t be removed (a program may have them open):' + NotRemoved + #13#10#13#10 +
-             'Close FL Studio and delete them by hand.', mbInformation, MB_OK);
+      SuppressibleMsgBox('These older copies couldn''t be removed (a program may have them open):' + NotRemoved + #13#10#13#10 +
+                         'Close FL Studio and delete them by hand.', mbInformation, MB_OK, MB_OK);
   end;
 end;

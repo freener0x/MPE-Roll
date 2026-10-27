@@ -48,14 +48,14 @@ function Install([string] $arguments) {
 function Uninstall {
     $uninstaller = (Get-ItemProperty $uninstallKey).UninstallString.Trim('"')
     $log = Join-Path $logs 'uninstall.log'
-    Start-Process -FilePath $uninstaller -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=`"$log`"" -Wait
+    $process = Start-Process -FilePath $uninstaller -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=`"$log`"" -Wait -PassThru
+    if ($process.ExitCode -ne 0) { Fail "The uninstaller exited with $($process.ExitCode)" }
 
-    # The uninstaller runs on from a copy of itself in the temp folder, so the process waited for
-    # can end before it has finished: wait for its registry entry to go.
-    $deadline = (Get-Date).AddMinutes(2)
-    while ((Test-Path $uninstallKey) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
-    Expect (-not (Test-Path $uninstallKey)) 'the uninstaller finishes and removes its entry'
-    Start-Sleep -Seconds 2
+    # -Wait covers the copy of itself the uninstaller runs from the temp folder, but that copy
+    # removes unins000.exe and the app's folder last, after a pause.
+    $deadline = (Get-Date).AddSeconds(30)
+    while ((Test-Path -LiteralPath $app) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+    Expect (-not (Test-Path $uninstallKey)) 'the uninstaller removes its entry'
 }
 
 function Same([string] $installed, [string] $original) {
@@ -91,6 +91,26 @@ Plant (Join-Path $oldVst3 'Contents\x86_64-win\MPE Roll.vst3')
 Plant $leftover
 Plant $otherPlugin
 
+# Copies only FL Studio's plugin database knows of, in a folder none of the usual ones covers. The
+# .nfo lines are as FL writes them; for a VST3 bundle FL names the binary inside it.
+$flData = Join-Path $testRoot 'FL user data'
+$flKnownVst2 = Join-Path $testRoot 'Somewhere FL found\MPE Roll.dll'
+$flKnownVst3 = Join-Path $testRoot 'Somewhere FL found\Bundles\MPE Roll.vst3'
+Plant $flKnownVst2
+Plant (Join-Path $flKnownVst3 'Contents\x86_64-win\MPE Roll.vst3')
+New-Item -Force 'HKCU:\Software\Image-Line\Shared\Paths' | Out-Null
+Set-ItemProperty 'HKCU:\Software\Image-Line\Shared\Paths' -Name 'Shared data' -Value $flData
+$database = Join-Path $flData 'FL Studio\Presets\Plugin database\Installed\Generators'
+New-Item -ItemType Directory -Force (Join-Path $database 'VST'), (Join-Path $database 'VST3') | Out-Null
+Set-Content -LiteralPath (Join-Path $database 'VST\MPE Roll.nfo') -Value @(
+    'fileversion=2', 'ps_name=MPE Roll', 'ps_files=1', 'ps_file_name_0=MPE Roll',
+    "ps_file_filename_0=$flKnownVst2", 'ps_file_magic_0=1299214897')
+Set-Content -LiteralPath (Join-Path $database 'VST3\MPE Roll.nfo') -Value @(
+    'fileversion=2', 'ps_name=MPE Roll', 'ps_files=1', 'ps_file_name_0=MPE Roll',
+    "ps_file_filename_0=$flKnownVst3\Contents\x86_64-win\MPE Roll.vst3")
+Set-Content -LiteralPath (Join-Path $database 'VST\Some Other Synth.nfo') -Value @(
+    'fileversion=2', 'ps_name=Some Other Synth', 'ps_files=1', "ps_file_filename_0=$otherPlugin")
+
 Write-Host '== Everything, VST2 in folder A'
 Install "/COMPONENTS=vst3,vst2,app /VST2DIR=`"$vst2A`""
 Expect (SameFolder $vst3 (Join-Path $Dist 'MPE Roll.vst3')) 'the VST3 bundle is installed as built, with nothing else in it'
@@ -103,6 +123,8 @@ Expect (Test-Path $shortcut) 'the Start menu has the app'
 Expect (-not (Test-Path -LiteralPath $oldVst2)) 'an older VST2 copy is removed'
 Expect (-not (Test-Path -LiteralPath $oldScanner)) 'the scanner beside it is removed with it'
 Expect (-not (Test-Path -LiteralPath $oldVst3)) 'an older VST3 copy in a subfolder is removed'
+Expect (-not (Test-Path -LiteralPath $flKnownVst2)) 'a VST2 copy FL Studio''s plugin database lists is removed'
+Expect (-not (Test-Path -LiteralPath $flKnownVst3)) 'so is a VST3 bundle it lists, the whole bundle'
 Expect (Test-Path -LiteralPath $otherPlugin) 'other plugins stay'
 
 Write-Host '== Again, VST2 moved to folder B'
