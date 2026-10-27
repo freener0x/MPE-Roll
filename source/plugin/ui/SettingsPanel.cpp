@@ -488,8 +488,11 @@ void SettingsPanel::paint (juce::Graphics& g)
 void SettingsPanel::resized()
 {
     auto area = getLocalBounds().reduced (4);
-    auto bottom = area.removeFromBottom (24);
-    supportLink.setBounds (bottom.removeFromLeft (190).withTrimmedLeft (4));
+    // The link as wide as its words in whatever font the system has, the build's name in the rest.
+    auto bottom = area.removeFromBottom (24).withTrimmedLeft (4);
+    supportLink.setBounds (bottom);
+    supportLink.changeWidthToFitText();
+    bottom.removeFromLeft (supportLink.getWidth() + 8);
     buildName.setBounds (bottom);
     panel.setBounds (area);
 }

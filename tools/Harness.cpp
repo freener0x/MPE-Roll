@@ -2138,6 +2138,17 @@ void editorUiChecks (Check& check)
                 check (link != nullptr && link->isShowing() && panel->getLocalBounds().contains (link->getBounds()),
                        "a Support MPE Roll link is in view at the foot of the settings");
 
+                // Its words fit, in this system's font: a link of the same height sized to them is no wider.
+                if (link != nullptr)
+                {
+                    juce::HyperlinkButton sized (link->getButtonText(), {});
+                    sized.setSize (100, link->getHeight());
+                    sized.changeWidthToFitText();
+                    check (link->getWidth() >= sized.getWidth(),
+                           "with room for all its words (" + juce::String (link->getWidth()) + " px for "
+                               + juce::String (sized.getWidth()) + ")");
+                }
+
                 // So a tester can tell which build their DAW loaded.
                 auto* build = panel != nullptr ? findLabelSaying (*panel, getBuildName()) : nullptr;
                 check (build != nullptr && build->isShowing() && panel->getLocalBounds().contains (build->getBounds())
