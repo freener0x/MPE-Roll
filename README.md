@@ -131,7 +131,16 @@ and a plain-MIDI mode for synths that don't do MPE.
 
 ## Downloading a build
 
-Every code change is built by GitHub Actions (a change to the documentation alone builds nothing).
+**Releases.** The [latest release](https://github.com/freener0x/MPE-Roll/releases/latest) has the
+Windows installer (`MPE-Roll-Setup-<version>.exe`), the Windows files (`MPE-Roll-<version>-Windows.zip`)
+and the macOS bundles (`MPE-Roll-<version>-macOS.zip`) attached, with notes on what changed since the
+one before. To make one (maintainers): set the version in `CMakeLists.txt` (`project(MPE_ROLL
+VERSION …)`), merge, tag that commit `v<version>` and push the tag; the *Release* workflow checks the
+tag against the version, builds everything, runs the unit tests and the installer's test, and
+publishes the release. A tag with a suffix (`v0.2.0-beta1`) is marked a pre-release.
+
+**Builds between releases.** Every code change is built by GitHub Actions (a change to the
+documentation alone builds nothing).
 Open the repository's **Actions** tab (you need to be signed in to GitHub), pick the latest successful
 **Build** run, and download **MPE-Roll-Windows-Setup-build-N** (the installer) or
 **MPE-Roll-Windows-build-N** (the files, to copy by hand) under *Artifacts* (N is the run's number,
