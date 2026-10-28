@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
-"""Makes MPE Roll's donation page from docs/donate.json.
+"""Makes MPE Roll's donation page from docs/donate.json, and the website pages that go with it.
 
 It writes, all of them committed so nobody needs this script to read them:
 
   DONATE.md            the page GitHub shows: links, QR codes as images, addresses in code blocks
-  docs/donate.html     the same page as one self-contained file, with copy buttons; it works from
-                       disk and on GitHub Pages, and loads nothing from anywhere else
-  docs/index.html      the front page of the GitHub Pages site (docs/ on the default branch)
+  docs/donate.html     the same page on the website (GitHub Pages builds docs/ with Jekyll, in the
+                       Cayman theme), with copy buttons and the QR codes inside it
+  docs/index.html      the website's front page
+  docs/_data/project.yml
+                       the links into the repository that the website's header and footer show
   docs/donate/*.svg    the QR codes (a wallet URI such as bitcoin:<address>)
   .github/FUNDING.yml  the links behind the Sponsor button on the GitHub page
   source/plugin/ui/DonateData.h
                        the same details and QR codes for the plugin, which shows them in a window
                        of its own (File > Support MPE Roll), so it needs no website at all
 
-Only plain links and QR codes: no payment widget or third-party script is ever involved, so the
-page is as private as the plugin. Empty values in donate.json are left out. "pageUrl" is where
-GitHub Pages serves docs/donate.html. "repoPublic": false while the repository is private, so the
-web pages link to nothing in it (GitHub would show visitors a 404); true once it's public.
+Only plain links and QR codes: no payment widget or third-party script is ever involved, and the
+website loads nothing from other sites, so the page is as private as the plugin. Empty values in
+donate.json are left out. "pageUrl" is where the website serves docs/donate.html. "repoPublic":
+false while the repository is private, so the website links to nothing in it (GitHub would show
+visitors a 404); true once it's public.
 
 Needs the segno package (pip install segno). Run it from anywhere:
 
@@ -40,18 +43,19 @@ except ImportError:  # pragma: no cover - depends on the machine
     sys.exit("This script needs the segno package: pip install segno")
 
 PROJECT = "MPE Roll"
-REPO_URL = "https://github.com/freener0x/glowing-pancake"
+REPO_URL = "https://github.com/freener0x/mpe-roll"
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / "docs" / "donate.json"
 QR_DIR = ROOT / "docs" / "donate"
 HTML_OUT = ROOT / "docs" / "donate.html"
 INDEX_OUT = ROOT / "docs" / "index.html"
+PROJECT_DATA_OUT = ROOT / "docs" / "_data" / "project.yml"
 MD_OUT = ROOT / "DONATE.md"
 FUNDING_OUT = ROOT / ".github" / "FUNDING.yml"
 PLUGIN_DATA_OUT = ROOT / "source" / "plugin" / "ui" / "DonateData.h"
 DONATE_MD_URL = f"{REPO_URL}/blob/main/DONATE.md"
-FL_GUIDE_URL = f"{REPO_URL}/blob/main/docs/FL_STUDIO.md"
-AGPL_URL = "https://www.gnu.org/licenses/agpl-3.0.html"
+DOWNLOAD_URL = f"{REPO_URL}#downloading-a-build"
+LICENSE_URL = f"{REPO_URL}/blob/main/LICENSE"
 
 ADDRESS = re.compile(r"^[A-Za-z0-9:]{20,120}$")
 
@@ -105,12 +109,6 @@ def repo_is_public(config: dict) -> bool:
     if not isinstance(public, bool):
         fail('"repoPublic" must be true or false')
     return public
-
-
-def license_link(public: bool) -> str:
-    if public:
-        return f'<a href="{html.escape(REPO_URL)}/blob/main/LICENSE">Source code (AGPL-3.0)</a>'
-    return f'<a href="{html.escape(AGPL_URL)}">Free software under the AGPL-3.0</a>'
 
 
 def build_links(config: dict) -> list[dict]:
@@ -168,63 +166,10 @@ def qr_svg(coin: dict) -> bytes:
     return out.getvalue()
 
 
-# ---------------------------------------------------------------- docs/donate.html
+# ---------------------------------------------------------------- the website: docs/donate.html, docs/index.html
 
-CSS = """\
-:root {
-  color-scheme: dark;
-  --bg: #0f1114; --panel-2: #1f232a; --panel-3: #2a2f38; --line: #2a2f37; --line-strong: #3a414c;
-  --text: #e8eaed; --text-2: #b4bac4; --muted: #858d9a;
-  --accent: #ffab2e; --accent-ink: #1b1204; --focus: #79c0ff;
-  --radius-sm: 4px;
-  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Segoe UI Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-}
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --bg: #fff4e0; --panel-2: #ffefd4; --panel-3: #ffe3b8; --line: #f1d6ad; --line-strong: #e2b97c;
-    --text: #3b2210; --text-2: #694529; --muted: #8d6a4b;
-    --accent: #e67700; --accent-ink: #ffffff; --focus: #1c7ed6;
-  }
-}
-*, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--font-ui); }
-main { max-width: 720px; margin: 0 auto; padding: 40px 16px 56px; }
-h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 10px; }
-section { margin-top: 24px; }
-h2 { font-size: 1.15rem; margin: 34px 0 12px; }
-h3 { font-size: 1rem; margin: 0 0 6px; }
-p { margin: 10px 0 0; }
-.lead { font-size: 1.08rem; color: var(--text-2); }
-.muted { color: var(--muted); }
-.small { font-size: 0.82rem; }
-a { color: var(--accent); }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.donate-links { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.donate-links li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
-.button-link {
-  display: inline-block; padding: 9px 16px; border-radius: var(--radius-sm);
-  background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none;
-}
-.button-link:hover { filter: brightness(1.08); }
-.coins { display: flex; flex-direction: column; gap: 16px; }
-.coin { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
-.coin img { width: 160px; height: 160px; background: #fff; border-radius: var(--radius-sm); }
-.coin > div { flex: 1 1 240px; min-width: 0; }
-.address {
-  display: block; max-width: 420px; overflow-wrap: anywhere; margin: 0 0 8px;
-  font-family: var(--font-mono); font-size: 0.88em; background: var(--panel-2); padding: 4px 8px; border-radius: 4px;
-}
-button {
-  font: inherit; color: var(--text); padding: 7px 12px; border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm); background: var(--panel-2); cursor: pointer; white-space: nowrap; line-height: 1.3;
-}
-button:hover { background: var(--panel-3); }
-footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--line); }
-footer a + a { margin-left: 14px; }
-"""
+# Pages of the website. Jekyll puts each in docs/_layouts/default.html (Cayman's layout, with the
+# header and footer), and docs/assets/css/style.scss styles the classes used here.
 
 SCRIPT = """\
 (function () {
@@ -256,23 +201,28 @@ SCRIPT = """\
 """
 
 
-def render_html(links: list[dict], coins: list[dict], svgs: dict[str, bytes], public: bool) -> str:
+def front_matter(**fields: str) -> list[str]:
+    """A website page's front matter (a JSON string is a YAML string too), and where it comes from."""
+    return (["---", "layout: default"] + [f"{key}: {json.dumps(value)}" for key, value in fields.items()]
+            + ["---", "<!-- Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file. -->"])
+
+
+def ways_to_give(links: list[dict], coins: list[dict]) -> str:
+    """"Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code": what donate.json has."""
+    def listed(names: list[str]) -> str:
+        return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+    ways = []
+    if links:
+        ways.append(listed([link["name"] for link in links]))
+    if coins:
+        ways.append(listed([coin["name"].split(" (")[0] for coin in coins]) + " by QR code")
+    return ", or ".join(ways)
+
+
+def render_html(links: list[dict], coins: list[dict], svgs: dict[str, bytes]) -> str:
     e = html.escape
-    out = [
-        "<!doctype html>",
-        '<html lang="en">',
-        "<head>",
-        '<meta charset="utf-8">',
-        '<meta name="viewport" content="width=device-width, initial-scale=1">',
-        '<meta name="color-scheme" content="dark light">',
-        f"<title>Support {e(PROJECT)}</title>",
-        "<!-- Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file. -->",
-        "<style>",
-        CSS.rstrip("\n"),
-        "</style>",
-        "</head>",
-        "<body>",
-        "<main>",
+    out = front_matter(title=f"Support {PROJECT}", description=LEAD) + [
         f"<h1>Support {e(PROJECT)}</h1>",
         f'<p class="lead">{e(LEAD)}</p>',
     ]
@@ -307,66 +257,54 @@ def render_html(links: list[dict], coins: list[dict], svgs: dict[str, bytes], pu
                 out.append(f'<p class="muted small">{e(coin["note"])}</p>')
             out += ["</div>", "</div>"]
         out += ["</div>", "</section>"]
-    out += ['<footer class="muted small">']
-    if public:
-        out.append(f'<a href="{e(REPO_URL)}">{e(PROJECT)} on GitHub</a>')
-    out += [
-        license_link(public),
-        "</footer>",
-        "</main>",
-        "<script>",
-        SCRIPT.rstrip("\n"),
-        "</script>",
-        "</body>",
-        "</html>",
-    ]
+    out += ["<script>", SCRIPT.rstrip("\n"), "</script>"]
     return "\n".join(out) + "\n"
 
 
-def render_index(url: str, public: bool) -> str:
-    """The front page of the Pages site: where to read, download and donate (only donate while the
-    repository is private)."""
+def render_index(links: list[dict], coins: list[dict], public: bool) -> str:
+    """The website's front page: what MPE Roll is, where to get it (not while the repository is
+    private), the guides, and donating. The header above it has the name and the tagline."""
     e = html.escape
-    out = [
-        "<!doctype html>",
-        '<html lang="en">',
-        "<head>",
-        '<meta charset="utf-8">',
-        '<meta name="viewport" content="width=device-width, initial-scale=1">',
-        '<meta name="color-scheme" content="dark light">',
-        f"<title>{e(PROJECT)}</title>",
-        "<!-- Made by tools/make_donate_page.py. Change the script, not this file. -->",
-        "<style>",
-        CSS.rstrip("\n"),
-        "</style>",
-        "</head>",
-        "<body>",
-        "<main>",
-        f"<h1>{e(PROJECT)}</h1>",
-        '<p class="lead">An MPE piano roll for FL Studio. Load your synth inside it, and every note gets its own '
-        "pitch glide, pressure and timbre. Free and open source.</p>",
-        "<section>",
-        '<ul class="donate-links">',
+    out = front_matter() + [
+        f'<p class="lead">{e(PROJECT)} is an instrument plugin for FL Studio with its own piano roll: VST3, plus '
+        "VST2 on Windows, AU on macOS and a standalone app. You load your synth inside it (VST3, VST2 or CLAP), "
+        "so every note gets its own pitch glide, pressure, timbre and controllers. FL Studio's own piano roll "
+        "can't send per-note expression to plugins.</p>",
+        f"<p>For FL's own synths (FLEX, Sytrus, Harmor, 3xOsc...), which can't receive MPE at all, {e(PROJECT)} "
+        "writes a piano roll script that rebuilds the clip in FL's own piano roll with slide notes, fine pitch "
+        "and Mod X / Mod Y.</p>",
+        f'<p><img src="images/editor.png" alt="{e(PROJECT)}&#39;s editor: notes with their glides drawn over '
+        'them, and a pressure lane under the piano roll"></p>',
     ]
     if public:
-        out += [
-            f'<li><a class="button-link" href="{e(REPO_URL)}">{e(PROJECT)} on GitHub</a>'
-            ' <span class="muted small">What it does, downloads, and the source code.</span></li>',
-            f'<li><a class="button-link" href="{e(FL_GUIDE_URL)}">Using it in FL Studio</a>'
-            ' <span class="muted small">Setup, routing, the native-synth bridge and troubleshooting.</span></li>',
-        ]
-    out += [
-        f'<li><a class="button-link" href="{e(url.rsplit("/", 1)[-1])}">Support {e(PROJECT)}</a>'
-        ' <span class="muted small">Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code.</span></li>',
-        "</ul>",
-        "</section>",
-        '<footer class="muted small">',
-        license_link(public),
-        "</footer>",
-        "</main>",
-        "</body>",
-        "</html>",
-    ]
+        out += ["<h2>Get it</h2>",
+                "<p>Every change is built for Windows (an installer, or the files to copy by hand) and for macOS: "
+                f'<a href="{e(DOWNLOAD_URL)}">Downloading a build</a> says where to find them. {e(PROJECT)} is an '
+                "early version: automated tests cover it on Windows, macOS and Linux, and it has been lightly "
+                "tested inside FL Studio so far.</p>"]
+    out += ["<h2>Guides</h2>",
+            "<ul>",
+            f'<li><a href="FL_STUDIO.html">Using {e(PROJECT)} in FL Studio</a>: installing it, loading your synth, '
+            "routing, the bridge for FL's own synths, and what to do when something doesn't work.</li>",
+            '<li><a href="MPE_SYNTHS.html">Synths and their MPE</a>: instruments by maker, whether each has MPE, '
+            "and where to turn it on.</li>",
+            "</ul>",
+            f"<h2>Support {e(PROJECT)}</h2>"]
+    ways = ways_to_give(links, coins)
+    out.append(f'<p>{e(LEAD)} <a href="donate.html">Donate</a>: {e(ways)}.</p>' if ways
+               else f"<p>{e(COMING_SOON)}</p>")
+    return "\n".join(out) + "\n"
+
+
+def render_project_data(public: bool) -> str:
+    """docs/_data/project.yml: the repository's links in the website's header and footer."""
+    out = ["# Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file.",
+           "# The links into the repository that the website's header and footer show, none while it's private.",
+           f"repo_public: {json.dumps(public)}"]
+    if public:
+        out += [f"repo_url: {json.dumps(REPO_URL)}",
+                f"download_url: {json.dumps(DOWNLOAD_URL)}",
+                f"license_url: {json.dumps(LICENSE_URL)}"]
     return "\n".join(out) + "\n"
 
 
@@ -398,7 +336,7 @@ def render_markdown(links: list[dict], coins: list[dict], url: str) -> str:
     out += [f"In the plugin, *File > Support MPE Roll* shows the same details, QR codes and copy buttons included, "
             "in a window of its own.", ""]
     if url != DONATE_MD_URL:
-        out += [f"Once GitHub Pages is switched on for the repository, this page is also online at <{url}>.", ""]
+        out += [f"This page is also on {PROJECT}'s website: <{url}>.", ""]
     out += ["The pages, the plugin's copy, the QR codes and `.github/FUNDING.yml` are made by "
             "`tools/make_donate_page.py` from [docs/donate.json](docs/donate.json): change the JSON and run the "
             "script rather than editing them.", ""]
@@ -489,8 +427,9 @@ def main() -> None:
         svgs[coin["id"]] = qr_svg(coin)
         write(coin["file"], svgs[coin["id"]])
 
-    write(HTML_OUT, render_html(links, coins, svgs, public))
-    write(INDEX_OUT, render_index(url, public))
+    write(HTML_OUT, render_html(links, coins, svgs))
+    write(INDEX_OUT, render_index(links, coins, public))
+    write(PROJECT_DATA_OUT, render_project_data(public))
     write(MD_OUT, render_markdown(links, coins, url))
     write(FUNDING_OUT, render_funding(links, url))
     write(PLUGIN_DATA_OUT, render_plugin_data(links, coins, svgs))

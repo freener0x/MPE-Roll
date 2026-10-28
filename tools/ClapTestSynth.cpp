@@ -222,7 +222,7 @@ const clap_plugin_descriptor_t descriptor
     "com.glowingpancake.mperoll-test-synth",
     "MPE Roll Test Synth",
     "Glowing Pancake",
-    "https://github.com/freener0x/glowing-pancake",
+    "https://github.com/freener0x/mpe-roll",
     "",
     "",
     "0.1.0",

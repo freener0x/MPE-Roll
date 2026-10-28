@@ -1,6 +1,6 @@
-# GitHub Pages serves the docs/ folder (Settings > Pages > Build and deployment: the branch, folder
-# /docs), which has a .nojekyll file, so this file isn't read then. Should Pages be set to build
-# from the repository root instead, this keeps everything but docs/ out of the published site,
+# GitHub Pages builds the website from the docs/ folder (Settings > Pages > Build and deployment:
+# main, folder /docs), with docs/_config.yml, so this file isn't read then. Should Pages be set to
+# build from the repository root instead, this keeps everything but docs/ out of the published site,
 # which is for the pages in docs/; the code is on GitHub itself.
 exclude:
   - CMakeLists.txt

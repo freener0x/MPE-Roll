@@ -357,3 +357,25 @@ jobs:
           "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner"
           "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
           "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"
+
+  # The website (docs/), built as GitHub Pages builds it after a merge to main: Jekyll with the
+  # Cayman theme. Built for every change, documentation included, since that's what it's made of.
+  site:
+    name: Website (docs/, as GitHub Pages builds it)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+
+      - name: Its pages are there, and load nothing from other sites
+        run: |
+          ls _site/index.html _site/donate.html _site/FL_STUDIO.html _site/MPE_SYNTHS.html _site/assets/css/style.css
+          if grep -rlE 'fonts\.(googleapis|gstatic)\.com' _site; then
+            echo "These load fonts from Google"
+            exit 1
+          fi

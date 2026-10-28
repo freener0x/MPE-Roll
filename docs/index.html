@@ -1,81 +1,16 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark light">
-<title>MPE Roll</title>
-<!-- Made by tools/make_donate_page.py. Change the script, not this file. -->
-<style>
-:root {
-  color-scheme: dark;
-  --bg: #0f1114; --panel-2: #1f232a; --panel-3: #2a2f38; --line: #2a2f37; --line-strong: #3a414c;
-  --text: #e8eaed; --text-2: #b4bac4; --muted: #858d9a;
-  --accent: #ffab2e; --accent-ink: #1b1204; --focus: #79c0ff;
-  --radius-sm: 4px;
-  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Segoe UI Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-}
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --bg: #fff4e0; --panel-2: #ffefd4; --panel-3: #ffe3b8; --line: #f1d6ad; --line-strong: #e2b97c;
-    --text: #3b2210; --text-2: #694529; --muted: #8d6a4b;
-    --accent: #e67700; --accent-ink: #ffffff; --focus: #1c7ed6;
-  }
-}
-*, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--font-ui); }
-main { max-width: 720px; margin: 0 auto; padding: 40px 16px 56px; }
-h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 10px; }
-section { margin-top: 24px; }
-h2 { font-size: 1.15rem; margin: 34px 0 12px; }
-h3 { font-size: 1rem; margin: 0 0 6px; }
-p { margin: 10px 0 0; }
-.lead { font-size: 1.08rem; color: var(--text-2); }
-.muted { color: var(--muted); }
-.small { font-size: 0.82rem; }
-a { color: var(--accent); }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.donate-links { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.donate-links li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
-.button-link {
-  display: inline-block; padding: 9px 16px; border-radius: var(--radius-sm);
-  background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none;
-}
-.button-link:hover { filter: brightness(1.08); }
-.coins { display: flex; flex-direction: column; gap: 16px; }
-.coin { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
-.coin img { width: 160px; height: 160px; background: #fff; border-radius: var(--radius-sm); }
-.coin > div { flex: 1 1 240px; min-width: 0; }
-.address {
-  display: block; max-width: 420px; overflow-wrap: anywhere; margin: 0 0 8px;
-  font-family: var(--font-mono); font-size: 0.88em; background: var(--panel-2); padding: 4px 8px; border-radius: 4px;
-}
-button {
-  font: inherit; color: var(--text); padding: 7px 12px; border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm); background: var(--panel-2); cursor: pointer; white-space: nowrap; line-height: 1.3;
-}
-button:hover { background: var(--panel-3); }
-footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--line); }
-footer a + a { margin-left: 14px; }
-</style>
-</head>
-<body>
-<main>
-<h1>MPE Roll</h1>
-<p class="lead">An MPE piano roll for FL Studio. Load your synth inside it, and every note gets its own pitch glide, pressure and timbre. Free and open source.</p>
-<section>
-<ul class="donate-links">
-<li><a class="button-link" href="https://github.com/freener0x/glowing-pancake">MPE Roll on GitHub</a> <span class="muted small">What it does, downloads, and the source code.</span></li>
-<li><a class="button-link" href="https://github.com/freener0x/glowing-pancake/blob/main/docs/FL_STUDIO.md">Using it in FL Studio</a> <span class="muted small">Setup, routing, the native-synth bridge and troubleshooting.</span></li>
-<li><a class="button-link" href="donate.html">Support MPE Roll</a> <span class="muted small">Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code.</span></li>
+---
+layout: default
+---
+<!-- Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file. -->
+<p class="lead">MPE Roll is an instrument plugin for FL Studio with its own piano roll: VST3, plus VST2 on Windows, AU on macOS and a standalone app. You load your synth inside it (VST3, VST2 or CLAP), so every note gets its own pitch glide, pressure, timbre and controllers. FL Studio's own piano roll can't send per-note expression to plugins.</p>
+<p>For FL's own synths (FLEX, Sytrus, Harmor, 3xOsc...), which can't receive MPE at all, MPE Roll writes a piano roll script that rebuilds the clip in FL's own piano roll with slide notes, fine pitch and Mod X / Mod Y.</p>
+<p><img src="images/editor.png" alt="MPE Roll&#39;s editor: notes with their glides drawn over them, and a pressure lane under the piano roll"></p>
+<h2>Get it</h2>
+<p>Every change is built for Windows (an installer, or the files to copy by hand) and for macOS: <a href="https://github.com/freener0x/mpe-roll#downloading-a-build">Downloading a build</a> says where to find them. MPE Roll is an early version: automated tests cover it on Windows, macOS and Linux, and it has been lightly tested inside FL Studio so far.</p>
+<h2>Guides</h2>
+<ul>
+<li><a href="FL_STUDIO.html">Using MPE Roll in FL Studio</a>: installing it, loading your synth, routing, the bridge for FL's own synths, and what to do when something doesn't work.</li>
+<li><a href="MPE_SYNTHS.html">Synths and their MPE</a>: instruments by maker, whether each has MPE, and where to turn it on.</li>
 </ul>
-</section>
-<footer class="muted small">
-<a href="https://github.com/freener0x/glowing-pancake/blob/main/LICENSE">Source code (AGPL-3.0)</a>
-</footer>
-</main>
-</body>
-</html>
+<h2>Support MPE Roll</h2>
+<p>MPE Roll is free and open source, with no ads and no tracking. If it helps you, a donation keeps it going. <a href="donate.html">Donate</a>: Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code.</p>

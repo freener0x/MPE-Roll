@@ -758,7 +758,7 @@ public:
         if (info == nullptr)
             return kInvalidArgument;
 
-        *info = PFactoryInfo (vendorName, "https://github.com/freener0x/glowing-pancake", "", PFactoryInfo::kUnicode);
+        *info = PFactoryInfo (vendorName, "https://github.com/freener0x/mpe-roll", "", PFactoryInfo::kUnicode);
         return kResultOk;
     }
 

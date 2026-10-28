@@ -1,6 +1,6 @@
 {
   "$comment": "Donation details for DONATE.md, docs/donate.html, docs/index.html, .github/FUNDING.yml and the plugin's own Support window (source/plugin/ui/DonateData.h), all made by tools/make_donate_page.py. Empty values are left out. pageUrl is where GitHub Pages serves docs/donate.html. repoPublic: false while the repository is private, so the web pages link to nothing in it (visitors would get a 404); set it to true once the repository is public.",
-  "pageUrl": "https://freener0x.github.io/glowing-pancake/donate.html",
+  "pageUrl": "https://freener0x.github.io/mpe-roll/donate.html",
   "repoPublic": true,
   "cashApp": "$freener",
   "paypal": "",

@@ -298,8 +298,9 @@ tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUC
                   API, pitch only from note expressions), a VST3 one on the plain VST3 interfaces
                   that maps pitch bend on channel 1 only and takes note expressions, and a plain one
                   without MPE (VST3 and VST2) for one copy per note. Needs -DMPEROLL_BUILD_DEV_TOOLS=ON.
-                  make_donate_page.py writes DONATE.md, docs/donate.html, the QR codes and
-                  .github/FUNDING.yml from docs/donate.json. make_synth_list.py writes
+                  make_donate_page.py writes DONATE.md, the website's front and Support pages
+                  (docs/index.html, docs/donate.html), the QR codes and .github/FUNDING.yml from
+                  docs/donate.json. make_synth_list.py writes
                   docs/MPE_SYNTHS.md and source/plugin/KnownSynths.h, the synths MPE Roll knows the
                   MPE of, from docs/synths.json (CI checks they match).
 third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
@@ -321,13 +322,15 @@ MPE Roll is free and open source, with no ads and no tracking. If it helps you, 
 going: see [DONATE.md](DONATE.md) (Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code).
 Inside the plugin, *File > Support MPE Roll* (or the link at the foot of *MPE settings*) opens the
 same details in a window of its own, QR codes and Copy buttons included, with nothing to load from
-the web. The page is also online at <https://freener0x.github.io/glowing-pancake/donate.html>,
-served by GitHub Pages from the repository's `docs/` folder: *Settings › Pages › Build and
-deployment*, *Source: Deploy from a branch*, then `main` and the `/docs` folder, and *Save* (the site
-is up a minute or two later). Its pages link to the repository and its licence. Should the
-repository ever be made private, set `"repoPublic": false` in `docs/donate.json` and run
-`tools/make_donate_page.py`: the pages then link to nothing in it, since visitors would get a 404
-there.
+the web. The page is also on MPE Roll's website, <https://freener0x.github.io/mpe-roll/donate.html>.
+
+The website (<https://freener0x.github.io/mpe-roll/>) is the `docs/` folder, which GitHub Pages
+builds with Jekyll in GitHub's Cayman theme (*Settings › Pages › Build and deployment*: *Deploy from a
+branch*, `main`, `/docs`). Its front page and Support page are made by `tools/make_donate_page.py`,
+and the FL Studio guide and the list of synths become pages as they are. `docs/_config.yml` says how
+it's put together. Its pages link to the repository and its licence; should the repository ever be
+made private, set `"repoPublic": false` in `docs/donate.json` and run `tools/make_donate_page.py`, and
+the website then links to nothing in it, since visitors would get a 404 there.
 
 ## License
 
