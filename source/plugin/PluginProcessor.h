@@ -91,6 +91,15 @@ public:
     juce::String getStatusMessage() const               { return statusMessage; }
     std::function<void()> onStatusChanged;
 
+    /** The furthest a pitch bend went past the bend range it's scaled to in the last minute: a glide
+        the synth heard stop short at the range's edge (MpeEncoder::takeBendOverflow(), from MPE
+        Roll's own encoder and, with one copy per note, the copies'). Empty when every bend fitted,
+        and dropped once that range or the output mode changes: the next glide says if it still
+        stops short. Message thread: polls what the audio thread saw, so call it from a timer or as
+        the status is drawn.
+    */
+    MpeEncoder::BendOverflow getRecentBendOverflow();
+
     /** One copy per note: the copies changed (loaded, given a sound, playing, asleep). Message thread. */
     std::function<void()> onCopiesChanged;
 
@@ -174,6 +183,13 @@ private:
     std::atomic<int> transportSlot { -1 };
     std::atomic<double> transportBeat { 0.0 };
     std::atomic<double> transportBpm { 120.0 };
+
+    // audio -> message thread: the furthest a bend went past its range since the message thread
+    // looked, packed (see the .cpp), and what the message thread last took, kept for a minute.
+    std::atomic<uint64_t> bendOverflow { 0 };
+    MpeEncoder::BendOverflow recentBendOverflow;
+    OutputSettings::Mode recentBendOverflowMode = OutputSettings::Mode::mpe;
+    juce::uint32 recentBendOverflowAt = 0;
 
     // Message thread recording.
     MpeDecoder recordDecoder;

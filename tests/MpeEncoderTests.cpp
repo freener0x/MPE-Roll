@@ -754,6 +754,64 @@ public:
             expectWithinAbsoluteError (MpeEncoder::pitchBendToSemitones (0, 48.0f), -48.0f, 1.0e-5f);
         }
 
+        beginTest ("A bend asked past its range is sent at the range's edge, and reported");
+        {
+            // Single channel mode: the zone range scales a note's glide, with the zone's pitch added.
+            OutputSettings s;
+            s.mode = OutputSettings::Mode::singleChannel;
+            s.masterBendRange = 2.0f;
+            MpeEncoder enc;
+            enc.setSettings (s);
+            juce::MidiBuffer out;
+
+            enc.prepareNote (out, 0, 1, 60);
+            enc.startNote (out, 0, 1, 0.5f);
+            enc.setPitch (out, 0, 1, 2.0f);
+            expect (enc.takeBendOverflow().isEmpty(), "a glide to the range's edge fits");
+            enc.setPitch (out, 0, 1, 1.0f);
+
+            out.clear();
+            enc.setPitch (out, 0, 1, 7.0f);
+            auto m = collect (out);
+            expectEquals ((int) m.size(), 1);
+            expect (m[0].message.isPitchWheel() && m[0].message.getPitchWheelValue() == 16383, "sent at the edge");
+
+            auto over = enc.takeBendOverflow();
+            expectWithinAbsoluteError (over.asked, 7.0f, 1.0e-5f);
+            expectWithinAbsoluteError (over.range, 2.0f, 1.0e-5f);
+            expect (enc.takeBendOverflow().isEmpty(), "taking it starts the count again");
+
+            enc.setPitch (out, 0, 1, -3.0f);
+            enc.setZonePitch (out, 0, -1.5f);      // -4.5 in all
+            enc.setPitch (out, 0, 1, 1.0f);        // -0.5: fits
+            over = enc.takeBendOverflow();
+            expectWithinAbsoluteError (over.asked, 4.5f, 1.0e-5f, "the furthest since, as a distance from rest");
+
+            // MPE: a note's bend against the per-note range, a zone bend against the zone range.
+            OutputSettings mpe;
+            mpe.memberBendRange = 48.0f;
+            mpe.masterBendRange = 2.0f;
+            MpeEncoder enc2;
+            enc2.setSettings (mpe);
+            out.clear();
+
+            enc2.prepareNote (out, 0, 1, 60);
+            enc2.startNote (out, 0, 1, 0.5f);
+            enc2.setPitch (out, 0, 1, 47.0f);
+            enc2.setZonePitch (out, 0, 1.0f);
+            expect (enc2.takeBendOverflow().isEmpty());
+
+            enc2.setZonePitch (out, 0, 5.0f);
+            over = enc2.takeBendOverflow();
+            expectWithinAbsoluteError (over.asked, 5.0f, 1.0e-5f);
+            expectWithinAbsoluteError (over.range, 2.0f, 1.0e-5f, "a zone bend is scaled to the zone range");
+
+            enc2.setPitch (out, 0, 1, 50.0f);
+            over = enc2.takeBendOverflow();
+            expectWithinAbsoluteError (over.asked, 50.0f, 1.0e-5f);
+            expectWithinAbsoluteError (over.range, 48.0f, 1.0e-5f, "a note's bend to the per-note range");
+        }
+
         beginTest ("The channels notes are played on, described");
         {
             auto describe = [] (int lower, int upper)

@@ -255,9 +255,11 @@ synth's channel, run it from the Scripts menu:
   synth. Serum 2's guide says it takes note expressions with its own MPE switch off.
 - **One copy per note is new.** It's tested automatically with a small synth without MPE (VST3 and
   VST2, on Linux and Windows, where a copy crashing or throwing on purpose is switched off and never
-  called again), but not yet with a
-  commercial synth: Serum, Analog Lab, Kontakt, Nexus and Arcade are next. A synth may mind having
-  many copies of itself (licence checks, memory); please report what you find.
+  called again). In FL Studio 26.1.7 it plays Analog Lab (VST3), FabFilter Twin 3, Serum 1, Kontakt 8
+  and Arcade with each note's own glides (a user's report); in all five the glides stopped at 2
+  semitones, the synth's own pitch-bend range, until it's raised in the synth and *Zone bend range*
+  set to match, which the status line now says when a glide goes past it. Nexus is untried. A synth
+  may mind having many copies of itself (licence checks, memory); please report what you find.
 - **CLAP and VST2 hosting are new.** Both are tested automatically with small test synths on
   Linux, and compiled for Windows and macOS. Showing a CLAP synth's own window hasn't been tried
   with a real synth on any system yet; if it fails, MPE Roll shows a message and the synth still

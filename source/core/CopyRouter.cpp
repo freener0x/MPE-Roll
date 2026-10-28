@@ -676,6 +676,17 @@ int CopyRouter::getNumCopiesPlaying() const noexcept
     return count;
 }
 
+MpeEncoder::BendOverflow CopyRouter::takeBendOverflow() noexcept
+{
+    MpeEncoder::BendOverflow furthest;
+
+    for (auto& encoder : encoders)
+        if (const auto o = encoder->takeBendOverflow(); o.asked > furthest.asked)
+            furthest = o;
+
+    return furthest;
+}
+
 void CopyRouter::reset()
 {
     decoder.reset();

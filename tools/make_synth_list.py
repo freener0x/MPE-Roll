@@ -18,6 +18,9 @@ docs/synths.json holds "checked" (when the list was last checked, e.g. "October 
   followsSetup      true when it turns MPE on by itself from MPE Roll's setup messages
   enable            where to turn MPE on, as the instrument shows it, with " > " between steps
   bendRange         where its per-note bend range is set, and its default or fixed value
+  plainBendRange    where its own (one-channel) pitch-bend range is set and what it allows, for Plain
+                    MIDI and One copy per note, which bend within it; sentences that stand alone (the
+                    plugin shows them in MPE settings, and when a glide stops short at the range)
   noteExpressions   what it does with VST3 or CLAP note expressions, if anything is known
   notes             anything else worth knowing (limits, versions, discontinued)
   instead           for one without MPE: what to do instead, if there's more to say than Plain MIDI
@@ -162,9 +165,14 @@ def how_to(s: dict) -> str:
             parts.append(s["noteExpressions"])
     else:
         if s.get("plainMidi", True):
-            parts.append("*Plain MIDI*, or *One copy per note*")
+            parts.append("*Plain MIDI*, or *One copy per note*"
+                         + (", which bend within its own pitch-bend range" if s.get("plainBendRange") else ""))
         if s.get("instead"):
             parts.append(s["instead"])
+    if s.get("plainBendRange"):
+        # Said already for one without MPE, just above.
+        within = "*Plain MIDI* and *One copy per note* bend within its own pitch-bend range. " if s["mpe"] in ("yes", "limited") else ""
+        parts.append(within + s["plainBendRange"])
     return ". ".join(cell(p).rstrip(".") for p in parts if p) + "."
 
 
@@ -292,6 +300,7 @@ def plugin_entry(s: dict) -> dict:
         "kind": kind,
         "advice": advice,
         "clapAdvice": clap,
+        "bendRange": s.get("plainBendRange", ""),
         # More particular entries first: those for some versions only, then longer names, and the
         # ones for any instrument of a maker (no name) last.
         "order": (0 if versions else 1, -max((len(n) for n in names), default=0)),
@@ -328,6 +337,7 @@ def render_plugin(checked: str, synths: list[dict]) -> str:
         "        Mpe mpe;",
         "        const char* advice;",
         "        const char* clapAdvice;     // added in builds that host CLAP plugins",
+        "        const char* bendRange;      // where its own pitch-bend range is set (Plain MIDI, One copy per note); \"\" if unknown",
         "    };",
         "",
         f"    inline constexpr std::array<Synth, {len(entries)}> synths {{ {{",
@@ -336,7 +346,7 @@ def render_plugin(checked: str, synths: list[dict]) -> str:
         out.append(f"        {{ {cpp_string(e['name'])}, {cpp_string(e['names'])}, {cpp_string(e['excludes'])}, "
                    f"{cpp_string(e['makers'])}, {cpp_string(e['versions'])}, Mpe::{e['kind']},")
         out.append(f"          {cpp_string(e['advice'])},")
-        out.append(f"          {cpp_string(e['clapAdvice'])} }},")
+        out.append(f"          {cpp_string(e['clapAdvice'])}, {cpp_string(e['bendRange'])} }},")
     out += ["    } };", "}", ""]
     return "\n".join(out)
 

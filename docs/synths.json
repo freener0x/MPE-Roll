@@ -1233,6 +1233,7 @@
    ],
    "mpe": "no",
    "instead": "For each note's own expression, load the instrument itself: Pigments, or a V Collection instrument with an Enable MPE setting",
+   "plainBendRange": "Analog Lab has no bend-range setting of its own: each preset's instrument has one, usually 2 (user reports), set inside the full instrument (Open instrument, which needs that instrument's licence). If you can't change it, leave Zone bend range at 2.",
    "advice": "Arturia says Analog Lab itself has no MPE.",
    "match": {
     "names": [
@@ -6269,6 +6270,7 @@
    ],
    "mpe": "no",
    "notes": "Staff said MPE was planned for a 3.1 update but would not promise a date, and none has shipped. MPE promised for Twin 2 never came either.",
+   "plainBendRange": "Twin 3 has no bend-range box: pitch bend is a MIDI modulation source routed to Master Tune, and the slot's slider sets how far it goes, about 0.16 for 2 semitones (the default) and in proportion from there (about 0.96 for an octave), so check with a one-octave glide. Saved with the preset.",
    "sources": [
     {
      "url": "https://prod.fabfilter.com/forum/topic/7269/is-twin-3-supporting-mpe",
@@ -6277,6 +6279,14 @@
     {
      "url": "https://www.fabfilter.com/products/twin-3",
      "says": "All FabFilter plug-ins come as VST, VST3, AU, CLAP, AAX Native and AudioSuite."
+    },
+    {
+     "url": "https://www.fabfilter.com/help/twin/using/midisource",
+     "says": "Twin 3 help: Pitch Bend is a MIDI modulation source going from -1 to 1 (Aftertouch, Controller and Mod Wheel from 0 to 1); Master Tune is a modulation target."
+    },
+    {
+     "url": "https://www.soundonsound.com/reviews/fabfilter-twin-3",
+     "says": "Sound On Sound: the modulation slot sliders run 0 to 1 and don't show semitones; option-clicking resets one to 0.160, two semitones when applied to pitch bend."
     }
    ],
    "match": {
@@ -10542,6 +10552,7 @@
    "mpe": "limited",
    "enable": "No MPE switch: instrument header > MIDI channel: Omni, then the library's own MPE mode (MPE-scripted libraries only)",
    "bendRange": "Set by each library (Ashlight: fixed at 48); ROLI's one-slot-per-channel workaround tops out at 12",
+   "plainBendRange": "Kontakt's range is each instrument's own: many NI libraries, the Factory Library among them, have PB Range (Up and Down) on their settings or options page (the cog), up to 12 by user reports, and in the full Kontakt it's Edit (the wrench) > Edit All Groups > the Source module's Pitch Bend modulation. Kontakt Player can't edit groups, so a library without the setting keeps its own.",
    "notes": "Only libraries scripted for MPE respond per note; most NI libraries are not. ROLI's workaround loads one copy per member channel. No MPE as of 8.12.0. Kontakt Player is the same plugin.",
    "advice": "Kontakt has MPE only in libraries scripted for it, such as Ashlight: set the instrument header's MIDI channel to Omni and turn on the library's MPE mode or load its MPE presets. For other libraries, use Plain MIDI.",
    "sources": [
@@ -10556,6 +10567,18 @@
     {
      "url": "https://support.roli.com/en/support/solutions/articles/36000495149-kontakt-7-using-the-seaboard-with-kontakt-factory-library-2",
      "says": "ROLI: Kontakt is not MPE-compatible by default; workaround puts each MIDI channel on its own module, pitch bend +/-12."
+    },
+    {
+     "url": "https://www.native-instruments.com/ni-tech-manuals/kontakt-factory-library-manual/en/settings-page",
+     "says": "Kontakt Factory Library manual: the settings page's PB Range adjusts the range of the keyboard's pitch bend, with a Down setting for the wheel fully down."
+    },
+    {
+     "url": "https://community.native-instruments.com/discussion/50912/how-do-i-adjust-pitch-bend-range-in-kontakt-8",
+     "says": "NI community: a Factory Library instrument's pitch bend range is raised from its default through the options cog, up to 12 semitones (user report)."
+    },
+    {
+     "url": "https://support.output.com/en/articles/15061886-pitch-bend-with-kontakt-instruments",
+     "says": "Output: in the full Kontakt, edit the group modulation so pitch bend routes to pitch and set the range; Kontakt Player is locked, so this can't be done there."
     }
    ],
    "match": {
@@ -11631,6 +11654,7 @@
    "mpe": "undocumented",
    "notes": "Loop and sample instrument, Arcade 2.x (2.16.1 in August 2026). Samplers: 15 samples (loops, one-shots, phrases) on the white keys between Arcade's C2 and C4, modifiers on the black keys between, and Playable Pitch keys below that retune what's playing; Output gives note names, not numbers. Instruments (since 2.0): chromatic, up to 3 layers, no modifiers. No MPE or pitch-bend response documented; parameters can be MIDI-learned to CCs. Windows 10/11: 64-bit VST2, VST3, AAX. Needs an Output login and downloaded kits (works offline for 30 days).",
    "advice": "Output documents neither MPE nor pitch bend for Arcade.",
+   "plainBendRange": "Arcade has no bend-range setting, and Output documents no pitch-bend response: draw a glide and listen. The Playable Pitch keys retune a sample instead.",
    "copiesGive": "each sample's own MIDI-learned controls (right-click a macro > Learn MIDI, then play the Zone timbre lane, which reaches every copy, for CC74); glides only if the kit answers pitch bend, so draw one and listen. For Samplers, set Keys to every copy to Output Arcade Samplers",
    "sources": [
     {
@@ -12593,6 +12617,7 @@
    ],
    "mpe": "undocumented",
    "notes": "No reFX statement on MPE was found. A KVR user (Oct 2025) says it responds to channel pressure only, not polyphonic aftertouch. Windows formats not confirmed.",
+   "plainBendRange": "Nexus's range is on its Modulation page > Pitch Bend: Max +24, Min -24 (a negative number), with Speed 127 so glides aren't smoothed. Saved with the preset.",
    "sources": [
     {
      "url": "https://www.kvraudio.com/forum/viewtopic.php?p=9140659",
@@ -19871,6 +19896,7 @@
    "mpe": "yes",
    "enable": "MENU (top bar) > MPE Enabled",
    "bendRange": "MENU > MPE Bend Range (48 ST, apparently the default)",
+   "plainBendRange": "Serum's own range is the two small boxes at the bottom left, by the pitch wheel: up and down in semitones (2 and -2 to start with; the down box takes a negative number), up to 24 and -24. It changes with the preset, so check it after loading one.",
    "notes": "MPE arrived in 1.23 (March 2019) and is off by default; use 1.26b8 or later, since earlier builds ignored channel 16, cut a note played on two channels at once, and could crash on MPE bend-range messages. The newest 1.x in a copy of Xfer's update log (May 2026) is 1.36b8 (October 2023). Older versions such as 1.1.5 have no MPE Enabled item. VST3 on Windows since 1.35b7 (2022). Since 1.36b8 per-note bend also feeds MPE X.",
    "advice": "Turn on MPE in Serum 1.26b8 or later: MENU (top bar) > MPE Enabled, with MPE Bend Range 48, MPE Roll's per-note bend range. An older Serum has no MPE (1.1.5, say) or MPE bugs MPE Roll runs into (1.23 to 1.26b7): update it from your Xfer account, or set Synth expects to One copy per note. Turn MPE off again for Plain MIDI.",
    "sources": [

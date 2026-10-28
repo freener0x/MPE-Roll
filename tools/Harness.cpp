@@ -3621,6 +3621,29 @@ int copiesTest (const juce::File& synthFile)
         check (lateE4 > 0.5 * earlyE4, "E4 holds still while it does");
     }
 
+    std::printf ("A glide past the Zone bend range is reported\n");
+    {
+        check (rig->processor.getRecentBendOverflow().isEmpty(), "the octave glide fitted the 12-semitone range");
+
+        // The stream carries each note's bend scaled to the copies' range, so the octave stops at 2.
+        rig->setOutput ([] (OutputSettings& o) { o.masterBendRange = 2.0f; });
+        rig->play (glideClip(), 1.0);
+        const auto over = rig->processor.getRecentBendOverflow();
+        std::printf ("  reached %g semitones, stopped at %g\n", (double) over.asked, (double) over.range);
+        check (std::abs (over.asked - 12.0f) < 0.01f && std::abs (over.range - 2.0f) < 0.01f,
+               "the octave glide stopped at 2 semitones, and the processor says so");
+        check (over.semitonesReached() == 12 && over.suggestedRange() == 12, "with 12 the range to set");
+
+        const auto text = rig->synth().describeConnection (rig->processor.getDocument().getSettings().output, over);
+        std::printf ("  %s\n", text.toRawUTF8());
+        check (text.contains ("A glide just reached 12 semitones and stopped at 2: set both to 12."), "and MPE settings says what to set");
+
+        rig->setOutput ([] (OutputSettings& o) { o.masterBendRange = 12.0f; });
+        check (rig->processor.getRecentBendOverflow().isEmpty(), "a changed Zone bend range drops the report");
+        rig->play (glideClip(), 1.0);
+        check (rig->processor.getRecentBendOverflow().isEmpty(), "and the octave fits again");
+    }
+
     std::printf ("The same on one core as on several\n");
     {
         rig->setOutput ([] (OutputSettings& o) { o.copiesUseCores = false; });

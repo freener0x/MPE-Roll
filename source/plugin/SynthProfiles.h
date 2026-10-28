@@ -22,6 +22,7 @@ struct SynthProfile
     juce::String name;      // as the user knows it: "Serum 2"
     Mpe mpe = Mpe::needsSwitch;
     juce::String advice;    // what to do in the synth, in a sentence or two
+    juce::String bendRange; // where its own pitch-bend range is set and what it allows (Plain MIDI, One copy per note), if known
     bool certain = true;    // false for one whose maker never mentions MPE: it most likely has none
 
     /** "has no MPE", or "most likely has no MPE" when its maker just never mentions any. */

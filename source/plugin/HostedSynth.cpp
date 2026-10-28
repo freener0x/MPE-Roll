@@ -1314,7 +1314,28 @@ juce::Optional<juce::AudioPlayHead::PositionInfo> HostedSynth::PieceHead::getPos
     return position;
 }
 
-juce::String HostedSynth::describeConnection (const OutputSettings& settings) const
+juce::String HostedSynth::describeBendRange (const OutputSettings& settings, const MpeEncoder::BendOverflow& recent) const
+{
+    // Plain MIDI and one copy per note bend within the synth's own pitch-bend range, which MPE Roll
+    // sends (RPN 0) but most synths keep their own. Most start at 2 semitones.
+    const auto name = getName();
+    const auto range = juce::String (juce::roundToInt (settings.masterBendRange));
+    juce::String s;
+
+    s << "Glides bend within " << name << "'s own pitch-bend range: set it to " << range << " semitones, MPE Roll's Zone bend range, "
+      << "or both to 12 or 24 for wider glides (a glide past the range stops at its edge).";
+
+    if (const auto profile = getProfile(); profile.has_value() && profile->bendRange.isNotEmpty())
+        s << " " << profile->bendRange;
+
+    if (! recent.isEmpty() && std::abs (recent.range - settings.masterBendRange) < 0.01f)
+        s << " A glide just reached " << recent.semitonesReached() << " semitones and stopped at " << range
+          << ": set both to " << recent.suggestedRange() << ".";
+
+    return s;
+}
+
+juce::String HostedSynth::describeConnection (const OutputSettings& settings, const MpeEncoder::BendOverflow& recent) const
 {
     if (instance == nullptr)
         return "No synth loaded.";
@@ -1324,7 +1345,6 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
     {
         const auto status = getCopyStatus();
         const auto name = getName();
-        const auto range = juce::String (juce::roundToInt (settings.masterBendRange));
         juce::String s;
 
         s << "One copy of " << name << " per note: " << status.loaded << " of " << status.wanted << " copies loaded";
@@ -1340,13 +1360,11 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
         if (status.workers > 0)
             s << ", spread over " << (status.workers + 1) << " CPU cores";
 
-        s << ". Each copy plays its note as Plain MIDI on channel " << settings.singleChannel << ": pitch bend "
-          << "(set " << name << "'s pitch-bend range to " << range << " semitones, MPE Roll's Zone bend range; "
-          << "glides stop there, so for wider ones set both to 12 or 24), "
+        s << ". Each copy plays its note as Plain MIDI on channel " << settings.singleChannel << ": pitch bend, "
           << (settings.pressureTarget == OutputSettings::PressureTarget::channelPressure ? juce::String ("channel pressure")
               : settings.pressureTarget == OutputSettings::PressureTarget::polyAftertouch ? juce::String ("poly aftertouch")
               : "CC" + juce::String (settings.pressureController))
-          << " for pressure and CC" << settings.timbreController << " for timbre.";
+          << " for pressure and CC" << settings.timbreController << " for timbre. " << describeBendRange (settings, recent);
 
         // A problem is under Copies now, with the button that deals with it.
         if (status.copyingSound)
@@ -1374,7 +1392,8 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
     const auto via = clapControls != nullptr ? juce::String (" (the CLAP synth accepts MIDI)") : juce::String();
 
     if (settings.mode == OutputSettings::Mode::singleChannel)
-        return "Plain MIDI on channel " + juce::String (settings.singleChannel) + via + ".";
+        return "Plain MIDI on channel " + juce::String (settings.singleChannel) + via
+             + ": the newest note's glides, pressure and timbre drive the synth. " + describeBendRange (settings, recent);
 
     // A synth that isn't in MPE mode often listens on channel 1 only, and hears nothing.
     const auto channels = settings.zones.describeMemberChannels();

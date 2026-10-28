@@ -76,6 +76,29 @@ public:
     int getChannel (Handle handle) const noexcept;
     int getNumActiveVoices() const noexcept                 { return numActive; }
 
+    /** A pitch bend asked to go further than the bend range it's scaled to. It's sent at the
+        range's edge, so the synth hears a glide stop short there.
+    */
+    struct BendOverflow
+    {
+        float asked = 0.0f;     // how far the bend was asked to go, in semitones from rest; 0: none went past its range
+        float range = 0.0f;     // the bend range it was scaled to, in semitones
+
+        bool isEmpty() const noexcept                       { return asked <= 0.0f; }
+
+        /** How far it was asked to go, in whole semitones (rounded up). */
+        int semitonesReached() const noexcept;
+
+        /** The smallest of the usual bend ranges (12, 24, 48 or 96 semitones) it would have fitted. */
+        int suggestedRange() const noexcept;
+    };
+
+    /** The furthest a pitch bend went past its range since the last call: a note's glide past the
+        per-note range (in single-channel mode the zone's pitch is added and the zone range applies),
+        or a zone bend past the zone range. Empty when every bend fitted. Starts the count again.
+    */
+    BendOverflow takeBendOverflow() noexcept;
+
     static int semitonesToPitchBend (float semitones, float range) noexcept;
     static double semitonesToPitchBendFine (float semitones, float range) noexcept;
     static float pitchBendToSemitones (int value, float range) noexcept;
@@ -125,8 +148,10 @@ private:
     float tailPitch = 0.0f, tailPressure = 0.0f; // the last released note's, standing in for a lead until the next note
     bool timbreFromNote = false;                // single channel's timbre was last set by a note, not the zone
     std::bitset<128> noteControllers;           // single channel's controllers last set by a note's lane, not the zone
+    BendOverflow overflow;                      // the furthest a bend went past its range since it was last taken
 
     bool isSingleChannelMode() const noexcept;
+    void bendAsked (float semitones, float range) noexcept;
     bool combinesZonePressure() const noexcept;
     int zoneForKey (int key) const noexcept;
     int chooseMemberChannel (juce::MidiBuffer&, int samplePos, int zone, int key);

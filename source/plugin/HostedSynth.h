@@ -114,13 +114,24 @@ public:
     */
     void process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, juce::AudioPlayHead* playHead);
 
+    /** Audio thread, after process(): with one copy per note, the furthest a copy's pitch bend went
+        past the Zone bend range since the last call (CopyRouter::takeBendOverflow()); otherwise empty. */
+    MpeEncoder::BendOverflow takeCopyBendOverflow() noexcept     { return router.takeBendOverflow(); }
+
     /** Audio thread, before process(): the MPE layout the MIDI is in. A CLAP synth uses it to turn
         the MPE into CLAP note expressions, and a VST3 synth that needs them into VST3 ones.
     */
     void setOutputSettings (const OutputSettings& settings) noexcept   { outputSettings = settings; }
 
-    /** How the synth is played with these settings, for showing to the user. Message thread. */
-    juce::String describeConnection (const OutputSettings&) const;
+    /** How the synth is played with these settings, for showing to the user. With Plain MIDI or one
+        copy per note, also where the synth's own pitch-bend range is set, if MPE Roll knows, and a
+        glide that stopped short at it lately (MpeRollProcessor::getRecentBendOverflow()). Message thread. */
+    juce::String describeConnection (const OutputSettings&, const MpeEncoder::BendOverflow& recent = {}) const;
+
+    /** The part of describeConnection() about the synth's own pitch-bend range, which Plain MIDI and
+        one copy per note bend within: what to set it to, where it is if MPE Roll knows the synth, and
+        a glide that stopped short at it lately. Message thread. */
+    juce::String describeBendRange (const OutputSettings&, const MpeEncoder::BendOverflow& recent) const;
 
     /** Whether these settings play the synth with CLAP or VST3 note expressions rather than MIDI. Message thread. */
     bool playsNoteExpressions (const OutputSettings&) const;
