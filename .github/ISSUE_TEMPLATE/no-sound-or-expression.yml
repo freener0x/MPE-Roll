@@ -1,0 +1,58 @@
+name: No sound, or expression that doesn't reach the synth
+description: The synth is silent, bends every note together, or glides, pressure or timbre do nothing or the wrong thing.
+title: "<synth>: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most of these are the synth's own settings: its MPE switch, its pitch-bend range, what its preset routes aftertouch and CC74 to. **MPE settings › Synth is played with** says how MPE Roll plays it and what to set, and the [FL Studio guide's troubleshooting table](https://freener0x.github.io/MPE-Roll/FL_STUDIO.html#troubleshooting) has the usual cases. If that didn't settle it, fill this in.
+  - type: input
+    id: synth
+    attributes:
+      label: The synth
+      description: Its name, version and format (VST3, VST2, CLAP), and the preset if it matters.
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Synth expects (MPE settings)
+      options:
+        - MPE
+        - Plain MIDI
+        - One copy per note (any synth)
+        - Note expressions (CLAP, VST3)
+    validations:
+      required: true
+  - type: textarea
+    id: played_with
+    attributes:
+      label: Synth is played with
+      description: The text of MPE settings › Synth is played with, as is.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: happens
+    attributes:
+      label: What happens, and what you expected
+      description: Which lane (glide, vibrato, pressure, timbre, a controller), on one note or on all of them, and what you hear.
+    validations:
+      required: true
+  - type: textarea
+    id: synth_settings
+    attributes:
+      label: The synth's own settings
+      description: Its MPE switch, its pitch-bend range (up and down), mono, legato or glide, and what aftertouch and CC74 are routed to, as far as you know.
+  - type: input
+    id: build
+    attributes:
+      label: MPE Roll build
+      description: The line at the bottom of MPE Roll's File menu, e.g. "MPE Roll 0.1.0, build 63, f2ea3c4, 2026-10-26".
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: FL Studio and Windows (or macOS) versions
+      placeholder: FL Studio 26.1.7, Windows 11 24H2

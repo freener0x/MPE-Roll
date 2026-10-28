@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: The FL Studio guide's troubleshooting table
+    url: https://freener0x.github.io/MPE-Roll/FL_STUDIO.html#troubleshooting
+    about: The usual problems and what to do about them, worth a look before opening an issue.
+  - name: Which synths have MPE, and where their switch is
+    url: https://freener0x.github.io/MPE-Roll/MPE_SYNTHS.html
+    about: Hundreds of instruments, checked against their makers' documentation. Corrections are welcome as issues.

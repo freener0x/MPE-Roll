@@ -1,0 +1,29 @@
+name: Something else is wrong
+description: A crash, a note or glide that comes out wrong, a window problem, a tool that misbehaves.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, step by step, and what happened instead of what you expected.
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: MPE Roll build
+      description: The line at the bottom of MPE Roll's File menu, e.g. "MPE Roll 0.1.0, build 63, f2ea3c4, 2026-10-26".
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: FL Studio and Windows (or macOS) versions, and MPE Roll's format
+      placeholder: FL Studio 26.1.7, Windows 11 24H2, VST3
+  - type: textarea
+    id: crash
+    attributes:
+      label: Crash report or log
+      description: "For a crash of the standalone app, %APPDATA%\\MPE Roll\\Crash report.txt; in FL Studio, FL's own crash message. If a synth is involved, the plugin log (Load synth… › Show the plugin log)."
+      render: text
