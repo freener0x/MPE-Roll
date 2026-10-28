@@ -10,7 +10,7 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 ## 1. Install
 
 1. Download a build (see
-   [Downloading a build](https://github.com/freener0x/mpe-roll#downloading-a-build)) or build it
+   [Downloading a build](https://github.com/freener0x/MPE-Roll#downloading-a-build)) or build it
    yourself.
 2. On Windows, close FL Studio and run the installer, `MPE-Roll-Setup-build-N.exe` (if Windows says
    *Windows protected your PC*, choose *More info*, then *Run anyway*). For the VST2, pick one of the

@@ -758,7 +758,7 @@ public:
         if (info == nullptr)
             return kInvalidArgument;
 
-        *info = PFactoryInfo (vendorName, "https://github.com/freener0x/mpe-roll", "", PFactoryInfo::kUnicode);
+        *info = PFactoryInfo (vendorName, "https://github.com/freener0x/MPE-Roll", "", PFactoryInfo::kUnicode);
         return kResultOk;
     }
 

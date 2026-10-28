@@ -4,5 +4,5 @@
     ui/DonateData.h, so Support works without the website.) */
 namespace mperoll::links
 {
-    inline constexpr const char* repository = "https://github.com/freener0x/mpe-roll";
+    inline constexpr const char* repository = "https://github.com/freener0x/MPE-Roll";
 }

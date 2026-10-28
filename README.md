@@ -322,9 +322,9 @@ MPE Roll is free and open source, with no ads and no tracking. If it helps you, 
 going: see [DONATE.md](DONATE.md) (Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code).
 Inside the plugin, *File > Support MPE Roll* (or the link at the foot of *MPE settings*) opens the
 same details in a window of its own, QR codes and Copy buttons included, with nothing to load from
-the web. The page is also on MPE Roll's website, <https://freener0x.github.io/mpe-roll/donate.html>.
+the web. The page is also on MPE Roll's website, <https://freener0x.github.io/MPE-Roll/donate.html>.
 
-The website (<https://freener0x.github.io/mpe-roll/>) is the `docs/` folder, which GitHub Pages
+The website (<https://freener0x.github.io/MPE-Roll/>) is the `docs/` folder, which GitHub Pages
 builds with Jekyll in GitHub's Cayman theme (*Settings › Pages › Build and deployment*: *Deploy from a
 branch*, `main`, `/docs`). Its front page and Support page are made by `tools/make_donate_page.py`,
 and the FL Studio guide and the list of synths become pages as they are. `docs/_config.yml` says how
