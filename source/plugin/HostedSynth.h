@@ -71,6 +71,15 @@ public:
     /** Whether two descriptions are the same synth: same format and plugin ID, wherever installed. */
     static bool isSameSynth (const juce::PluginDescription&, const juce::PluginDescription&);
 
+    /** Whether two descriptions are the same product (name and maker), whatever the format or file:
+        two installs of one plugin, or its VST2 and VST3. */
+    static bool isSameProduct (const juce::PluginDescription&, const juce::PluginDescription&);
+
+    /** The descriptions with names that tell them apart in a menu: one whose name another shares gets
+        its format added, and one whose name and format another shares (a second install) its folder
+        too. The order is kept, so an index into the result indexes the originals. */
+    static juce::Array<juce::PluginDescription> withDistinctNames (const juce::Array<juce::PluginDescription>&);
+
     /** Whether the file is one of FL Studio's own plugins (Harmor, Sytrus...), which come in
         Image-Line's own format: only FL can load them, so loadFromFile finds nothing in them.
     */
@@ -89,6 +98,11 @@ public:
 
     /** The name of a synth saved in the project that couldn't be loaded (e.g. not installed here). */
     juce::String getMissingSynthName() const;
+
+    /** Why the project's synth wasn't loaded when the project was opened, if it wasn't: FL Studio or
+        MPE Roll closed while it was loading last time, so it's left for the user to load by name
+        (Load synth), which forgets that. Empty otherwise. Message thread. */
+    juce::String getLoadProblem() const                 { return loadProblem; }
     juce::AudioPluginInstance* getInstance() const      { return instance.get(); }
 
     /** What the loaded synth is, or nullptr when none is loaded. Message thread. */
@@ -555,6 +569,9 @@ private:
     juce::String copiesProblem;                         // why loading stopped short
     juce::int64 lastCopyMegabytes = 0;                  // memory the last copy took when loaded
     juce::String loadingMarker;                         // this instance's key for "loading copies now"
+    juce::String synthLoadingMarker;                    // ...and for "loading the synth now"
+    bool retryingLoad = false;                          // load() is the one more try after the scanner found the plugin works
+    juce::String loadProblem;                           // why the project's synth wasn't loaded, for the user
     std::vector<std::function<void()>> copiesLoadedCallbacks;
 
     struct SoundCopy
@@ -673,7 +690,10 @@ private:
     void finishLoadFromFile (const juce::File&, PluginScanner::Outcome, juce::OwnedArray<juce::PluginDescription>& found,
                              LoadCallback, const std::function<void()>& onChecked);
     void explainLoadFailure (const juce::PluginDescription&, const juce::String& error, const LoadDiagnosis::PreFlight&,
-                             int generation, LoadCallback);
+                             int generation, bool retry, LoadCallback);
+    void setSynthLoadingMarker (const juce::PluginDescription* loading);    // nullptr: done loading
+    bool synthLoadBlockedAfterCrash (const juce::PluginDescription&);
+    void forgetSynthCrash (const juce::PluginDescription&);
     void stopCheck();
     void configure (juce::AudioPluginInstance& plugin);
     void countHeldNotes (const juce::MidiBuffer&) noexcept;

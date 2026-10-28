@@ -859,6 +859,36 @@ int selfTest()
     processor.prepareToPlay (48000.0, 512);
     auto& document = processor.getDocument();
 
+    std::printf ("Same-named plugins are told apart in the synth menu\n");
+    {
+        const auto plugin = [] (const juce::String& name, const juce::String& format, const juce::File& file)
+        {
+            juce::PluginDescription d;
+            d.name = name;
+            d.pluginFormatName = format;
+            d.fileOrIdentifier = file.getFullPathName();
+            return d;
+        };
+
+        // Two installs of Analog Lab, as a user had: the same name, and the same format twice.
+        const auto base = juce::File::getSpecialLocation (juce::File::tempDirectory);
+        const auto arturia = base.getChildFile ("Arturia"), x64 = arturia.getChildFile ("Analog Lab V").getChildFile ("x64");
+        juce::Array<juce::PluginDescription> types;
+        types.add (plugin ("Pigments", "VST3", base.getChildFile ("Pigments.vst3")));
+        types.add (plugin ("Analog Lab V", "VST3", x64.getChildFile ("Analog Lab V.vst3")));
+        types.add (plugin ("Analog Lab V", "VST", arturia.getChildFile ("Analog Lab V.dll")));
+        types.add (plugin ("Analog Lab V", "VST", x64.getChildFile ("Analog Lab V.dll")));
+
+        const auto shown = HostedSynth::withDistinctNames (types);
+        check (shown.size() == 4 && shown[0].name == "Pigments", "a name of its own stays as it is");
+        check (shown[1].name == "Analog Lab V (VST3)", "one sharing its name gets its format");
+        check (shown[2].name == "Analog Lab V (VST, " + arturia.getFullPathName() + ")"
+                   && shown[3].name == "Analog Lab V (VST, " + x64.getFullPathName() + ")",
+               "two installs of one plugin get their folders");
+        check (shown[2].fileOrIdentifier == types[2].fileOrIdentifier && shown[3].fileOrIdentifier == types[3].fileOrIdentifier,
+               "in the same order, so a pick finds its plugin");
+    }
+
     std::printf ("Live input passes through as MPE\n");
     {
         playHead.playing = false;
@@ -3154,7 +3184,7 @@ int scanTest (const juce::File& scanner, const juce::File& synthFile, const juce
 
 // A load that fails says why: the system's reason for a file it can't load, and otherwise the step
 // that failed when the scanner retraced the load (LoadDiagnosis).
-int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const juce::File& vst2Synth)
+int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const juce::File& vst2Synth, const juce::File& flakySynth)
 {
     Check check;
     PluginScanner::setExecutableForTesting (scanner);
@@ -3163,22 +3193,42 @@ int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const 
     folder.createDirectory();
     PluginLog::setFileForTesting (folder.getChildFile ("Plugin log.txt"));
 
-    const auto load = [&check] (const juce::PluginDescription& description)
-    {
-        HostedSynth synth;
-        juce::String error;
-        bool answered = false;
-        synth.load (description, [&] (const juce::String& e) { error = e; answered = true; });
+    // The settings every synth here shares (where loading markers go), in a file of the test's own:
+    // kept open by this one for as long as the test runs.
+    HostedSynth keeper;
+    keeper.useSettingsFile (folder.getChildFile ("MPE Roll.settings"));
 
+    const auto waitFor = [] (bool& answered)
+    {
         const auto end = juce::Time::getMillisecondCounterHiRes() + 120000.0;
 
         while (! answered && juce::Time::getMillisecondCounterHiRes() < end)
             juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
 
+        return answered;
+    };
+
+    const auto load = [&check, &waitFor] (const juce::PluginDescription& description)
+    {
+        HostedSynth synth;
+        juce::String error;
+        bool answered = false;
+        synth.load (description, [&] (const juce::String& e) { error = e; answered = true; });
+        waitFor (answered);
+
         check (answered && ! synth.isLoaded() && ! synth.isLoading() && ! synth.isFindingOutWhy(),
                "  (" + description.name + " didn't load, and the answer came)");
         std::printf ("    %s\n", error.replace ("\n", "\n    ").toRawUTF8());
         return error;
+    };
+
+    /** Loads into a synth that stays, and answers with the error (or "no answer"). */
+    const auto loadInto = [&waitFor] (HostedSynth& synth, const juce::PluginDescription& description)
+    {
+        juce::String error;
+        bool answered = false;
+        synth.load (description, [&] (const juce::String& e) { error = e; answered = true; });
+        return waitFor (answered) ? error : juce::String ("no answer");
     };
 
     const auto describeOnly = [] (const juce::File& file)
@@ -3329,6 +3379,125 @@ int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const 
             check (error.contains ("couldn't find out why MPE Roll Test Synth didn't load") && error.contains ("older than this MPE Roll"),
                    "a failed load says the scanner couldn't find out why, and that it's out of date");
         }
+    }
+
+    PluginScanner::setExecutableForTesting (scanner);
+
+   #if JUCE_PLUGINHOST_VST
+    std::printf ("A plugin that won't start the first time in a process is loaded again once the scanner finds it works\n");
+    if (flakySynth.existsAsFile())
+    {
+        // Described by hand: asking the file for its plugins would be its first start in this process.
+        juce::PluginDescription d;
+        d.pluginFormatName = "VST";
+        d.name = "MPE Roll Flaky Test Synth";
+        d.manufacturerName = "Glowing Pancake";
+        d.fileOrIdentifier = flakySynth.getFullPathName();
+        d.uniqueId = d.deprecatedUid = 0x466c6b79;    // 'Flky'
+        d.numOutputChannels = 2;
+        d.isInstrument = true;
+
+        HostedSynth synth;
+        const auto error = loadInto (synth, d);
+        std::printf ("    %s\n", error.isEmpty() ? "loaded" : error.replace ("\n", "\n    ").toRawUTF8());
+        check (error.isEmpty() && synth.isLoaded(), "it loads, on the second try");
+        const auto log = PluginLog::tail (40);
+        check (log.contains ("started in a separate process when MPE Roll called it directly"), "the scanner having started it directly");
+        const bool retried = log.contains ("Loading it again, since it works in a separate process")
+                          && log.contains ("Loading again MPE Roll Flaky Test Synth");
+        check (retried, "and MPE Roll loaded it again by itself");
+
+        if (! retried)
+            std::printf ("%s\n", log.replace ("\n", "\n      ").toRawUTF8());
+
+        synth.unload();
+    }
+    else
+    {
+        std::printf ("  (no flaky test synth given: not checked)\n");
+    }
+   #endif
+
+    std::printf ("Another install of the loaded synth: the first is let go before the second loads\n");
+    if (realVst3.name.isNotEmpty())
+    {
+        // A copy of the VST3 test synth in another folder, as a second install is.
+        const juce::File bundle (realVst3.fileOrIdentifier);
+        const auto secondFolder = folder.getChildFile ("second install");
+        secondFolder.createDirectory();
+        const auto copy = secondFolder.getChildFile (bundle.getFileName());
+        const auto copied = bundle.isDirectory() ? bundle.copyDirectoryTo (copy) : bundle.copyFileTo (copy);
+        const auto second = describeOnly (copy);
+        check (copied && second.name == realVst3.name && second.fileOrIdentifier == copy.getFullPathName(),
+               "a copy of the synth in another folder is found there");
+
+        HostedSynth synth;
+        check (loadInto (synth, realVst3).isEmpty() && synth.isLoaded(), "the first install loads");
+        check (loadInto (synth, second).isEmpty() && synth.isLoaded() && synth.getDescription() != nullptr
+                   && synth.getDescription()->fileOrIdentifier == copy.getFullPathName(),
+               "and the second loads in its place");
+        check (PluginLog::tail (30).contains ("first: another install of it is about to be loaded"), "the first let go before it");
+        synth.unload();
+    }
+
+    std::printf ("A synth that took the program down while loading isn't loaded again by a project on its own\n");
+    if (realVst3.name.isNotEmpty())
+    {
+        auto* settings = keeper.getUserSettings();
+        check (settings != nullptr, "the test has settings of its own");
+
+        const auto processId = CopySafety::getProcessId();
+        const auto started = CopySafety::getProcessStartTime (processId);
+        const auto identity = realVst3.name + "|" + realVst3.pluginFormatName + ":"
+                            + juce::String (realVst3.uniqueId != 0 ? realVst3.uniqueId : realVst3.deprecatedUid) + "|" + realVst3.fileOrIdentifier;
+        const auto markers = [settings]
+        {
+            int count = 0;
+
+            for (const auto& key : settings->getAllProperties().getAllKeys())
+                count += key.startsWith ("synthLoading.") ? 1 : 0;
+
+            return count;
+        };
+
+        // The project names the synth.
+        juce::XmlElement project ("HostedSynth");
+        project.addChildElement (realVst3.createXml().release());
+
+        const auto restoreInto = [&waitFor, &project] (HostedSynth& synth)
+        {
+            juce::String error;
+            bool answered = false;
+            synth.restoreState (project, [&] (const juce::String& e) { error = e; answered = true; });
+            return waitFor (answered) ? error : juce::String ("no answer");
+        };
+
+        // What a run that closed while loading it leaves behind: its process ID has since gone to
+        // another process (this one), which started later, so it isn't the one.
+        settings->setValue ("synthLoading.earlier", "another run|" + juce::String (processId) + "@" + juce::String (started - 1) + "|" + identity);
+
+        HostedSynth synth;
+        auto error = restoreInto (synth);
+        std::printf ("    %s\n", error.toRawUTF8());
+        check (! synth.isLoaded() && error.contains ("closed while it was loading last time") && synth.getLoadProblem() == error,
+               "the project opens without it, and says why");
+        check (synth.getMissingSynthName() == realVst3.name, "the synth button can name it");
+        check (! settings->containsKey ("synthLoading.earlier") && settings->getValue ("synthCrashedWhileLoading").contains (identity),
+               "the marker is gone, and the crash remembered");
+
+        // Picked by name, it loads, and the crash is forgotten.
+        error = loadInto (synth, realVst3);
+        check (error.isEmpty() && synth.isLoaded() && synth.getLoadProblem().isEmpty(), "Load synth loads it");
+        check (! settings->getValue ("synthCrashedWhileLoading").contains (identity) && markers() == 0,
+               "the crash is forgotten, and no marker is left once it has loaded");
+
+        // Another program loading it right now (the MPE Roll app beside FL, say) isn't a crash.
+        settings->setValue ("synthLoading.elsewhere", "another program|" + juce::String (processId) + "@" + juce::String (started) + "|" + identity);
+        synth.unload();
+        check (restoreInto (synth).isEmpty() && synth.isLoaded(), "a running program's marker doesn't keep a project from loading it");
+        check (settings->containsKey ("synthLoading.elsewhere"), "and is left for it");
+        settings->removeValue ("synthLoading.elsewhere");
+        synth.unload();
     }
 
     PluginScanner::setExecutableForTesting ({});
@@ -4251,7 +4420,8 @@ int main (int argc, char** argv)
                          cwd.getChildFile (args[4]));
 
     if (args.size() >= 4 && args[0] == "loadfailtest")
-        return loadFailTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]), cwd.getChildFile (args[3]));
+        return loadFailTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]), cwd.getChildFile (args[3]),
+                             args.size() >= 5 ? cwd.getChildFile (args[4]) : juce::File());
 
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"

@@ -318,6 +318,8 @@ void MpeRollEditor::refreshToolbar()
         toolbar.synthButton.setButtonText ("Loading...");
     else if (synth.isLoaded())
         toolbar.synthButton.setButtonText (synth.getName() + dropDownArrow);
+    else if (synth.getLoadProblem().isNotEmpty())
+        toolbar.synthButton.setButtonText ("Not loaded: " + synth.getMissingSynthName() + dropDownArrow);
     else if (synth.getMissingSynthName().isNotEmpty())
         toolbar.synthButton.setButtonText ("Missing: " + synth.getMissingSynthName() + dropDownArrow);
     else
@@ -624,8 +626,20 @@ void MpeRollEditor::showSynthMenu()
 {
     auto& synth = rollProcessor.getSynth();
     const auto types = synth.getInstrumentTypes();
+
+    // Two installs of one plugin would otherwise be two lines reading the same.
+    const auto shown = HostedSynth::withDistinctNames (types);
     const auto* instance = synth.getInstance();
-    const auto currentId = instance != nullptr ? instance->getPluginDescription().createIdentifierString() : juce::String();
+    juce::String currentId;
+
+    if (instance != nullptr)
+    {
+        const auto loadedId = instance->getPluginDescription().createIdentifierString();
+
+        for (int i = 0; i < types.size(); ++i)
+            if (types[i].createIdentifierString() == loadedId)
+                currentId = shown[i].createIdentifierString();
+    }
 
     enum { scanId = -2, browseId = -3, unloadId = -4, windowBackId = -5, logId = -6 };
 
@@ -634,7 +648,7 @@ void MpeRollEditor::showSynthMenu()
     if (types.isEmpty())
         menu.addItem (-1, "No synths found yet: scan first", false);
     else
-        juce::KnownPluginList::addToMenu (menu, types, juce::KnownPluginList::sortByManufacturer, currentId);
+        juce::KnownPluginList::addToMenu (menu, shown, juce::KnownPluginList::sortByManufacturer, currentId);
 
     menu.addSeparator();
     menu.addItem (scanId, "Scan for plugins...");
@@ -650,7 +664,7 @@ void MpeRollEditor::showSynthMenu()
     menu.addItem (logId, "Show the plugin log (what happened when synths loaded)");
 
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.synthButton),
-                        [safe = juce::Component::SafePointer<MpeRollEditor> (this), types] (int result)
+                        [safe = juce::Component::SafePointer<MpeRollEditor> (this), types, shown] (int result)
     {
         if (safe == nullptr || result == 0)
             return;
@@ -665,7 +679,7 @@ void MpeRollEditor::showSynthMenu()
             safe->rollProcessor.getSynth().bringEditorOnScreen (safe.getComponent());
         else if (result == logId)
             PluginLog::reveal();
-        else if (const auto index = juce::KnownPluginList::getIndexChosenByMenu (types, result); index >= 0)
+        else if (const auto index = juce::KnownPluginList::getIndexChosenByMenu (shown, result); index >= 0)
             safe->loadSynth (types[index]);
     });
 }

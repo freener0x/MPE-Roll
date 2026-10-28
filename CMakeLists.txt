@@ -415,6 +415,21 @@ if(MPEROLL_BUILD_DEV_TOOLS)
         target_compile_definitions(MpeRollHangingTestPlugin PRIVATE MPEROLL_TEST_PLUGIN_HANGS=1)
     endif()
 
+    # A VST2 plugin that won't start the first time it's called in a process and starts the second
+    # time, as one waiting for a licence check might: for the check that MPE Roll loads such a plugin
+    # again by itself once the scanner finds it works on its own (tools/FlakyTestSynth.cpp).
+    if(MPEROLL_HOST_VST2)
+        add_library(MpeRollFlakyTestSynth MODULE tools/FlakyTestSynth.cpp)
+        target_include_directories(MpeRollFlakyTestSynth PRIVATE third_party/fst)
+        target_link_libraries(MpeRollFlakyTestSynth
+            PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+        set_target_properties(MpeRollFlakyTestSynth PROPERTIES
+            PREFIX ""
+            OUTPUT_NAME "MPE Roll Flaky Test Synth"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/MpeRollFlakyTestSynth_artefacts/$<CONFIG>"
+            CXX_VISIBILITY_PRESET hidden)
+    endif()
+
     # A sine synth as a VST3 plugin written straight against the VST3 SDK's interfaces, not JUCE. It
     # takes per-note pitch only from VST3 note expressions and maps pitch bend on MIDI channel 1 only,
     # so (as JUCE's VST3 host drops MPE's bends on the other channels) it checks MPE Roll's MPE to VST3

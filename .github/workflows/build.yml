@@ -71,6 +71,7 @@ jobs:
       VST2_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST/MPE Roll Test Synth.dll
       PLAIN_VST3_SYNTH: build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3
       PLAIN_VST2_SYNTH: build/MpeRollPlainTestSynth_artefacts/Release/VST/MPE Roll Plain Test Synth.dll
+      FLAKY_SYNTH: build/MpeRollFlakyTestSynth_artefacts/Release/MPE Roll Flaky Test Synth.dll
       CLAP_SYNTH: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap
       NOTE_EXPRESSION_SYNTH: build/MpeRollVst3NoteExpressionTestSynth_artefacts/Release/MPE Roll Note Expression Test Synth.vst3
       SCANNER: build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe
@@ -88,7 +89,7 @@ jobs:
         run: >
           cmake --build build --config Release --parallel --target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone
           MpeRollScanner MpeRollTests MpeRollHarness MpeRollTestSynth_VST3 MpeRollTestSynth_VST MpeRollClapTestSynth
-          MpeRollPlainTestSynth_VST3 MpeRollPlainTestSynth_VST
+          MpeRollPlainTestSynth_VST3 MpeRollPlainTestSynth_VST MpeRollFlakyTestSynth
           MpeRollVst3NoteExpressionTestSynth MpeRollCrashingTestPlugin MpeRollHangingTestPlugin
 
       - name: Test
@@ -149,7 +150,7 @@ jobs:
         run: '"$HARNESS" scantest "$SCANNER" "$VST3_SYNTH" "$CRASHING_PLUGIN" "$HANGING_PLUGIN"'
 
       - name: A failed load says why (Windows' reason, or the step the scanner found failing)
-        run: '"$HARNESS" loadfailtest "$SCANNER" "$VST3_SYNTH" "$VST2_SYNTH"'
+        run: '"$HARNESS" loadfailtest "$SCANNER" "$VST3_SYNTH" "$VST2_SYNTH" "$FLAKY_SYNTH"'
 
       - name: Package
         shell: pwsh
@@ -357,6 +358,7 @@ jobs:
           "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner"
           "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
           "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"
+          "build/MpeRollFlakyTestSynth_artefacts/Release/MPE Roll Flaky Test Synth.so"
 
   # The website (docs/), built as GitHub Pages builds it after a merge to main: Jekyll with the
   # Cayman theme. Built for every change, documentation included, since that's what it's made of.

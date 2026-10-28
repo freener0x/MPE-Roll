@@ -620,7 +620,7 @@ namespace mperoll::knownsynths
           "", "" },
         { "Analog Lab (Pro, V)", "analoglab", "", "", "", Mpe::no,
           "Arturia says Analog Lab itself has no MPE. For each note's own expression, load the instrument itself: Pigments, or a V Collection instrument with an Enable MPE setting. Set Synth expects to Plain MIDI, or to One copy per note for each note's own glides.",
-          "", "Analog Lab has no bend-range setting of its own: each preset's instrument has one, usually 2 (user reports), set inside the full instrument (Open instrument, which needs that instrument's licence). If you can't change it, leave Zone bend range at 2." },
+          "", "Analog Lab's Settings tab (the right-hand panel) changes with the preset's instrument and, for instruments that have one (Augmented VOICES, say), holds its pitch-bend range: set it there to 12 or 24, and Zone bend range to the same. A preset whose instrument shows none keeps its own, usually 2: leave Zone bend range at 2 for it." },
         { "ARP 2600 V3", "arp2600v3", "", "arturia", "", Mpe::undocumented,
           "Arturia doesn't mention MPE for ARP 2600 V3, so it most likely has none. Set Synth expects to Plain MIDI, or to One copy per note for each note's own glides.",
           "", "" },
