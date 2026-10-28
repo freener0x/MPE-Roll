@@ -43,7 +43,7 @@ except ImportError:  # pragma: no cover - depends on the machine
     sys.exit("This script needs the segno package: pip install segno")
 
 PROJECT = "MPE Roll"
-REPO_URL = "https://github.com/freener0x/mpe-roll"
+REPO_URL = "https://github.com/freener0x/MPE-Roll"
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / "docs" / "donate.json"
 QR_DIR = ROOT / "docs" / "donate"
