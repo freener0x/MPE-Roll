@@ -1,0 +1,14 @@
+# GitHub Pages serves the docs/ folder (Settings > Pages > Build and deployment: the branch, folder
+# /docs), which has a .nojekyll file, so this file isn't read then. Should Pages be set to build
+# from the repository root instead, this keeps everything but docs/ out of the published site: the
+# repository is private, and its code isn't to be published by the website.
+exclude:
+  - CMakeLists.txt
+  - DONATE.md
+  - LICENSE
+  - README.md
+  - cmake
+  - source
+  - tests
+  - third_party
+  - tools

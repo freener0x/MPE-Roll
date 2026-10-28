@@ -1,0 +1,17 @@
+{
+  "$comment": "Donation details for DONATE.md, docs/donate.html, docs/index.html, .github/FUNDING.yml and the plugin's own Support window (source/plugin/ui/DonateData.h), all made by tools/make_donate_page.py. Empty values are left out. pageUrl is where GitHub Pages serves docs/donate.html. repoPublic: false while the repository is private, so the web pages link to nothing in it (visitors would get a 404); set it to true once the repository is public.",
+  "pageUrl": "https://freener0x.github.io/glowing-pancake/donate.html",
+  "repoPublic": false,
+  "cashApp": "$freener",
+  "paypal": "",
+  "checkout": "",
+  "githubSponsors": "",
+  "liberapay": "",
+  "crypto": {
+    "BTC": "bc1qw07yj62hae5nflfz6pwt8yyr57377adkclsy3t",
+    "ETH": "0x79Ff39eCD0D2520c5353e011ac1317C51dc2AC3A",
+    "SOL": "7eE8qckeA15wD3FVjG3R6Uuw1eVrZmWohP5pS8hDFfp3",
+    "XMR": "84L4Twd2DcNjHevR6qUzz8fnLDzmyyLZohwG8Zs5hSmtUWMPFRjdefvPJX2L89wZcahvCCgpBRwZRcP84V3vzHWPNqHx4TR"
+  },
+  "ethNetwork": "Ethereum mainnet"
+}

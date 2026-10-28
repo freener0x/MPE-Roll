@@ -1,0 +1,361 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      macos:
+        description: Build the macOS bundles as well
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Each build names itself inside the plugin (File menu, MPE settings, plugin log) with the run
+# number, the commit and the date, so a tester can tell which build their DAW loaded. For a pull
+# request that's the branch's own commit, not the merge commit GitHub builds.
+env:
+  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  # Runner minutes are paid for, so a push that only touches documentation builds nothing, and the
+  # macOS bundles (ten minutes of allowance for each real minute) are built on request (Run workflow)
+  # and for pushes to main rather than for every pull request push.
+  changes:
+    name: What changed
+    runs-on: ubuntu-24.04
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Did anything but documentation change?
+        id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          code=true
+          # A pull request opening, a new branch, a force-push or a manual run has no earlier commit
+          # to compare with, so everything is built.
+          if [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            changed=$(git diff --name-only "$BEFORE" "$AFTER")
+            printf 'Changed since %s:\n%s\n' "$BEFORE" "$changed"
+            if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qvE '(^|/)[^/]*\.md$|^docs/|^LICENSE'; then
+              code=false
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Build the code: $code"
+
+      # docs/MPE_SYNTHS.md and the plugin's list of synths are made from docs/synths.json, so a change
+      # to one without the other shows here, documentation-only pushes included.
+      - name: The synth list matches docs/synths.json
+        run: python3 tools/make_synth_list.py --check
+
+  windows:
+    name: Windows (VST3, Standalone)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      HARNESS: build/MpeRollHarness_artefacts/Release/MpeRollHarness.exe
+      VST3_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3
+      VST2_SYNTH: build/MpeRollTestSynth_artefacts/Release/VST/MPE Roll Test Synth.dll
+      PLAIN_VST3_SYNTH: build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3
+      PLAIN_VST2_SYNTH: build/MpeRollPlainTestSynth_artefacts/Release/VST/MPE Roll Plain Test Synth.dll
+      CLAP_SYNTH: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap
+      NOTE_EXPRESSION_SYNTH: build/MpeRollVst3NoteExpressionTestSynth_artefacts/Release/MPE Roll Note Expression Test Synth.vst3
+      SCANNER: build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe
+      CRASHING_PLUGIN: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Crashing Test Plugin.clap
+      HANGING_PLUGIN: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Hanging Test Plugin.clap
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -A x64 -DMPEROLL_BUILD_DEV_TOOLS=ON
+          -DMPEROLL_BUILD_ID="build ${{ github.run_number }}, ${HEAD_SHA::7}, $(date -u +%F)"
+
+      - name: Build
+        run: >
+          cmake --build build --config Release --parallel --target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone
+          MpeRollScanner MpeRollTests MpeRollHarness MpeRollTestSynth_VST3 MpeRollTestSynth_VST MpeRollClapTestSynth
+          MpeRollPlainTestSynth_VST3 MpeRollPlainTestSynth_VST
+          MpeRollVst3NoteExpressionTestSynth MpeRollCrashingTestPlugin MpeRollHangingTestPlugin
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # Hosting synths on Windows, with the same checks the Linux job runs.
+      - name: Plugin self-test
+        run: '"$HARNESS" selftest'
+
+      - name: UI interaction test
+        run: '"$HARNESS" uitest'
+
+      - name: Hosted VST3 synth (parameters, render)
+        run: |
+          "$HARNESS" params "$VST3_SYNTH"
+          "$HARNESS" render "$VST3_SYNTH" render.wav
+
+      - name: Hosted VST2 synth (parameters, render)
+        run: |
+          "$HARNESS" params "$VST2_SYNTH"
+          "$HARNESS" render "$VST2_SYNTH" render-vst2.wav
+
+      - name: Hosted CLAP synth (parameters, render, note expressions)
+        run: |
+          "$HARNESS" params "$CLAP_SYNTH"
+          "$HARNESS" render "$CLAP_SYNTH" render-clap.wav
+          "$HARNESS" clapdialect "$CLAP_SYNTH"
+
+      # Windows is where a crashing copy can be caught, so this also checks that one is switched off.
+      - name: One copy per note through a synth without MPE (VST3, VST2)
+        run: |
+          "$HARNESS" copies "$PLAIN_VST3_SYNTH"
+          "$HARNESS" copies "$PLAIN_VST2_SYNTH"
+
+      - name: Hosted VST3 synth that takes MPE only as VST3 note expressions
+        run: |
+          "$HARNESS" render "$NOTE_EXPRESSION_SYNTH" render-vst3-note-expressions.wav
+          "$HARNESS" vst3dialect "$NOTE_EXPRESSION_SYNTH" "$VST3_SYNTH"
+
+      - name: Export the clip as WAV and MP3 (VST3 synth)
+        run: '"$HARNESS" export "$VST3_SYNTH" exported'
+
+      # The standalone app's crash report: the harness installs it and crashes on purpose.
+      - name: Crash report names the crash and the function
+        run: |
+          if "$HARNESS" crashtest crash-report.txt; then echo "The harness didn't crash"; exit 1; fi
+          cat crash-report.txt
+          grep -q "access violation" crash-report.txt
+          grep -q "It tried to write to address 0x0" crash-report.txt
+          grep -q "running the crash test" crash-report.txt
+          grep -q "crashOnPurpose" crash-report.txt
+          if "$HARNESS" crashtest overflow-report.txt overflow; then echo "The harness didn't overflow"; exit 1; fi
+          cat overflow-report.txt
+          grep -q "a stack overflow" overflow-report.txt
+          grep -q "overflowOnPurpose" overflow-report.txt
+
+      - name: Plugin files are looked at in the scanner process (crashing and hanging ones too)
+        run: '"$HARNESS" scantest "$SCANNER" "$VST3_SYNTH" "$CRASHING_PLUGIN" "$HANGING_PLUGIN"'
+
+      - name: A failed load says why (Windows' reason, or the step the scanner found failing)
+        run: '"$HARNESS" loadfailtest "$SCANNER" "$VST3_SYNTH" "$VST2_SYNTH"'
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item -Recurse "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" dist/
+          if (-not (Test-Path "dist/MPE Roll.vst3/Contents/x86_64-win/MPE Roll Scanner.exe")) { throw "The scanner isn't in the VST3 bundle" }
+          Copy-Item "build/MpeRoll_artefacts/Release/VST/MPE Roll.dll" dist/
+          Copy-Item "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe" dist/
+          Copy-Item "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.exe" dist/
+          Copy-Item "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.pdb" dist/
+          Get-ChildItem -Recurse dist | Select-Object FullName, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MPE-Roll-Windows-build-${{ github.run_number }}
+          path: dist
+
+      # The installer, made with Inno Setup from the files just packaged (installer/MpeRoll.iss).
+      - name: Installer
+        shell: pwsh
+        run: |
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE) { throw "Inno Setup couldn't be installed" }
+          }
+          $version = (Select-String -Path CMakeLists.txt -Pattern 'project\(MPE_ROLL VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          $buildName = "build ${{ github.run_number }}, $($env:HEAD_SHA.Substring(0, 7)), $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))"
+          & $iscc /Qp "/DDistDir=$PWD\dist" "/DAppVersion=$version" "/DBuildNumber=${{ github.run_number }}" `
+            "/DBuildName=$buildName" "/DOutputName=MPE-Roll-Setup-build-${{ github.run_number }}" installer\MpeRoll.iss
+          if ($LASTEXITCODE) { throw "ISCC failed with $LASTEXITCODE" }
+
+      - name: Installer installs, upgrades, removes older copies and uninstalls
+        shell: pwsh
+        run: ./installer/test-installer.ps1 -Setup "installer/output/MPE-Roll-Setup-build-${{ github.run_number }}.exe" -Dist dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MPE-Roll-Windows-Setup-build-${{ github.run_number }}
+          path: installer/output/MPE-Roll-Setup-build-${{ github.run_number }}.exe
+          compression-level: 0
+
+  macos:
+    name: macOS (VST3, AU, Standalone)
+    needs: changes
+    # macOS minutes count ten to one against the allowance: built on request, and for main.
+    if: >-
+      needs.changes.outputs.code == 'true'
+      && ((github.event_name == 'workflow_dispatch' && inputs.macos) || github.event_name == 'push')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: brew list ninja || brew install ninja
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+          -DMPEROLL_BUILD_ID="build ${{ github.run_number }}, ${HEAD_SHA::7}, $(date -u +%F)"
+
+      - name: Build
+        run: cmake --build build --parallel --target MpeRoll_VST3 MpeRoll_AU MpeRoll_Standalone MpeRollTests
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      # Artifacts lose file permissions, which would leave the app's executable without its
+      # executable bit. ditto zips the bundles with their permissions kept.
+      - name: Package
+        run: |
+          mkdir -p "MPE Roll"
+          cp -R "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" "MPE Roll/"
+          cp -R "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" "MPE Roll/"
+          cp -R "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app" "MPE Roll/"
+          ditto -c -k --keepParent "MPE Roll" MPE-Roll-bundles.zip
+          ditto -x -k MPE-Roll-bundles.zip unzipped
+          test -x "unzipped/MPE Roll/MPE Roll.app/Contents/MacOS/MPE Roll"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MPE-Roll-macOS-build-${{ github.run_number }}
+          path: MPE-Roll-bundles.zip
+          compression-level: 0
+
+  linux:
+    name: Linux (tests and end-to-end harness)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build xvfb libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxi-dev libxext-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DMPEROLL_BUILD_DEV_TOOLS=ON
+          -DMPEROLL_BUILD_ID="build ${{ github.run_number }}, ${HEAD_SHA::7}, $(date -u +%F)"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      # The same tests under AddressSanitizer, which catches memory errors Linux's allocator lets pass
+      # (a test once read a vector that had already been freed, and only macOS noticed).
+      - name: Unit tests under AddressSanitizer
+        run: |
+          cmake -S . -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMPEROLL_BUILD_PLUGIN=OFF -DMPEROLL_MP3=OFF \
+            -DFETCHCONTENT_SOURCE_DIR_JUCE="$PWD/build/_deps/juce-src" -DFETCHCONTENT_SOURCE_DIR_CLAP="$PWD/build/_deps/clap-src" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer" -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address
+          cmake --build build-asan --parallel --target MpeRollTests
+          ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build-asan --output-on-failure
+
+      - name: Plugin self-test
+        run: xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness selftest
+
+      - name: UI interaction test
+        run: xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness uitest
+
+      - name: Synth parameters exposed for automation
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness params
+          "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
+
+      - name: Render through a hosted MPE synth
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness render
+          "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3" render.wav
+
+      - name: Render through a hosted VST2 synth
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness render
+          "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so" render-vst2.wav
+
+      - name: VST2 synth parameters exposed for automation
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness params
+          "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"
+
+      - name: Render through a hosted CLAP synth (pitch only from note expressions)
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness render
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap" render-clap.wav
+
+      - name: CLAP synth parameters exposed for automation
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness params
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"
+
+      - name: CLAP note expressions switch on and off
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness clapdialect
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"
+
+      - name: One copy per note through a synth without MPE (VST3, VST2)
+        run: |
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness copies \
+            "build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3"
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness copies \
+            "build/MpeRollPlainTestSynth_artefacts/Release/VST/libMPE Roll Plain Test Synth.so"
+
+      # A VST3 synth that maps pitch bend on MIDI channel 1 only (JUCE's VST3 host drops MPE's bends on
+      # the other channels) but takes VST3 note expressions: its notes glide only if MPE Roll sends them.
+      - name: Render through a VST3 synth that takes MPE only as VST3 note expressions
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness render
+          "build/MpeRollVst3NoteExpressionTestSynth_artefacts/Release/MPE Roll Note Expression Test Synth.vst3"
+          render-vst3-note-expressions.wav
+
+      - name: VST3 note expressions, pressure, and switching them on and off
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness vst3dialect
+          "build/MpeRollVst3NoteExpressionTestSynth_artefacts/Release/MPE Roll Note Expression Test Synth.vst3"
+          "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
+
+      - name: Export the clip as WAV and MP3 (VST3, VST2 and CLAP synths)
+        run: |
+          for synth in "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3" \
+                       "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so" \
+                       "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Test Synth.clap"; do
+            xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness export "$synth" exported
+          done
+
+      - name: Plugin files are looked at in the scanner process (crashing and hanging ones too)
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness scantest
+          "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner"
+          "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Crashing Test Plugin.clap"
+          "build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Hanging Test Plugin.clap"
+
+      - name: A failed load says why (the system's reason, or the step the scanner found failing)
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness loadfailtest
+          "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner"
+          "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
+          "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"

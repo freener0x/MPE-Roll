@@ -1,0 +1,5 @@
+#pragma once
+
+// Made by CMake from source/plugin/BuildInfo.h.in.
+#define MPEROLL_VERSION "@PROJECT_VERSION@"
+#define MPEROLL_BUILD_ID "@MPEROLL_BUILD_ID_TEXT@"

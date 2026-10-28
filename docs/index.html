@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>MPE Roll</title>
+<!-- Made by tools/make_donate_page.py. Change the script, not this file. -->
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0f1114; --panel-2: #1f232a; --panel-3: #2a2f38; --line: #2a2f37; --line-strong: #3a414c;
+  --text: #e8eaed; --text-2: #b4bac4; --muted: #858d9a;
+  --accent: #ffab2e; --accent-ink: #1b1204; --focus: #79c0ff;
+  --radius-sm: 4px;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Segoe UI Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #fff4e0; --panel-2: #ffefd4; --panel-3: #ffe3b8; --line: #f1d6ad; --line-strong: #e2b97c;
+    --text: #3b2210; --text-2: #694529; --muted: #8d6a4b;
+    --accent: #e67700; --accent-ink: #ffffff; --focus: #1c7ed6;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--font-ui); }
+main { max-width: 720px; margin: 0 auto; padding: 40px 16px 56px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 10px; }
+section { margin-top: 24px; }
+h2 { font-size: 1.15rem; margin: 34px 0 12px; }
+h3 { font-size: 1rem; margin: 0 0 6px; }
+p { margin: 10px 0 0; }
+.lead { font-size: 1.08rem; color: var(--text-2); }
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.donate-links { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.donate-links li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.button-link {
+  display: inline-block; padding: 9px 16px; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none;
+}
+.button-link:hover { filter: brightness(1.08); }
+.coins { display: flex; flex-direction: column; gap: 16px; }
+.coin { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.coin img { width: 160px; height: 160px; background: #fff; border-radius: var(--radius-sm); }
+.coin > div { flex: 1 1 240px; min-width: 0; }
+.address {
+  display: block; max-width: 420px; overflow-wrap: anywhere; margin: 0 0 8px;
+  font-family: var(--font-mono); font-size: 0.88em; background: var(--panel-2); padding: 4px 8px; border-radius: 4px;
+}
+button {
+  font: inherit; color: var(--text); padding: 7px 12px; border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm); background: var(--panel-2); cursor: pointer; white-space: nowrap; line-height: 1.3;
+}
+button:hover { background: var(--panel-3); }
+footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--line); }
+footer a + a { margin-left: 14px; }
+</style>
+</head>
+<body>
+<main>
+<h1>MPE Roll</h1>
+<p class="lead">An MPE piano roll for FL Studio. Load your synth inside it, and every note gets its own pitch glide, pressure and timbre. Free and open source.</p>
+<section>
+<ul class="donate-links">
+<li><a class="button-link" href="donate.html">Support MPE Roll</a> <span class="muted small">Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code.</span></li>
+</ul>
+</section>
+<footer class="muted small">
+<a href="https://www.gnu.org/licenses/agpl-3.0.html">Free software under the AGPL-3.0</a>
+</footer>
+</main>
+</body>
+</html>
