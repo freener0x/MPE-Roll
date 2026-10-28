@@ -52,6 +52,6 @@ Private by design: your donation stays private too.
 
 In the plugin, *File > Support MPE Roll* shows the same details, QR codes and copy buttons included, in a window of its own.
 
-Once GitHub Pages is switched on for the repository, this page is also online at <https://freener0x.github.io/glowing-pancake/donate.html>.
+This page is also on MPE Roll's website: <https://freener0x.github.io/mpe-roll/donate.html>.
 
 The pages, the plugin's copy, the QR codes and `.github/FUNDING.yml` are made by `tools/make_donate_page.py` from [docs/donate.json](docs/donate.json): change the JSON and run the script rather than editing them.

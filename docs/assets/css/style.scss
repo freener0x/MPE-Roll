@@ -1,0 +1,144 @@
+---
+---
+
+@import "jekyll-theme-cayman";
+
+// MPE Roll's additions to Cayman, in its colours (_sass/variables.scss of the theme).
+
+.project-name a {
+  color: inherit;
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+// The header's buttons: the site's pages, Download and View on GitHub.
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem 1rem;
+
+  .btn {
+    margin: 0;
+  }
+
+  .btn[aria-current="page"] {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.45);
+  }
+
+  @include small {
+    flex-direction: column;
+  }
+}
+
+.main-content {
+  .lead {
+    font-size: 1.15em;
+  }
+
+  .muted {
+    color: $blockquote-text-color;
+  }
+
+  .small {
+    font-size: 0.85em;
+  }
+}
+
+// The Support page: payment links, and each coin's QR code with its address and a Copy button.
+.donate-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.9rem;
+  }
+}
+
+.button-link {
+  display: inline-block;
+  padding: 0.5rem 1.1rem;
+  color: #fff;
+  font-weight: bold;
+  background-color: $header-bg-color;
+  background-image: linear-gradient(120deg, $header-bg-color-secondary, $header-bg-color);
+  border-radius: 0.3rem;
+
+  &:hover {
+    text-decoration: none;
+    filter: brightness(1.1);
+  }
+}
+
+.coins {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.coin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem 1.25rem;
+
+  img {
+    width: 160px;
+    height: 160px;
+    background: #fff;
+    border: 1px solid $border-color;
+    border-radius: 0.3rem;
+  }
+
+  > div {
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+
+  h3 {
+    margin-top: 0;
+  }
+}
+
+.main-content code.address {
+  display: block;
+  max-width: 28rem;
+  margin-bottom: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  overflow-wrap: anywhere;
+}
+
+button[data-copy] {
+  padding: 0.4rem 0.9rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: $body-link-color;
+  white-space: nowrap;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid $border-color;
+  border-radius: 0.3rem;
+
+  &:hover {
+    border-color: $body-link-color;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid $body-link-color;
+  outline-offset: 2px;
+}
+
+.page-header :focus-visible {
+  outline-color: #fff;
+}

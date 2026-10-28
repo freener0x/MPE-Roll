@@ -1,0 +1,7 @@
+# The site's own pages, as the header lists them (between Download and View on GitHub).
+- title: FL Studio guide
+  url: /FL_STUDIO.html
+- title: Synths and their MPE
+  url: /MPE_SYNTHS.html
+- title: Support MPE Roll
+  url: /donate.html

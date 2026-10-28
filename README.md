@@ -135,13 +135,10 @@ Every code change is built by GitHub Actions (a change to the documentation alon
 Open the repository's **Actions** tab (you need to be signed in to GitHub), pick the latest successful
 **Build** run, and download **MPE-Roll-Windows-Setup-build-N** (the installer) or
 **MPE-Roll-Windows-build-N** (the files, to copy by hand) under *Artifacts* (N is the run's number,
-shown as #N beside it). The macOS bundles are built on request, since macOS runner minutes cost ten
-times Linux ones: in the Actions tab choose **Build**, then **Run workflow** with *Build the macOS
-bundles as well* ticked, and download **MPE-Roll-macOS-build-N** from that run (pushes to `main`
-build them too). Each build names itself at the bottom of the File menu and of *MPE settings*, e.g.
-"MPE Roll 0.1.0, build 63, f2ea3c4, 2026-10-26": the run number, the commit and the day it was built.
-If that isn't the build you downloaded, the DAW loaded an older copy (see the FL Studio guide's
-troubleshooting table).
+shown as #N beside it), or **MPE-Roll-macOS-build-N** for a Mac. Each build names itself at the
+bottom of the File menu and of *MPE settings*, e.g. "MPE Roll 0.1.0, build 63, f2ea3c4, 2026-10-26":
+the run number, the commit and the day it was built. If that isn't the build you downloaded, the DAW
+loaded an older copy (see the FL Studio guide's troubleshooting table).
 
 **The Windows installer.** Close FL Studio, unzip the download and run `MPE-Roll-Setup-build-N.exe`.
 It isn't signed, so Windows may say *Windows protected your PC*: choose *More info*, then *Run
@@ -301,8 +298,9 @@ tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUC
                   API, pitch only from note expressions), a VST3 one on the plain VST3 interfaces
                   that maps pitch bend on channel 1 only and takes note expressions, and a plain one
                   without MPE (VST3 and VST2) for one copy per note. Needs -DMPEROLL_BUILD_DEV_TOOLS=ON.
-                  make_donate_page.py writes DONATE.md, docs/donate.html, the QR codes and
-                  .github/FUNDING.yml from docs/donate.json. make_synth_list.py writes
+                  make_donate_page.py writes DONATE.md, the website's front and Support pages
+                  (docs/index.html, docs/donate.html), the QR codes and .github/FUNDING.yml from
+                  docs/donate.json. make_synth_list.py writes
                   docs/MPE_SYNTHS.md and source/plugin/KnownSynths.h, the synths MPE Roll knows the
                   MPE of, from docs/synths.json (CI checks they match).
 third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
@@ -324,14 +322,15 @@ MPE Roll is free and open source, with no ads and no tracking. If it helps you, 
 going: see [DONATE.md](DONATE.md) (Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code).
 Inside the plugin, *File > Support MPE Roll* (or the link at the foot of *MPE settings*) opens the
 same details in a window of its own, QR codes and Copy buttons included, with nothing to load from
-the web. Once GitHub Pages is on for the repository, the page is also online at
-<https://freener0x.github.io/glowing-pancake/donate.html>. To switch it on: the repository's
-*Settings › Pages › Build and deployment*, *Source: Deploy from a branch*, then the branch that has
-`docs/donate.html` (`main` once this is merged) and the `/docs` folder, and *Save*. The site is up a
-minute or two later. A private repository needs GitHub Pro (or Team) for Pages, and its Pages site is
-public even then: everything in `docs/` can be read by anyone. While the repository is private,
-`"repoPublic": false` in `docs/donate.json` keeps the pages from linking into it, since visitors
-would get a 404 there.
+the web. The page is also on MPE Roll's website, <https://freener0x.github.io/mpe-roll/donate.html>.
+
+The website (<https://freener0x.github.io/mpe-roll/>) is the `docs/` folder, which GitHub Pages
+builds with Jekyll in GitHub's Cayman theme (*Settings › Pages › Build and deployment*: *Deploy from a
+branch*, `main`, `/docs`). Its front page and Support page are made by `tools/make_donate_page.py`,
+and the FL Studio guide and the list of synths become pages as they are. `docs/_config.yml` says how
+it's put together. Its pages link to the repository and its licence; should the repository ever be
+made private, set `"repoPublic": false` in `docs/donate.json` and run `tools/make_donate_page.py`, and
+the website then links to nothing in it, since visitors would get a 404 there.
 
 ## License
 

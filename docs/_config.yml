@@ -1,0 +1,16 @@
+# MPE Roll's website: GitHub Pages builds it with Jekyll from this folder (Settings > Pages: the
+# main branch, folder /docs), in GitHub's Cayman theme. tools/make_donate_page.py writes index.html,
+# donate.html and _data/project.yml; FL_STUDIO.md and MPE_SYNTHS.md become pages as they are.
+# _layouts/default.html and _sass/jekyll-theme-cayman.scss are Cayman's own (CC0), changed so the
+# site loads nothing from other sites (Cayman takes its font from Google Fonts) and links its pages.
+
+title: MPE Roll
+description: An MPE piano roll for FL Studio. Load your synth inside it, and every note gets its own pitch glide, pressure and timbre.
+lang: en
+theme: jekyll-theme-cayman
+plugins:
+  - jekyll-seo-tag
+
+# The guides are published as pages only, not also as the .md files they're made from.
+optional_front_matter:
+  remove_originals: true
