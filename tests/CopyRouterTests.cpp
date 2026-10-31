@@ -182,6 +182,45 @@ public:
             }
         }
 
+        beginTest ("A glide past the Plain MIDI bend range stops at its edge, and how far it reached is reported");
+        {
+            auto s = copySettings();
+            s.masterBendRange = 2.0f;
+            auto rig = std::make_unique<Rig> (s);
+
+            rig->play (1, 60);
+            rig->play (2, 64);
+            rig->route();
+            rig->stream.setPitch (rig->in, 0, 1, 1.5f);
+            rig->route();
+            expect (rig->stream.takeBendOverflow().isEmpty() && rig->router->takeBendOverflow().isEmpty(), "a glide within the range");
+            rig->clearOuts();
+
+            // The stream carries each note's bend scaled to the copies' range already, so it's the
+            // stream's encoder that stops a glide at the edge.
+            rig->stream.setPitch (rig->in, 0, 1, 12.0f);
+            rig->stream.setPitch (rig->in, 0, 2, -5.0f);
+            rig->route();
+            expectEquals (lastPitchWheel (rig->out (0)), 16383, "the copy is sent the range's edge");
+            expectEquals (lastPitchWheel (rig->out (1)), 0);
+
+            auto over = rig->stream.takeBendOverflow();
+            expectWithinAbsoluteError (over.asked, 12.0f, 1.0e-5f, "the furthest, over every note");
+            expectWithinAbsoluteError (over.range, 2.0f, 1.0e-5f);
+            expect (rig->router->takeBendOverflow().isEmpty(), "the copies were asked nothing past the range");
+
+            // A zone bend and a note's own each fit the stream; the copy adds them up and goes past.
+            rig->stream.setPitch (rig->in, 0, 1, 1.5f);
+            rig->stream.setPitch (rig->in, 0, 2, 0.0f);
+            rig->stream.setZonePitch (rig->in, 0, 1.0f);
+            rig->route();
+            expect (rig->stream.takeBendOverflow().isEmpty());
+            over = rig->router->takeBendOverflow();
+            expectWithinAbsoluteError (over.asked, 2.5f, 0.01f, "the copy's bend: zone and note together, the furthest over every copy");
+            expectWithinAbsoluteError (over.range, 2.0f, 1.0e-5f);
+            expect (rig->router->takeBendOverflow().isEmpty(), "taken once");
+        }
+
         beginTest ("Zone pitch adds to a note's own, and zone controllers reach every copy in use");
         {
             auto rig = std::make_unique<Rig> (copySettings());

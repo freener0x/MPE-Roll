@@ -1,6 +1,7 @@
 #include "MpeEncoder.h"
 
 #include <cmath>
+#include <utility>
 
 namespace mperoll
 {
@@ -609,6 +610,7 @@ void MpeEncoder::setPitch (juce::MidiBuffer& out, int samplePos, Handle handle, 
         return;
     }
 
+    bendAsked (semitones, settings.memberBendRange);
     sendPitchBend (out, samplePos, v->channel, semitonesToPitchBendFine (semitones, settings.memberBendRange), ! v->started);
     channels[(size_t) v->channel].pitchTouched = true;
 }
@@ -694,6 +696,7 @@ void MpeEncoder::setZonePitch (juce::MidiBuffer& out, int samplePos, float semit
         return;
     }
 
+    bendAsked (semitones, settings.masterBendRange);
     const auto value = semitonesToPitchBendFine (semitones, settings.masterBendRange);
     forEachZoneMaster ([&] (int ch) { sendPitchBend (out, samplePos, ch, value, false); });
 }
@@ -782,8 +785,38 @@ void MpeEncoder::sendSingleChannelPitch (juce::MidiBuffer& out, int samplePos, b
 {
     const auto* lead = leadVoice();
     const auto semitones = zonePitch + (lead != nullptr ? lead->pitch : tailPitch);
+    bendAsked (semitones, settings.masterBendRange);
     sendPitchBend (out, samplePos, settings.singleChannel,
                    semitonesToPitchBendFine (semitones, settings.masterBendRange), force);
+}
+
+void MpeEncoder::bendAsked (float semitones, float range) noexcept
+{
+    // Past the range the bend is sent at the range's edge, so the synth hears a glide stop there.
+    // A hair past it (float rounding on a glide drawn to the range itself) isn't worth a word.
+    const auto asked = std::abs (semitones);
+
+    if (asked > range + 0.01f && asked > overflow.asked)
+        overflow = { asked, range };
+}
+
+MpeEncoder::BendOverflow MpeEncoder::takeBendOverflow() noexcept
+{
+    return std::exchange (overflow, BendOverflow());
+}
+
+int MpeEncoder::BendOverflow::semitonesReached() const noexcept
+{
+    return (int) std::ceil (asked - 0.01f);
+}
+
+int MpeEncoder::BendOverflow::suggestedRange() const noexcept
+{
+    for (const int usual : { 12, 24, 48 })
+        if (asked <= (float) usual + 0.01f)
+            return usual;
+
+    return 96;
 }
 
 void MpeEncoder::sendSingleChannelPressure (juce::MidiBuffer& out, int samplePos, bool force)

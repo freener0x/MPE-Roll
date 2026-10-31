@@ -1,0 +1,198 @@
+name: Release
+
+# A tag v<version> (v0.1.0, say) makes a release: the Windows installer and files and the macOS
+# bundles are built from the tagged commit and attached to a GitHub release of that tag, with
+# notes made from the pull requests merged since the last release. The version in CMakeLists.txt
+# has to match the tag, so a build names itself after the release it came from (File menu, MPE
+# settings): "MPE Roll 0.1.0, release v0.1.0, f2ea3c4, 2026-10-28". A tag with a suffix
+# (v0.2.0-beta1) is marked a pre-release. The code itself is tested by the Build workflow on every
+# change; here the unit tests and the installer's own test run again on what's shipped.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  version:
+    name: The tag matches the version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: version
+        run: |
+          version=$(sed -nE 's/^project\(MPE_ROLL VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
+          tagged=${TAG#v}
+          tagged=${tagged%%-*}
+          if [ -z "$version" ] || [ "$version" != "$tagged" ]; then
+            echo "The tag $TAG doesn't match the version in CMakeLists.txt ($version): change one, then tag again."
+            exit 1
+          fi
+          case "$TAG" in
+            *-*) prerelease=true ;;
+            *)   prerelease=false ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "Releasing MPE Roll $version from $TAG (pre-release: $prerelease)"
+
+  windows:
+    name: Windows (installer, VST3, VST2, Standalone)
+    needs: version
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -A x64
+          -DMPEROLL_BUILD_ID="release $TAG, ${GITHUB_SHA::7}, $(date -u +%F)"
+
+      - name: Build
+        run: >
+          cmake --build build --config Release --parallel
+          --target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone MpeRollScanner MpeRollTests
+
+      - name: Unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # The same files the Build workflow packages, zipped for the release.
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item -Recurse "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" dist/
+          if (-not (Test-Path "dist/MPE Roll.vst3/Contents/x86_64-win/MPE Roll Scanner.exe")) { throw "The scanner isn't in the VST3 bundle" }
+          Copy-Item "build/MpeRoll_artefacts/Release/VST/MPE Roll.dll" dist/
+          Copy-Item "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe" dist/
+          Copy-Item "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.exe" dist/
+          Copy-Item "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.pdb" dist/
+          Get-ChildItem -Recurse dist | Select-Object FullName, Length
+          Compress-Archive -Path dist/* -DestinationPath "MPE-Roll-$env:VERSION-Windows.zip"
+
+      - name: Installer
+        shell: pwsh
+        run: |
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE) { throw "Inno Setup couldn't be installed" }
+          }
+          $buildName = "release $env:TAG, $($env:GITHUB_SHA.Substring(0, 7)), $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))"
+          & $iscc /Qp "/DDistDir=$PWD\dist" "/DAppVersion=$env:VERSION" "/DBuildNumber=${{ github.run_number }}" `
+            "/DBuildName=$buildName" "/DOutputName=MPE-Roll-Setup-$env:VERSION" installer\MpeRoll.iss
+          if ($LASTEXITCODE) { throw "ISCC failed with $LASTEXITCODE" }
+
+      - name: Installer installs, upgrades, removes older copies and uninstalls
+        shell: pwsh
+        run: ./installer/test-installer.ps1 -Setup "installer/output/MPE-Roll-Setup-$env:VERSION.exe" -Dist dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            MPE-Roll-${{ env.VERSION }}-Windows.zip
+            installer/output/MPE-Roll-Setup-${{ env.VERSION }}.exe
+          compression-level: 0
+          if-no-files-found: error
+
+  macos:
+    name: macOS (VST3, AU, Standalone)
+    needs: version
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: brew list ninja || brew install ninja
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+          -DMPEROLL_BUILD_ID="release $TAG, ${GITHUB_SHA::7}, $(date -u +%F)"
+
+      - name: Build
+        run: cmake --build build --parallel --target MpeRoll_VST3 MpeRoll_AU MpeRoll_Standalone MpeRollTests
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      # ditto keeps the bundles' file permissions (the app's executable bit) through the zip.
+      - name: Package
+        run: |
+          mkdir -p "MPE Roll"
+          cp -R "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" "MPE Roll/"
+          cp -R "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" "MPE Roll/"
+          cp -R "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app" "MPE Roll/"
+          ditto -c -k --keepParent "MPE Roll" "MPE-Roll-$VERSION-macOS.zip"
+          ditto -x -k "MPE-Roll-$VERSION-macOS.zip" unzipped
+          test -x "unzipped/MPE Roll/MPE Roll.app/Contents/MacOS/MPE Roll"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: MPE-Roll-${{ env.VERSION }}-macOS.zip
+          compression-level: 0
+          if-no-files-found: error
+
+  release:
+    name: GitHub release
+    needs: [version, windows, macos]
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      PRERELEASE: ${{ needs.version.outputs.prerelease }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+
+      # What's attached and how to use it, then GitHub's notes: the pull requests since the last release.
+      - name: Notes
+        run: |
+          ls -l files
+          {
+            echo "MPE Roll $VERSION for Windows and macOS. A build names itself at the bottom of MPE Roll's File menu and of MPE settings: \"MPE Roll $VERSION, release $TAG, ${GITHUB_SHA::7}, $(date -u +%F)\"."
+            echo
+            echo "- **MPE-Roll-Setup-$VERSION.exe**: the Windows installer (VST3, VST2 and the standalone app). It isn't signed, so if Windows says it protected your PC, choose *More info*, then *Run anyway*."
+            echo "- **MPE-Roll-$VERSION-Windows.zip**: the same files, to copy into the plugin folders by hand."
+            echo "- **MPE-Roll-$VERSION-macOS.zip**: the macOS VST3, AU and standalone app, for Apple silicon and Intel. They aren't notarised, so remove the quarantine flag before a DAW will load them: \`xattr -dr com.apple.quarantine \"MPE Roll.vst3\"\` (the README says more)."
+            echo
+            echo "Setting up in FL Studio: the [FL Studio guide](https://freener0x.github.io/MPE-Roll/FL_STUDIO.html). Which synths have MPE, and where their switch is: [the list](https://freener0x.github.io/MPE-Roll/MPE_SYNTHS.html)."
+            echo
+            gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" --jq .body
+          } > notes.md
+          cat notes.md
+
+      # A run repeated for the same tag replaces the files and keeps the release.
+      - name: Release
+        run: |
+          flags=()
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" files/* --clobber
+          else
+            gh release create "$TAG" files/* --verify-tag --title "MPE Roll $VERSION" --notes-file notes.md "${flags[@]}"
+          fi
+          gh release view "$TAG"

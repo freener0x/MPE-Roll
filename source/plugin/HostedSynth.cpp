@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <string_view>
+#include <utility>
 
 #if MPEROLL_HOST_CLAP
  #include "clap/ClapHosting.h"
@@ -39,6 +40,8 @@ namespace
     constexpr double hostIdleMs = 500.0;            // with no block played for this long, nothing is routed meanwhile
     constexpr const char* markerPrefix = "copiesLoading.";
     constexpr const char* crashedWhileLoadingKey = "copiesCrashedWhileLoading";
+    constexpr const char* synthMarkerPrefix = "synthLoading.";
+    constexpr const char* synthCrashedKey = "synthCrashedWhileLoading";
 
     // Set on the thread playing the first copy's block, which may be a worker.
     thread_local bool playingFirstCopy = false;
@@ -348,6 +351,7 @@ HostedSynth::HostedSynth()
         m.ensureSize (1 << 14);
 
     loadingMarker = markerPrefix + juce::Uuid().toString();
+    synthLoadingMarker = synthMarkerPrefix + juce::Uuid().toString();
 }
 
 HostedSynth::~HostedSynth()
@@ -365,6 +369,9 @@ HostedSynth::~HostedSynth()
 
     if (loadingCopy)
         setLoadingMarker (false);   // let go in an orderly way: no crash to remember
+
+    if (loading)
+        setSynthLoadingMarker (nullptr);
 
     removeAllCopies();
     workers.reset();
@@ -403,39 +410,67 @@ juce::Array<juce::PluginDescription> HostedSynth::getInstrumentTypes() const
 void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone)
 {
     stopCheck();
+    const auto retry = std::exchange (retryingLoad, false);
+    loadProblem.clear();
+
+    // Another install of the synth that's loaded (the same plugin from another file, or the same
+    // product in its other format): let the current one go first, so two copies of one plugin's code
+    // never meet in this program. They can trip over each other (a library both load by name, say): a
+    // user's second install of Analog Lab failed to load beside the first, and its VST3 took FL down.
+    if (! retry && instance != nullptr && description != nullptr
+        && description->fileOrIdentifier != desc.fileOrIdentifier && isSameProduct (*description, desc))
+    {
+        PluginLog::add ("Unloading " + PluginLog::describe (*description) + " first: another install of it is about to be loaded");
+        unload();
+    }
+
     const auto generation = ++loadGeneration;
     loading = true;
     findingOutWhy = false;
     CrashReport::setActivity ("loading the synth " + describe (desc));
-    PluginLog::add ("Loading " + PluginLog::describe (desc) + " at " + juce::String (sampleRate) + " Hz, "
-                    + juce::String (blockSize) + " samples");
+    PluginLog::add ((retry ? "Loading again " : "Loading ") + PluginLog::describe (desc) + " at " + juce::String (sampleRate)
+                    + " Hz, " + juce::String (blockSize) + " samples");
     const auto started = juce::Time::getMillisecondCounterHiRes();
+
+    // Asked for by name, so a crash recorded against it (FL closed while it was loading last time) no
+    // longer keeps a project from loading it. A marker says it's loading now, so that if FL closes
+    // meanwhile the next run knows (synthLoadBlockedAfterCrash).
+    forgetSynthCrash (desc);
+    setSynthLoadingMarker (&desc);
 
     // The plugin's binaries, loaded here just before JUCE loads them, so that if JUCE's load fails
     // the system's reason is known (JUCE keeps it to itself). Held until JUCE has answered.
     auto preFlight = std::make_shared<LoadDiagnosis::PreFlight> (desc);
 
     formatManager.createPluginInstanceAsync (desc, sampleRate, blockSize,
-        [this, generation, desc, onDone, started, preFlight, alive = std::weak_ptr<int> (lifetime)]
+        [this, generation, desc, onDone, started, preFlight, retry, alive = std::weak_ptr<int> (lifetime)]
         (std::unique_ptr<juce::AudioPluginInstance> plugin, const juce::String& error)
         {
+            // Another load began meanwhile (or MPE Roll closed), so this answer is of no use; the
+            // marker is the newer load's by now.
             if (alive.expired() || generation != loadGeneration)
+            {
+                PluginLog::add ("  " + desc.name + (plugin != nullptr ? " loaded" : " failed to load")
+                                + " after another load had begun, or MPE Roll had closed: not used");
                 return;
+            }
 
             loading = false;
             const auto took = juce::String (juce::roundToInt (juce::Time::getMillisecondCounterHiRes() - started)) + " ms";
 
             if (plugin == nullptr)
             {
+                setSynthLoadingMarker (nullptr);
                 CrashReport::setActivity ("failed to load the synth " + describe (desc));
                 const auto message = error.isNotEmpty() ? error : juce::String ("The plugin couldn't be loaded.");
                 PluginLog::add ("  failed after " + took + ": " + message);
-                explainLoadFailure (desc, message, *preFlight, generation, onDone);
+                explainLoadFailure (desc, message, *preFlight, generation, retry, onDone);
                 return;
             }
 
             CrashReport::setActivity ("setting up the synth " + describe (desc));
             install (std::move (plugin), desc);
+            setSynthLoadingMarker (nullptr);    // set up and all: a crash in there counts as one while loading
             PluginLog::add ("  loaded in " + took + ": " + describeSetup());
             CrashReport::renew();
             CrashReport::setActivity ("playing the synth " + describe (desc));
@@ -446,7 +481,7 @@ void HostedSynth::load (const juce::PluginDescription& desc, LoadCallback onDone
 }
 
 void HostedSynth::explainLoadFailure (const juce::PluginDescription& desc, const juce::String& error,
-                                      const LoadDiagnosis::PreFlight& preFlight, int generation, LoadCallback onDone)
+                                      const LoadDiagnosis::PreFlight& preFlight, int generation, bool retry, LoadCallback onDone)
 {
     const auto finish = [onDone] (const juce::String& message)
     {
@@ -479,12 +514,12 @@ void HostedSynth::explainLoadFailure (const juce::PluginDescription& desc, const
     stopCheck();    // load() stopped any check already; this only makes sure
     checkCancelled = std::make_shared<std::atomic<bool>> (false);
 
-    checkThread = std::thread ([this, desc, error, generation, onDone, cancelled = checkCancelled, alive = std::weak_ptr<int> (lifetime)]
+    checkThread = std::thread ([this, desc, error, generation, retry, onDone, cancelled = checkCancelled, alive = std::weak_ptr<int> (lifetime)]
     {
         auto diagnosis = std::make_shared<PluginScanner::Diagnosis> (
             PluginScanner::diagnose (desc, PluginScanner::diagnoseTimeoutMs, [&cancelled] { return cancelled->load(); }));
 
-        juce::MessageManager::callAsync ([this, desc, error, generation, onDone, diagnosis, alive]
+        juce::MessageManager::callAsync ([this, desc, error, generation, retry, onDone, diagnosis, alive]
         {
             if (alive.expired() || generation != loadGeneration)
                 return;
@@ -507,6 +542,25 @@ void HostedSynth::explainLoadFailure (const juce::PluginDescription& desc, const
             else if (outcome == Outcome::unavailable)
             {
                 PluginLog::add ("  The scanner couldn't retrace it: it couldn't be started, or stopped before it began");
+            }
+            else if (LoadDiagnosis::worksElsewhere (diagnosis->lines))
+            {
+                // The plugin works on its own, so it may only have been waiting for something the first
+                // time (a licence check, its maker's app): one more try here, before the user hears of it.
+                // A user's Analog Lab failed once and loaded the second time.
+                if (! retry)
+                {
+                    PluginLog::add ("  Loading it again, since it works in a separate process");
+                    retryingLoad = true;
+                    load (desc, onDone);
+                    return;
+                }
+
+                why << " MPE Roll loaded it again, in case it had been waiting for something the first time (a licence check, "
+                       "its maker's app), and it failed again, so what stops it is something in the program MPE Roll runs in "
+                       "(FL Studio, say): another copy of a library it uses, loaded there already by that program, by another "
+                       "plugin, or by a second install of this one. Restart the program and load it before other plugins, or "
+                       "try its other format (VST2 or VST3) meanwhile, and please send the details.";
             }
 
             if (onDone)
@@ -727,6 +781,43 @@ bool HostedSynth::isSameSynth (const juce::PluginDescription& a, const juce::Plu
     return a.isDuplicateOf (b);
 }
 
+bool HostedSynth::isSameProduct (const juce::PluginDescription& a, const juce::PluginDescription& b)
+{
+    const auto same = [] (const juce::String& x, const juce::String& y) { return x.trim().equalsIgnoreCase (y.trim()); };
+    return a.name.trim().isNotEmpty() && same (a.name, b.name) && same (a.manufacturerName, b.manufacturerName);
+}
+
+juce::Array<juce::PluginDescription> HostedSynth::withDistinctNames (const juce::Array<juce::PluginDescription>& types)
+{
+    auto shown = types;
+
+    for (auto& d : shown)
+    {
+        int sameName = 0, sameNameAndFormat = 0;
+
+        for (const auto& other : types)
+        {
+            if (other.name != d.name)
+                continue;
+
+            ++sameName;
+            sameNameAndFormat += other.pluginFormatName == d.pluginFormatName ? 1 : 0;
+        }
+
+        if (sameName < 2)
+            continue;
+
+        d.name << " (" << d.pluginFormatName;
+
+        if (sameNameAndFormat > 1)
+            d.name << ", " << juce::File (d.fileOrIdentifier).getParentDirectory().getFullPathName();
+
+        d.name << ")";
+    }
+
+    return shown;
+}
+
 juce::String HostedSynth::describeHostedFormats()
 {
     juce::StringArray formats { "VST3" };
@@ -846,7 +937,12 @@ void HostedSynth::unload()
 {
     stopCheck();
     ++loadGeneration;
+
+    if (loading)
+        setSynthLoadingMarker (nullptr);    // let go in an orderly way: no crash to remember
+
     loading = findingOutWhy = false;
+    loadProblem.clear();
     closeEditor();
     removeAllCopies();
     ++copiesGeneration;
@@ -1314,17 +1410,37 @@ juce::Optional<juce::AudioPlayHead::PositionInfo> HostedSynth::PieceHead::getPos
     return position;
 }
 
-juce::String HostedSynth::describeConnection (const OutputSettings& settings) const
+juce::String HostedSynth::describeBendRange (const OutputSettings& settings, const MpeEncoder::BendOverflow& recent) const
+{
+    // Plain MIDI and one copy per note bend within the synth's own pitch-bend range, which MPE Roll
+    // sends (RPN 0) but most synths keep their own. Most start at 2 semitones.
+    const auto name = getName();
+    const auto range = juce::String (juce::roundToInt (settings.masterBendRange));
+    juce::String s;
+
+    s << "Glides bend within " << name << "'s own pitch-bend range: set it to " << range << " semitones, MPE Roll's Zone bend range, "
+      << "or both to 12 or 24 for wider glides (a glide past the range stops at its edge).";
+
+    if (const auto profile = getProfile(); profile.has_value() && profile->bendRange.isNotEmpty())
+        s << " " << profile->bendRange;
+
+    if (! recent.isEmpty() && std::abs (recent.range - settings.masterBendRange) < 0.01f)
+        s << " A glide just reached " << recent.semitonesReached() << " semitones and stopped at " << range
+          << ": set both to " << recent.suggestedRange() << ".";
+
+    return s;
+}
+
+juce::String HostedSynth::describeConnection (const OutputSettings& settings, const MpeEncoder::BendOverflow& recent) const
 {
     if (instance == nullptr)
-        return "No synth loaded.";
+        return loadProblem.isNotEmpty() ? loadProblem : juce::String ("No synth loaded.");
 
     // Each copy is played on one channel, whatever else the synth could take.
     if (settings.mode == OutputSettings::Mode::copies)
     {
         const auto status = getCopyStatus();
         const auto name = getName();
-        const auto range = juce::String (juce::roundToInt (settings.masterBendRange));
         juce::String s;
 
         s << "One copy of " << name << " per note: " << status.loaded << " of " << status.wanted << " copies loaded";
@@ -1340,13 +1456,11 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
         if (status.workers > 0)
             s << ", spread over " << (status.workers + 1) << " CPU cores";
 
-        s << ". Each copy plays its note as Plain MIDI on channel " << settings.singleChannel << ": pitch bend "
-          << "(set " << name << "'s pitch-bend range to " << range << " semitones, MPE Roll's Zone bend range; "
-          << "glides stop there, so for wider ones set both to 12 or 24), "
+        s << ". Each copy plays its note as Plain MIDI on channel " << settings.singleChannel << ": pitch bend, "
           << (settings.pressureTarget == OutputSettings::PressureTarget::channelPressure ? juce::String ("channel pressure")
               : settings.pressureTarget == OutputSettings::PressureTarget::polyAftertouch ? juce::String ("poly aftertouch")
               : "CC" + juce::String (settings.pressureController))
-          << " for pressure and CC" << settings.timbreController << " for timbre.";
+          << " for pressure and CC" << settings.timbreController << " for timbre. " << describeBendRange (settings, recent);
 
         // A problem is under Copies now, with the button that deals with it.
         if (status.copyingSound)
@@ -1374,7 +1488,8 @@ juce::String HostedSynth::describeConnection (const OutputSettings& settings) co
     const auto via = clapControls != nullptr ? juce::String (" (the CLAP synth accepts MIDI)") : juce::String();
 
     if (settings.mode == OutputSettings::Mode::singleChannel)
-        return "Plain MIDI on channel " + juce::String (settings.singleChannel) + via + ".";
+        return "Plain MIDI on channel " + juce::String (settings.singleChannel) + via
+             + ": the newest note's glides, pressure and timbre drive the synth. " + describeBendRange (settings, recent);
 
     // A synth that isn't in MPE mode often listens on channel 1 only, and hears nothing.
     const auto channels = settings.zones.describeMemberChannels();
@@ -1553,6 +1668,23 @@ void HostedSynth::restoreState (const juce::XmlElement& xml, LoadCallback onDone
                 break;
             }
         }
+    }
+
+    // A plugin that took FL Studio down while it was loading last time isn't loaded again on its own
+    // by every project that names it: the user loads it by name (Load synth), which forgets the crash.
+    if (synthLoadBlockedAfterCrash (desc))
+    {
+        loadProblem = desc.name + " wasn't loaded: FL Studio or MPE Roll closed while it was loading last time, so the project "
+                      "opened without it. Load synth > " + desc.name + " loads it again.";
+        PluginLog::add (loadProblem);
+
+        if (onPluginChanged)
+            onPluginChanged();
+
+        if (onDone)
+            onDone (loadProblem);
+
+        return;
     }
 
     load (desc, [this, state, desc, onDone] (const juce::String& error)
@@ -2298,6 +2430,107 @@ bool HostedSynth::copiesBlockedAfterCrash()
     }
 
     return crashed.contains (getCopyIdentity());
+}
+
+//==============================================================================
+// The synth's own loading marker, so a plugin that took FL Studio down while it was loading isn't
+// loaded again on its own by every project that names it.
+
+namespace
+{
+    /** The plugin and the file it's in, as the crash list keeps it: a second install of a plugin is
+        another entry. The name first, so the log can take it. */
+    juce::String synthIdentity (const juce::PluginDescription& d)
+    {
+        return d.name + "|" + d.pluginFormatName + ":" + juce::String (d.uniqueId != 0 ? d.uniqueId : d.deprecatedUid)
+             + "|" + d.fileOrIdentifier;
+    }
+}
+
+void HostedSynth::setSynthLoadingMarker (const juce::PluginDescription* desc)
+{
+    auto* settings = getUserSettings();
+
+    if (settings == nullptr)
+        return;
+
+    // Which run of which program left it, as the copies' marker says it.
+    const auto processId = CopySafety::getProcessId();
+
+    if (desc != nullptr)
+        settings->setValue (synthLoadingMarker, thisRun() + "|" + juce::String (processId) + "@"
+                                                    + juce::String (CopySafety::getProcessStartTime (processId)) + "|" + synthIdentity (*desc));
+    else
+        settings->removeValue (synthLoadingMarker);
+
+    settings->saveIfNeeded();
+}
+
+bool HostedSynth::synthLoadBlockedAfterCrash (const juce::PluginDescription& desc)
+{
+    auto* settings = getUserSettings();
+
+    if (settings == nullptr)
+        return false;
+
+    auto crashed = juce::StringArray::fromLines (settings->getValue (synthCrashedKey));
+    crashed.removeEmptyStrings();
+
+    // Markers left by runs that closed while a synth was loading: not this run's, nor another
+    // program's that still runs (FL Studio and the MPE Roll app share the settings file).
+    const auto properties = settings->getAllProperties();   // a copy: markers are removed as they're found
+    bool found = false;
+
+    for (int i = 0; i < properties.size(); ++i)
+    {
+        const auto key = properties.getAllKeys()[i];
+        const auto value = properties.getAllValues()[i];
+
+        if (! key.startsWith (synthMarkerPrefix) || value.upToFirstOccurrenceOf ("|", false, false) == thisRun())
+            continue;
+
+        const auto afterRun = value.fromFirstOccurrenceOf ("|", false, false);
+        const auto process = afterRun.upToFirstOccurrenceOf ("|", false, false);
+        const auto processId = process.upToFirstOccurrenceOf ("@", false, false).getLargeIntValue();
+        const auto startTime = process.fromFirstOccurrenceOf ("@", false, false).getLargeIntValue();
+
+        if (CopySafety::isProcessRunning (processId, startTime))
+            continue;
+
+        const auto identity = afterRun.fromFirstOccurrenceOf ("|", false, false);
+        crashed.addIfNotAlreadyThere (identity);
+        settings->removeValue (key);
+        found = true;
+        PluginLog::add ("Loading " + identity.upToFirstOccurrenceOf ("|", false, false) + " from "
+                        + identity.fromLastOccurrenceOf ("|", false, false)
+                        + " was cut short last time: FL Studio or MPE Roll closed meanwhile, so it isn't loaded again on its own");
+    }
+
+    if (found)
+    {
+        settings->setValue (synthCrashedKey, crashed.joinIntoString ("\n"));
+        settings->saveIfNeeded();
+    }
+
+    return crashed.contains (synthIdentity (desc));
+}
+
+void HostedSynth::forgetSynthCrash (const juce::PluginDescription& desc)
+{
+    auto* settings = getUserSettings();
+
+    if (settings == nullptr)
+        return;
+
+    auto crashed = juce::StringArray::fromLines (settings->getValue (synthCrashedKey));
+    crashed.removeEmptyStrings();
+
+    if (! crashed.contains (synthIdentity (desc)))
+        return;
+
+    crashed.removeString (synthIdentity (desc));
+    settings->setValue (synthCrashedKey, crashed.joinIntoString ("\n"));
+    settings->saveIfNeeded();
 }
 
 //==============================================================================

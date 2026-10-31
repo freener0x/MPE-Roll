@@ -88,6 +88,7 @@ std::optional<SynthProfile> SynthProfile::find (const juce::PluginDescription& d
         profile.mpe = s.mpe == Known::yes ? Mpe::needsSwitch : s.mpe == Known::followsSetup ? Mpe::followsSetup : Mpe::none;
         profile.certain = s.mpe != Known::undocumented;
         profile.advice = s.advice;
+        profile.bendRange = s.bendRange;
 
        #if MPEROLL_HOST_CLAP
         profile.advice += s.clapAdvice;

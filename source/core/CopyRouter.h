@@ -116,6 +116,12 @@ public:
     /** Copies holding a note right now (not counting the sustain pedal or every-copy keys). */
     int getNumCopiesPlaying() const noexcept;
 
+    /** The furthest any copy's pitch bend went past the Plain MIDI bend range since the last call
+        (MpeEncoder::takeBendOverflow(), over every copy): a glide the synth hears stop short. The
+        stream's encoder scales a note's bend to that range already, so it reports a glide past it
+        first; a copy's goes past when a zone bend and a note's own add up to more. */
+    MpeEncoder::BendOverflow takeBendOverflow() noexcept;
+
     /** Forgets everything without sending anything: notes, zone state, the sustain pedal. */
     void reset();
 

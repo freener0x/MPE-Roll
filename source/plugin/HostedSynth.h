@@ -71,6 +71,15 @@ public:
     /** Whether two descriptions are the same synth: same format and plugin ID, wherever installed. */
     static bool isSameSynth (const juce::PluginDescription&, const juce::PluginDescription&);
 
+    /** Whether two descriptions are the same product (name and maker), whatever the format or file:
+        two installs of one plugin, or its VST2 and VST3. */
+    static bool isSameProduct (const juce::PluginDescription&, const juce::PluginDescription&);
+
+    /** The descriptions with names that tell them apart in a menu: one whose name another shares gets
+        its format added, and one whose name and format another shares (a second install) its folder
+        too. The order is kept, so an index into the result indexes the originals. */
+    static juce::Array<juce::PluginDescription> withDistinctNames (const juce::Array<juce::PluginDescription>&);
+
     /** Whether the file is one of FL Studio's own plugins (Harmor, Sytrus...), which come in
         Image-Line's own format: only FL can load them, so loadFromFile finds nothing in them.
     */
@@ -89,6 +98,11 @@ public:
 
     /** The name of a synth saved in the project that couldn't be loaded (e.g. not installed here). */
     juce::String getMissingSynthName() const;
+
+    /** Why the project's synth wasn't loaded when the project was opened, if it wasn't: FL Studio or
+        MPE Roll closed while it was loading last time, so it's left for the user to load by name
+        (Load synth), which forgets that. Empty otherwise. Message thread. */
+    juce::String getLoadProblem() const                 { return loadProblem; }
     juce::AudioPluginInstance* getInstance() const      { return instance.get(); }
 
     /** What the loaded synth is, or nullptr when none is loaded. Message thread. */
@@ -114,13 +128,24 @@ public:
     */
     void process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, juce::AudioPlayHead* playHead);
 
+    /** Audio thread, after process(): with one copy per note, the furthest a copy's pitch bend went
+        past the Zone bend range since the last call (CopyRouter::takeBendOverflow()); otherwise empty. */
+    MpeEncoder::BendOverflow takeCopyBendOverflow() noexcept     { return router.takeBendOverflow(); }
+
     /** Audio thread, before process(): the MPE layout the MIDI is in. A CLAP synth uses it to turn
         the MPE into CLAP note expressions, and a VST3 synth that needs them into VST3 ones.
     */
     void setOutputSettings (const OutputSettings& settings) noexcept   { outputSettings = settings; }
 
-    /** How the synth is played with these settings, for showing to the user. Message thread. */
-    juce::String describeConnection (const OutputSettings&) const;
+    /** How the synth is played with these settings, for showing to the user. With Plain MIDI or one
+        copy per note, also where the synth's own pitch-bend range is set, if MPE Roll knows, and a
+        glide that stopped short at it lately (MpeRollProcessor::getRecentBendOverflow()). Message thread. */
+    juce::String describeConnection (const OutputSettings&, const MpeEncoder::BendOverflow& recent = {}) const;
+
+    /** The part of describeConnection() about the synth's own pitch-bend range, which Plain MIDI and
+        one copy per note bend within: what to set it to, where it is if MPE Roll knows the synth, and
+        a glide that stopped short at it lately. Message thread. */
+    juce::String describeBendRange (const OutputSettings&, const MpeEncoder::BendOverflow& recent) const;
 
     /** Whether these settings play the synth with CLAP or VST3 note expressions rather than MIDI. Message thread. */
     bool playsNoteExpressions (const OutputSettings&) const;
@@ -544,6 +569,9 @@ private:
     juce::String copiesProblem;                         // why loading stopped short
     juce::int64 lastCopyMegabytes = 0;                  // memory the last copy took when loaded
     juce::String loadingMarker;                         // this instance's key for "loading copies now"
+    juce::String synthLoadingMarker;                    // ...and for "loading the synth now"
+    bool retryingLoad = false;                          // load() is the one more try after the scanner found the plugin works
+    juce::String loadProblem;                           // why the project's synth wasn't loaded, for the user
     std::vector<std::function<void()>> copiesLoadedCallbacks;
 
     struct SoundCopy
@@ -662,7 +690,10 @@ private:
     void finishLoadFromFile (const juce::File&, PluginScanner::Outcome, juce::OwnedArray<juce::PluginDescription>& found,
                              LoadCallback, const std::function<void()>& onChecked);
     void explainLoadFailure (const juce::PluginDescription&, const juce::String& error, const LoadDiagnosis::PreFlight&,
-                             int generation, LoadCallback);
+                             int generation, bool retry, LoadCallback);
+    void setSynthLoadingMarker (const juce::PluginDescription* loading);    // nullptr: done loading
+    bool synthLoadBlockedAfterCrash (const juce::PluginDescription&);
+    void forgetSynthCrash (const juce::PluginDescription&);
     void stopCheck();
     void configure (juce::AudioPluginInstance& plugin);
     void countHeldNotes (const juce::MidiBuffer&) noexcept;

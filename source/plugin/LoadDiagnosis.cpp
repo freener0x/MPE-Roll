@@ -872,11 +872,10 @@ namespace
             if (separate)
                 say ("Its controller is there; starting it: " + describeResult (controller->initialize (host)));
 
-            // Every step JUCE takes worked here, although JUCE's own load didn't a moment ago.
-            say (verdict (d.name + " got through each of JUCE's steps in a separate process when MPE Roll took them one at "
-                          "a time, but not when JUCE loaded it in one go. It may have been waiting for something (a licence "
-                          "check, its maker's app) that was ready by the second try: load it again. If it still fails, "
-                          "please send the details."));
+            // Every step JUCE takes worked here, although JUCE's own load didn't a moment ago. What to
+            // make of that is said where the load is tried once more (HostedSynth).
+            say (verdict (d.name + " got through each of JUCE's steps" + separateProcessPhrase + " when MPE Roll took them "
+                          "one at a time, but not when JUCE loaded it in one go."));
             return;
         }
 
@@ -1024,9 +1023,8 @@ namespace
 
         say ("It started in " + took + ": ID " + hex (effect->uniqueID) + ", " + juce::String (effect->numInputs) + " in, "
              + juce::String (effect->numOutputs) + " out, flags " + hex ((int) effect->flags));
-        say (verdict (d.name + " started in a separate process when MPE Roll called it directly, though JUCE's own load "
-                      "failed a moment before. It may have been waiting for something (a licence check, its maker's app) "
-                      "that was ready by the second try: load it again. If it still fails, please send the details."));
+        say (verdict (d.name + " started" + separateProcessPhrase + " when MPE Roll called it directly, though JUCE's own "
+                      "load failed a moment before."));
     }
    #endif
 }
@@ -1048,12 +1046,8 @@ void diagnose (const juce::PluginDescription& d, juce::AudioPluginFormatManager&
         say ("It loaded in " + milliseconds (started) + ": " + instance->getName());
         (void) instance.release();     // the scanner leaves without cleaning up after plugins
 
-        say (verdict (d.name + " loads fine in a separate process, so the plugin itself works. Load it again: it may "
-                      "have been waiting for something (a licence check, its maker's app, activation in a window it "
-                      "opened) that was ready by the second try. If it still fails, what stops it is something in the "
-                      "program MPE Roll runs in (FL Studio, say), such as another copy of a DLL it uses, loaded there "
-                      "already by that program or another plugin. Restart the program and load it before other "
-                      "plugins, or try its other format (VST2 or VST3) meanwhile, and please send the details."));
+        // What to make of that is said where the load is tried once more (HostedSynth).
+        say (verdict (d.name + " loads fine" + separateProcessPhrase + ", so the plugin itself works."));
         return;
     }
 
@@ -1070,6 +1064,15 @@ void diagnose (const juce::PluginDescription& d, juce::AudioPluginFormatManager&
    #endif
 
     say (verdict ({}));
+}
+
+bool worksElsewhere (const juce::StringArray& lines)
+{
+    for (int i = lines.size(); --i >= 0;)
+        if (lines[i].startsWith (verdictPrefix))
+            return lines[i].contains (separateProcessPhrase);
+
+    return false;
 }
 
 juce::String summarise (const juce::StringArray& lines, bool crashed, bool timedOut, const juce::String& pluginName)

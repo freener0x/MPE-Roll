@@ -318,6 +318,8 @@ void MpeRollEditor::refreshToolbar()
         toolbar.synthButton.setButtonText ("Loading...");
     else if (synth.isLoaded())
         toolbar.synthButton.setButtonText (synth.getName() + dropDownArrow);
+    else if (synth.getLoadProblem().isNotEmpty())
+        toolbar.synthButton.setButtonText ("Not loaded: " + synth.getMissingSynthName() + dropDownArrow);
     else if (synth.getMissingSynthName().isNotEmpty())
         toolbar.synthButton.setButtonText ("Missing: " + synth.getMissingSynthName() + dropDownArrow);
     else
@@ -364,6 +366,10 @@ juce::String MpeRollEditor::describeOutput() const
     const auto& clip = document.getEditClip();
     juce::String text;
 
+    // A glide stopped short at a bend range's edge in the last minute: what to set, until it stops.
+    if (const auto stopped = describeBendOverflow (rollProcessor.getRecentBendOverflow(), s); stopped.isNotEmpty())
+        return stopped;
+
     if (s.mode == OutputSettings::Mode::copies)
     {
         const auto copies = rollProcessor.getSynth().getCopyStatus();
@@ -403,6 +409,36 @@ juce::String MpeRollEditor::describeOutput() const
 
     text << "   |   " << (int) clip.notes.size() << " notes";
     return text;
+}
+
+juce::String MpeRollEditor::describeBendOverflow (const MpeEncoder::BendOverflow& over, const OutputSettings& s) const
+{
+    if (over.isEmpty())
+        return {};
+
+    const auto& synth = rollProcessor.getSynth();
+    const auto name = synth.isLoaded() ? synth.getName() : juce::String ("the synth");
+    const auto reached = juce::String (over.semitonesReached());
+    const auto stopsAt = juce::String (juce::roundToInt (over.range));
+    const auto setTo = juce::String (over.suggestedRange());
+    const auto scaledTo = [&] (float range) { return std::abs (over.range - range) < 0.01f; };
+
+    if (s.mode == OutputSettings::Mode::mpe && s.zones.hasAnyZone())
+    {
+        // A note's bend is scaled to the per-note range, a zone bend to the zone range.
+        if (scaledTo (s.memberBendRange))
+            return "A glide reaches " + reached + " semitones but stops at " + stopsAt + ", the Per-note bend range: set it and "
+                 + name + "'s MPE bend range to " + setTo + " (MPE settings)";
+
+        return "A zone bend reaches " + reached + " semitones but stops at " + stopsAt + ", the Zone bend range: set it and "
+             + name + "'s own pitch-bend range to " + setTo + " (MPE settings)";
+    }
+
+    // Plain MIDI, or one copy per note: the synth's own pitch-bend range scales every bend.
+    const auto profile = synth.getProfile();
+    return "Glides stop at " + stopsAt + " semitones, " + name + "'s own pitch-bend range, but one reaches " + reached + ": set "
+         + name + "'s range to " + setTo + " and Zone bend range (MPE settings) to " + setTo
+         + (profile.has_value() && profile->bendRange.isNotEmpty() ? "; MPE settings says where in " + name : juce::String());
 }
 
 void MpeRollEditor::setStatus (const juce::String& message)
@@ -451,6 +487,14 @@ void MpeRollEditor::timerCallback()
     if (rollProcessor.getSynth().isSilentOverMpe() != showingSilentStatus)
     {
         showingSilentStatus = ! showingSilentStatus;
+        refreshToolbar();
+    }
+
+    // A glide that stopped short at a bend range's edge: the status line says so while it's recent.
+    if (const auto over = rollProcessor.getRecentBendOverflow();
+        over.asked != shownBendOverflow.asked || over.range != shownBendOverflow.range)
+    {
+        shownBendOverflow = over;
         refreshToolbar();
     }
 
@@ -582,8 +626,20 @@ void MpeRollEditor::showSynthMenu()
 {
     auto& synth = rollProcessor.getSynth();
     const auto types = synth.getInstrumentTypes();
+
+    // Two installs of one plugin would otherwise be two lines reading the same.
+    const auto shown = HostedSynth::withDistinctNames (types);
     const auto* instance = synth.getInstance();
-    const auto currentId = instance != nullptr ? instance->getPluginDescription().createIdentifierString() : juce::String();
+    juce::String currentId;
+
+    if (instance != nullptr)
+    {
+        const auto loadedId = instance->getPluginDescription().createIdentifierString();
+
+        for (int i = 0; i < types.size(); ++i)
+            if (types[i].createIdentifierString() == loadedId)
+                currentId = shown[i].createIdentifierString();
+    }
 
     enum { scanId = -2, browseId = -3, unloadId = -4, windowBackId = -5, logId = -6 };
 
@@ -592,7 +648,7 @@ void MpeRollEditor::showSynthMenu()
     if (types.isEmpty())
         menu.addItem (-1, "No synths found yet: scan first", false);
     else
-        juce::KnownPluginList::addToMenu (menu, types, juce::KnownPluginList::sortByManufacturer, currentId);
+        juce::KnownPluginList::addToMenu (menu, shown, juce::KnownPluginList::sortByManufacturer, currentId);
 
     menu.addSeparator();
     menu.addItem (scanId, "Scan for plugins...");
@@ -608,7 +664,7 @@ void MpeRollEditor::showSynthMenu()
     menu.addItem (logId, "Show the plugin log (what happened when synths loaded)");
 
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.synthButton),
-                        [safe = juce::Component::SafePointer<MpeRollEditor> (this), types] (int result)
+                        [safe = juce::Component::SafePointer<MpeRollEditor> (this), types, shown] (int result)
     {
         if (safe == nullptr || result == 0)
             return;
@@ -623,7 +679,7 @@ void MpeRollEditor::showSynthMenu()
             safe->rollProcessor.getSynth().bringEditorOnScreen (safe.getComponent());
         else if (result == logId)
             PluginLog::reveal();
-        else if (const auto index = juce::KnownPluginList::getIndexChosenByMenu (types, result); index >= 0)
+        else if (const auto index = juce::KnownPluginList::getIndexChosenByMenu (shown, result); index >= 0)
             safe->loadSynth (types[index]);
     });
 }
@@ -801,11 +857,12 @@ void MpeRollEditor::playWithoutMpe (const juce::String& name, bool oneCopyPerNot
     settings.output.mode = oneCopyPerNote ? OutputSettings::Mode::copies : OutputSettings::Mode::singleChannel;
     document.setSettings (settings);
 
+    // Either way the synth's own pitch-bend range scales every glide, and most synths start at 2.
+    const auto bend = ". Glides stop at " + name + "'s own pitch-bend range (usually 2 semitones): set it to 12 or 24, and "
+                      "Zone bend range (MPE settings) to the same";
     setStatus (oneCopyPerNote ? "Playing " + name + " with one copy per note: loading " + juce::String (settings.output.copies - 1)
-                                    + " more copies, one at a time. Set " + name + "'s pitch-bend range to "
-                                    + juce::String (juce::roundToInt (settings.output.masterBendRange)) + " (MPE settings, Zone bend range); "
-                                      "glides stop there, so for wider ones set both to 12 or 24"
-                              : "Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel));
+                                    + " more copies, one at a time" + bend
+                              : "Playing " + name + " with Plain MIDI on channel " + juce::String (settings.output.singleChannel) + bend);
 }
 
 void MpeRollEditor::showLoadFailure (const juce::String& error, const juce::PluginDescription* plugin)

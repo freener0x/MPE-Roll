@@ -68,6 +68,7 @@ private:
     juce::Component::SafePointer<juce::AlertWindow> mpeAdvice;      // the "... has no MPE" box, while it's open
     bool showingSilentStatus = false;                               // the status line says the synth hasn't sounded
     bool showingFindingOutWhy = false;                              // ...or that a failed load is being retraced
+    MpeEncoder::BendOverflow shownBendOverflow;                     // ...or that a glide stopped short at a bend range
 
     void timerCallback() override;
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
@@ -87,6 +88,10 @@ private:
     void setStatus (const juce::String& message);
     void showStatusNow (const juce::String& message);
     juce::String describeOutput() const;
+
+    /** For the status line: a glide (or zone bend) that stopped short at a bend range's edge lately,
+        and what to set so it doesn't. Empty when none did. */
+    juce::String describeBendOverflow (const MpeEncoder::BendOverflow&, const OutputSettings&) const;
 
     void showSynthMenu();
     void showPluginScanner();

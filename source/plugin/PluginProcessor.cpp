@@ -27,6 +27,25 @@ namespace
 
         target.replaceRange (recorded.getPoints().front().beat, recorded.getPoints().back().beat, recorded.getPoints());
     }
+
+    // A bend past its range in one atomic word: how far it was asked to go in the high half, so
+    // that comparing the words compares that first (positive floats' bits order as their values do).
+    uint64_t packOverflow (const MpeEncoder::BendOverflow& o) noexcept
+    {
+        uint32_t asked = 0, range = 0;
+        std::memcpy (&asked, &o.asked, sizeof (asked));
+        std::memcpy (&range, &o.range, sizeof (range));
+        return ((uint64_t) asked << 32) | range;
+    }
+
+    MpeEncoder::BendOverflow unpackOverflow (uint64_t packed) noexcept
+    {
+        const auto asked = (uint32_t) (packed >> 32), range = (uint32_t) packed;
+        MpeEncoder::BendOverflow o;
+        std::memcpy (&o.asked, &asked, sizeof (asked));
+        std::memcpy (&o.range, &range, sizeof (range));
+        return o;
+    }
 }
 
 //==============================================================================
@@ -356,6 +375,52 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     synth.setOutputSettings (snapshot.settings.output);
     synth.process (buffer, hostMidi, getPlayHead());
     midiMessages.swapWith (synthMidi);
+
+    // A bend asked past its range was sent at the range's edge, so the synth heard a glide stop
+    // short: for the status line. With one copy per note the encoder writes the copies' stream with
+    // a note's bend scaled to their range already, so it sees a glide past it first; a copy's bend
+    // goes past when a zone bend and the note's own add up to more.
+    auto overflow = encoder.takeBendOverflow();
+
+    if (const auto copies = synth.takeCopyBendOverflow(); copies.asked > overflow.asked)
+        overflow = copies;
+
+    if (! overflow.isEmpty())
+    {
+        // The furthest since the message thread last looked.
+        const auto packed = packOverflow (overflow);
+        auto seen = bendOverflow.load (std::memory_order_relaxed);
+
+        while (packed > seen && ! bendOverflow.compare_exchange_weak (seen, packed, std::memory_order_release, std::memory_order_relaxed))
+        {}
+    }
+}
+
+MpeEncoder::BendOverflow MpeRollProcessor::getRecentBendOverflow()
+{
+    constexpr juce::uint32 keptMs = 60000;    // long enough to stop, read the status line and find MPE settings
+    const auto now = juce::Time::getMillisecondCounter();
+    const auto& output = document.getSettings().output;
+
+    if (const auto packed = bendOverflow.exchange (0, std::memory_order_acquire); packed != 0)
+    {
+        recentBendOverflow = unpackOverflow (packed);
+        recentBendOverflowMode = output.mode;
+        recentBendOverflowAt = now;
+    }
+    else if (now - recentBendOverflowAt >= keptMs)
+    {
+        recentBendOverflow = {};
+    }
+
+    // Stale once the range it was scaled to, or the way the synth is played, has changed: the next
+    // glide says if it still stops short.
+    const auto rangeStands = [&] (float range) { return std::abs (recentBendOverflow.range - range) < 0.01f; };
+
+    if (output.mode != recentBendOverflowMode || ! (rangeStands (output.masterBendRange) || rangeStands (output.memberBendRange)))
+        recentBendOverflow = {};
+
+    return recentBendOverflow;
 }
 
 void MpeRollProcessor::applySettings (const EngineSnapshot& snapshot, int)

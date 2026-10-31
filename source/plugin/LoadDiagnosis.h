@@ -70,6 +70,10 @@ private:
 /** Prefix of the line diagnose() ends with when it finds the answer. */
 inline constexpr const char* verdictPrefix = "Verdict: ";
 
+/** In every verdict that finds the plugin working on its own (it loads, or starts when called
+    directly), so worksElsewhere() can tell. */
+inline constexpr const char* separateProcessPhrase = " in a separate process";
+
 /** Retraces JUCE's load of a VST2 or VST3 step by step, running the plugin's code as JUCE does, so
     only for a separate process (the scanner). It first loads the plugin with JUCE as MPE Roll would;
     if that works, the plugin itself is fine and the failure belongs to the process it failed in.
@@ -83,5 +87,10 @@ void diagnose (const juce::PluginDescription&, juce::AudioPluginFormatManager&,
 /** The sentence for the user from diagnose()'s lines, which a crash or hang may have cut short
     (crashed / timedOut), or empty when they say nothing useful. */
 juce::String summarise (const juce::StringArray& lines, bool crashed, bool timedOut, const juce::String& pluginName);
+
+/** Whether diagnose()'s verdict found the plugin working in the scanner's process (it loaded, or
+    started when called directly): the failure then belongs to the process it failed in, or to its
+    first try there, so it's worth loading once more. */
+bool worksElsewhere (const juce::StringArray& lines);
 
 } // namespace mperoll::LoadDiagnosis

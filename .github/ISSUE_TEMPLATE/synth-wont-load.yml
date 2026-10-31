@@ -1,0 +1,47 @@
+name: A synth won't load
+description: MPE Roll says it couldn't load a synth, or the load never finishes.
+title: "Won't load: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        When a load fails, MPE Roll's box says why and has a **Copy details** button, which puts the plugin, its format and version, the error and the end of the plugin log on the clipboard. Paste that below: it's most of what's needed.
+  - type: textarea
+    id: details
+    attributes:
+      label: Copy details
+      description: What the Copy details button put on the clipboard, as is.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: synth
+    attributes:
+      label: The synth
+      description: Its name, version and format (VST3, VST2, CLAP), and whether it loads directly in FL Studio.
+      placeholder: Analog Lab V 5.10.1, VST3; loads fine in FL's Channel Rack
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: MPE Roll build
+      description: The line at the bottom of MPE Roll's File menu, e.g. "MPE Roll 0.1.0, build 63, f2ea3c4, 2026-10-26".
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: FL Studio and Windows (or macOS) versions
+      placeholder: FL Studio 26.1.7, Windows 11 24H2
+  - type: textarea
+    id: log
+    attributes:
+      label: Plugin log
+      description: "Load synth… › Show the plugin log opens it (%APPDATA%\\MPE Roll\\Plugin log.txt): the part about this synth, if Copy details didn't catch all of it."
+      render: text
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Did it ever load? Did the synth open a window of its own (a licence or sign-in box) while MPE Roll was finding out why?
