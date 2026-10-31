@@ -9,7 +9,9 @@ name: Release
 # change; here the unit tests and the installer's own test run again on what's shipped.
 #
 # Or run it by hand (Actions, Release, Run workflow) on main: it then tags main's commit itself with
-# the version from CMakeLists.txt (plus the suffix given, for a pre-release) and releases that.
+# the version from CMakeLists.txt (plus the suffix given, for a pre-release) and releases that. A tag
+# of that name already on another commit stops the run if a release was made from it (the version
+# has to change), and is moved to main's commit if none was (a run that failed before releasing).
 on:
   push:
     tags: ['v*']
@@ -38,6 +40,7 @@ jobs:
       - id: version
         env:
           SUFFIX: ${{ inputs.suffix }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           version=$(sed -nE 's/^project\(MPE_ROLL VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
           if [ -z "$version" ]; then
@@ -57,11 +60,17 @@ jobs:
             esac
             if git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag" 2> /dev/null; then
               at=$(git rev-parse "$tag^{commit}")
-              if [ "$at" != "$GITHUB_SHA" ]; then
-                echo "The tag $tag is already on ${at::7}, not on main's ${GITHUB_SHA::7}: change the version in CMakeLists.txt first."
+              if [ "$at" = "$GITHUB_SHA" ]; then
+                echo "The tag $tag is already on this commit."
+              elif gh release view "$tag" > /dev/null 2>&1; then
+                echo "The tag $tag is on ${at::7} and released, so main's ${GITHUB_SHA::7} needs a new version: change it in CMakeLists.txt first."
                 exit 1
+              else
+                # A tag from a run that didn't get to a release: nothing was published from it.
+                echo "The tag $tag is on ${at::7} with no release; moving it to main's ${GITHUB_SHA::7}."
+                git tag -f "$tag" "$GITHUB_SHA"
+                git push --force origin "refs/tags/$tag"
               fi
-              echo "The tag $tag is already on this commit."
             else
               git tag "$tag" "$GITHUB_SHA"
               git push origin "refs/tags/$tag"
@@ -144,12 +153,20 @@ jobs:
         shell: pwsh
         run: ./installer/test-installer.ps1 -Setup "installer/output/MPE-Roll-Setup-$env:VERSION.exe" -Dist dist
 
+      # Both files at the artifact's root: an artifact keeps the folders its files sit in (the installer's
+      # installer/output), and the release job attaches what it downloads as files.
+      - name: Collect
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item "MPE-Roll-$env:VERSION-Windows.zip" release/
+          Copy-Item "installer/output/MPE-Roll-Setup-$env:VERSION.exe" release/
+          Get-ChildItem release | Select-Object Name, Length
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: |
-            MPE-Roll-${{ env.VERSION }}-Windows.zip
-            installer/output/MPE-Roll-Setup-${{ env.VERSION }}.exe
+          path: release
           compression-level: 0
           if-no-files-found: error
 
@@ -216,7 +233,7 @@ jobs:
       # What's attached and how to use it, then GitHub's notes: the pull requests since the last release.
       - name: Notes
         run: |
-          ls -l files
+          ls -lR files
           {
             echo "MPE Roll $VERSION for Windows and macOS. A build names itself at the bottom of MPE Roll's File menu and of MPE settings: \"MPE Roll $VERSION, release $TAG, ${GITHUB_SHA::7}, $(date -u +%F)\"."
             echo
@@ -230,14 +247,31 @@ jobs:
           } > notes.md
           cat notes.md
 
-      # A run repeated for the same tag replaces the files and keeps the release.
+      # The three files, by name: anything else among the downloads is a mistake to stop on. A run
+      # repeated for the same tag replaces the files and keeps the release. gh makes a release with
+      # files as a draft, attaches them, then publishes it, so a run that failed while attaching leaves
+      # a draft behind: the next run finds it, replaces its files and publishes it.
       - name: Release
         run: |
+          assets=("files/MPE-Roll-Setup-$VERSION.exe" "files/MPE-Roll-$VERSION-Windows.zip" "files/MPE-Roll-$VERSION-macOS.zip")
+          for asset in "${assets[@]}"; do
+            if [ ! -f "$asset" ]; then
+              echo "$asset isn't among the files the builds made:"
+              ls -lR files
+              exit 1
+            fi
+          done
           flags=()
           if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" files/* --clobber
+            gh release upload "$TAG" "${assets[@]}" --clobber
+            gh release edit "$TAG" --draft=false "${flags[@]}"
           else
-            gh release create "$TAG" files/* --verify-tag --title "MPE Roll $VERSION" --notes-file notes.md "${flags[@]}"
+            gh release create "$TAG" "${assets[@]}" --verify-tag --title "MPE Roll $VERSION" --notes-file notes.md "${flags[@]}"
           fi
-          gh release view "$TAG"
+          gh release view "$TAG" --json url,isDraft,isPrerelease,assets \
+            --jq '.url, "draft: \(.isDraft), pre-release: \(.isPrerelease)", (.assets[] | "\(.name): \(.size) bytes")'
+          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" != false ]; then
+            echo "The release is still a draft."
+            exit 1
+          fi
