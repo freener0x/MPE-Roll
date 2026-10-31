@@ -135,9 +135,11 @@ and a plain-MIDI mode for synths that don't do MPE.
 Windows installer (`MPE-Roll-Setup-<version>.exe`), the Windows files (`MPE-Roll-<version>-Windows.zip`)
 and the macOS bundles (`MPE-Roll-<version>-macOS.zip`) attached, with notes on what changed since the
 one before. To make one (maintainers): set the version in `CMakeLists.txt` (`project(MPE_ROLL
-VERSION …)`), merge, tag that commit `v<version>` and push the tag; the *Release* workflow checks the
-tag against the version, builds everything, runs the unit tests and the installer's test, and
-publishes the release. A tag with a suffix (`v0.2.0-beta1`) is marked a pre-release.
+VERSION …)`), merge, then either tag that commit `v<version>` and push the tag, or open the
+*Release* workflow under *Actions* and *Run workflow* on `main`, which tags main's commit for you.
+The workflow checks the tag against the version, builds everything, runs the unit tests and the
+installer's test, and publishes the release. A tag with a suffix (`v0.2.0-beta1`, or a suffix typed
+into *Run workflow*) is marked a pre-release.
 
 **Builds between releases.** Every code change is built by GitHub Actions (a change to the
 documentation alone builds nothing).
