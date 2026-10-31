@@ -7,42 +7,84 @@ name: Release
 # settings): "MPE Roll 0.1.0, release v0.1.0, f2ea3c4, 2026-10-28". A tag with a suffix
 # (v0.2.0-beta1) is marked a pre-release. The code itself is tested by the Build workflow on every
 # change; here the unit tests and the installer's own test run again on what's shipped.
+#
+# Or run it by hand (Actions, Release, Run workflow) on main: it then tags main's commit itself with
+# the version from CMakeLists.txt (plus the suffix given, for a pre-release) and releases that.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      suffix:
+        description: "Pre-release suffix, beta1 say, for a tag like v0.2.0-beta1; empty for a release"
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: write
-
-env:
-  TAG: ${{ github.ref_name }}
 
 jobs:
   version:
     name: The tag matches the version
     runs-on: ubuntu-24.04
     outputs:
+      tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
 
       - id: version
+        env:
+          SUFFIX: ${{ inputs.suffix }}
         run: |
           version=$(sed -nE 's/^project\(MPE_ROLL VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
-          tagged=${TAG#v}
-          tagged=${tagged%%-*}
-          if [ -z "$version" ] || [ "$version" != "$tagged" ]; then
-            echo "The tag $TAG doesn't match the version in CMakeLists.txt ($version): change one, then tag again."
+          if [ -z "$version" ]; then
+            echo "CMakeLists.txt has no 'project(MPE_ROLL VERSION ...)' line to take the version from."
             exit 1
           fi
-          case "$TAG" in
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            # Run by hand: tag main's commit here, unless the tag is on it already (a run repeated).
+            if [ "$GITHUB_REF" != refs/heads/main ]; then
+              echo "Releases are made from main; this run was started on $GITHUB_REF_NAME."
+              exit 1
+            fi
+            case "$SUFFIX" in
+              '') tag="v$version" ;;
+              *[!A-Za-z0-9.]*) echo "The suffix '$SUFFIX' can only have letters, digits and dots."; exit 1 ;;
+              *) tag="v$version-$SUFFIX" ;;
+            esac
+            if git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag" 2> /dev/null; then
+              at=$(git rev-parse "$tag^{commit}")
+              if [ "$at" != "$GITHUB_SHA" ]; then
+                echo "The tag $tag is already on ${at::7}, not on main's ${GITHUB_SHA::7}: change the version in CMakeLists.txt first."
+                exit 1
+              fi
+              echo "The tag $tag is already on this commit."
+            else
+              git tag "$tag" "$GITHUB_SHA"
+              git push origin "refs/tags/$tag"
+            fi
+          else
+            tag=$GITHUB_REF_NAME
+          fi
+          tagged=${tag#v}
+          tagged=${tagged%%-*}
+          if [ "$version" != "$tagged" ]; then
+            echo "The tag $tag doesn't match the version in CMakeLists.txt ($version): change one, then tag again."
+            exit 1
+          fi
+          case "$tag" in
             *-*) prerelease=true ;;
             *)   prerelease=false ;;
           esac
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
-          echo "Releasing MPE Roll $version from $TAG (pre-release: $prerelease)"
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing MPE Roll $version from $tag (pre-release: $prerelease)"
 
   windows:
     name: Windows (installer, VST3, VST2, Standalone)
@@ -52,6 +94,7 @@ jobs:
       run:
         shell: bash
     env:
+      TAG: ${{ needs.version.outputs.tag }}
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
@@ -115,6 +158,7 @@ jobs:
     needs: version
     runs-on: macos-latest
     env:
+      TAG: ${{ needs.version.outputs.tag }}
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
@@ -157,6 +201,7 @@ jobs:
     needs: [version, windows, macos]
     runs-on: ubuntu-24.04
     env:
+      TAG: ${{ needs.version.outputs.tag }}
       VERSION: ${{ needs.version.outputs.version }}
       PRERELEASE: ${{ needs.version.outputs.prerelease }}
       GH_TOKEN: ${{ github.token }}
