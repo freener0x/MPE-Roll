@@ -35,7 +35,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: version
         env:
@@ -106,7 +106,7 @@ jobs:
       TAG: ${{ needs.version.outputs.tag }}
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: >
@@ -163,7 +163,7 @@ jobs:
           Copy-Item "installer/output/MPE-Roll-Setup-$env:VERSION.exe" release/
           Get-ChildItem release | Select-Object Name, Length
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: release
@@ -178,7 +178,7 @@ jobs:
       TAG: ${{ needs.version.outputs.tag }}
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Ninja
         run: brew list ninja || brew install ninja
@@ -206,7 +206,7 @@ jobs:
           ditto -x -k "MPE-Roll-$VERSION-macOS.zip" unzipped
           test -x "unzipped/MPE Roll/MPE Roll.app/Contents/MacOS/MPE Roll"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos
           path: MPE-Roll-${{ env.VERSION }}-macOS.zip
@@ -223,9 +223,9 @@ jobs:
       PRERELEASE: ${{ needs.version.outputs.prerelease }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: files
           merge-multiple: true

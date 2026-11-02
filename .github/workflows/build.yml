@@ -29,7 +29,7 @@ jobs:
     outputs:
       code: ${{ steps.diff.outputs.code }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -78,7 +78,7 @@ jobs:
       CRASHING_PLUGIN: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Crashing Test Plugin.clap
       HANGING_PLUGIN: build/MpeRollClapTestSynth_artefacts/Release/MPE Roll Hanging Test Plugin.clap
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: >
@@ -164,7 +164,7 @@ jobs:
           Copy-Item "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.pdb" dist/
           Get-ChildItem -Recurse dist | Select-Object FullName, Length
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: MPE-Roll-Windows-build-${{ github.run_number }}
           path: dist
@@ -189,7 +189,7 @@ jobs:
         shell: pwsh
         run: ./installer/test-installer.ps1 -Setup "installer/output/MPE-Roll-Setup-build-${{ github.run_number }}.exe" -Dist dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: MPE-Roll-Windows-Setup-build-${{ github.run_number }}
           path: installer/output/MPE-Roll-Setup-build-${{ github.run_number }}.exe
@@ -204,7 +204,7 @@ jobs:
       && (github.event_name != 'workflow_dispatch' || inputs.macos)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Ninja
         run: brew list ninja || brew install ninja
@@ -233,7 +233,7 @@ jobs:
           ditto -x -k MPE-Roll-bundles.zip unzipped
           test -x "unzipped/MPE Roll/MPE Roll.app/Contents/MacOS/MPE Roll"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: MPE-Roll-macOS-build-${{ github.run_number }}
           path: MPE-Roll-bundles.zip
@@ -245,7 +245,7 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install dependencies
         run: |
@@ -366,7 +366,7 @@ jobs:
     name: Website (docs/, as GitHub Pages builds it)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build
         uses: actions/jekyll-build-pages@v1
