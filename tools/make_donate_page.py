@@ -54,6 +54,7 @@ MD_OUT = ROOT / "DONATE.md"
 FUNDING_OUT = ROOT / ".github" / "FUNDING.yml"
 PLUGIN_DATA_OUT = ROOT / "source" / "plugin" / "ui" / "DonateData.h"
 DONATE_MD_URL = f"{REPO_URL}/blob/main/DONATE.md"
+RELEASE_URL = f"{REPO_URL}/releases/latest"
 DOWNLOAD_URL = f"{REPO_URL}#downloading-a-build"
 LICENSE_URL = f"{REPO_URL}/blob/main/LICENSE"
 
@@ -278,8 +279,9 @@ def render_index(links: list[dict], coins: list[dict], public: bool) -> str:
     ]
     if public:
         out += ["<h2>Get it</h2>",
-                "<p>Every change is built for Windows (an installer, or the files to copy by hand) and for macOS: "
-                f'<a href="{e(DOWNLOAD_URL)}">Downloading a build</a> says where to find them. {e(PROJECT)} is an '
+                f'<p>The <a href="{e(RELEASE_URL)}">latest release</a> has the Windows installer, the Windows files '
+                "to copy by hand and the macOS bundles, with notes on what changed. Every change since is built "
+                f'too: <a href="{e(DOWNLOAD_URL)}">Downloading a build</a> says where those are. {e(PROJECT)} is an '
                 "early version: automated tests cover it on Windows, macOS and Linux, and it has been lightly "
                 "tested inside FL Studio so far.</p>"]
     out += ["<h2>Guides</h2>",
@@ -303,7 +305,7 @@ def render_project_data(public: bool) -> str:
            f"repo_public: {json.dumps(public)}"]
     if public:
         out += [f"repo_url: {json.dumps(REPO_URL)}",
-                f"download_url: {json.dumps(DOWNLOAD_URL)}",
+                f"download_url: {json.dumps(RELEASE_URL)}",
                 f"license_url: {json.dumps(LICENSE_URL)}"]
     return "\n".join(out) + "\n"
 
