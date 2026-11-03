@@ -46,6 +46,20 @@ namespace
     // Set on the thread playing the first copy's block, which may be a worker.
     thread_local bool playingFirstCopy = false;
 
+    // Set on the thread playing the synth's block while that block carries expression (pitch bend,
+    // controllers, pressure): a parameter the synth reports meanwhile follows that expression.
+    thread_local bool playingSynthBlock = false;
+
+    /** Sets a thread-local flag for a scope, and puts it back however the scope is left. */
+    struct ScopedThreadFlag
+    {
+        ScopedThreadFlag (bool& f, bool value) noexcept : flag (f), was (f)   { flag = value; }
+        ~ScopedThreadFlag() noexcept                                           { flag = was; }
+
+        bool& flag;
+        const bool was;
+    };
+
     size_t hashOf (const juce::MemoryBlock& block)
     {
         return std::hash<std::string_view> {} (std::string_view (static_cast<const char*> (block.getData()), block.getSize()));
@@ -187,23 +201,48 @@ namespace
         juce::AudioPluginFormatManager& formats;
     };
 
-    /** Whether a synth's parameter is named after a performance controller, the pitch wheel, mod
-        wheel or channel pressure, as Serum 1's "Pitch Bend" and "Mod Wheel" are. Only names that
-        are nothing else count: "Bend Range" or "Pressure" are a synth's own settings. */
-    bool namesPerformanceControl (const juce::String& name)
+}
+
+bool HostedSynth::namesPerformanceControl (const juce::String& name)
+{
+    // Lower case, letters and digits only: "MIDI CC1 Mod Wheel" is "midicc1modwheel".
+    auto key = name.toLowerCase().retainCharacters ("abcdefghijklmnopqrstuvwxyz0123456789");
+
+    // What says which channel or controller it follows is taken off the front, as often as it's
+    // there: "midi", and "channel", "chan", "ch" or "cc" with a number after it ("channel16 pitch
+    // bend", "Ch 3 Mod Wheel", "MIDI CC1 Mod Wheel"). "Chorus" has no number after its "ch".
+    for (bool stripped = true; stripped;)
     {
-        auto key = name.toLowerCase().retainCharacters ("abcdefghijklmnopqrstuvwxyz");
+        stripped = false;
 
         if (key.startsWith ("midi"))
+        {
             key = key.substring (4);
+            stripped = true;
+            continue;
+        }
 
-        for (const auto* control : { "pitchbend", "pitchbender", "pitchwheel", "modwheel", "modulationwheel",
-                                     "aftertouch", "channelaftertouch", "channelpressure" })
-            if (key == control)
-                return true;
+        for (const auto* prefix : { "channel", "chan", "ch", "cc" })
+        {
+            const juce::String p (prefix);
 
-        return false;
+            if (key.startsWith (p) && key.length() > p.length() && juce::CharacterFunctions::isDigit (key[p.length()]))
+            {
+                key = key.substring (p.length()).trimCharactersAtStart ("0123456789");
+                stripped = true;
+                break;
+            }
+        }
     }
+
+    // Only a name that is nothing else counts: "Bend Range", "Pitch Bend Up" or "Pressure" are a
+    // synth's own settings.
+    for (const auto* control : { "pitchbend", "pitchbender", "pitchwheel", "pitchbendwheel", "modwheel",
+                                 "modulationwheel", "aftertouch", "channelaftertouch", "channelpressure" })
+        if (key == control)
+            return true;
+
+    return false;
 }
 
 class HostedSynth::EditorWindow : public juce::DocumentWindow
@@ -1276,7 +1315,7 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
         clapControls->setMpeOutputSettings (outputSettings);
    #endif
 
-    countHeldNotes (midi);
+    const auto expression = countHeldNotes (midi);
 
     // Hosts may send a longer block than prepare() said. The synth gets it in pieces it was
     // prepared for, so the block (and its note-offs) isn't lost. Each piece's transport position
@@ -1300,7 +1339,13 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
 
         juce::AudioBuffer<float> view (scratch.getArrayOfWritePointers(), needed, length);
         view.clear();
-        plugin.processBlock (view, vst3Expressions.process (*pieceMidi, length, outputSettings));
+
+        {
+            // What the synth reports while it plays a block with expression in it follows that
+            // expression, not an edit: see isFollowingItsNotes().
+            const ScopedThreadFlag playing (playingSynthBlock, expression);
+            plugin.processBlock (view, vst3Expressions.process (*pieceMidi, length, outputSettings));
+        }
 
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         {
@@ -1315,8 +1360,10 @@ void HostedSynth::process (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& m
     listenForSound (buffer);
 }
 
-void HostedSynth::countHeldNotes (const juce::MidiBuffer& midi) noexcept
+bool HostedSynth::countHeldNotes (const juce::MidiBuffer& midi) noexcept
 {
+    bool expression = false;
+
     // Counted even once the watch is finished: a project's state starts it again with the notes
     // held at that moment.
     for (const auto metadata : midi)
@@ -1329,7 +1376,11 @@ void HostedSynth::countHeldNotes (const juce::MidiBuffer& midi) noexcept
             silenceWatch.heldNotes = juce::jmax (0, silenceWatch.heldNotes - 1);
         else if (msg.isAllNotesOff() || msg.isAllSoundOff())
             silenceWatch.heldNotes = 0;
+        else if (msg.isPitchWheel() || msg.isController() || msg.isChannelPressure() || msg.isAftertouch())
+            expression = true;
     }
+
+    return expression;
 }
 
 void HostedSynth::listenForSound (const juce::AudioBuffer<float>& output) noexcept
@@ -1840,11 +1891,12 @@ void HostedSynth::audioProcessorParameterChanged (juce::AudioProcessor*, int ind
 {
     // A change the first copy reports while it plays its block follows from the MIDI it was sent
     // (a parameter a synth maps a controller or the pitch bend to): that MIDI is its own, not the
-    // other copies'. So does its pitch wheel or mod wheel parameter, which a synth may report from
-    // its window as the wheel it draws follows the notes: not copied, but counted, so the look at
-    // its sound waits for the wheels as for the knobs. Other changes from its window, and its
-    // presets, are copied.
-    if (playingFirstCopy)
+    // other copies'. So does one the synth reports while it plays a block with expression in it
+    // outside copy mode (there's nothing to copy to then; it just isn't an edit). So does its pitch
+    // wheel or mod wheel parameter, which a synth may report from its window as the wheel it draws
+    // follows the notes: not copied, but counted, so the look at its sound waits for the wheels as
+    // for the knobs. Other changes from its window, and its presets, are copied.
+    if (playingFirstCopy || playingSynthBlock)
         return;
 
     if (mirror.isPerformanceControl (index))
@@ -1855,7 +1907,7 @@ void HostedSynth::audioProcessorParameterChanged (juce::AudioProcessor*, int ind
 
 bool HostedSynth::isFollowingItsNotes (int index) const noexcept
 {
-    return playingFirstCopy || mirror.isPerformanceControl (index);
+    return playingFirstCopy || playingSynthBlock || mirror.isPerformanceControl (index);
 }
 
 bool HostedSynth::setParameterValue (int index, float value)

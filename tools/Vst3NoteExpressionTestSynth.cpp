@@ -448,10 +448,33 @@ public:
             return kInvalidArgument;
 
         controllerBend = std::clamp (value, 0.0, 1.0);
+
+        // With MPEROLL_TEST_ECHO_EDITS set, the move is echoed to the host as an edit of its own
+        // (begin, perform, end), as a synth whose controller tracks its MIDI-mapped parameters that
+        // way does. Not while the host's answer to an echo is coming back here.
+        if (echoEdits && handler != nullptr && ! echoing)
+        {
+            echoing = true;
+            handler->beginEdit (id);
+            handler->performEdit (id, controllerBend.load());
+            handler->endEdit (id);
+            echoing = false;
+        }
+
         return kResultOk;
     }
 
-    tresult PLUGIN_API setComponentHandler (Vst::IComponentHandler*) override   { return kResultOk; }   // never used
+    tresult PLUGIN_API setComponentHandler (Vst::IComponentHandler* newHandler) override
+    {
+        if (newHandler != nullptr)
+            newHandler->addRef();
+
+        if (handler != nullptr)
+            handler->release();
+
+        handler = newHandler;
+        return kResultOk;
+    }
     IPlugView* PLUGIN_API createView (FIDString) override                      { return nullptr; }
 
     //==============================================================================
@@ -572,7 +595,11 @@ public:
     }
 
 private:
-    ~NoteExpressionTestSynth() = default;   // release() deletes it
+    ~NoteExpressionTestSynth()   // release() deletes it
+    {
+        if (handler != nullptr)
+            handler->release();
+    }
 
     static bool isOurBus (Vst::MediaType type, Vst::BusDirection direction, int32 index) noexcept
     {
@@ -726,6 +753,9 @@ private:
 
     std::atomic<uint32> refCount { 1 };
     std::atomic<double> controllerBend { 0.5 };     // the edit controller's value of Pitch Bend
+    Vst::IComponentHandler* handler = nullptr;      // the host's, for echoing edits (see setParamNormalized)
+    const bool echoEdits = std::getenv ("MPEROLL_TEST_ECHO_EDITS") != nullptr;
+    bool echoing = false;
     double processorBend = 0.5;                     // the value process() last received
     double sampleRate = 44100.0;
     uint64 notesStarted = 0;

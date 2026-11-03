@@ -29,8 +29,8 @@ constexpr std::array<const char*, 4> programNames { "Sine", "Square", "Saw", "Sq
 constexpr int quietProgram = 3;         // the square wave, set without telling the host
 
 constexpr int stateMagic = 0x6e616c50;  // the state starts with the bytes "Plan"
-constexpr int stateVersion = 2;
-constexpr int numParameters = 6;
+constexpr int stateVersion = 3;
+constexpr int numParameters = 7;
 
 /** What a MIDI channel holds for every note on it. */
 struct Channel
@@ -112,6 +112,15 @@ public:
         // does nothing here.
         addParameter (pitchWheel = new juce::AudioParameterFloat (juce::ParameterID ("pitchbend", 1), "Pitch Bend",
                                                                   0.0f, 1.0f, 0.5f));
+
+        // Stands in for a parameter a synth gives each channel's pitch bend (Analog Lab's "channel1
+        // pitch bend" to "channel16 pitch bend"): it follows the bend on channel 1 and tells the host
+        // of each move from the block, as such synths do. With MPEROLL_TEST_BEND_GESTURES set, each
+        // move comes as an edit of its own (begin, change, end), as a synth whose window echoes the
+        // move might send it. Its name, not "Pitch Bend", is what a host has to see through.
+        addParameter (channelOneBend = new juce::AudioParameterFloat (juce::ParameterID ("ch1bend", 1), "channel1 pitch bend",
+                                                                      0.0f, 1.0f, 0.5f));
+        bendGestures = juce::SystemStats::getEnvironmentVariable ("MPEROLL_TEST_BEND_GESTURES", {}).isNotEmpty();
 
         jassert (getParameters().size() == numParameters);
 
@@ -229,8 +238,10 @@ public:
         out.writeInt ((int) waveform.load());
         out.writeInt (currentProgram.load());
 
+        // The bend follower isn't a setting: written at rest, so copies of this synth that played
+        // different notes still have the same state.
         for (auto* p : getParameters())
-            out.writeFloat (p->getValue());
+            out.writeFloat (p == channelOneBend ? 0.5f : p->getValue());
     }
 
     void setStateInformation (const void* data, int size) override
@@ -278,6 +289,8 @@ private:
     juce::AudioParameterBool* crash = nullptr;
     juce::AudioParameterBool* throwing = nullptr;
     juce::AudioParameterFloat* pitchWheel = nullptr;
+    juce::AudioParameterFloat* channelOneBend = nullptr;
+    bool bendGestures = false;
     std::atomic<bool> crashed { false };    // it crashed on purpose: a host mustn't call it again
 
     /** For the harness: a call a host makes after this synth crashed (it never should) is noted
@@ -337,11 +350,27 @@ private:
 
             case 0xe0:
                 channels[(size_t) channel].pitchBend = first | (second << 7);
+
+                if (channel == 0)
+                    followBend ((float) (first | (second << 7)) / 16383.0f);
+
                 break;
 
             default:
                 break;
         }
+    }
+
+    /** The channel 1 bend follower moves, and the host is told: from the block, as a synth tells it. */
+    void followBend (float normalised) noexcept
+    {
+        if (bendGestures)
+            channelOneBend->beginChangeGesture();
+
+        channelOneBend->setValueNotifyingHost (normalised);
+
+        if (bendGestures)
+            channelOneBend->endChangeGesture();
     }
 
     void handleController (Channel& state, int channel, int controller, int value) noexcept

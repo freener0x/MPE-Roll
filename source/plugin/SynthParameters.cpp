@@ -1,4 +1,5 @@
 #include "SynthParameters.h"
+#include "PluginLog.h"
 
 #include <map>
 #include <optional>
@@ -130,11 +131,14 @@ SynthParameterBank::SynthParameterBank (juce::AudioProcessor& o, HostedSynth& s)
     {
         slotToHosted[(size_t) i] = -1;
         cachedValues[(size_t) i] = 0.0f;
+        gestureForwarded[(size_t) i] = false;
 
         auto proxy = std::make_unique<SynthParameterProxy> (*this, i);
         proxies[(size_t) i] = proxy.get();
         owner.addParameter (proxy.release());
     }
+
+    resetDiagnostics();
 }
 
 SynthParameterBank::~SynthParameterBank()
@@ -175,11 +179,15 @@ void SynthParameterBank::parameterValueChanged (int hostedIndex, float newValue)
         cachedValues[(size_t) slot] = newValue;
 
         // The synth following the notes it's sent (its wheels, a parameter its MIDI mapping moves
-        // with each channel's pitch bend, or anything its first copy moves while it plays in copy
-        // mode) isn't an edit: reported to the host, it would fill its undo history, record as
-        // automation, and come back to move every copy with the first one's note.
+        // with each channel's pitch bend, anything it reports while it plays a block with
+        // expression in it, or anything its first copy moves while it plays in copy mode) isn't an
+        // edit: reported to the host, it would fill its undo history, record as automation, and
+        // come back to move every copy with the first one's note.
         if (! synth.isFollowingItsNotes (hostedIndex))
+        {
             proxies[(size_t) slot]->sendValueChangedMessageToListeners (newValue);
+            notePassed (hostedIndex);
+        }
     }
 }
 
@@ -193,10 +201,86 @@ void SynthParameterBank::parameterGestureChanged (int hostedIndex, bool gestureI
     if (slot < 0)
         return;
 
+    // A gesture around a change that follows the notes isn't passed on either: a host that keeps
+    // its undo history by gestures (FL Studio does) would make an entry of each. One that began
+    // before the parameter was known to follow the notes is still ended, so the host's begin and
+    // end stay paired.
+    auto& forwarded = gestureForwarded[(size_t) slot];
+
     if (gestureIsStarting)
-        proxies[(size_t) slot]->beginChangeGesture();
-    else
+    {
+        if (synth.isFollowingItsNotes (hostedIndex))
+            return;
+
+        if (! forwarded.exchange (true))
+            proxies[(size_t) slot]->beginChangeGesture();
+    }
+    else if (forwarded.exchange (false))
+    {
         proxies[(size_t) slot]->endChangeGesture();
+    }
+}
+
+//==============================================================================
+void SynthParameterBank::notePassed (int hostedIndex) noexcept
+{
+    passedCount.fetch_add (1, std::memory_order_relaxed);
+
+    // The first few distinct parameters, claimed first come first served; a full list drops the rest.
+    for (auto& noted : passedIndices)
+    {
+        auto expected = -1;
+
+        if (noted.load (std::memory_order_relaxed) == hostedIndex
+            || noted.compare_exchange_strong (expected, hostedIndex, std::memory_order_relaxed))
+            return;
+    }
+}
+
+void SynthParameterBank::resetDiagnostics()
+{
+    for (auto& noted : passedIndices)
+        noted.store (-1, std::memory_order_relaxed);
+
+    passedCount.store (0, std::memory_order_relaxed);
+    passedLogged = 0;
+}
+
+void SynthParameterBank::flushDiagnostics()
+{
+    // Once when the first changes have been passed on, and again when they've become a flood:
+    // what a host's undo history fills with, named.
+    const auto count = passedCount.load (std::memory_order_relaxed);
+
+    if (count == 0 || (passedLogged > 0 && (count < 500 || passedLogged >= 500)))
+        return;
+
+    passedLogged = count;
+    const auto* description = synth.getDescription();
+
+    if (description == nullptr)
+        return;
+
+    juce::StringArray names;
+
+    for (const auto& noted : passedIndices)
+    {
+        const auto index = noted.load (std::memory_order_relaxed);
+        juce::String name;
+
+        if (index >= 0 && synth.withParameter (index, [&] (juce::AudioProcessorParameter& p) { name = p.getName (64); }))
+            names.add (name.quoted() + " (#" + juce::String (index + 1) + ")");
+    }
+
+    juce::String line;
+    line << description->name << " (" << description->pluginFormatName << "): " << juce::String ((int) count)
+         << " parameter change" << (count == 1 ? "" : "s") << " reported by the synth passed on to the host as edits";
+
+    if (! names.isEmpty())
+        line << ": " << names.joinIntoString (", ");
+
+    line << ". A parameter that follows the notes should be told apart by its name or the synth's MIDI mapping.";
+    PluginLog::add (line);
 }
 
 //==============================================================================
@@ -210,6 +294,11 @@ void SynthParameterBank::detach()
         p->removeListener (this);
 
     listenedTo = nullptr;
+
+    // A gesture the synth began and never ended is ended for it, so the host's pairs stay even.
+    for (int slot = 0; slot < numSlots; ++slot)
+        if (gestureForwarded[(size_t) slot].exchange (false))
+            proxies[(size_t) slot]->endChangeGesture();
 }
 
 void SynthParameterBank::synthRemoving (juce::AudioPluginInstance& outgoing)
@@ -228,6 +317,7 @@ void SynthParameterBank::synthRemoving (juce::AudioPluginInstance& outgoing)
 void SynthParameterBank::synthChanged()
 {
     detach();
+    resetDiagnostics();
 
     for (auto& s : slotToHosted)
         s = -1;

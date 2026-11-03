@@ -9,11 +9,13 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 
 ## 1. Install
 
-1. Download a build (see
-   [Downloading a build](https://github.com/freener0x/MPE-Roll#downloading-a-build)) or build it
-   yourself.
-2. On Windows, close FL Studio and run the installer, `MPE-Roll-Setup-build-N.exe` (if Windows says
-   *Windows protected your PC*, choose *More info*, then *Run anyway*). For the VST2, pick one of the
+1. Download the [latest release](https://github.com/freener0x/MPE-Roll/releases/latest): the Windows
+   installer, the Windows files to copy by hand, or the macOS bundles. Or take a build made since
+   (see [Downloading a build](https://github.com/freener0x/MPE-Roll#downloading-a-build)), or build
+   it yourself.
+2. On Windows, close FL Studio and run the installer, `MPE-Roll-Setup-<version>.exe` (a build between
+   releases comes zipped, with `MPE-Roll-Setup-build-N.exe` inside). If Windows says
+   *Windows protected your PC*, choose *More info*, then *Run anyway*. For the VST2, pick one of the
    folders listed under *Options › Manage plugins*. The installer offers to remove older copies of
    MPE Roll it finds in the plugin folders; leave them ticked unless a project of yours still needs
    one. To install by hand instead,
@@ -24,7 +26,8 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    (Windows can't replace a plugin file that FL has loaded) and replace every copy you installed
    before, the `.dll` too if you used it.
 3. In FL Studio: *Options › Manage plugins › Find installed plugins*. The bottom of MPE Roll's File
-   menu names the build that's loaded, e.g. "MPE Roll 0.1.0, build 63, f2ea3c4, 2026-10-26".
+   menu names the build that's loaded, e.g. "MPE Roll 0.1.0, release v0.1.0, fd8e433, 2026-11-01"
+   (a build between releases says "build 63" and its commit instead of the release).
 4. Add **MPE Roll** to the Channel Rack like any other instrument.
 5. In MPE Roll's wrapper settings (the gear icon in the plugin window's title bar), leave *Send pitch
    bend range* off so FL doesn't send its own bend range on top of MPE Roll's. If you use FL's *Smart
@@ -542,7 +545,7 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | Problem | Fix |
 | --- | --- |
 | FL doesn't list MPE Roll | Check where the files went: the whole `MPE Roll.vst3` folder in `C:\Program Files\Common Files\VST3`, or `MPE Roll.dll` in one of the plugin folders listed under *Options › Manage plugins* (the installer puts the VST2 where you told it to). Then click *Find installed plugins*. |
-| After an update, new features (or the toolbar's icons) are missing | FL is loading an older MPE Roll. The bottom of the File menu (and of *MPE settings*) names the build that's loaded, e.g. "build 63": compare it with the number in the download's name (`MPE-Roll-Windows-build-63`). Close FL and run the installer, which finds the older copies FL's plugin database lists (outside FL's own folder) and any in the usual plugin folders. Without the installer, or for a copy it didn't find, look in every folder listed under *Options › Manage plugins* for `MPE Roll.vst3`, `MPE Roll.dll` and `MPE Roll Scanner.exe`, and replace or delete the old ones. A project or channel made with the `.dll` keeps loading the `.dll`, even with a newer `.vst3` installed. Then *Find installed plugins*. |
+| After an update, new features (or the toolbar's icons) are missing | FL is loading an older MPE Roll. The bottom of the File menu (and of *MPE settings*) names the build that's loaded, e.g. "release v0.1.0" or "build 63": compare it with the download's name (`MPE-Roll-0.1.0-Windows.zip`, `MPE-Roll-Windows-build-63`). Close FL and run the installer, which finds the older copies FL's plugin database lists (outside FL's own folder) and any in the usual plugin folders. Without the installer, or for a copy it didn't find, look in every folder listed under *Options › Manage plugins* for `MPE Roll.vst3`, `MPE Roll.dll` and `MPE Roll Scanner.exe`, and replace or delete the old ones. A project or channel made with the `.dll` keeps loading the `.dll`, even with a newer `.vst3` installed. Then *Find installed plugins*. |
 | Scanning for plugins crashes FL | MPE Roll Scanner isn't installed, so plugins were looked at inside FL. It's inside the `.vst3` folder; with the `.dll`, put `MPE Roll Scanner.exe` next to it. |
 | "… crashed while MPE Roll was checking it" | That plugin crashes when it's loaded outside its usual host, so MPE Roll won't load it (FL would go down with it). Try updating the plugin, and please report which one it is. |
 | Per-note lanes do nothing, zone-wide ones work | The synth isn't in MPE mode, or has none. *MPE settings › Synth is played with* says which, and where the synth's MPE switch is if MPE Roll knows it (section 7). Turn MPE on in the synth, or set *Synth expects* to *Plain MIDI*, where the newest note's expression drives the whole synth. A VST3 synth that takes pitch bend on channel 1 only can't get each note's own expression over MIDI: MPE Roll plays it with VST3 note expressions if it takes them, and otherwise says so (section 2). |
@@ -563,6 +566,7 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | A VST3 synth played with VST3 note expressions doesn't glide | Its own MPE switch may be on (Serum 2 takes note expressions with it off). Or turn off *Note expressions (CLAP, VST3)* to send MPE over MIDI, and please send the plugin log. |
 | A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded and open their own window; MPE Roll says so. Please report synths whose window doesn't appear at all. |
 | An automation clip moves the wrong knob | The clip belongs to an MPE Roll slot, and slots are reassigned when you load a different synth. Re-link it with *Last tweaked*. |
+| FL's undo history fills with *Knob tweak (channel1 pitch bend)* and the like while notes glide | Some synths give each MIDI channel's pitch bend (or wheel, or aftertouch) a parameter of its own, which moves with every bend MPE Roll sends: Analog Lab's and Kontakt's are named "channel1 pitch bend" to "channel16 pitch bend". MPE Roll keeps such moves from FL: a parameter named after a channel's or controller's bend or wheel, one the synth's VST3 MIDI mapping moves, and anything the synth reports while it plays a block with bends in it, is the synth following its notes, not an edit. If entries still appear, *Load synth… › Show the plugin log*: a line "…parameter changes reported by the synth passed on to the host as edits" names the parameters that got through; please send it with the synth's name and format (VST2 or VST3). |
 | Vibrato barely moves, or only on the newest note | Vibrato rides on the note's pitch bend, so it needs what glides need: MPE on in the synth with the bend ranges matching, or *Plain MIDI* with *Zone bend range* set to the synth's, where only the newest note's is heard. A synth without MPE can also take the zone-wide *Vibrato* lane. |
 | Harmor, Sytrus or another FL synth can't be scanned or loaded | FL's own synths come in Image-Line's format, which only FL can load, so a scan leaves `Harmor_x64.dll` and the like out and names them in a box when it's done, and *Load plugin file…* says what they are. Use *Send to FL piano roll* (section 5). Image-Line's separate VST versions, if you own one, load as ordinary VST2 synths with *Plain MIDI*. |
 | "The MPE Roll Scanner installed here is older than this MPE Roll" | The `MPE Roll Scanner.exe` next to `MPE Roll.dll` is from an older version, so it can't check plugins, and MPE Roll won't load them unchecked. Copy the scanner from the download that this MPE Roll came in (it's also inside the `.vst3` folder) over the old one. |

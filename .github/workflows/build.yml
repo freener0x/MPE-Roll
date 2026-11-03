@@ -124,6 +124,11 @@ jobs:
           "$HARNESS" copies "$PLAIN_VST3_SYNTH"
           "$HARNESS" copies "$PLAIN_VST2_SYNTH"
 
+      - name: A synth's parameter following the pitch bend isn't a knob tweak to the host (VST3, VST2)
+        run: |
+          "$HARNESS" bendtweaks "$PLAIN_VST3_SYNTH"
+          "$HARNESS" bendtweaks "$PLAIN_VST2_SYNTH"
+
       - name: Hosted VST3 synth that takes MPE only as VST3 note expressions
         run: |
           "$HARNESS" render "$NOTE_EXPRESSION_SYNTH" render-vst3-note-expressions.wav
@@ -320,6 +325,13 @@ jobs:
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness copies \
             "build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3"
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness copies \
+            "build/MpeRollPlainTestSynth_artefacts/Release/VST/libMPE Roll Plain Test Synth.so"
+
+      - name: A synth's parameter following the pitch bend isn't a knob tweak to the host (VST3, VST2)
+        run: |
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness bendtweaks \
+            "build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3"
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness bendtweaks \
             "build/MpeRollPlainTestSynth_artefacts/Release/VST/libMPE Roll Plain Test Synth.so"
 
       # A VST3 synth that maps pitch bend on MIDI channel 1 only (JUCE's VST3 host drops MPE's bends on

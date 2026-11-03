@@ -151,7 +151,8 @@ bottom of the File menu and of *MPE settings*, e.g. "MPE Roll 0.1.0, build 63, f
 the run number, the commit and the day it was built. If that isn't the build you downloaded, the DAW
 loaded an older copy (see the FL Studio guide's troubleshooting table).
 
-**The Windows installer.** Close FL Studio, unzip the download and run `MPE-Roll-Setup-build-N.exe`.
+**The Windows installer.** Close FL Studio and run `MPE-Roll-Setup-<version>.exe` from the release
+(a build between releases comes zipped: unzip it and run `MPE-Roll-Setup-build-N.exe`).
 It isn't signed, so Windows may say *Windows protected your PC*: choose *More info*, then *Run
 anyway*. It installs the VST3 in `C:\Program Files\Common Files\VST3` and, unless you untick them,
 the VST2 `MPE Roll.dll` (with `MPE Roll Scanner.exe` beside it) in a folder you choose, and the

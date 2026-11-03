@@ -2,5 +2,5 @@
 # The links into the repository that the website's header and footer show, none while it's private.
 repo_public: true
 repo_url: "https://github.com/freener0x/MPE-Roll"
-download_url: "https://github.com/freener0x/MPE-Roll#downloading-a-build"
+download_url: "https://github.com/freener0x/MPE-Roll/releases/latest"
 license_url: "https://github.com/freener0x/MPE-Roll/blob/main/LICENSE"

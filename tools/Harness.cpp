@@ -889,6 +889,22 @@ int selfTest()
                "in the same order, so a pick finds its plugin");
     }
 
+    std::printf ("A synth's parameter named after a performance control is known by its name\n");
+    {
+        // Serum 1's wheels, and a parameter a synth gives one channel's or one MIDI controller's
+        // bend or wheel (Analog Lab's "channel1 pitch bend" to "channel16 pitch bend").
+        for (const auto* name : { "Pitch Bend", "Pitch Wheel", "Mod Wheel", "Modulation Wheel", "MIDI Pitch Bend",
+                                  "Aftertouch", "Channel Pressure", "channel1 pitch bend", "channel16 pitch bend",
+                                  "Ch 3 Mod Wheel", "MIDI CC1 Mod Wheel", "Chan 12 Aftertouch", "MIDI channel 2 pitch bend",
+                                  "Pitch Bend Wheel" })
+            check (HostedSynth::namesPerformanceControl (name), juce::String ("\"") + name + "\" follows the notes");
+
+        // A synth's own settings, whatever they say about bending or pressure.
+        for (const auto* name : { "Bend Range", "Pitch Bend Range", "Pitch Bend Up", "Pressure", "Mod Wheel Depth",
+                                  "Aftertouch Amount", "MIDI Channel", "Chorus", "Cutoff", "Channel 1 Volume", "CC Smoothing" })
+            check (! HostedSynth::namesPerformanceControl (name), juce::String ("\"") + name + "\" is a setting of the synth's");
+    }
+
     std::printf ("Live input passes through as MPE\n");
     {
         playHead.playing = false;
@@ -1775,6 +1791,15 @@ int clapDialectTest (const juce::File& synthFile)
 int vst3DialectTest (const juce::File& noteExpressionSynth, const juce::File& midiSynth)
 {
     Check check;
+
+    // The synth's controller echoes each move of its MIDI-mapped parameter to the host as an edit
+    // (begin, perform, end), as some synths do: MPE Roll mustn't pass those on either.
+   #if JUCE_WINDOWS
+    _putenv_s ("MPEROLL_TEST_ECHO_EDITS", "1");
+   #else
+    setenv ("MPEROLL_TEST_ECHO_EDITS", "1", 1);
+   #endif
+
     FakePlayHead playHead;
     MpeRollProcessor processor;
     processor.setPlayHead (&playHead);
@@ -1897,8 +1922,8 @@ int vst3DialectTest (const juce::File& noteExpressionSynth, const juce::File& mi
         struct HeardByHost : juce::AudioProcessorParameter::Listener
         {
             void parameterValueChanged (int, float) override        { ++changes; }
-            void parameterGestureChanged (int, bool) override       {}
-            int changes = 0;
+            void parameterGestureChanged (int, bool) override       { ++gestures; }
+            int changes = 0, gestures = 0;
         };
 
         HeardByHost heard;
@@ -1920,9 +1945,13 @@ int vst3DialectTest (const juce::File& noteExpressionSynth, const juce::File& mi
         play (0.0f, 40, false);
 
         const auto synthBend = synth.getInstance() != nullptr ? synth.getInstance()->getParameters()[0]->getValue() : 0.5f;
-        std::printf ("  the synth's parameter is at %.3f; the host heard %d change(s)\n", (double) synthBend, heard.changes);
+        std::printf ("  the synth's parameter is at %.3f; the host heard %d change(s) and %d gesture(s)\n",
+                     (double) synthBend, heard.changes, heard.gestures);
         check (std::abs (synthBend - 0.5f) > 0.05f, "the synth's own parameter moved with the bend");
         check (heard.changes == 0, "and the host heard nothing of it");
+        // The synth's controller echoes each move as an edit (MPEROLL_TEST_ECHO_EDITS, set at the start):
+        // a host that keeps its undo history by edits would make an entry of each.
+        check (heard.gestures == 0, "nor of the edits the synth's controller echoes it as");
 
         if (bendSlot != nullptr)
             bendSlot->removeListener (&heard);
@@ -3963,8 +3992,8 @@ int copiesTest (const juce::File& synthFile)
         struct HeardByHost : juce::AudioProcessorParameter::Listener
         {
             void parameterValueChanged (int, float) override        { ++changes; }
-            void parameterGestureChanged (int, bool) override       {}
-            int changes = 0;
+            void parameterGestureChanged (int, bool) override       { ++gestures; }
+            int changes = 0, gestures = 0;
         };
 
         HeardByHost heard;
@@ -3975,7 +4004,8 @@ int copiesTest (const juce::File& synthFile)
         rig->synth().getCopy (0)->getParameters()[pitchWheel]->setValueNotifyingHost (0.9f);
         rig->idle (50);
         check (copiesWheelAt (0.5f), "the first copy's own Pitch Bend parameter moving reaches no other copy");
-        check (pitchWheelSlot != nullptr && heard.changes == 0, "nor the host, which could send it back as automation");
+        check (pitchWheelSlot != nullptr && heard.changes == 0 && heard.gestures == 0,
+               "nor the host, which could send it back as automation");
 
         if (pitchWheelSlot != nullptr)
             pitchWheelSlot->removeListener (&heard);
@@ -4401,6 +4431,165 @@ int copiesTest (const juce::File& synthFile)
     return check.failures == 0 ? 0 : 1;
 }
 
+/** A synth with a parameter that follows the pitch bend it's sent (Analog Lab and Kontakt give each
+    channel one) reports every move from its block, with or without an edit gesture around it. That's
+    the synth following its notes, not an edit: passed on to the host, each move would be an entry in
+    FL's undo history. Checked in Plain MIDI mode and in One copy per note, with the plain test synth's
+    "channel1 pitch bend" (which only its name and the block it's reported from tell apart, as for a
+    VST2 synth, or a VST3 whose mapping says nothing); a setting of the synth's changed from elsewhere
+    still reaches the host.
+*/
+int bendTweaksTest (const juce::File& synthFile)
+{
+    Check check;
+    ignoreXErrors();
+
+    // Each move of the follower comes in a gesture of its own, as a synth whose window echoes the
+    // move might send it (its VST3 build passes gestures on only from the message thread).
+   #if JUCE_WINDOWS
+    _putenv_s ("MPEROLL_TEST_BEND_GESTURES", "1");
+   #else
+    setenv ("MPEROLL_TEST_BEND_GESTURES", "1", 1);
+   #endif
+
+    const auto settingsFile = juce::File::createTempFile ("settings");
+    auto rig = std::make_unique<CopyRig>();
+    rig->synth().useSettingsFile (settingsFile);
+    rig->setOutput ([] (OutputSettings& o)
+    {
+        o.mode = OutputSettings::Mode::singleChannel;
+        o.masterBendRange = 12.0f;
+    });
+
+    if (! loadSynth (rig->processor, synthFile))
+        return 1;
+
+    std::printf ("Hosting: %s\n", rig->synth().getName().toRawUTF8());
+
+    struct HeardByHost : juce::AudioProcessorParameter::Listener
+    {
+        void parameterValueChanged (int, float) override        { ++changes; }
+        void parameterGestureChanged (int, bool) override       { ++gestures; }
+        int changes = 0, gestures = 0;
+    };
+
+    auto parameterOf = [] (juce::AudioProcessor* plugin, const juce::String& name) -> juce::AudioProcessorParameter*
+    {
+        if (plugin != nullptr)
+            for (auto* p : plugin->getParameters())
+                if (p->getName (100) == name)
+                    return p;
+
+        return nullptr;
+    };
+
+    auto* followerSlot = parameterOf (&rig->processor, "channel1 pitch bend");
+    auto* rangeSlot = parameterOf (&rig->processor, "Bend range");
+    check (followerSlot != nullptr && rangeSlot != nullptr,
+           "the synth's channel1 pitch bend and Bend range are among MPE Roll's parameters");
+
+    if (followerSlot == nullptr || rangeSlot == nullptr)
+    {
+        rig.reset();
+        settingsFile.deleteFile();
+        return 1;
+    }
+
+    // One note, with the zone bending up six semitones over two beats: on Plain MIDI's one channel,
+    // that's pitch bend on channel 1, which the synth's follower tracks.
+    MpeClip bending;
+    bending.length = 8.0;
+    bending.addNote (note (60, 0.0, 4.0, 0.8f));
+    bending.zone.pitch = { { 0.0, 0.0f }, { 2.0, 6.0f } };
+
+    // How far from rest (0.5) a plugin's follower gets while a clip plays: read as it plays, since
+    // stopping the transport sends the bend back to the centre.
+    auto farthestWhilePlaying = [&] (const MpeClip& clip, double seconds, const std::function<juce::AudioProcessor*()>& plugin)
+    {
+        float farthest = 0.5f;
+
+        rig->play (clip, seconds, [&] (double)
+        {
+            if (auto* p = parameterOf (plugin(), "channel1 pitch bend"))
+                if (std::abs (p->getValue() - 0.5f) > std::abs (farthest - 0.5f))
+                    farthest = p->getValue();
+        });
+
+        return farthest;
+    };
+
+    std::printf ("Plain MIDI: the synth's channel1 pitch bend follows the bend, unheard by the host\n");
+    {
+        HeardByHost heard;
+        followerSlot->addListener (&heard);
+        const auto reached = farthestWhilePlaying (bending, 1.5, [&] { return rig->synth().getInstance(); });
+        followerSlot->removeListener (&heard);
+
+        std::printf ("  the synth's parameter reached %.3f; the host heard %d change(s) and %d gesture(s)\n",
+                     (double) reached, heard.changes, heard.gestures);
+        check (std::abs (reached - 0.5f) > 0.05f, "the synth's parameter moved with the bend");
+        check (heard.changes == 0, "the host heard no change of it");
+        check (heard.gestures == 0, "nor a gesture around one");
+    }
+
+    std::printf ("A setting of the synth's, changed from elsewhere, still reaches the host\n");
+    {
+        HeardByHost heard;
+        rangeSlot->addListener (&heard);
+
+        // From the message thread, as the synth's own window would change it.
+        if (auto* range = parameterOf (rig->synth().getInstance(), "Bend range"))
+            range->setValueNotifyingHost (0.5f);
+
+        rig->idle (50);
+        rangeSlot->removeListener (&heard);
+        std::printf ("  the host heard %d change(s)\n", heard.changes);
+        check (heard.changes >= 1, "as a change");
+    }
+
+    std::printf ("One copy per note: the gliding copy's follower moves neither the other copies' nor the host\n");
+    {
+        rig->setOutput ([] (OutputSettings& o)
+        {
+            o.mode = OutputSettings::Mode::copies;
+            o.copies = 4;
+            o.masterBendRange = 12.0f;
+        });
+        check (rig->settle() && rig->status().loaded == 4, "four copies load");
+
+        HeardByHost heard;
+        followerSlot->addListener (&heard);
+        std::array<float, 4> farthest { 0.5f, 0.5f, 0.5f, 0.5f };
+
+        // C4 glides up an octave on its copy while E4 holds on another.
+        rig->play (glideClip(), 1.0, [&] (double)
+        {
+            for (int c = 0; c < 4; ++c)
+                if (auto* p = parameterOf (rig->synth().getCopy (c), "channel1 pitch bend"))
+                    if (std::abs (p->getValue() - 0.5f) > std::abs (farthest[(size_t) c] - 0.5f))
+                        farthest[(size_t) c] = p->getValue();
+        });
+
+        followerSlot->removeListener (&heard);
+
+        int moved = 0, atRest = 0;
+
+        for (const auto value : farthest)
+            ++(std::abs (value - 0.5f) > 0.05f ? moved : atRest);
+
+        std::printf ("  followers moved on %d copy(ies), at rest on %d; the host heard %d change(s) and %d gesture(s)\n",
+                     moved, atRest, heard.changes, heard.gestures);
+        check (moved == 1, "the copy that played the glide moved its follower");
+        check (atRest == 3, "the others kept theirs at rest: the move wasn't copied to them");
+        check (heard.changes == 0 && heard.gestures == 0, "and the host heard nothing");
+    }
+
+    rig.reset();
+    settingsFile.deleteFile();
+    std::printf ("%s\n", check.failures == 0 ? "PASS" : "FAIL");
+    return check.failures == 0 ? 0 : 1;
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -4464,6 +4653,9 @@ int main (int argc, char** argv)
     if (args.size() >= 2 && args[0] == "copies")
         return copiesTest (cwd.getChildFile (args[1]));
 
+    if (args.size() >= 2 && args[0] == "bendtweaks")
+        return bendTweaksTest (cwd.getChildFile (args[1]));
+
     if (args.size() >= 2 && args[0] == "crashtest")
         return crashTest (cwd.getChildFile (args[1]), args.size() >= 3 && args[2] == "overflow");
 
@@ -4487,6 +4679,7 @@ int main (int argc, char** argv)
                  "  MpeRollHarness clapdialect <MPE Roll Test Synth.clap>\n"
                  "  MpeRollHarness vst3dialect <MPE Roll Note Expression Test Synth.vst3> <MPE Roll Test Synth.vst3>\n"
                  "  MpeRollHarness copies <MPE Roll Plain Test Synth>\n"
+                 "  MpeRollHarness bendtweaks <MPE Roll Plain Test Synth>\n"
                  "  MpeRollHarness crashtest <report.txt> [overflow]\n"
                  "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n"
                  "  MpeRollHarness loadfailtest <MPE Roll Scanner> <synth.vst3> <VST2 synth>\n");
