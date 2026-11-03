@@ -258,12 +258,20 @@ public:
     */
     bool setParameterValue (int index, float value);
 
-    /** Whether a change the synth reports now, at this index, is the first copy following the notes
-        it's sent rather than an edit: one reported while it plays its block in copy mode, or of its
-        pitch-wheel, mod-wheel or aftertouch parameter. That's its own, not the other copies', so it
-        isn't passed on to the host either, which could send it back as automation for every copy.
-        Any thread, on the synth's parameter callback. */
+    /** Whether a change the synth reports now, at this index, is the synth following the notes it's
+        sent rather than an edit: one reported while it plays its block in copy mode, or while it
+        plays a block with expression in it (pitch bend, controllers, pressure: a synth with a
+        parameter for each channel's pitch bend, as Analog Lab and Kontakt have, reports it from
+        its block), or of a parameter named after the pitch wheel, mod wheel or aftertouch, or that
+        its VST3 MIDI mapping moves. That's the synth's own, not an edit for the host's undo
+        history, nor the other copies' to follow. Any thread, on the synth's parameter callback. */
     bool isFollowingItsNotes (int index) const noexcept;
+
+    /** Whether a synth's parameter is named after a performance controller, the pitch wheel, mod
+        wheel or channel pressure, as Serum 1's "Pitch Bend" and "Mod Wheel" are, or after one
+        channel's or MIDI controller's, as Analog Lab's "channel16 pitch bend" is. Only a name that
+        is nothing else counts: "Bend Range" or "Pressure" are a synth's own settings. */
+    static bool namesPerformanceControl (const juce::String& name);
 
     /** Calls fn with the synth's parameter at this index, without ever blocking (safe on any thread,
         and never in the audio thread's way). Returns false if there's no such parameter, or the
@@ -705,7 +713,7 @@ private:
     void forgetSynthCrash (const juce::PluginDescription&);
     void stopCheck();
     void configure (juce::AudioPluginInstance& plugin);
-    void countHeldNotes (const juce::MidiBuffer&) noexcept;
+    bool countHeldNotes (const juce::MidiBuffer&) noexcept;    // returns whether the block carries expression
     void listenForSound (const juce::AudioBuffer<float>&) noexcept;
 
     void audioProcessorParameterChanged (juce::AudioProcessor*, int index, float value) override;

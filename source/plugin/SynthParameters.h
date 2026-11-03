@@ -56,6 +56,12 @@ public:
     /** Call on the message thread before the synth instance is deleted. */
     void synthRemoving (juce::AudioPluginInstance& outgoing);
 
+    /** Message thread, now and then: writes to the plugin log, once per synth, which of its
+        parameter changes were passed on to the host as edits (the first few by name). A synth whose
+        parameters follow the notes without MPE Roll noticing fills the host's undo history with
+        them; the log then says which they are. */
+    void flushDiagnostics();
+
     std::unique_ptr<juce::XmlElement> toXml() const;
     void fromXml (const juce::XmlElement* xml);
 
@@ -70,9 +76,18 @@ private:
     std::array<SynthParameterProxy*, numSlots> proxies {};
     std::array<std::atomic<int>, numSlots> slotToHosted;
     mutable std::array<std::atomic<float>, numSlots> cachedValues;
+    std::array<std::atomic<bool>, numSlots> gestureForwarded;   // its begin reached the host, so its end must too
     std::vector<int> hostedToSlot;      // only touched on the message thread, or with no listeners attached
     std::atomic<int> numMapped { 0 };
     juce::AudioPluginInstance* listenedTo = nullptr;
+
+    // The changes passed on to the host since the synth was loaded: how many, and the first few
+    // parameters' indices (-1 = free). Written on the synth's callback thread without locking or
+    // allocating; read by flushDiagnostics() on the message thread.
+    static constexpr int numNoted = 6;
+    std::array<std::atomic<int>, numNoted> passedIndices;
+    std::atomic<uint32_t> passedCount { 0 };
+    uint32_t passedLogged = 0;          // message thread: the count when the log was last written
 
     // Message thread: the parameter ID each slot stands for (empty = free), and which synth those
     // IDs belong to. Kept while no synth is loaded, so a missing synth's slots survive a save.
@@ -85,6 +100,8 @@ private:
     float getValue (int slot) const;
     void setValue (int slot, float value);
     void detach();
+    void notePassed (int hostedIndex) noexcept;
+    void resetDiagnostics();
 };
 
 } // namespace mperoll

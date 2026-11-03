@@ -175,6 +175,7 @@ void MpeRollProcessor::timerCallback()
                        releasePool.end());
 
     drainRecording();
+    synthParameters.flushDiagnostics();
 }
 
 //==============================================================================
