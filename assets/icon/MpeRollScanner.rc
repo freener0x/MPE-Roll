@@ -1,0 +1,6 @@
+// The scanner's icon. CMakeLists.txt adds this file to MpeRollScanner when building with MSVC, since
+// juce_add_console_app gives it version information but no icon. The .ico is the one the installer
+// uses too, made by tools/make_icons.py; the resource compiler finds it next to this file. IDI_ICON1 is
+// the name JUCE gives the first icon in its own resource scripts, and the first icon is the one
+// Explorer and the taskbar show for an .exe.
+IDI_ICON1 ICON "mpe-roll.ico"

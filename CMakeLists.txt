@@ -193,6 +193,20 @@ endif()
 # ---------------------------------------------------------------------------------------------
 # The plugin.
 if(MPEROLL_BUILD_PLUGIN)
+# Its icon (assets/icon, made by tools/make_icons.py). JUCE turns the two PNGs into the .ico inside
+# the Windows app and plugin binaries, the .icns in the macOS bundles, and Plugin.ico with a
+# desktop.ini in the Windows VST3 bundle, which gives its folder the icon in Explorer; nothing on
+# Linux. The small one serves the sizes up to 48 px on Windows and 64 px on macOS. macOS's pair has
+# the margin of macOS's icon grid around the tile (824 of 1024 px), as other Mac apps' icons have,
+# so the app isn't drawn larger than them in the Dock.
+if(APPLE)
+    set(MPEROLL_ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon-big-mac-1024.png")
+    set(MPEROLL_ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon-small-mac-64.png")
+else()
+    set(MPEROLL_ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon-big-1024.png")
+    set(MPEROLL_ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon-small-64.png")
+endif()
+
 juce_add_plugin(MpeRoll
     COMPANY_NAME "Glowing Pancake"
     BUNDLE_ID com.glowingpancake.mperoll
@@ -211,7 +225,9 @@ juce_add_plugin(MpeRoll
     MICROPHONE_PERMISSION_ENABLED FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE   # enabled below, once the scanner is in place
     NEEDS_WEB_BROWSER FALSE
-    NEEDS_CURL FALSE)
+    NEEDS_CURL FALSE
+    ICON_BIG "${MPEROLL_ICON_BIG}"      # see above
+    ICON_SMALL "${MPEROLL_ICON_SMALL}")
 
 target_sources(MpeRoll PRIVATE ${MPEROLL_CORE_SOURCES} ${MPEROLL_PLUGIN_SOURCES})
 target_include_directories(MpeRoll PRIVATE source third_party/fst ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -253,6 +269,13 @@ if(NOT APPLE)
         PUBLIC
             juce::juce_recommended_config_flags
             juce::juce_recommended_warning_flags)
+
+    # A console app gets version information from JUCE but no icon: a resource script of its own
+    # gives the scanner's .exe the same .ico the installer uses (assets/icon, made by
+    # tools/make_icons.py).
+    if(MSVC)
+        target_sources(MpeRollScanner PRIVATE assets/icon/MpeRollScanner.rc)
+    endif()
 
     foreach(format_target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone)
         if(TARGET ${format_target})

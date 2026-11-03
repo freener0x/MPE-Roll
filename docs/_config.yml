@@ -12,6 +12,20 @@ theme: jekyll-theme-cayman
 plugins:
   - jekyll-seo-tag
 
+# For jekyll-seo-tag: the site's logo, and the link card (og:image, Twitter's card) every page gets.
+# Both are made by tools/make_icons.py; the repository's own social preview is the same social.png,
+# uploaded by hand under the repository's Settings > General > Social preview.
+logo: /images/icon-512.png
+defaults:
+  - scope:
+      path: ""
+    values:
+      image:
+        path: /images/social.png
+        width: 1280
+        height: 640
+        alt: "MPE Roll"
+
 # The guides are published as pages only, not also as the .md files they're made from.
 optional_front_matter:
   remove_originals: true

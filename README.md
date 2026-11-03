@@ -1,4 +1,9 @@
-# MPE Roll
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.png">
+    <img src="docs/images/banner-light.png" alt="MPE Roll" width="640">
+  </picture>
+</h1>
 
 An MPE piano roll for FL Studio. MPE Roll is an instrument plugin (VST3, plus AU on macOS and a
 standalone app) with its own piano roll. You load your synth *inside* it (VST3, VST2 or CLAP), so

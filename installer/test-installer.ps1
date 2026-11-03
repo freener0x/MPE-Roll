@@ -70,12 +70,22 @@ function Same([string] $installed, [string] $original) {
 }
 
 function SameFolder([string] $installed, [string] $original) {
-    $expected = @(Get-ChildItem -LiteralPath $original -Recurse -File)
-    $found = @(Get-ChildItem -LiteralPath $installed -Recurse -File)
+    # -Force: the VST3 bundle's desktop.ini and Plugin.ico are system or hidden files, on both sides.
+    $expected = @(Get-ChildItem -LiteralPath $original -Recurse -File -Force)
+    $found = @(Get-ChildItem -LiteralPath $installed -Recurse -File -Force)
     if ($expected.Count -ne $found.Count) { return $false }
     foreach ($file in $expected) {
         $relative = $file.FullName.Substring($original.Length)
         if (-not (Same (Join-Path $installed $relative) $file.FullName)) { return $false }
+    }
+    return $true
+}
+
+function HasAttributes([string] $path, [string[]] $names) {
+    if (-not (Test-Path -LiteralPath $path)) { return $false }
+    $attributes = (Get-Item -LiteralPath $path -Force).Attributes
+    foreach ($name in $names) {
+        if (-not $attributes.HasFlag([IO.FileAttributes] $name)) { return $false }
     }
     return $true
 }
@@ -120,6 +130,11 @@ Set-Content -LiteralPath (Join-Path $database 'VST\Some Other Synth.nfo') -Value
 Write-Host '== Everything, VST2 in folder A'
 Install "/COMPONENTS=vst3,vst2,app /VST2DIR=`"$vst2A`""
 Expect (SameFolder $vst3 (Join-Path $Dist 'MPE Roll.vst3')) 'the VST3 bundle is installed as built, with nothing else in it'
+# The folder icon JUCE writes into the bundle, installed with the attributes Explorer wants (MpeRoll.iss).
+Expect (Same (Join-Path $vst3 'Plugin.ico') (Join-Path $Dist 'MPE Roll.vst3\Plugin.ico')) 'the bundle has its Explorer icon, Plugin.ico'
+Expect (HasAttributes (Join-Path $vst3 'Plugin.ico') 'Hidden') 'Plugin.ico is hidden'
+Expect (HasAttributes (Join-Path $vst3 'desktop.ini') 'System', 'Hidden') 'the desktop.ini that names the icon is a hidden system file'
+Expect (HasAttributes $vst3 'System') 'the bundle''s folder has the system attribute, so Explorer reads its desktop.ini'
 Expect (Same (Join-Path $vst2A 'MPE Roll.dll') (Join-Path $Dist 'MPE Roll.dll')) 'the VST2 is in the chosen folder'
 Expect (Same (Join-Path $vst2A 'MPE Roll Scanner.exe') (Join-Path $Dist 'MPE Roll Scanner.exe')) 'the scanner is beside the VST2'
 Expect (Same (Join-Path $app 'MPE Roll.exe') (Join-Path $Dist 'MPE Roll.exe')) 'the app is installed'

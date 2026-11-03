@@ -134,7 +134,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item -Recurse "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" dist/
+          Copy-Item -Recurse -Force "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" dist/   # -Force: the hidden Plugin.ico and desktop.ini too
           if (-not (Test-Path "dist/MPE Roll.vst3/Contents/x86_64-win/MPE Roll Scanner.exe")) { throw "The scanner isn't in the VST3 bundle" }
           Copy-Item "build/MpeRoll_artefacts/Release/VST/MPE Roll.dll" dist/
           Copy-Item "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe" dist/

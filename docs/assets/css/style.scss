@@ -5,6 +5,14 @@
 
 // MPE Roll's additions to Cayman, in its colours (_sass/variables.scss of the theme).
 
+// The icon above the site's name (images/logo.svg, made by tools/make_icons.py).
+.project-logo {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 12px;
+}
+
 .project-name a {
   color: inherit;
 

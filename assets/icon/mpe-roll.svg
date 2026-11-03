@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- MPE Roll's icon, "a note that bends": the toolbar's glide glyph (source/plugin/ui/Icons.cpp) as
+       an app icon, in the colours of the plugin's "MPE Roll" skin (source/plugin/ui/Skins.cpp). A note
+       in note green on three faint roll lines; its pitch leaves it along a glide in glide amber, rises
+       two rows and holds there, as a glide drawn in the piano roll. The lines sit on half units, so
+       they stay one pixel sharp at 64 px and its multiples. The mark sits in the middle of the tile:
+       14 units of ink above the glide, 15 below the note.
+       tools/make_icons.py makes every PNG, ICO and web image from this file. mpe-roll-small.svg is the
+       mark for 16 to 32 px; the templates (social, banners, wizard images, touch icon) carry copies of
+       the shapes below, which the script checks against this file. -->
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="#16181c" stroke="#363b45" stroke-width="2"/>
+  <path d="M2 24.5H62M2 36.5H62M2 48.5H62" fill="none" stroke="#292d35" stroke-width="1"/>
+  <rect x="6" y="38" width="30" height="9" rx="4.5" fill="#6fcf97"/>
+  <path d="M36 42.5C45 42.5 43 18.5 52 18.5H56" fill="none" stroke="#ffb04a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

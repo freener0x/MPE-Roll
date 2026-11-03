@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- MPE Roll's icon for 16 to 32 px: mpe-roll.svg without the roll lines, where 1-unit lines would
+       smear, and with a thicker edge, a taller note and a thicker glide. Their straight edges sit on
+       multiples of 4 units, so they land on whole pixels at 16 and 32 px, and the mark sits in the
+       middle of the tile: 12 units of ink above the glide and below the note, 3 px each at 16 px.
+       tools/make_icons.py renders it for those sizes and for JUCE's ICON_SMALL; docs/favicon.svg is a
+       copy. -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#16181c" stroke="#363b45" stroke-width="4"/>
+  <rect x="6" y="36" width="30" height="12" rx="6" fill="#6fcf97"/>
+  <path d="M36 42C45 42 43 20 51 20H54" fill="none" stroke="#ffb04a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

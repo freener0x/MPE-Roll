@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The installer's header image (Inno Setup's WizardSmallImageFile, a square area): the icon alone,
+       on the wizard's own background through its transparent corners. tools/make_icons.py renders it
+       at Inno's seven DPI sizes. The shapes are a copy of mpe-roll.svg's, kept apart so the header image
+       can change (padding, a background) without touching the icon. -->
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="#16181c" stroke="#363b45" stroke-width="2"/>
+  <path d="M2 24.5H62M2 36.5H62M2 48.5H62" fill="none" stroke="#292d35" stroke-width="1"/>
+  <rect x="6" y="38" width="30" height="9" rx="4.5" fill="#6fcf97"/>
+  <path d="M36 42.5C45 42.5 43 18.5 52 18.5H56" fill="none" stroke="#ffb04a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

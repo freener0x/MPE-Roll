@@ -21,6 +21,9 @@ and the release tags; a build between releases names itself by its number and co
 
 ### Added
 
+- An icon: a piano-roll note whose end glides up. It shows on the Windows app, plugin and scanner
+  files, on the VST3 folder in Explorer, in the macOS bundles, in the installer and on the website,
+  and the README opens with a banner.
 - A [Known issues](https://freener0x.github.io/MPE-Roll/KNOWN_ISSUES.html) page, a
   [Privacy](https://freener0x.github.io/MPE-Roll/PRIVACY.html) page and an
   [Unsigned builds](https://freener0x.github.io/MPE-Roll/UNSIGNED_BUILDS.html) page (what Windows
