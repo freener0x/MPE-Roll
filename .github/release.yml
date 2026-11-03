@@ -1,0 +1,26 @@
+# How GitHub groups the pull requests in the release notes it generates for a release (the release
+# workflow puts them under the CHANGELOG's section for the version). It goes by the labels on each
+# pull request, not on the issue it closes: the issue templates already put "bug" and "enhancement"
+# on issues, so give the pull request that answers one the same label; "documentation", "ci" and
+# "build" likewise. A pull request labelled "skip-changelog" is left out of the notes.
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+  categories:
+    - title: Fixed
+      labels:
+        - bug
+    - title: Added
+      labels:
+        - enhancement
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Build and CI
+      labels:
+        - ci
+        - build
+    - title: Other
+      labels:
+        - "*"

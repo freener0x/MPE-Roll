@@ -1,6 +1,7 @@
 # MPE Roll's website: GitHub Pages builds it with Jekyll from this folder (Settings > Pages: the
 # main branch, folder /docs), in GitHub's Cayman theme. tools/make_donate_page.py writes index.html,
-# donate.html and _data/project.yml; FL_STUDIO.md and MPE_SYNTHS.md become pages as they are.
+# donate.html and _data/project.yml; FL_STUDIO.md, MPE_SYNTHS.md, KNOWN_ISSUES.md, UNSIGNED_BUILDS.md
+# and PRIVACY.md become pages as they are.
 # _layouts/default.html and _sass/jekyll-theme-cayman.scss are Cayman's own (CC0), changed so the
 # site loads nothing from other sites (Cayman takes its font from Google Fonts) and links its pages.
 

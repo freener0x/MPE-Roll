@@ -282,14 +282,18 @@ def render_index(links: list[dict], coins: list[dict], public: bool) -> str:
                 f'<p>The <a href="{e(RELEASE_URL)}">latest release</a> has the Windows installer, the Windows files '
                 "to copy by hand and the macOS bundles, with notes on what changed. Every change since is built "
                 f'too: <a href="{e(DOWNLOAD_URL)}">Downloading a build</a> says where those are. {e(PROJECT)} is an '
-                "early version: automated tests cover it on Windows, macOS and Linux, and it has been lightly "
-                "tested inside FL Studio so far.</p>"]
+                "early version: automated tests cover it on Windows, macOS and Linux, and it has been tested "
+                "in FL Studio on Windows 11.</p>"]
     out += ["<h2>Guides</h2>",
             "<ul>",
             f'<li><a href="FL_STUDIO.html">Using {e(PROJECT)} in FL Studio</a>: installing it, loading your synth, '
             "routing, the bridge for FL's own synths, and what to do when something doesn't work.</li>",
             '<li><a href="MPE_SYNTHS.html">Synths and their MPE</a>: instruments by maker, whether each has MPE, '
             "and where to turn it on.</li>",
+            '<li><a href="KNOWN_ISSUES.html">Known issues</a>: what doesn\'t work yet, or works differently from what '
+            "you'd expect, what to do meanwhile, and where each one stands.</li>",
+            '<li><a href="UNSIGNED_BUILDS.html">Unsigned builds</a>: what Windows and macOS will say about the '
+            "downloads, how to get past it, and how to check a download.</li>",
             "</ul>",
             f"<h2>Support {e(PROJECT)}</h2>"]
     ways = ways_to_give(links, coins)

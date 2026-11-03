@@ -1,12 +1,14 @@
 name: Release
 
-# A tag v<version> (v0.1.0, say) makes a release: the Windows installer and files and the macOS
-# bundles are built from the tagged commit and attached to a GitHub release of that tag, with
-# notes made from the pull requests merged since the last release. The version in CMakeLists.txt
-# has to match the tag, so a build names itself after the release it came from (File menu, MPE
-# settings): "MPE Roll 0.1.0, release v0.1.0, f2ea3c4, 2026-10-28". A tag with a suffix
-# (v0.2.0-beta1) is marked a pre-release. The code itself is tested by the Build workflow on every
-# change; here the unit tests and the installer's own test run again on what's shipped.
+# A tag v<version> (v0.1.0, say) makes a release: the Windows installer and files, the macOS bundles
+# and an experimental Linux build are built from the tagged commit and attached to a GitHub release
+# of that tag with their SHA-256 checksums, and with notes made from CHANGELOG.md's section for the
+# version (the run stops if there is none) and from the pull requests merged since the last release.
+# The version in CMakeLists.txt has to match the tag, so a build names itself after the release it
+# came from (File menu, MPE settings): "MPE Roll 0.1.0, release v0.1.0, f2ea3c4, 2026-10-28". A tag
+# with a suffix (v0.2.0-beta1) is marked a pre-release. The code itself is tested by the Build
+# workflow on every change; here the unit tests, the installer's own test and Apple's AU validation
+# run again on what's shipped.
 #
 # Or run it by hand (Actions, Release, Run workflow) on main: it then tags main's commit itself with
 # the version from CMakeLists.txt (plus the suffix given, for a pre-release) and releases that. A tag
@@ -28,7 +30,7 @@ permissions:
 
 jobs:
   version:
-    name: The tag matches the version
+    name: The tag and the CHANGELOG match the version
     runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.version.outputs.tag }}
@@ -45,6 +47,12 @@ jobs:
           version=$(sed -nE 's/^project\(MPE_ROLL VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
           if [ -z "$version" ]; then
             echo "CMakeLists.txt has no 'project(MPE_ROLL VERSION ...)' line to take the version from."
+            exit 1
+          fi
+          # The release notes carry CHANGELOG.md's section for the version, so it has to be there:
+          # checked before any tag is made or moved below, the way the Notes step finds it.
+          if ! awk -v v="$version" 'index($0, "## [" v "]") == 1 { found = 1 } END { exit !found }' CHANGELOG.md; then
+            echo "CHANGELOG.md has no '## [$version]' section for the version in CMakeLists.txt. Rename its [Unreleased] section to '[$version] - $(date -u +%F)' as the comment at the top of the file says, merge that, then release again."
             exit 1
           fi
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
@@ -195,6 +203,38 @@ jobs:
       - name: Unit tests
         run: ctest --test-dir build --output-on-failure
 
+      # An ad-hoc signature (identity "-", no certificate) on the three bundles: where the linker
+      # signed only the arm64 half of each binary, this signs each bundle whole, both halves with
+      # its Info.plist and resources. That meets Apple silicon's rule that arm64 code be signed, and
+      # nothing more: it names no developer and isn't notarized, so Gatekeeper still warns about a
+      # download (docs/UNSIGNED_BUILDS.md says what to do). A failing codesign stops the job.
+      - name: Sign (ad hoc)
+        run: |
+          for bundle in "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" \
+                        "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" \
+                        "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app"; do
+            codesign --force --deep -s - "$bundle"
+            codesign --verify --deep --strict --verbose=2 "$bundle"
+          done
+
+      # Apple's AU validator, on the component as signed above: an instrument (aumu) with the plugin
+      # and maker codes from CMakeLists.txt (Mpr1, Glpk). auval looks in the plug-in folders only,
+      # so a copy goes into the user's one for the check and is removed again. macOS has no timeout
+      # command; perl's alarm survives the exec and ends auval after 180 s (exit 142) if it hangs.
+      # The registrar is restarted first in case it holds a cached list (harmless if it isn't
+      # running).
+      - name: AU validation (auval)
+        run: |
+          components="$HOME/Library/Audio/Plug-Ins/Components"
+          mkdir -p "$components"
+          cp -R "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" "$components/"
+          killall -9 AudioComponentRegistrar 2> /dev/null || true
+          status=0
+          perl -e 'alarm shift; exec @ARGV' 180 auval -v aumu Mpr1 Glpk || status=$?
+          rm -rf "$components/MPE Roll.component"
+          if [ "$status" = 142 ]; then echo "auval didn't finish within 180 s."; fi
+          exit "$status"
+
       # ditto keeps the bundles' file permissions (the app's executable bit) through the zip.
       - name: Package
         run: |
@@ -213,9 +253,54 @@ jobs:
           compression-level: 0
           if-no-files-found: error
 
+  # Experimental: FL Studio has no Linux version and no Linux host has run this build. The tests and
+  # the harness run on Linux in the Build workflow; this builds what's shipped, with the libraries
+  # that workflow installs (less xvfb: nothing here needs a display).
+  linux:
+    name: Linux (VST3, Standalone; experimental)
+    needs: version
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxi-dev libxext-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DMPEROLL_BUILD_ID="release $TAG, ${GITHUB_SHA::7}, $(date -u +%F)"
+
+      - name: Build
+        run: cmake --build build --parallel --target MpeRoll_VST3 MpeRoll_Standalone MpeRollScanner
+
+      # The same files the Build workflow packages, in a tar so the executable bits survive.
+      - name: Package
+        run: |
+          mkdir -p "MPE Roll"
+          cp -R "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" "MPE Roll/"
+          cp "build/MpeRoll_artefacts/Release/Standalone/MPE Roll" "MPE Roll/"
+          cp "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner" "MPE Roll/"
+          if [ ! -x "MPE Roll/MPE Roll.vst3/Contents/x86_64-linux/MPE Roll Scanner" ]; then echo "The scanner isn't in the VST3 bundle"; exit 1; fi
+          tar -czf "MPE-Roll-$VERSION-Linux.tar.gz" "MPE Roll"
+          tar -tzvf "MPE-Roll-$VERSION-Linux.tar.gz"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: MPE-Roll-${{ env.VERSION }}-Linux.tar.gz
+          compression-level: 0
+          if-no-files-found: error
+
   release:
     name: GitHub release
-    needs: [version, windows, macos]
+    needs: [version, windows, macos, linux]
     runs-on: ubuntu-24.04
     env:
       TAG: ${{ needs.version.outputs.tag }}
@@ -230,42 +315,72 @@ jobs:
           path: files
           merge-multiple: true
 
-      # What's attached and how to use it, then GitHub's notes: the pull requests since the last release.
-      - name: Notes
+      # The four downloads, by name, so nothing else among the files gets attached. Their SHA-256
+      # checksums go into SHA256SUMS.txt with bare file names, as `shasum -a 256 -c SHA256SUMS.txt`
+      # beside the downloads wants them (docs/UNSIGNED_BUILDS.md tells people how to check one).
+      - name: Checksums
         run: |
           ls -lR files
-          {
-            echo "MPE Roll $VERSION for Windows and macOS. A build names itself at the bottom of MPE Roll's File menu and of MPE settings: \"MPE Roll $VERSION, release $TAG, ${GITHUB_SHA::7}, $(date -u +%F)\"."
-            echo
-            echo "- **MPE-Roll-Setup-$VERSION.exe**: the Windows installer (VST3, VST2 and the standalone app). It isn't signed, so if Windows says it protected your PC, choose *More info*, then *Run anyway*."
-            echo "- **MPE-Roll-$VERSION-Windows.zip**: the same files, to copy into the plugin folders by hand."
-            echo "- **MPE-Roll-$VERSION-macOS.zip**: the macOS VST3, AU and standalone app, for Apple silicon and Intel. They aren't notarised, so remove the quarantine flag before a DAW will load them: \`xattr -dr com.apple.quarantine \"MPE Roll.vst3\"\` (the README says more)."
-            echo
-            echo "Setting up in FL Studio: the [FL Studio guide](https://freener0x.github.io/MPE-Roll/FL_STUDIO.html). Which synths have MPE, and where their switch is: [the list](https://freener0x.github.io/MPE-Roll/MPE_SYNTHS.html)."
-            echo
-            gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" --jq .body
-          } > notes.md
-          cat notes.md
-
-      # The three files, by name: anything else among the downloads is a mistake to stop on. A run
-      # repeated for the same tag replaces the files and keeps the release. gh makes a release with
-      # files as a draft, attaches them, then publishes it, so a run that failed while attaching leaves
-      # a draft behind: the next run finds it, replaces its files and publishes it.
-      - name: Release
-        run: |
-          assets=("files/MPE-Roll-Setup-$VERSION.exe" "files/MPE-Roll-$VERSION-Windows.zip" "files/MPE-Roll-$VERSION-macOS.zip")
-          for asset in "${assets[@]}"; do
-            if [ ! -f "$asset" ]; then
-              echo "$asset isn't among the files the builds made:"
-              ls -lR files
+          downloads=("MPE-Roll-Setup-$VERSION.exe" "MPE-Roll-$VERSION-Windows.zip" "MPE-Roll-$VERSION-macOS.zip" "MPE-Roll-$VERSION-Linux.tar.gz")
+          for download in "${downloads[@]}"; do
+            if [ ! -f "files/$download" ]; then
+              echo "$download isn't among the files the builds made (listed above)."
               exit 1
             fi
           done
+          (cd files && sha256sum "${downloads[@]}" > SHA256SUMS.txt)
+          cat files/SHA256SUMS.txt
+
+      # What's attached and how to use it; the CHANGELOG's section for the version (its heading up
+      # to the next one, or to the link lines at the end, and its own link line so the heading links
+      # as it does in the file); GitHub's notes, the pull requests since the last release grouped by
+      # label as .github/release.yml says; then the checksums.
+      - name: Notes
+        run: |
+          site=https://freener0x.github.io/MPE-Roll
+          repo=https://github.com/$GITHUB_REPOSITORY
+          {
+            echo "MPE Roll $VERSION for Windows and macOS, with an experimental Linux build. A build names itself at the bottom of MPE Roll's File menu and of MPE settings: \"MPE Roll $VERSION, release $TAG, ${GITHUB_SHA::7}, $(date -u +%F)\"."
+            echo
+            echo "- **MPE-Roll-Setup-$VERSION.exe**: the Windows installer (VST3, VST2 and the standalone app). It isn't signed, so if Windows says it protected your PC, choose *More info*, then *Run anyway*; or, before running it, right-click it, choose *Properties* and tick *Unblock*. [What Windows shows, and why]($site/UNSIGNED_BUILDS.html)."
+            echo "- **MPE-Roll-$VERSION-Windows.zip**: the same files, to copy into the plugin folders by hand."
+            echo "- **MPE-Roll-$VERSION-macOS.zip**: the macOS VST3, AU and standalone app, for Apple silicon and Intel. They aren't notarized, so remove the quarantine flag from the extracted \`MPE Roll\` folder before a DAW will load them: \`xattr -dr com.apple.quarantine ~/Downloads/\"MPE Roll\"\` (covers the .vst3, .component and .app). [What macOS shows, and why]($site/UNSIGNED_BUILDS.html). Nobody has run this build yet; testers wanted: please say how it went, working or not, in an [issue]($repo/issues/new/choose)."
+            echo "- **MPE-Roll-$VERSION-Linux.tar.gz**, experimental: the Linux VST3 (copy \`MPE Roll.vst3\` to \`~/.vst3\`) and the standalone app, with the scanner. Untested in any Linux host, and FL Studio has no Linux version: it's for Bitwig, Reaper or Ardour users who'd try it. Built on Ubuntu 24.04; it needs the libraries the README lists for [building on Linux]($repo#building)."
+            echo "- **SHA256SUMS.txt**: the SHA-256 checksums of the files above, also at the end of these notes. [How to check a download]($site/UNSIGNED_BUILDS.html#verify-what-you-downloaded)."
+            echo
+            echo "Setting up in FL Studio: the [FL Studio guide]($site/FL_STUDIO.html). Which synths have MPE, and where their switch is: [the list]($site/MPE_SYNTHS.html). What's known not to work yet: [Known issues]($site/KNOWN_ISSUES.html)."
+            echo
+            awk -v v="$VERSION" '
+              /^## / { p = index($0, "## [" v "]") == 1 }
+              /^\[[^]]*\]: / { p = 0 }
+              p
+              index($0, "[" v "]: ") == 1 { print ""; print }
+            ' CHANGELOG.md
+            echo
+            gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" --jq .body
+            echo
+            echo "## Checksums (SHA-256)"
+            echo
+            echo '```'
+            cat files/SHA256SUMS.txt
+            echo '```'
+          } > notes.md
+          cat notes.md
+
+      # Every download SHA256SUMS.txt names, and the file itself, so what's attached is what was
+      # hashed. A run repeated for the same tag replaces the files, and the notes with them (the
+      # checksums change), and keeps the release. gh makes a release with files as a draft, attaches
+      # them, then publishes it, so a run that failed while attaching leaves a draft behind: the
+      # next run finds it, replaces its files and notes, and publishes it.
+      - name: Release
+        run: |
+          mapfile -t assets < <(awk '{ print "files/" $2 }' files/SHA256SUMS.txt)
+          assets+=(files/SHA256SUMS.txt)
           flags=()
           if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" "${assets[@]}" --clobber
-            gh release edit "$TAG" --draft=false "${flags[@]}"
+            gh release edit "$TAG" --draft=false --notes-file notes.md "${flags[@]}"
           else
             gh release create "$TAG" "${assets[@]}" --verify-tag --title "MPE Roll $VERSION" --notes-file notes.md "${flags[@]}"
           fi

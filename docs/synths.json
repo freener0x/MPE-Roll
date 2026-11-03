@@ -15005,7 +15005,7 @@
    "mpe": "yes",
    "enable": "System page > MPE (turn on)",
    "bendRange": "System page > MPE Pitch Bend Range (default not found)",
-   "notes": "MPE added in Omnisphere 3.0 (October 2025). Per-note pitch bend works by default; MPE Y (CC74) and Z (pressure) need Mod Matrix routings. No CLAP version found.",
+   "notes": "MPE added in Omnisphere 3.0 (October 2025). Per-note pitch bend works by default; MPE Y (CC74) and Z (pressure) need Mod Matrix routings. No CLAP version found. Its VST3 plays over MPE in MPE Roll in FL Studio 26.1.7 on Windows 11 with MPE on. With MPE off, MPE Roll plays it with VST3 notes on channel 1 and no per-note expression comes out: it doesn't take VST3 note expressions, so keep MPE on.",
    "advice": "Turn on MPE in Omnisphere 3: System page (gear icon) > MPE on, with MPE Pitch Bend Range 48, and load the patch into Part 1 only (Omnisphere 2 has no MPE: use Plain MIDI).",
    "sources": [
     {
@@ -16273,7 +16273,7 @@
    "enable": "Header status area > MPE button (lit), or Menu > MPE Settings > Enable MPE. MPE Roll's MCM (RPN 6) also turns it on.",
    "bendRange": "Right-click MPE > Set MPE Pitch Bend Range (default 48); RPN 0 on channel 2 also sets it",
    "noteExpressions": "CLAP: Tuning, Volume, Pan, Pressure and Brightness (as timbre) per note; Vibrato and Expression are ignored. The VST3 has no note expressions.",
-   "notes": "MPE since Surge 1.6.0 (2019). The MPE state is saved with the DAW project, not the patch. RPN 0 sets the per-note range only on MIDI channel 2. VST2 only if self-built.",
+   "notes": "MPE since Surge 1.6.0 (2019). The MPE state is saved with the DAW project, not the patch. RPN 0 sets the per-note range only on MIDI channel 2. VST2 only if self-built. Its CLAP plays with CLAP note expressions in MPE Roll in FL Studio 26.1.7 on Windows 11 with nothing set up in it; its window opens separately from MPE Roll's, with a Show Surge XT button to bring it up.",
    "advice": "Surge XT turns MPE on from MPE Roll's MPE setup message; if it doesn't, click MPE in its header. Keep its MPE Pitch Bend Range (right-click MPE) at 48, MPE Roll's per-note bend range.",
    "clapAdvice": " Its CLAP version needs nothing set up when Note expressions are on in MPE settings.",
    "sources": [
@@ -17774,12 +17774,12 @@
     "Standalone"
    ],
    "mpe": "yes",
-   "notes": "FM synth with 2-, 4- and 6-operator engines, built around MPE. Windows build is VST3 and standalone. Only source is Dubspot, based on the developer's page, not hands-on testing.",
+   "notes": "FM synth with 2-, 4- and 6-operator engines, built around MPE. Windows build is VST3 and standalone. Only source is Dubspot, which worked from the developer's page rather than from trying it.",
    "advice": "MPE FM is built for MPE and needs no switch; set its bend range to 48, MPE Roll's per-note bend range.",
    "sources": [
     {
      "url": "https://blog.dubspot.com/tupos-audio-mpe-fm-2026",
-     "says": "First look: three FM engines built for MPE; VST3 on macOS and Windows; based on the developer's product page, not hands-on."
+     "says": "First look: three FM engines built for MPE; VST3 on macOS and Windows; based on the developer's product page rather than on trying it."
     },
     {
      "url": "https://blog.dubspot.com/plugins/tupos-mpe-fm",
@@ -17805,7 +17805,7 @@
     "Standalone"
    ],
    "mpe": "yes",
-   "notes": "Two-oscillator subtractive synth built around per-note expression. Windows build is VST3 and standalone; installer v1.0.1 is not code-signed. Only source is Dubspot, not hands-on.",
+   "notes": "Two-oscillator subtractive synth built around per-note expression. Windows build is VST3 and standalone; installer v1.0.1 is not code-signed. Only source is Dubspot, which hadn't tried it.",
    "advice": "MPE Subtractive is built for MPE and needs no switch; set its bend range to 48, MPE Roll's per-note bend range.",
    "sources": [
     {

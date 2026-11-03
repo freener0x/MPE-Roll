@@ -226,6 +226,38 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+      # An ad-hoc signature (identity "-", no certificate) on the three bundles: where the linker
+      # signed only the arm64 half of each binary, this signs each bundle whole, both halves with
+      # its Info.plist and resources. That meets Apple silicon's rule that arm64 code be signed, and
+      # nothing more: it names no developer and isn't notarized, so Gatekeeper still warns about a
+      # download (docs/UNSIGNED_BUILDS.md says what to do). A failing codesign stops the job.
+      - name: Sign (ad hoc)
+        run: |
+          for bundle in "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" \
+                        "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" \
+                        "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app"; do
+            codesign --force --deep -s - "$bundle"
+            codesign --verify --deep --strict --verbose=2 "$bundle"
+          done
+
+      # Apple's AU validator, on the component as signed above: an instrument (aumu) with the plugin
+      # and maker codes from CMakeLists.txt (Mpr1, Glpk). auval looks in the plug-in folders only,
+      # so a copy goes into the user's one for the check and is removed again. macOS has no timeout
+      # command; perl's alarm survives the exec and ends auval after 180 s (exit 142) if it hangs.
+      # The registrar is restarted first in case it holds a cached list (harmless if it isn't
+      # running).
+      - name: AU validation (auval)
+        run: |
+          components="$HOME/Library/Audio/Plug-Ins/Components"
+          mkdir -p "$components"
+          cp -R "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" "$components/"
+          killall -9 AudioComponentRegistrar 2> /dev/null || true
+          status=0
+          perl -e 'alarm shift; exec @ARGV' 180 auval -v aumu Mpr1 Glpk || status=$?
+          rm -rf "$components/MPE Roll.component"
+          if [ "$status" = 142 ]; then echo "auval didn't finish within 180 s."; fi
+          exit "$status"
+
       # Artifacts lose file permissions, which would leave the app's executable without its
       # executable bit. ditto zips the bundles with their permissions kept.
       - name: Package
@@ -372,6 +404,26 @@ jobs:
           "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"
           "build/MpeRollFlakyTestSynth_artefacts/Release/MPE Roll Flaky Test Synth.so"
 
+      # The same build for people who'd try MPE Roll in a Linux host (FL Studio has none, and no
+      # Linux host has run it): the VST3 with the scanner inside, the standalone app and the
+      # scanner, in a tar so the executable bits survive the artifact. The release attaches it as
+      # experimental.
+      - name: Package
+        run: |
+          mkdir -p "MPE Roll"
+          cp -R "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" "MPE Roll/"
+          cp "build/MpeRoll_artefacts/Release/Standalone/MPE Roll" "MPE Roll/"
+          cp "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner" "MPE Roll/"
+          if [ ! -x "MPE Roll/MPE Roll.vst3/Contents/x86_64-linux/MPE Roll Scanner" ]; then echo "The scanner isn't in the VST3 bundle"; exit 1; fi
+          tar -czf MPE-Roll-Linux.tar.gz "MPE Roll"
+          tar -tzvf MPE-Roll-Linux.tar.gz
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: MPE-Roll-Linux-build-${{ github.run_number }}
+          path: MPE-Roll-Linux.tar.gz
+          compression-level: 0
+
   # The website (docs/), built as GitHub Pages builds it after a merge to main: Jekyll with the
   # Cayman theme. Built for every change, documentation included, since that's what it's made of.
   site:
@@ -388,7 +440,8 @@ jobs:
 
       - name: Its pages are there, and load nothing from other sites
         run: |
-          ls _site/index.html _site/donate.html _site/FL_STUDIO.html _site/MPE_SYNTHS.html _site/assets/css/style.css
+          ls _site/index.html _site/donate.html _site/FL_STUDIO.html _site/MPE_SYNTHS.html _site/UNSIGNED_BUILDS.html \
+            _site/KNOWN_ISSUES.html _site/PRIVACY.html _site/assets/css/style.css
           if grep -rlE 'fonts\.(googleapis|gstatic)\.com' _site; then
             echo "These load fonts from Google"
             exit 1
