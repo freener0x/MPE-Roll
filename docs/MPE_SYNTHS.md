@@ -15,7 +15,7 @@ Which instruments for Windows have MPE, and where to turn it on: 673 instruments
 - **Unclear**: the sources disagree. Try MPE first; if held notes bend together, use *Plain MIDI*.
 - **\***: not yet confirmed by a second, independent check.
 
-MPE Roll knows these instruments: when you load one, its status line and *MPE settings* say where its MPE switch is, and for one without MPE it offers *Plain MIDI* or *One copy per note*. A VST3 that takes VST3 note expressions, or a CLAP that takes CLAP note expressions, can get each note's expression that way, with nothing to set up in the instrument; *MPE settings › Synth is played with* says which way MPE Roll plays it. [FL_STUDIO.md](FL_STUDIO.md#7-notes-on-particular-synths) has more on some of them.
+MPE Roll knows 593 of these instruments (most of the others are libraries that play inside another plugin, such as Kontakt, which MPE Roll sees as that plugin): when you load one, its status line and *MPE settings* say where its MPE switch is, and for one without MPE it offers *Plain MIDI* or *One copy per note*. A VST3 that takes VST3 note expressions, or a CLAP that takes CLAP note expressions, can get each note's expression that way, with nothing to set up in the instrument; *MPE settings › Synth is played with* says which way MPE Roll plays it. [FL_STUDIO.md](FL_STUDIO.md#7-notes-on-particular-synths) has more on some of them.
 
 Only instruments are listed: effects don't play notes, so MPE doesn't apply to them.
 

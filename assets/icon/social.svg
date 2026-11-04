@@ -13,6 +13,6 @@
   </g>
   <g font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif">
     <text x="536" y="318" font-size="128" font-weight="800" letter-spacing="-3" fill="#ffffff">MPE Roll</text>
-    <text x="540" y="392" font-size="40" font-weight="500" fill="#a9b1bd">An MPE piano roll for FL Studio</text>
+    <text x="540" y="392" font-size="40" font-weight="500" fill="#a9b1bd">The MPE piano roll for FL Studio</text>
   </g>
 </svg>

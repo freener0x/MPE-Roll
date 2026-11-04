@@ -112,7 +112,7 @@ synth's MPE switch is, and for those without MPE (Analog Lab, ZENOLOGY...) MPE R
 MIDI* when you load them. *Keep MPE* (Escape) leaves everything as it is.
 
 The synth and its settings are saved inside your FL project. If you open the project on a computer
-that doesn't have that synth, MPE Roll shows **Missing: <synth name>** and keeps its settings, so
+that doesn't have that synth, MPE Roll shows **Missing: \<synth name\>** and keeps its settings, so
 nothing is lost when you save.
 
 **Synth without MPE?** Set *Synth expects* to **Plain MIDI (one channel)**. The most recent note's
@@ -668,8 +668,8 @@ Your browser opens only when you click it, and nothing is sent until you submit 
 | All notes bend together | The synth isn't in MPE mode. Turn MPE on in the synth, or switch MPE Roll to *Plain MIDI*. |
 | Recording catches nothing | The controller's Port in FL's MIDI settings must match MPE Roll's MIDI input port, and FL must be playing. |
 | Notes play twice while recording | FL also sends the controller to the selected channel. Select another channel. |
-| "Missing: <synth>" on the synth button | That synth isn't installed (or scanned) on this computer. Install it, scan, and pick it again. |
-| "Not loaded: <synth>" on the synth button when a project opens | FL Studio (or MPE Roll) closed while that synth was loading last time, so MPE Roll didn't load it again on its own; *MPE settings › Synth is played with* says so too. *Load synth… ›* its name loads it once more. If FL closes again, the plugin crashes on loading here: try its other format (VST2 or VST3), or keep a single install of it (two installs of one plugin in FL can trip over each other), and please report it. |
+| "Missing: \<synth\>" on the synth button | That synth isn't installed (or scanned) on this computer. Install it, scan, and pick it again. |
+| "Not loaded: \<synth\>" on the synth button when a project opens | FL Studio (or MPE Roll) closed while that synth was loading last time, so MPE Roll didn't load it again on its own; *MPE settings › Synth is played with* says so too. *Load synth… ›* its name loads it once more. If FL closes again, the plugin crashes on loading here: try its other format (VST2 or VST3), or keep a single install of it (two installs of one plugin in FL can trip over each other), and please report it. |
 | A CLAP synth plays but doesn't glide, press or brighten | It may not support CLAP note expressions. Turn off *Note expressions (CLAP, VST3)* in *MPE settings* and turn on MPE in the synth instead. |
 | A VST3 synth played with VST3 note expressions doesn't glide | Its own MPE switch may be on (Serum 2 takes note expressions with it off). Or turn off *Note expressions (CLAP, VST3)* to send MPE over MIDI, and please send the plugin log. |
 | A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded in MPE Roll's window and open their own; MPE Roll says so (*Surge XT opened its window separately.*) and shows a *Show Surge XT* button that brings the window up again. Surge XT's CLAP does this in FL Studio 26.1.7 on Windows 11, and plays fine. Please report synths whose window doesn't appear at all. |

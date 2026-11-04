@@ -14,7 +14,7 @@ For FL's native synths (FLEX, Sytrus, Harmor, 3xOsc...), which can't receive MPE
 writes a piano roll script. The script rebuilds the clip in FL's own piano roll using slide notes,
 fine pitch and Mod X / Mod Y.
 
-![MPE Roll editor](docs/images/editor.png)
+![MPE Roll's editor in its FL Studio skin](docs/images/editor-fl-studio-skin.png)
 
 > **Status:** early version. The MPE engine, MIDI files, recording and the FL script are covered by
 > automated tests, and every change is built and tested on Windows, macOS and Linux. The plugin is
@@ -63,14 +63,15 @@ them). One that takes neither can't get each note's own expression, and *MPE set
 suggests *Plain MIDI*. MPE Roll asks again every few seconds, so a synth whose own MPE switch
 changes this is followed.
 
-**Known synths come with directions.** MPE Roll knows the MPE of some 680 instruments from 180
+**Known synths come with directions.** MPE Roll knows the MPE of some 600 instruments from 170
 makers, from an audit of what the major stores sell (October 2026): for one with MPE (Serum and
 Serum 2, Pigments and the other Arturia instruments, Omnisphere 3, Vital, Diva, Phase Plant, Surge
 XT, Equator2, Cherry Audio, SWAM, Icarus...), *MPE settings* and the status line say where its MPE
 switch is; for one without (Analog Lab, ZENOLOGY and the Roland Cloud instruments, Massive X,
 Sylenth1, Spire, Zebra2, Omnisphere 2, Waves...), MPE Roll offers *Plain MIDI* or *One copy per
-note* when you load it.
-[docs/MPE_SYNTHS.md](docs/MPE_SYNTHS.md) lists them all, with where to turn MPE on and sources.
+note* when you load it. [docs/MPE_SYNTHS.md](docs/MPE_SYNTHS.md) lists 673 instruments, with where
+to turn MPE on and sources; those MPE Roll doesn't know itself are mostly libraries that play
+inside another plugin, such as Kontakt, which MPE Roll sees as that plugin.
 
 **MPE for any synth: one copy per note.** For a synth without MPE (Serum 1.1, Analog Lab, Kontakt,
 Nexus...), MPE Roll can load several copies of it (8 to start with, up to 32) and play each note on
@@ -410,11 +411,13 @@ tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUC
                   API, pitch only from note expressions), a VST3 one on the plain VST3 interfaces
                   that maps pitch bend on channel 1 only and takes note expressions, and a plain one
                   without MPE (VST3 and VST2) for one copy per note. Needs -DMPEROLL_BUILD_DEV_TOOLS=ON.
-                  make_donate_page.py writes DONATE.md, the website's front and Support pages
-                  (docs/index.html, docs/donate.html), the QR codes and .github/FUNDING.yml from
-                  docs/donate.json. make_synth_list.py writes
-                  docs/MPE_SYNTHS.md and source/plugin/KnownSynths.h, the synths MPE Roll knows the
-                  MPE of, from docs/synths.json (CI checks they match).
+                  make_donate_page.py writes DONATE.md, the website's Support and share pages and
+                  its front page's front matter (docs/donate.html, docs/share.html,
+                  docs/index.html), the QR codes and .github/FUNDING.yml from docs/donate.json.
+                  make_synth_list.py writes docs/MPE_SYNTHS.md and source/plugin/KnownSynths.h, the
+                  synths MPE Roll knows the MPE of, from docs/synths.json (CI checks they match).
+                  shoot_images.sh and make_demo.sh draw the website's pictures and its demo film
+                  with the harness, and check_site.py checks the built website.
 third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
 third_party/lame/ The build configuration for the LAME MP3 encoder (LAME itself is downloaded).
 cmake/            Fixes and additions applied to the downloaded JUCE: an empty VST3 MIDI mapping, the
@@ -442,12 +445,19 @@ and Facebook.
 
 The website (<https://freener0x.github.io/MPE-Roll/>) is the `docs/` folder, which GitHub Pages
 builds with Jekyll in GitHub's Cayman theme (*Settings › Pages › Build and deployment*: *Deploy from a
-branch*, `main`, `/docs`). Its front page and Support page are made by `tools/make_donate_page.py`,
-and the FL Studio guide, the list of synths and the Known issues, Unsigned builds and Privacy pages
-become pages as they are. `docs/_config.yml` says how
-it's put together. Its pages link to the repository and its licence; should the repository ever be
-made private, set `"repoPublic": false` in `docs/donate.json` and run `tools/make_donate_page.py`, and
-the website then links to nothing in it, since visitors would get a 404 there.
+branch*, `main`, `/docs`). The front page is laid out by `docs/_layouts/home.html` from the words in
+`docs/_data/features.yml`, edited by hand, and the pictures `docs/_data/screenshots.yml` lists:
+`tools/shoot_images.sh` draws those of the editor and `tools/make_demo.sh` the demo film, both with
+the harness (`MpeRollHarness shoot` and `demo`), and the two from FL Studio are screenshots taken in
+FL Studio 26.1.7 on Windows 11. `tools/make_donate_page.py` makes the Support page, the share page
+(`docs/share.html`, posts ready for X, Instagram and Facebook) and the front page's front matter
+and donation paragraph; the FL Studio guide, the list of synths and the Known issues, Unsigned
+builds and Privacy pages become pages as they are. `docs/_config.yml` says how it's put together.
+CI builds the site and runs `tools/check_site.py` on it: nothing may be loaded from another site,
+and no link into the site may lead nowhere. Its pages link to the repository and its licence;
+should the repository ever be made private, set `"repoPublic": false` in `docs/donate.json` and run
+`tools/make_donate_page.py`, and the website then links to nothing in it, since visitors would get
+a 404 there.
 
 ## License
 

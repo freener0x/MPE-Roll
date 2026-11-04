@@ -4,7 +4,7 @@
   "inputs": {
     "assets/icon/mpe-roll.svg": "d38cb6ba0ccffae9c5f054a22af58837659e1fa61545708c20d407bc0e7bcc1e",
     "assets/icon/mpe-roll-small.svg": "c018cfe44a699d03fcf29444fb434c794e9b6a3f38a08e09dbb7c9c0152091b7",
-    "assets/icon/social.svg": "db646b8986dbd708aea591a3d7fc6e841b96440db3e42a1bf9661a422e7498eb",
+    "assets/icon/social.svg": "eeb749d0696620268ae00e7288a4fb12dd3ba46ed948c17923e45a44e43b0c74",
     "assets/icon/banner.svg": "393b392f84eac2a6f3ffc04372e2b6d94f3cd1adb5163d4a32c8d7e1d22925b4",
     "assets/icon/banner-light.svg": "39ee64317e59f17d10a66c57985c3d8ee16ebcacfa41bd158fde29483c87a53c",
     "assets/icon/wizard-large.svg": "d266dbe9ce20822296d6136a099a9fc165a01ee5165e12c966c8218a9212294a",
@@ -161,8 +161,8 @@
     },
     "docs/images/social.png": {
       "size": [1280, 640],
-      "sha256": "7feeda0d1a8268e6be333333197eeb8c44c1c6abb345add67df8076ed3d4dfec",
-      "bytes": 30224
+      "sha256": "13235ed68c01efa4c3ae56e1efd5ca1c6176df20181b5550b6ff3aa00e3d5c85",
+      "bytes": 30017
     },
     "docs/images/banner-dark.png": {
       "size": [1280, 320],

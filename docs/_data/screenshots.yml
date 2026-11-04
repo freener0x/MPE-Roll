@@ -1,0 +1,127 @@
+# The website's pictures, by id. _includes/screenshot.html shows them, and leaves out any id that
+# isn't listed here. Each entry:
+#   file           the picture or clip, in docs/images
+#   width, height  the size it shows at, in CSS pixels: half the file's own pixels for the pictures
+#                  drawn at twice the size, the file's own for the two screenshots from FL Studio
+#   alt            what it shows, for anyone who can't see it
+#   gif, poster    for the clip: a GIF where the video can't play, and the still shown before it
+#                  plays
+#   narrow         a crop for a phone's width (file, width, height, as above), shown there instead:
+#                  the wide pictures' words and waves would be a few pixels high on a phone
+#
+# tools/shoot_images.sh and tools/make_demo.sh draw them (MpeRollHarness shoot and demo, in the FL
+# Studio skin, at twice the size). On another computer, with other fonts, a picture can come out a
+# few pixels different in size: the harness prints each one's size, for width and height here. The
+# clip is always the whole 960 x 600 window.
+# fl_surge and fl_import are the maintainer's screenshots from FL Studio 26.1.7 on Windows 11,
+# cropped clear of a desktop overlay at their foot: fl-surge-xt-window.png to its top 1272 x 546
+# pixels, fl-piano-roll-after-import.png to its top left 1272 x 523.
+
+hero:
+  file: editor-fl-studio-skin.png
+  width: 1200
+  height: 760
+  alt: >-
+    MPE Roll's editor in the FL Studio skin: a chord whose top note scoops up into its pitch and
+    bends up at the end, a melody note with vibrato, another gliding up five semitones, and under
+    the piano roll the pressure lane with the curves of the two selected notes
+
+lanes:
+  file: lane-menu.png
+  width: 516
+  height: 555
+  alt: >-
+    The expression lane's menu open over the piano roll, above the pressure lane: per-note lanes
+    (velocity, release velocity, pitch glide, pressure, timbre, vibrato and per-note controllers)
+    and zone-wide ones (pitch bend, channel pressure, timbre, vibrato and zone controllers)
+
+vibrato:
+  file: vibrato-lane.png
+  width: 1040
+  height: 570
+  alt: >-
+    The vibrato lane: two held notes whose vibrato comes in late and grows, drawn on the notes as
+    the wave it will play at 5.5 Hz, and its depth drawn in the lane under them
+  # The first note alone, with the keys and the lane.
+  narrow:
+    file: vibrato-lane-narrow.png
+    width: 442
+    height: 570
+
+tools:
+  file: tool-arpeggiate.png
+  width: 757
+  height: 356
+  alt: >-
+    The Arpeggiate dialog, opened with Alt+A, over a clip of chords it previews as runs of sixteenth
+    notes, with its pattern, step, gate, range and seed, and Cancel and Accept
+
+glide:
+  file: glide-drawing.png
+  width: 889
+  height: 336
+  alt: >-
+    A glide being drawn with the Glide tool on a held G5: it runs straight to a whole semitone, and
+    the label by the pointer reads +5 C6. The notes before it slide into the next one.
+  # The held note, the glide and its label alone.
+  narrow:
+    file: glide-drawing-narrow.png
+    width: 485
+    height: 196
+
+settings:
+  file: settings-output.png
+  width: 514
+  height: 690
+  alt: >-
+    MPE settings open on Output to synth, with a CLAP synth loaded: Synth is played with CLAP notes,
+    each with its own tuning, pressure, brightness, volume, pan, vibrato and expression; below, the
+    MPE zones, bend ranges and how pressure and timbre are sent
+
+copies:
+  file: settings-copies.png
+  width: 514
+  height: 588
+  alt: >-
+    MPE settings open on One copy per note: 8 of 8 copies of the synth loaded, with the keys to send
+    to every copy, Sleep while quiet, Use several CPU cores and Follow copy 1's sound
+
+skins:
+  file: skins.png
+  width: 1048
+  height: 265
+  alt: >-
+    The ten skins, five to a row: MPE Roll, FL Studio (the default), Midnight, Synthwave,
+    Solarized, Paper, Forest, Ember, Ocean and High contrast
+  # Two to a row (half its 1361 pixels' height, rounded).
+  narrow:
+    file: skins-narrow.png
+    width: 412
+    height: 681
+
+fl_surge:
+  file: fl-studio-surge-xt.png
+  width: 1272
+  height: 546
+  alt: >-
+    MPE Roll in FL Studio 26.1.7 on Windows 11 with Surge XT loaded as a CLAP plugin, Surge XT's own
+    window open over MPE Roll's editor
+
+fl_import:
+  file: fl-studio-piano-roll-import.png
+  width: 1272
+  height: 523
+  alt: >-
+    FL Studio's piano roll after Send to FL piano roll: the clip as FL's own notes, its glides as
+    slide notes (the short notes marked with a triangle)
+
+demo:
+  file: demo.webm
+  width: 960
+  height: 600
+  gif: demo.gif
+  poster: demo-poster.png
+  alt: >-
+    A short film of MPE Roll's editor: three notes drawn as a chord, a glide dragged up a whole tone
+    from the top one, a swell of pressure painted under them in the lane, then the Midnight,
+    Synthwave and Paper skins before FL Studio's again

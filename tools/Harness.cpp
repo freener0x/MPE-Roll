@@ -3,6 +3,16 @@
 //   MpeRollHarness snapshot <out.png> [width height]   renders the editor with a demo clip
 //   MpeRollHarness settings <out.png>                   renders the MPE settings panel
 //   MpeRollHarness skins <folder>                       renders the editor in every skin, and a sheet of them
+//   MpeRollHarness shoot <state> <out.png> [scale] [synth]
+//                                                       renders a state of the editor for the website, in the
+//                                                       FL Studio skin, at a scale (2 by default): hero,
+//                                                       lanes, vibrato, glide, tools, settings, copies, skins
+//                                                       (settings and copies with the synth loaded, if given;
+//                                                       vibrato-narrow, glide-narrow and skins-narrow for a
+//                                                       phone's width)
+//   MpeRollHarness demo <folder> [scale]                writes the frames of the website's demo film at a scale
+//                                                       (2 by default), and its poster (tools/make_demo.sh
+//                                                       makes the video)
 //   MpeRollHarness export <synth> <folder>              exports a clip as WAV and MP3 and reads them back
 //   MpeRollHarness render <synth.vst3> <out.wav>        plays a test clip through a hosted synth and
 //                                                       checks that per-note glides reach it
@@ -6660,6 +6670,815 @@ int updateCheckTest (const juce::File& serverScript)
     return check.failures == 0 ? 0 : 1;
 }
 
+//==============================================================================
+// Pictures for the website (tools/shoot_images.sh and tools/make_demo.sh): states of the editor in the
+// FL Studio skin, the look of a user who never picked one, drawn at a scale (2 for screens with twice
+// the pixels) and cropped to what each one shows; and the frames of a short film of the editor at work.
+
+/** The preset skin with this name (the first if none has it). */
+int presetNamed (const juce::String& name)
+{
+    const auto& presets = presetSkins();
+
+    for (size_t i = 0; i < presets.size(); ++i)
+        if (presets[i].name == name)
+            return (int) i;
+
+    return 0;
+}
+
+/** A mouse button held down on a component, pressed as the uitest's gestures press it but a step at a
+    time, so the editor can be drawn in the middle of a drag. Positions are the component's own. */
+struct Pen
+{
+    explicit Pen (juce::Component& c, juce::ModifierKeys m = juce::ModifierKeys (juce::ModifierKeys::leftButtonModifier))
+        : target (c), mods (m) {}
+
+    juce::MouseEvent event (juce::Point<float> pos, bool dragged) const
+    {
+        return juce::MouseEvent (juce::Desktop::getInstance().getMainMouseSource(), pos, mods, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                 &target, &target, when, from, when, 1, dragged);
+    }
+
+    void down (juce::Point<float> pos)
+    {
+        from = last = pos;
+        when = juce::Time::getCurrentTime();
+        target.mouseDown (event (pos, false));
+    }
+
+    void dragTo (juce::Point<float> pos)    { last = pos; target.mouseDrag (event (pos, pos != from)); }
+    void up()                               { target.mouseUp (event (last, last != from)); }
+
+    juce::Component& target;
+    juce::ModifierKeys mods;
+    juce::Point<float> from, last;
+    juce::Time when;
+};
+
+/** An editor on screen with a clip in it, in a look of its own: a settings file nothing else reads,
+    so the computer's own MPE Roll look is left alone, with the FL Studio skin picked. */
+struct ShootRig
+{
+    explicit ShootRig (const MpeClip& clip, juce::Rectangle<int> bounds = { 0, 0, 1200, 760 })
+    {
+        ignoreXErrors();
+        skins->useSettingsFile (lookFile);
+        skins->setPreset (presetNamed ("FL Studio"));
+
+        processor.setRateAndBufferSizeDetails (48000.0, 512);
+        processor.prepareToPlay (48000.0, 512);
+        document().replaceClip (0, clip, clip.name);
+        document().getUndoManager().clearUndoHistory();
+
+        editor.reset (processor.createEditorAndMakeActive());
+        editor->setBounds (bounds);
+        editor->addToDesktop (0);
+        editor->setVisible (true);
+        pump (300);
+
+        grid = findChild<NoteGrid> (*editor);
+        lane = findChild<ExpressionLane> (*editor);
+        bar = findChild<Toolbar> (*editor);
+    }
+
+    ~ShootRig()
+    {
+        juce::PopupMenu::dismissAllActiveMenus();
+        pump (50);
+        editor->removeFromDesktop();
+        processor.editorBeingDeleted (editor.get());
+        editor.reset();
+        pump (100);
+        processor.releaseResources();
+        skins->flush();
+        lookFile.deleteFile();
+    }
+
+    bool ok() const                     { return grid != nullptr && lane != nullptr && bar != nullptr; }
+    ClipDocument& document()            { return processor.getDocument(); }
+    static void pump (int ms)           { juce::MessageManager::getInstance()->runDispatchLoopUntil (ms); }
+
+    /** Selects the notes with these keys, and no others. */
+    void select (std::initializer_list<int> keys)
+    {
+        document().selection.clear();
+
+        for (const auto& n : document().getEditClip().notes)
+            if (std::find (keys.begin(), keys.end(), n.key) != keys.end())
+                document().selection.insert (n.id);
+
+        document().selectionChanged();
+    }
+
+    /** A point in the grid, in its own coordinates, at a beat and a pitch (a key and any glide). */
+    juce::Point<float> gridAt (double beat, float pitch) const
+    {
+        const auto& view = grid->getView();
+        return { (float) view.beatToX (beat), view.pitchToY (pitch) };
+    }
+
+    /** A point in the expression lane, in its own coordinates, at a beat and a value from 0 to 1. */
+    juce::Point<float> laneAt (double beat, float value) const
+    {
+        const auto top = (float) ExpressionLane::headerHeight + 4.0f, bottom = (float) lane->getHeight() - 4.0f;
+        return { (float) ViewState::keysWidth + (float) grid->getView().beatToX (beat), bottom - value * (bottom - top) };
+    }
+
+    /** Where a component (the editor's, or one inside it) is in the editor. */
+    juce::Rectangle<int> inEditor (const juce::Component& c) const
+    {
+        return editor->getLocalArea (&c, c.getLocalBounds());
+    }
+
+    /** The pop-up menus showing: windows of their own that hold the items (the shadows round them
+        hold nothing). */
+    std::vector<juce::Component*> menuWindows() const
+    {
+        std::vector<juce::Component*> windows;
+        auto& desktop = juce::Desktop::getInstance();
+
+        for (int i = 0; i < desktop.getNumComponents(); ++i)
+            if (auto* window = desktop.getComponent (i);
+                window != editor.get() && window->isVisible() && window->getNumChildComponents() > 0)
+                windows.push_back (window);
+
+        return windows;
+    }
+
+    /** Where a menu is, in the editor's coordinates. */
+    juce::Rectangle<int> inEditorFromScreen (const juce::Component& window) const
+    {
+        return window.getScreenBounds() - editor->getScreenPosition();
+    }
+
+    /** The editor as drawn now, at a scale, with the menus showing drawn over it where they are. */
+    juce::Image picture (float scale) const
+    {
+        auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, scale);
+        juce::Graphics g (image);
+
+        for (auto* window : menuWindows())
+        {
+            const auto area = (inEditorFromScreen (*window).toFloat() * scale).toNearestInt();
+            juce::DropShadow (juce::Colours::black.withAlpha (0.6f), juce::roundToInt (12.0f * scale),
+                              { 0, juce::roundToInt (3.0f * scale) }).drawForRectangle (g, area);
+            g.setOpacity (1.0f);    // images are drawn at the colour's opacity: the shadow's would let the grid through
+            g.drawImageAt (window->createComponentSnapshot (window->getLocalBounds(), true, scale), area.getX(), area.getY());
+        }
+
+        return image;
+    }
+
+    juce::SharedResourcePointer<SkinManager> skins;
+    juce::File lookFile = juce::File::createTempFile (".settings");
+    MpeRollProcessor processor;
+    std::unique_ptr<juce::AudioProcessorEditor> editor;
+    NoteGrid* grid = nullptr;
+    ExpressionLane* lane = nullptr;
+    Toolbar* bar = nullptr;
+};
+
+/** Part of a picture drawn at a scale, the area given in the editor's coordinates. */
+juce::Image cropped (const juce::Image& image, juce::Rectangle<int> area, float scale)
+{
+    const auto pixels = (area.toFloat() * scale).getSmallestIntegerContainer().getIntersection (image.getBounds());
+    juce::Image out (juce::Image::RGB, juce::jmax (1, pixels.getWidth()), juce::jmax (1, pixels.getHeight()), true);
+    juce::Graphics g (out);
+    g.drawImageAt (image, -pixels.getX(), -pixels.getY());
+    return out;
+}
+
+/** A clip of four chords, a bar each, for a tool to work on: C, A minor, F and G. */
+MpeClip chordsClip()
+{
+    MpeClip clip;
+    clip.name = "Chords";
+    clip.length = 16.0;
+    const int chords[4][3] = { { 60, 64, 67 }, { 57, 60, 64 }, { 53, 57, 60 }, { 55, 59, 62 } };
+
+    for (int c = 0; c < 4; ++c)
+        for (int key : chords[c])
+            clip.addNote (note (key, c * 4.0, 4.0, 0.7f + 0.05f * (float) c));
+
+    return clip;
+}
+
+/** A line of notes sliding into one another, the last one held, for a glide to be drawn on. */
+MpeClip glideShotClip()
+{
+    MpeClip clip;
+    clip.name = "Glides";
+    clip.length = 16.0;
+
+    auto first = note (60, 0.0, 2.0, 0.8f);
+    first.lanes.pitch = { { 0.0, 0.0f }, { 1.5, 0.0f }, { 2.0, 4.0f } };
+    first.lanes.pressure = { { 0.0, 0.3f }, { 1.0, 0.8f }, { 2.0, 0.5f } };
+    clip.addNote (first);
+
+    auto second = note (64, 2.0, 2.0, 0.85f);
+    second.lanes.pitch = { { 0.0, 0.0f }, { 1.5, 0.0f }, { 2.0, 3.0f } };
+    second.lanes.pressure = { { 0.0, 0.5f }, { 2.0, 0.7f } };
+    clip.addNote (second);
+
+    auto held = note (67, 4.0, 4.0, 0.9f);
+    held.lanes.pressure = { { 0.0, 0.6f }, { 2.0, 1.0f }, { 4.0, 0.4f } };
+    clip.addNote (held);
+
+    clip.addNote (note (55, 0.0, 8.0, 0.6f));
+    return clip;
+}
+
+/** The editor with the demo clip, D5 and G5 selected and their pressure in the lane. */
+juce::Image heroPicture (float scale)
+{
+    ShootRig rig (makeDemoClip());
+
+    if (! rig.ok())
+        return {};
+
+    rig.select ({ 62, 67 });
+    ShootRig::pump (100);
+    return rig.picture (scale);
+}
+
+/** The expression lane with its menu open over the grid, as it opens in a host's window. */
+juce::Image lanesPicture (float scale)
+{
+    // At the foot of the screen, so the menu has no room below and opens upwards.
+    const auto screen = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay()->userBounds.toNearestInt();
+    ShootRig rig (makeDemoClip(), { screen.getX(), screen.getBottom() - 760, 1200, 760 });
+    auto* laneButton = rig.ok() ? findChild<juce::TextButton> (*rig.lane) : nullptr;     // the first: the lane menu's
+
+    if (laneButton == nullptr || laneButton->onClick == nullptr)
+        return {};
+
+    rig.select ({ 62 });
+    ShootRig::pump (100);
+    laneButton->onClick();      // at once: a click would be posted, and the menu closes as soon as it isn't in front
+    const auto menus = rig.menuWindows();
+
+    if (menus.empty())
+        return {};
+
+    // From just above the menu down through the lane, and from the keys to the lane's Clear button, so
+    // the menu's words show at their size on a page: the lane's hint, to the right of Clear, is left
+    // out whole rather than cut.
+    const auto menu = rig.inEditorFromScreen (*menus.front());
+    auto right = menu.getRight() + 8;
+
+    for (auto* child : rig.lane->getChildren())
+        if (auto* button = dynamic_cast<juce::TextButton*> (child); button != nullptr && button->getButtonText() == "Clear")
+            right = juce::jmax (right, rig.inEditor (*button).getRight() + 8);
+
+    const auto area = juce::Rectangle<int>::leftTopRightBottom (0, menu.getY() - 24, right, rig.editor->getHeight());
+    return cropped (rig.picture (scale), area, scale);
+}
+
+/** Two held notes whose vibrato comes in late and grows, the second scooped up into, over a low note
+    without any. */
+MpeClip vibratoShotClip()
+{
+    MpeClip clip;
+    clip.name = "Vibrato";
+    clip.length = 16.0;
+
+    auto first = note (62, 0.0, 4.0, 0.8f);
+    first.lanes.vibrato = { { 0.0, 0.0f }, { 1.0, 0.0f }, { 2.5, 0.45f }, { 4.0, 0.45f } };
+    first.lanes.pressure = { { 0.0, 0.4f }, { 2.0, 0.9f }, { 4.0, 0.6f } };
+    clip.addNote (first);
+
+    auto second = note (67, 4.0, 4.5, 0.9f);
+    second.lanes.pitch = { { 0.0, -2.0f }, { 0.5, 0.0f } };
+    second.lanes.vibrato = { { 0.0, 0.0f }, { 1.5, 0.0f }, { 3.0, 0.6f }, { 4.5, 0.6f } };
+    second.lanes.pressure = { { 0.0, 0.5f }, { 3.0, 1.0f }, { 4.5, 0.7f } };
+    clip.addNote (second);
+
+    clip.addNote (note (55, 0.0, 8.5, 0.6f));
+    clip.addNote (note (59, 0.0, 4.0, 0.6f));
+    return clip;
+}
+
+/** The vibrato lane, with the vibrato drawn on the notes as it will play: a band of the window from
+    the toolbar down, all of its width. Narrow (for a phone's width): the keys and the first note only,
+    to just before the second, so its vibrato and the lane's buttons up to the speed show at a size
+    there. */
+juce::Image vibratoPicture (float scale, bool narrow)
+{
+    ShootRig rig (vibratoShotClip(), { 0, 0, 1040, 640 });
+
+    if (! rig.ok())
+        return {};
+
+    rig.select ({ 62, 67 });
+    rig.lane->setTarget (ExpressionLane::Target::noteVibrato);
+    ShootRig::pump (100);
+
+    auto area = rig.editor->getLocalBounds().withTrimmedTop (Toolbar::preferredHeight);
+
+    if (narrow)     // short of the second note's scoop, whose dot starts a few pixels before it
+        area = area.withRight (rig.inEditor (*rig.grid).getX() + (int) rig.gridAt (3.94, 0.0f).x);
+
+    return cropped (rig.picture (scale), area, scale);
+}
+
+/** The pointer the Glide tool shows, a crosshair, drawn at a point of the editor in a picture at a scale. */
+void drawCrosshair (juce::Image& image, juce::Point<float> at, float scale)
+{
+    juce::Graphics g (image);
+    const auto centre = at * scale;
+    juce::Path cross;
+    cross.addRectangle (-10.0f, -1.0f, 20.0f, 2.0f);
+    cross.addRectangle (-1.0f, -10.0f, 2.0f, 20.0f);
+    cross.applyTransform (juce::AffineTransform::scale (scale).translated (centre));
+    g.setColour (juce::Colours::black);
+    g.strokePath (cross, juce::PathStrokeType (1.2f * scale));
+    g.setColour (juce::Colours::white);
+    g.fillPath (cross);
+}
+
+/** A glide being dragged up from a held note: the line lands on a whole semitone, the interval and
+    the note it reaches beside the pen. Narrow (for a phone's width): the held note, the glide and its
+    label alone, without the keys. */
+juce::Image glidePicture (float scale, bool narrow)
+{
+    ShootRig rig (glideShotClip());
+
+    if (! rig.ok())
+        return {};
+
+    rig.grid->keyPressed (juce::KeyPress ('g'));       // the Glide tool, as G picks it
+    ShootRig::pump (50);
+
+    Pen pen (*rig.grid);
+    pen.down (rig.gridAt (5.52, 67.0f));
+
+    for (int i = 1; i <= 16; ++i)
+        pen.dragTo (rig.gridAt (5.52 + 2.0 * i / 16.0, 67.0f + 5.2f * (float) i / 16.0f));
+
+    ShootRig::pump (50);
+    auto image = rig.picture (scale);
+    drawCrosshair (image, rig.editor->getLocalPoint (rig.grid, pen.last), scale);
+    pen.up();
+
+    const auto grid = rig.inEditor (*rig.grid);
+    const auto area = narrow
+        ? juce::Rectangle<int>::leftTopRightBottom (grid.getX() + (int) rig.gridAt (3.55, 0.0f).x,
+                                                    juce::jmax (0, grid.getY() + (int) rig.gridAt (0.0, 75.5f).y),
+                                                    grid.getX() + (int) rig.gridAt (8.6, 0.0f).x,
+                                                    grid.getY() + (int) rig.gridAt (0.0, 61.5f).y)
+        : juce::Rectangle<int>::leftTopRightBottom (0, juce::jmax (0, grid.getY() + (int) rig.gridAt (0.0, 77.0f).y),
+                                                    grid.getX() + (int) rig.gridAt (8.6, 0.0f).x,
+                                                    grid.getY() + (int) rig.gridAt (0.0, 53.0f).y);
+    return cropped (image, area.getIntersection (grid.withLeft (0)), scale);
+}
+
+/** The Arpeggiate dialog (Alt+A, as in FL), previewing its arpeggios on four chords. */
+juce::Image toolsPicture (float scale)
+{
+    ShootRig rig (chordsClip());
+
+    if (! rig.ok())
+        return {};
+
+    rig.editor->keyPressed (juce::KeyPress ('a', juce::ModifierKeys::altModifier, 0));
+    ShootRig::pump (300);
+    auto* box = findChild<juce::CallOutBox> (*rig.editor);
+
+    if (box == nullptr)
+        return {};
+
+    // From the toolbar's second row, where the Tools button is, down past the dialog; on the right, a
+    // little past the dialog, so its words show near their size on a page, and short of the status
+    // line's words, which would be cut.
+    const auto dialog = box->getBoundsInParent();
+    const auto& status = rig.bar->status;
+    const auto words = (int) std::ceil (juce::GlyphArrangement::getStringWidth (status.getFont(), status.getText()))
+                     + status.getBorderSize().getRight();
+    const auto right = juce::jmin (dialog.getRight() + 32, rig.inEditor (status).getRight() - words - 16);
+    const auto area = juce::Rectangle<int>::leftTopRightBottom (0, Toolbar::rowHeight + 2, right,
+                                                                juce::jmin (rig.editor->getHeight(), dialog.getBottom() + 40));
+    return cropped (rig.picture (scale), area, scale);
+}
+
+/** MPE settings open on one section: Output to synth, or (copies) One copy per note with the synth
+    played that way. With a synth file, that synth is loaded first, so the settings say how it's
+    played; its name shows in neither section. The build's name is left out, as it would date the
+    picture. */
+juce::Image settingsPicture (float scale, bool copies, const juce::File& synthFile)
+{
+    // Wide and tall enough that the call-out, hung off the settings button at the right, covers no
+    // other toolbar button and ends above the lane's words, which would be cut at its edges.
+    ShootRig rig (makeDemoClip(), { 0, 0, 1300, 900 });
+
+    if (! rig.ok())
+        return {};
+
+    if (copies)
+    {
+        auto settings = rig.document().getSettings();
+        settings.output.mode = OutputSettings::Mode::copies;
+        rig.document().setSettings (settings);
+    }
+
+    if (synthFile != juce::File())
+    {
+        if (! loadSynth (rig.processor, synthFile))
+            return {};
+
+        // The copies load one after another, on their own.
+        for (int i = 0; i < 200; ++i)
+        {
+            const auto status = rig.processor.getSynth().getCopyStatus();
+
+            if (! copies || (status.on && ! status.loading && status.loaded == status.wanted))
+                break;
+
+            ShootRig::pump (50);
+        }
+    }
+
+    rig.bar->settingsButton.triggerClick();
+    ShootRig::pump (300);
+    auto* box = findChild<juce::CallOutBox> (*rig.editor);
+    auto* panel = box != nullptr ? findChild<SettingsPanel> (*box) : nullptr;
+    auto* sections = panel != nullptr ? findChild<juce::PropertyPanel> (*panel) : nullptr;
+
+    if (sections == nullptr)
+        return {};
+
+    const auto names = sections->getSectionNames();
+
+    for (int i = 0; i < names.size(); ++i)
+        sections->setSectionOpen (i, names[i] == (copies ? "One copy per note" : "Output to synth"));
+
+    if (auto* build = findLabelSaying (*panel, getBuildName()))
+        build->setVisible (false);
+
+    rig.bar->status.setVisible (false);     // behind the call-out, but for a stray letter or two past its edge
+
+    ShootRig::pump (800);       // the panel's lines are brought up to date twice a second
+
+    // The panel is as tall as the settings window always is; a section shorter than that (One copy per
+    // note) would leave it empty above the links at its foot. Shorter, then, by what the sections leave
+    // empty: the call-out follows the panel's size.
+    if (const auto spare = sections->getHeight() - sections->getTotalContentHeight(); spare > 0)
+    {
+        panel->setSize (panel->getWidth(), panel->getHeight() - spare);
+        ShootRig::pump (100);
+    }
+
+    const auto area = box->getBoundsInParent().getUnion (rig.inEditor (rig.bar->settingsButton)).expanded (14, 10);
+    return cropped (rig.picture (scale), area.getIntersection (rig.editor->getLocalBounds()), scale);
+}
+
+/** The ten skins side by side, five to a row (two for a phone's width), each the whole window, named.
+    Transparent between them. */
+juce::Image skinsPicture (float scale, int columns)
+{
+    ShootRig rig (makeDemoClip());
+
+    if (! rig.ok())
+        return {};
+
+    rig.select ({ 62, 67 });
+    const auto& presets = presetSkins();
+    const auto bounds = rig.editor->getLocalBounds();
+    const auto tileScale = scale * 200.0f / (float) bounds.getWidth();      // 200 points wide
+    const auto tileWidth = juce::roundToInt ((float) bounds.getWidth() * tileScale);
+    const auto tileHeight = juce::roundToInt ((float) bounds.getHeight() * tileScale);
+    const auto gap = juce::roundToInt (12.0f * scale);
+    const auto rows = ((int) presets.size() + columns - 1) / columns;
+
+    juce::Image sheet (juce::Image::ARGB, columns * tileWidth + (columns - 1) * gap, rows * tileHeight + (rows - 1) * gap, true);
+    juce::Graphics g (sheet);
+
+    for (size_t i = 0; i < presets.size(); ++i)
+    {
+        rig.skins->setPreset ((int) i);
+        ShootRig::pump (100);
+
+        const juce::Rectangle<int> tile (((int) i % columns) * (tileWidth + gap), ((int) i / columns) * (tileHeight + gap),
+                                         tileWidth, tileHeight);
+        g.drawImageAt (rig.editor->createComponentSnapshot (bounds, true, tileScale), tile.getX(), tile.getY());
+
+        const auto name = presets[i].name + (presets[i].name == "FL Studio" ? " (default)" : "");
+        const juce::Font font (juce::FontOptions (12.0f * scale, juce::Font::bold));
+        const auto label = juce::Rectangle<float> ((float) tile.getX() + 5.0f * scale, (float) tile.getBottom() - 25.0f * scale,
+                                                   juce::GlyphArrangement::getStringWidth (font, name) + 12.0f * scale, 20.0f * scale);
+        g.setColour (juce::Colours::black.withAlpha (0.78f));
+        g.fillRoundedRectangle (label, 4.0f * scale);
+        g.setColour (juce::Colours::white);
+        g.setFont (font);
+        g.drawText (name, label, juce::Justification::centred);
+    }
+
+    rig.skins->setPreset (presetNamed ("FL Studio"));
+    return sheet;
+}
+
+/** Whether the website's pictures can be drawn at a scale: from 0.25 to 4 (a word given for one reads as 0). */
+bool usableScale (float scale)
+{
+    if (scale >= 0.25f && scale <= 4.0f)
+        return true;
+
+    std::printf ("The scale must be a number from 0.25 to 4: 2 for screens with twice the pixels\n");
+    return false;
+}
+
+int shoot (const juce::String& state, const juce::File& target, float scale, const juce::File& synthFile)
+{
+    if (! usableScale (scale))
+        return 2;
+
+    juce::Image image;
+
+    // The -narrow states are the same pictures for a phone's width (docs/_data/screenshots.yml, narrow).
+    if (state == "hero")                    image = heroPicture (scale);
+    else if (state == "lanes")              image = lanesPicture (scale);
+    else if (state == "vibrato")            image = vibratoPicture (scale, false);
+    else if (state == "vibrato-narrow")     image = vibratoPicture (scale, true);
+    else if (state == "glide")              image = glidePicture (scale, false);
+    else if (state == "glide-narrow")       image = glidePicture (scale, true);
+    else if (state == "tools")              image = toolsPicture (scale);
+    else if (state == "settings")           image = settingsPicture (scale, false, synthFile);
+    else if (state == "copies")             image = settingsPicture (scale, true, synthFile);
+    else if (state == "skins")              image = skinsPicture (scale, 5);
+    else if (state == "skins-narrow")       image = skinsPicture (scale, 2);
+    else
+    {
+        std::printf ("No state called %s: hero, lanes, vibrato, vibrato-narrow, glide, glide-narrow, tools, settings, "
+                     "copies, skins or skins-narrow\n", state.toRawUTF8());
+        return 2;
+    }
+
+    const auto ok = image.isValid() && writePng (image, target);
+    std::printf ("%s %s (%s, %d x %d)\n", ok ? "Wrote" : "Failed to write", target.getFullPathName().toRawUTF8(),
+                 state.toRawUTF8(), image.getWidth(), image.getHeight());
+    return ok ? 0 : 1;
+}
+
+/** Makes the frames of a short film of the editor at work, 15 a second, with the pointer drawn where
+    the mouse is: steps done with the uitest's synthetic mouse events, a frame after each, and frames
+    between them where the pointer only moves. */
+class DemoFilm
+{
+public:
+    static constexpr int fps = 15;
+
+    DemoFilm (ShootRig& r, const juce::File& f, float s) : rig (r), folder (f), scale (s) {}
+
+    int getNumFrames() const noexcept   { return count; }
+
+    /** A frame of the editor as it is now. Drawn again only when it may have changed. */
+    void frame (bool changed = true)
+    {
+        if (changed || ! editorPicture.isValid())
+        {
+            ShootRig::pump (20);
+            editorPicture = rig.picture (scale);
+        }
+
+        auto image = editorPicture.createCopy();
+        drawPointer (image);
+        writePng (image, folder.getChildFile ("frame-" + juce::String (++count).paddedLeft ('0', 4) + ".png"));
+    }
+
+    void hold (double seconds)
+    {
+        for (int i = frames (seconds); --i >= 0;)
+            frame (false);
+    }
+
+    /** The editor as it is now, without the pointer, as poster.png: what a page shows before the film plays. */
+    void poster()
+    {
+        ShootRig::pump (20);
+        writePng (rig.picture (scale), folder.getChildFile ("poster.png"));
+    }
+
+    /** The pointer moving to a point in the editor, the button up, easing in and out. */
+    void moveTo (juce::Point<float> where, double seconds)
+    {
+        const auto from = pointer;
+        const auto n = juce::jmax (1, frames (seconds));
+
+        for (int i = 1; i <= n; ++i)
+        {
+            const auto t = (float) i / (float) n;
+            pointer = from + (where - from) * (t * t * (3.0f - 2.0f * t));
+            frame (false);
+        }
+    }
+
+    void moveTo (juce::Component& c, juce::Point<float> where, double seconds)
+    {
+        moveTo (rig.editor->getLocalPoint (&c, where), seconds);
+    }
+
+    /** Presses on a component at the first point of a path, drags along the rest of it and lets go: a
+        frame for each step. One point is a click. */
+    void drag (juce::Component& target, const std::vector<juce::Point<float>>& path, double seconds,
+               juce::ModifierKeys mods = juce::ModifierKeys (juce::ModifierKeys::leftButtonModifier))
+    {
+        moveTo (target, path.front(), 0.35);
+        Pen pen (target, mods);
+        pressed = true;
+        pen.down (path.front());
+        frame();
+
+        if (path.size() > 1)
+        {
+            const auto n = juce::jmax (1, frames (seconds));
+
+            for (int i = 1; i <= n; ++i)
+            {
+                const auto p = along (path, (float) i / (float) n);
+                pen.dragTo (p);
+                pointer = rig.editor->getLocalPoint (&target, p);
+                frame();
+            }
+        }
+        else
+        {
+            frame (false);
+        }
+
+        pen.up();
+        pressed = false;
+        frame();
+    }
+
+    /** The pointer going to a toolbar button and clicking it. */
+    void click (juce::Button& button)
+    {
+        moveTo (button, button.getLocalBounds().getCentre().toFloat(), 0.4);
+        pressed = true;
+        frame (false);
+        button.triggerClick();
+        ShootRig::pump (200);       // the click comes as a message, and the button then shows pressed for
+                                    // 100 ms: wait for both, or the next frame depends on how busy the computer is
+        frame();
+        pressed = false;
+        frame (false);
+    }
+
+    juce::Point<float> pointer;
+
+private:
+    ShootRig& rig;
+    juce::File folder;
+    float scale;
+    int count = 0;
+    bool pressed = false;
+    juce::Image editorPicture;
+
+    static int frames (double seconds)      { return juce::roundToInt (seconds * fps); }
+
+    static juce::Point<float> along (const std::vector<juce::Point<float>>& path, float t)
+    {
+        const auto position = t * (float) (path.size() - 1);
+        const auto i = juce::jlimit (0, (int) path.size() - 2, (int) std::floor (position));
+        return path[(size_t) i] + (path[(size_t) i + 1] - path[(size_t) i]) * (position - (float) i);
+    }
+
+    /** An arrow, as a system draws the mouse pointer, with a ring round its tip while the button is down. */
+    void drawPointer (juce::Image& image) const
+    {
+        juce::Graphics g (image);
+        const auto tip = pointer * scale;
+
+        if (pressed)
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.4f));
+            g.fillEllipse (juce::Rectangle<float> (26.0f * scale, 26.0f * scale).withCentre (tip));
+        }
+
+        juce::Path arrow;
+        arrow.startNewSubPath (0.0f, 0.0f);
+        arrow.lineTo (0.0f, 17.0f);
+        arrow.lineTo (4.2f, 13.3f);
+        arrow.lineTo (7.0f, 19.6f);
+        arrow.lineTo (9.9f, 18.4f);
+        arrow.lineTo (7.2f, 12.2f);
+        arrow.lineTo (12.6f, 12.2f);
+        arrow.closeSubPath();
+        arrow.applyTransform (juce::AffineTransform::scale (scale).translated (tip));
+
+        g.setColour (juce::Colours::white);
+        g.fillPath (arrow);
+        g.setColour (juce::Colours::black);
+        g.strokePath (arrow, juce::PathStrokeType (1.3f * scale, juce::PathStrokeType::mitered));
+    }
+};
+
+/** The website's demo film: three notes drawn as a chord, the first lengthened; a glide dragged up from
+    the top note with the Glide tool; a swell of pressure painted in the lane under them all; the skins
+    gone through; and the clip cleared again, so the film loops. The clip is a bar long, and fills the
+    grid, so the drawing is as large as it can be on a phone's screen too. */
+int demoFrames (const juce::File& folder, float scale)
+{
+    if (! usableScale (scale))
+        return 2;
+
+    folder.createDirectory();
+
+    for (const auto& old : folder.findChildFiles (juce::File::findFiles, false, "frame-*.png;poster.png"))
+        old.deleteFile();
+
+    MpeClip empty;
+    empty.name = "Demo";
+    empty.length = 4.0;
+    ShootRig rig (empty, { 0, 0, 960, 600 });
+
+    if (! rig.ok())
+        return 1;
+
+    auto& grid = *rig.grid;
+    auto& lane = *rig.lane;
+
+    // Zoomed in as a user would, with the wheel: Ctrl for the bar to fill the grid (six steps of 15 %
+    // from 96 pixels a beat), Alt for taller rows, and then scrolled so the notes to come are in the
+    // middle.
+    {
+        const auto wheel = [&grid] (int modifiers, juce::Point<float> at, float deltaY)
+        {
+            juce::MouseWheelDetails details;
+            details.deltaX = 0.0f;
+            details.deltaY = deltaY;
+            details.isReversed = details.isSmooth = details.isInertial = false;
+            grid.mouseWheelMove (Pen (grid, juce::ModifierKeys (modifiers)).event (at, false), details);
+        };
+
+        for (int i = 0; i < 6; ++i)
+            wheel (juce::ModifierKeys::commandModifier, { 0.0f, 0.0f }, 1.0f);
+
+        for (int i = 0; i < 4; ++i)
+            wheel (juce::ModifierKeys::altModifier, rig.gridAt (0.0, 64.5f), 1.0f);
+
+        const auto& view = grid.getView();
+        const auto wanted = 64.5f + 0.5f + (float) grid.getHeight() * 0.5f / view.rowHeight;
+        wheel (0, { 1.0f, 1.0f }, (wanted - view.scrollKey) / 30.0f);
+    }
+
+    DemoFilm film (rig, folder, scale);
+    const auto rest = rig.editor->getLocalPoint (&grid, rig.gridAt (3.3, 62.0f));     // between the notes to come
+    film.pointer = rest;
+    film.hold (0.5);
+
+    // A note, lengthened from its end to a bar, and two more over it, as long as it now is. The end is
+    // taken within the last 7 pixels of the note, where a drag resizes it.
+    film.drag (grid, { rig.gridAt (0.1, 60.0f) }, 0.0);
+    film.drag (grid, { rig.gridAt (0.985, 60.0f), rig.gridAt (3.985, 60.0f) }, 0.6);
+    film.drag (grid, { rig.gridAt (0.1, 64.0f) }, 0.0);
+    film.drag (grid, { rig.gridAt (0.1, 67.0f) }, 0.0);
+    film.hold (0.2);
+
+    // The Glide tool, and a glide up a whole tone from halfway through the top note.
+    film.click (rig.bar->glideToolButton);
+    film.drag (grid, { rig.gridAt (2.02, 67.0f), rig.gridAt (2.6, 67.6f), rig.gridAt (3.27, 68.6f), rig.gridAt (3.52, 69.1f) }, 0.8);
+    film.hold (0.3);
+
+    // Nothing selected (Ctrl+D, as in FL), so the lane draws onto every note under the pen: a swell.
+    grid.keyPressed (juce::KeyPress ('d', juce::ModifierKeys::commandModifier, 0));
+    film.frame();
+    std::vector<juce::Point<float>> swell;
+
+    for (int i = 0; i <= 24; ++i)
+    {
+        const auto beat = 4.0 * i / 24.0;      // the notes' whole length, so no stretch of them is left at none
+        const auto rise = std::sin (juce::MathConstants<double>::pi * juce::jmin (1.0, beat / 2.6) * 0.5);
+        const auto value = 0.12 + 0.8 * rise - (beat > 2.6 ? 0.45 * (beat - 2.6) / 1.4 : 0.0);
+        swell.push_back (rig.laneAt (beat, (float) value));
+    }
+
+    film.drag (lane, swell, 1.2);
+    film.poster();
+    film.hold (0.5);
+
+    // The look: three more skins, then FL Studio's again.
+    for (const auto* name : { "Midnight", "Synthwave", "Paper", "FL Studio" })
+    {
+        rig.skins->setPreset (presetNamed (name));
+        film.frame();
+        film.hold (0.45);
+    }
+
+    // Everything selected and deleted, so the film starts again where it began.
+    grid.keyPressed (juce::KeyPress ('p'));
+    grid.keyPressed (juce::KeyPress ('a', juce::ModifierKeys::commandModifier, 0));
+    film.frame();
+    film.hold (0.3);
+    grid.keyPressed (juce::KeyPress (juce::KeyPress::deleteKey));
+    film.frame();
+    film.moveTo (rest, 0.5);
+
+    std::printf ("Wrote %d frames (%.1f s at %d a second) to %s\n", film.getNumFrames(),
+                 film.getNumFrames() / (double) DemoFilm::fps, DemoFilm::fps, folder.getFullPathName().toRawUTF8());
+    return 0;
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -6679,6 +7498,13 @@ int main (int argc, char** argv)
 
     if (args.size() >= 2 && args[0] == "skins")
         return skinsSnapshots (cwd.getChildFile (args[1]));
+
+    if (args.size() >= 3 && args[0] == "shoot")
+        return shoot (args[1], cwd.getChildFile (args[2]), args.size() >= 4 ? (float) args[3].getDoubleValue() : 2.0f,
+                      args.size() >= 5 ? cwd.getChildFile (args[4]) : juce::File());
+
+    if (args.size() >= 2 && args[0] == "demo")
+        return demoFrames (cwd.getChildFile (args[1]), args.size() >= 3 ? (float) args[2].getDoubleValue() : 2.0f);
 
     if (args.size() >= 2 && args[0] == "donate")
     {
@@ -6749,6 +7575,9 @@ int main (int argc, char** argv)
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
                  "  MpeRollHarness skins <folder>\n"
+                 "  MpeRollHarness shoot <hero|lanes|vibrato|glide|tools|settings|copies|skins> <out.png> [scale] [synth]\n"
+                 "                       (vibrato, glide and skins also as vibrato-narrow and so on, for a phone)\n"
+                 "  MpeRollHarness demo <folder> [scale]\n"
                  "  MpeRollHarness donate <out.png>\n"
                  "  MpeRollHarness export <synth> <folder>\n"
                  "  MpeRollHarness render <synth.vst3> <out.wav>\n"

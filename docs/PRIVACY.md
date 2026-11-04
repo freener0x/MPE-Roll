@@ -152,13 +152,15 @@ profile, include your Windows user name.
 
 This site (freener0x.github.io/MPE-Roll) is static pages served by GitHub Pages from the
 repository's `docs/` folder. It loads nothing from other sites: no fonts, scripts, images, analytics
-or ads from third parties (the project's CI fails the build if a page pulls fonts from Google), and
-the donation page's QR codes are images in the site itself. GitHub logs visitors' IP addresses for
-security when a Pages site is visited (see
+or ads from third parties (the project's CI fails the build if a page loads anything from another
+site, `tools/check_site.py`), and the donation page's QR codes are images in the site itself.
+GitHub logs visitors' IP addresses for security when a Pages site is visited (see
 [About GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages#data-collection)
 and
 [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement));
-the project sees no visitor data. The *Download* and *View on GitHub* buttons, and the donation
-links, lead to other sites with their own policies.
+the project sees no visitor data. The *Download* and *View on GitHub* buttons, the issue forms on
+the front page, the donation links, and the share page's X, Facebook and Instagram buttons lead to
+other sites with their own policies; the share buttons' links carry nothing but the post's words
+and the site's address.
 
 Issues and pull requests on GitHub are public.

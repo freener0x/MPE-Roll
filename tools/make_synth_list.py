@@ -49,7 +49,14 @@ docs/synths.json holds "checked" (when the list was last checked, e.g. "October 
 
 Text the plugin shows must be plain ASCII; "›", dashes and curly quotes are turned into ASCII.
 
-Run it from anywhere; --check only says whether the files it writes are up to date:
+The website's front page quotes the list's numbers in words written by hand (docs/_data/features.yml,
+the panel with id known-synths): how many instruments from how many makers, when they were checked,
+how many of them the plugin knows, and how many have MPE, have it with limits, don't, never mention it
+and are unclear. This script can't write those words, so it checks the numbers in them, and fails,
+saying which to change, when the list has changed them (FRONT_PAGE_NUMBERS says where each is).
+
+Run it from anywhere; --check only says whether the files it writes, and the front page's numbers,
+are up to date:
 
     python3 tools/make_synth_list.py [--check]
 """
@@ -68,7 +75,25 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "docs" / "synths.json"
 PAGE_OUT = ROOT / "docs" / "MPE_SYNTHS.md"
 PLUGIN_OUT = ROOT / "source" / "plugin" / "KnownSynths.h"
+FRONT_PAGE = ROOT / "docs" / "_data" / "features.yml"
+FRONT_PAGE_PANEL = "known-synths"
 FL_GUIDE = "FL_STUDIO.md"
+
+# Where the front page's panel (FRONT_PAGE, the panel with id FRONT_PAGE_PANEL) says each number:
+# what it is, a pattern whose group is the number as written (its words joined by single spaces), and
+# the count it must be (counts() below). Reword the panel, and these go with it.
+FRONT_PAGE_NUMBERS = [
+    ("number of instruments in the title", r"title: \"?(\d+) synths", "listed"),
+    ("number of instruments listed", r"has (\d+) instruments from", "listed"),
+    ("number of makers", r"instruments from (\d+) makers", "makers"),
+    ("month the list was checked", r"checked in (\w+ \d{4})", "checked"),
+    ("number the plugin knows", r"knows (\d+) of them", "known"),
+    ("number with MPE", r"(\d+) have MPE and", "yes"),
+    ("number with MPE with limits", r"(\d+) have it with limits", "limited"),
+    ("number without MPE", r"(\d+) don't,", "no"),
+    ("number that never mention it", r"(\d+) never mention it", "undocumented"),
+    ("number that are unclear", r"(\d+) are unclear", "unclear"),
+]
 
 CATEGORIES = ["synth", "sampler-rompler", "keys-piano", "orchestral-acoustic", "drums", "physical-model", "modular", "other"]
 FORMATS = ["VST2", "VST3", "CLAP", "AAX", "Standalone"]
@@ -176,6 +201,11 @@ def how_to(s: dict) -> str:
     return ". ".join(cell(p).rstrip(".") for p in parts if p) + "."
 
 
+def in_plugin(s: dict) -> bool:
+    """Whether the plugin's list has it: not when its MPE is unclear, or it's marked "plugin": false."""
+    return s["mpe"] != "unclear" and s.get("plugin", True)
+
+
 def render_page(checked: str, synths: list[dict]) -> str:
     synths = [s for s in synths if s.get("page", True)]
     by_maker: dict[str, list[dict]] = OrderedDict()
@@ -183,6 +213,7 @@ def render_page(checked: str, synths: list[dict]) -> str:
         by_maker.setdefault(s["maker"], []).append(s)
 
     counts = OrderedDict((m, sum(1 for s in synths if s["mpe"] == m)) for m in MPE)
+    known = sum(1 for s in synths if in_plugin(s))
 
     out = [
         "# MPE in software instruments",
@@ -213,8 +244,10 @@ def render_page(checked: str, synths: list[dict]) -> str:
         "- **Unclear**: the sources disagree. Try MPE first; if held notes bend together, use *Plain MIDI*.",
         "- **\\***: not yet confirmed by a second, independent check.",
         "",
-        "MPE Roll knows these instruments: when you load one, its status line and *MPE settings* say where "
-        "its MPE switch is, and for one without MPE it offers *Plain MIDI* or *One copy per note*. A VST3 that takes "
+        f"MPE Roll knows {known} of these instruments (most of the others are libraries that play inside another "
+        "plugin, such as Kontakt, which MPE Roll sees as that plugin): when you load one, its status line and "
+        "*MPE settings* say where its MPE switch is, and for one without MPE it offers *Plain MIDI* or *One copy "
+        "per note*. A VST3 that takes "
         "VST3 note expressions, or a CLAP that takes CLAP note expressions, can get each note's expression "
         "that way, with nothing to set up in the instrument; *MPE settings › Synth is played with* says "
         f"which way MPE Roll plays it. [{FL_GUIDE}]({FL_GUIDE}#7-notes-on-particular-synths) has more on "
@@ -308,7 +341,7 @@ def plugin_entry(s: dict) -> dict:
 
 
 def render_plugin(checked: str, synths: list[dict]) -> str:
-    entries = [plugin_entry(s) for s in synths if s["mpe"] != "unclear" and s.get("plugin", True)]
+    entries = [plugin_entry(s) for s in synths if in_plugin(s)]
     entries.sort(key=lambda e: e["order"])
 
     out = [
@@ -351,6 +384,60 @@ def render_plugin(checked: str, synths: list[dict]) -> str:
     return "\n".join(out)
 
 
+# ---------------------------------------------------------------- docs/_data/features.yml
+
+def counts(checked: str, synths: list[dict]) -> dict[str, str]:
+    """The numbers the front page quotes, as it writes them: the page's (MPE_SYNTHS.md's) instruments."""
+    listed = [s for s in synths if s.get("page", True)]
+    numbers = {"listed": len(listed), "makers": len({s["maker"] for s in listed}), "checked": checked,
+               "known": sum(1 for s in listed if in_plugin(s))}
+    numbers.update({m: sum(1 for s in listed if s["mpe"] == m) for m in MPE})
+    return {name: str(value) for name, value in numbers.items()}
+
+
+def front_page_panel() -> str | None:
+    """The words of the front page's panel on the list, joined by single spaces as YAML folds them (a
+    line of its own for a comment is left out), or None if there's no such panel."""
+    lines = FRONT_PAGE.read_text(encoding="utf-8").splitlines()
+    start = next((i for i, line in enumerate(lines) if line.strip() == f"- id: {FRONT_PAGE_PANEL}"), None)
+    if start is None:
+        return None
+    # The panel runs to the next item of the list it's in, or to the end of that list.
+    indent = len(lines[start]) - len(lines[start].lstrip())
+    end = start + 1
+    while end < len(lines):
+        line = lines[end]
+        depth = len(line) - len(line.lstrip())
+        if line.strip() and not line.lstrip().startswith("#") and (
+                depth < indent or (depth == indent and line.lstrip().startswith("- "))):
+            break
+        end += 1
+    words = [line.strip() for line in lines[start:end] if not line.lstrip().startswith("#")]
+    return " ".join(" ".join(words).split())
+
+
+def front_page_problems(checked: str, synths: list[dict]) -> list[str]:
+    """What the front page says about the list that the list doesn't (FRONT_PAGE_NUMBERS)."""
+    if not FRONT_PAGE.exists():
+        return []
+    where = f"{FRONT_PAGE.relative_to(ROOT).as_posix()} (its {FRONT_PAGE_PANEL} panel)"
+    panel = front_page_panel()
+    if panel is None:
+        return [(f"{FRONT_PAGE.relative_to(ROOT).as_posix()} has no panel with the id {FRONT_PAGE_PANEL}: if it "
+                 "was renamed or dropped, change FRONT_PAGE_PANEL in tools/make_synth_list.py")]
+    wanted = counts(checked, synths)
+    problems = []
+    for what, pattern, name in FRONT_PAGE_NUMBERS:
+        found = re.search(pattern, panel)
+        if not found:
+            problems.append(f"{where} no longer gives the {what} as {pattern!r}: reword the pattern in "
+                            "FRONT_PAGE_NUMBERS (tools/make_synth_list.py) with the panel")
+        elif found.group(1) != wanted[name]:
+            problems.append(f"{where} says {found.group(1)} for the {what}; docs/synths.json makes it "
+                            f"{wanted[name]}: change it there")
+    return problems
+
+
 # ---------------------------------------------------------------- main
 
 def main() -> None:
@@ -369,9 +456,13 @@ def main() -> None:
             path.write_text(text, encoding="utf-8", newline="\n")
             print(f"wrote {path.relative_to(ROOT).as_posix()}")
 
+    # The front page's words are written by hand, so they're only checked, in both modes.
+    problems = front_page_problems(checked, synths)
     if stale:
-        fail(f"{', '.join(stale)} don't match docs/synths.json: run python3 tools/make_synth_list.py")
-    print(f"{len(synths)} instruments" + (", files up to date" if check else ""))
+        problems.insert(0, f"{', '.join(stale)} don't match docs/synths.json: run python3 tools/make_synth_list.py")
+    if problems:
+        fail("\n  ".join(problems))
+    print(f"{len(synths)} instruments" + (", files and the front page's numbers up to date" if check else ""))
 
 
 if __name__ == "__main__":

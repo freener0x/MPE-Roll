@@ -21,7 +21,7 @@ description: "MPE Roll is free and open source, with no ads and no tracking. If 
 <div>
 <h3>Bitcoin (BTC)</h3>
 <code class="address" id="address-btc">bc1qw07yj62hae5nflfz6pwt8yyr57377adkclsy3t</code>
-<button type="button" data-copy="bc1qw07yj62hae5nflfz6pwt8yyr57377adkclsy3t" data-target="address-btc">Copy address</button>
+<button type="button" data-copy="bc1qw07yj62hae5nflfz6pwt8yyr57377adkclsy3t" data-target="address-btc" data-label="Copy address">Copy address</button>
 </div>
 </div>
 <div class="coin">
@@ -29,7 +29,7 @@ description: "MPE Roll is free and open source, with no ads and no tracking. If 
 <div>
 <h3>Ethereum (ETH)</h3>
 <code class="address" id="address-eth">0x79Ff39eCD0D2520c5353e011ac1317C51dc2AC3A</code>
-<button type="button" data-copy="0x79Ff39eCD0D2520c5353e011ac1317C51dc2AC3A" data-target="address-eth">Copy address</button>
+<button type="button" data-copy="0x79Ff39eCD0D2520c5353e011ac1317C51dc2AC3A" data-target="address-eth" data-label="Copy address">Copy address</button>
 <p class="muted small">Network: Ethereum mainnet only. Sending on another network can lose the money.</p>
 </div>
 </div>
@@ -38,7 +38,7 @@ description: "MPE Roll is free and open source, with no ads and no tracking. If 
 <div>
 <h3>Solana (SOL)</h3>
 <code class="address" id="address-sol">7eE8qckeA15wD3FVjG3R6Uuw1eVrZmWohP5pS8hDFfp3</code>
-<button type="button" data-copy="7eE8qckeA15wD3FVjG3R6Uuw1eVrZmWohP5pS8hDFfp3" data-target="address-sol">Copy address</button>
+<button type="button" data-copy="7eE8qckeA15wD3FVjG3R6Uuw1eVrZmWohP5pS8hDFfp3" data-target="address-sol" data-label="Copy address">Copy address</button>
 </div>
 </div>
 <div class="coin">
@@ -46,7 +46,7 @@ description: "MPE Roll is free and open source, with no ads and no tracking. If 
 <div>
 <h3>Monero (XMR)</h3>
 <code class="address" id="address-xmr">84L4Twd2DcNjHevR6qUzz8fnLDzmyyLZohwG8Zs5hSmtUWMPFRjdefvPJX2L89wZcahvCCgpBRwZRcP84V3vzHWPNqHx4TR</code>
-<button type="button" data-copy="84L4Twd2DcNjHevR6qUzz8fnLDzmyyLZohwG8Zs5hSmtUWMPFRjdefvPJX2L89wZcahvCCgpBRwZRcP84V3vzHWPNqHx4TR" data-target="address-xmr">Copy address</button>
+<button type="button" data-copy="84L4Twd2DcNjHevR6qUzz8fnLDzmyyLZohwG8Zs5hSmtUWMPFRjdefvPJX2L89wZcahvCCgpBRwZRcP84V3vzHWPNqHx4TR" data-target="address-xmr" data-label="Copy address">Copy address</button>
 <p class="muted small">Private by design: your donation stays private too.</p>
 </div>
 </div>
@@ -56,11 +56,14 @@ description: "MPE Roll is free and open source, with no ads and no tracking. If 
 (function () {
   var buttons = document.querySelectorAll('button[data-copy]');
   Array.prototype.forEach.call(buttons, function (button) {
+    var label = button.getAttribute('data-label') || button.textContent;
+    var timer = null;
     button.addEventListener('click', function () {
       var text = button.getAttribute('data-copy');
       var done = function () {
         button.textContent = 'Copied \u2713';
-        setTimeout(function () { button.textContent = 'Copy address'; }, 2000);
+        clearTimeout(timer);
+        timer = setTimeout(function () { button.textContent = label; }, 2000);
       };
       var selectInstead = function () {
         var code = document.getElementById(button.getAttribute('data-target'));

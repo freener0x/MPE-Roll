@@ -1,0 +1,19 @@
+{%- comment -%}
+  Sets image_path to where a file named in _data/screenshots.yml is in the site: a bare file name
+  is in images/, and a path ("images/editor.png", "/images/editor.png" or "docs/images/editor.png")
+  is taken from the site's root. Empty when the name is. Use it as {{ image_path | relative_url }}.
+{%- endcomment -%}
+{%- assign image_path = include.file | default: "" | strip -%}
+{%- assign image_path_first = image_path | slice: 0 -%}
+{%- if image_path_first == "/" -%}
+  {%- assign image_path = image_path | remove_first: "/" -%}
+{%- endif -%}
+{%- assign image_path_head = image_path | slice: 0, 5 -%}
+{%- if image_path_head == "docs/" -%}
+  {%- assign image_path = image_path | remove_first: "docs/" -%}
+{%- endif -%}
+{%- if image_path != "" -%}
+  {%- unless image_path contains "/" -%}
+    {%- assign image_path = "images/" | append: image_path -%}
+  {%- endunless -%}
+{%- endif -%}

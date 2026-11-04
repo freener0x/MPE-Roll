@@ -58,6 +58,11 @@ and the release tags; a build between releases names itself by its number and co
   [Privacy](https://freener0x.github.io/MPE-Roll/PRIVACY.html) page and an
   [Unsigned builds](https://freener0x.github.io/MPE-Roll/UNSIGNED_BUILDS.html) page (what Windows
   and macOS say about the downloads, and how to get past it) on the website.
+- A [share page](https://freener0x.github.io/MPE-Roll/share.html) on the website, with posts about
+  MPE Roll ready for X, Facebook and Instagram, each with a link to the website. The X and Facebook
+  buttons open a post for you to edit; Instagram has no link that starts a post, so its caption has
+  a *Copy caption* button instead, beside a picture of the editor to post with it. Nothing is
+  posted until you post it.
 - `SHA256SUMS.txt` attached to every release, with the SHA-256 checksum of each download; the
   release notes list the checksums too.
 - An experimental Linux build (the VST3, the standalone app and the scanner) attached to every
@@ -71,6 +76,12 @@ and the release tags; a build between releases names itself by its number and co
 ### Changed
 
 - The website's Download button opens the latest release.
+- The website has a new front page: what MPE Roll does, in twelve parts with pictures of the editor
+  and two from FL Studio, a short film of the editor at work, the formats, systems and requirements
+  (and the other hosts that can load it as a VST3 or AU, untested there), what's in each download,
+  and where to report a problem. Its Download button says which file of the latest release is the
+  one for your computer (Windows, macOS or Linux). The tagline is one line: *The MPE piano roll for
+  FL Studio*.
 - GitHub Actions updated (checkout v7, upload-artifact v7, download-artifact v8).
 - The release workflow takes only a version of three numbers (`0.2.0`) and a pre-release suffix of
   letters and digits with dots between (`beta1`, `rc.1`), the shapes the update check reads.
@@ -147,8 +158,9 @@ hasn't been run by a person yet. Its known issues are on the
 - MIDI file import and export (or drag the *File* button into FL), and audio export as 24-bit WAV
   or 320 kbps MP3 through a copy of the synth, release tail included.
 - Ten skins, any colour of them changeable, and a background picture of your own.
-- The MPE of 673 instruments from 181 makers, known to the plugin and listed on the website,
-  with where each one's MPE switch is.
+- The MPE of 673 instruments from 181 makers, listed on the website with where each one's MPE
+  switch is; the plugin knows 593 of them (most of the others play inside another plugin, such as
+  Kontakt, which it knows).
 - A Windows installer that finds and removes older copies, tested in CI; a plugin log and a *Copy
   details* button for loads that fail; crash reports from the standalone app; a Support window; the
   website with the FL Studio guide; a release workflow and issue templates.

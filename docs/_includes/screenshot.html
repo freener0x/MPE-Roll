@@ -1,0 +1,85 @@
+{%- comment -%}
+  A picture from _data/screenshots.yml, by its id:
+
+    {% include screenshot.html id="hero" class="hero-picture" caption="..." eager=true %}
+
+  Nothing at all when the id isn't listed there (or has no file), so a picture that hasn't been
+  made leaves no gap. An entry is
+
+    file    the picture, in docs/images (or a path from docs/); a .webm or .mp4 is a video clip
+    width, height
+            the size to show it at, in CSS pixels: half the file's own for a 2x picture (or the
+            file's own, with scale: 2, and they're halved here)
+    alt     what the picture shows, for anyone who can't see it
+    gif, poster
+            for a clip: a GIF played where the video can't be, and the still shown before it plays
+    narrow  a crop of the picture for a phone's width (file, width, height), shown instead of it on
+            screens up to 42em wide, where the whole picture would be too small to read
+
+  caption is Markdown, shown under the picture; eager loads it at once (the picture at the top of
+  the page), where the others load as they come into view. A picture taller than it is wide gets the
+  class tall, and no more width than keeps it 36rem high, so it doesn't run down the page. Each
+  picture shows at most at its width and height, and links to its file, to see it at full size. A
+  clip plays muted, on a loop; home.html's script swaps in the GIF where the video can't play, and
+  stops it for a visitor who asks for less motion.
+{%- endcomment -%}
+{%- assign pic = site.data.screenshots[include.id] -%}
+{%- if pic and pic.file -%}
+  {%- include image-path.html file=pic.file -%}
+  {%- assign pic_src = image_path -%}
+  {%- assign pic_scale = pic.scale | default: 1 -%}
+  {%- assign pic_width = "" -%}
+  {%- assign pic_height = "" -%}
+  {%- if pic.width -%}{%- assign pic_width = pic.width | divided_by: pic_scale | round -%}{%- endif -%}
+  {%- if pic.height -%}{%- assign pic_height = pic.height | divided_by: pic_scale | round -%}{%- endif -%}
+  {%- assign pic_ext = pic_src | split: "." | last | downcase -%}
+  {%- assign pic_tall = false -%}
+  {%- if pic.width and pic.height and pic.height > pic.width -%}{%- assign pic_tall = true -%}{%- endif -%}
+  {%- comment -%}
+    A tall picture is no wider than keeps it 36rem high. A width rather than a max-width, so the
+    column of a grid sized to the picture (home.html's tall panels) is the picture's width too;
+    max-width: 100% (style.scss) still narrows it on a phone, and height: auto keeps its shape.
+  {%- endcomment -%}
+  {%- assign pic_style = "" -%}
+  {%- if pic_tall -%}
+    {%- capture pic_style %} style="width: min({{ pic_width }}px, calc(36rem * {{ pic_width }} / {{ pic_height }}))"{% endcapture -%}
+  {%- endif -%}
+<figure class="shot{% if pic_tall %} tall{% endif %}{% if include.class %} {{ include.class }}{% endif %}">
+  {%- if pic_ext == "webm" or pic_ext == "mp4" -%}
+  {%- include image-path.html file=pic.poster -%}
+  {%- assign pic_poster = image_path -%}
+  {%- include image-path.html file=pic.gif -%}
+  {%- assign pic_gif = image_path %}
+  <video class="clip" autoplay muted loop playsinline controls
+         {%- if pic_poster != "" %} poster="{{ pic_poster | relative_url }}"{% endif %}
+         {%- if pic_width != "" %} width="{{ pic_width }}"{% endif %}
+         {%- if pic_height != "" %} height="{{ pic_height }}"{% endif %} aria-label="{{ pic.alt | escape }}">
+    <source src="{{ pic_src | relative_url }}" type="video/{{ pic_ext }}">
+    {%- if pic_gif != "" %}
+    <img src="{{ pic_gif | relative_url }}" alt="{{ pic.alt | escape }}"
+         {%- if pic_width != "" %} width="{{ pic_width }}"{% endif %}
+         {%- if pic_height != "" %} height="{{ pic_height }}"{% endif %} loading="lazy" decoding="async">
+    {%- endif %}
+  </video>
+  {%- else %}
+  {%- assign pic_narrow = "" -%}
+  {%- if pic.narrow and pic.narrow.file -%}
+    {%- include image-path.html file=pic.narrow.file -%}
+    {%- assign pic_narrow = image_path -%}
+  {%- endif %}
+  <a href="{{ pic_src | relative_url }}">
+    {%- if pic_narrow != "" %}<picture><source media="(max-width: 42em)" srcset="{{ pic_narrow | relative_url }}"
+       {%- if pic.narrow.width %} width="{{ pic.narrow.width }}"{% endif %}
+       {%- if pic.narrow.height %} height="{{ pic.narrow.height }}"{% endif %}>{% endif -%}
+    <img src="{{ pic_src | relative_url }}" alt="{{ pic.alt | escape }}"
+     {%- if pic_width != "" %} width="{{ pic_width }}"{% endif %}
+     {%- if pic_height != "" %} height="{{ pic_height }}"{% endif %}{{ pic_style }}
+     {%- if include.eager %} fetchpriority="high"{% else %} loading="lazy"{% endif %} decoding="async">
+    {%- if pic_narrow != "" %}</picture>{% endif -%}
+  </a>
+  {%- endif %}
+  {%- if include.caption %}
+  <figcaption>{{ include.caption | markdownify | remove: "<p>" | remove: "</p>" | strip }}</figcaption>
+  {%- endif %}
+</figure>
+{%- endif -%}

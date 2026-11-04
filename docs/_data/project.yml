@@ -1,6 +1,11 @@
 # Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file.
-# The links into the repository that the website's header and footer show, none while it's private.
+# The links into the repository that the website's header, footer and front page show, none while
+# it's private.
 repo_public: true
 repo_url: "https://github.com/freener0x/MPE-Roll"
 download_url: "https://github.com/freener0x/MPE-Roll/releases/latest"
+releases_url: "https://github.com/freener0x/MPE-Roll/releases"
+builds_url: "https://github.com/freener0x/MPE-Roll#downloading-a-build"
+changelog_url: "https://github.com/freener0x/MPE-Roll/blob/main/CHANGELOG.md"
+issues_url: "https://github.com/freener0x/MPE-Roll/issues"
 license_url: "https://github.com/freener0x/MPE-Roll/blob/main/LICENSE"
