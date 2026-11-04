@@ -28,7 +28,7 @@ hero:
 # computer it recognises, the page names the button after the system and says which file to pick.
 # any is the line under the button everywhere else (phones, tablets, without JavaScript).
 download:
-  any: The latest release, for Windows and macOS, and an experimental Linux build from 0.2.0 on.
+  any: The latest release, for Windows and macOS, with an experimental Linux build.
   systems:
     - id: windows
       name: Windows
@@ -40,17 +40,15 @@ download:
       label: Download for macOS
       pick: On the release page, pick `MPE-Roll-<version>-macOS.zip`.
       files: "`MPE-Roll-<version>-macOS.zip`"
-    # in_latest: false while the latest release has no Linux build (0.1.0 has none): a Linux
-    # visitor then gets the plain Download button and the any line. GitHub Pages builds the site
-    # after a merge to main, so it changes before the Release workflow has published 0.2.0 with its
-    # Linux file: set it to true only once that release is up. The "from 0.2.0 on" here, in any and
-    # under At a glance can go then too.
+    # in_latest: false would give a system's visitors the plain Download button and the any line,
+    # for a system whose file the latest release doesn't have (as Linux before 0.2.0). GitHub Pages
+    # builds the site as soon as a merge reaches main, before the Release workflow has published.
     - id: linux
       name: Linux
       label: Download for Linux
-      in_latest: false
+      in_latest: true
       pick: On the release page, pick `MPE-Roll-<version>-Linux.tar.gz`, an experimental build.
-      files: "`MPE-Roll-<version>-Linux.tar.gz`, experimental, from 0.2.0 on"
+      files: "`MPE-Roll-<version>-Linux.tar.gz`, experimental"
 
 why:
   title: Why MPE Roll
@@ -267,10 +265,10 @@ glance:
           `MPE-Roll-<version>-macOS.zip`: `MPE Roll.vst3`, `MPE Roll.component` (the AU) and `MPE
           Roll.app`.
         - >-
-          `MPE-Roll-<version>-Linux.tar.gz`, experimental, from 0.2.0 on: the VST3, the standalone
-          app and the scanner.
+          `MPE-Roll-<version>-Linux.tar.gz`, experimental: the VST3, the standalone app and the
+          scanner.
         - >-
-          `SHA256SUMS.txt`, from 0.2.0 on: the checksums, to [check a
+          `SHA256SUMS.txt`: the checksums, to [check a
           download](UNSIGNED_BUILDS.html#verify-what-you-downloaded).
   unsigned: >-
     **These builds aren't code-signed.** Windows may say *Windows protected your PC* about the
