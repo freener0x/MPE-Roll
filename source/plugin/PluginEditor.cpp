@@ -637,8 +637,15 @@ void MpeRollEditor::scrollToContent()
 }
 
 //==============================================================================
-void MpeRollEditor::showSynthMenu()
+namespace SynthMenu
 {
+    // The Load synth menu's own items; the synths are listed with positive ids.
+    enum { scanId = -2, browseId = -3, unloadId = -4, windowBackId = -5, logId = -6, reportId = -7 };
+}
+
+juce::PopupMenu MpeRollEditor::makeSynthMenu() const
+{
+    using namespace SynthMenu;
     auto& synth = rollProcessor.getSynth();
     const auto types = synth.getInstrumentTypes();
 
@@ -655,8 +662,6 @@ void MpeRollEditor::showSynthMenu()
             if (types[i].createIdentifierString() == loadedId)
                 currentId = shown[i].createIdentifierString();
     }
-
-    enum { scanId = -2, browseId = -3, unloadId = -4, windowBackId = -5, logId = -6, reportId = -7 };
 
     juce::PopupMenu menu;
 
@@ -680,9 +685,19 @@ void MpeRollEditor::showSynthMenu()
 
     // The form that fits: one for a synth that plays wrong or not at all, one for a synth that won't load.
     menu.addItem (reportId, synth.isLoaded() ? "Report a problem with this synth..." : "Report a synth that won't load...");
+    return menu;
+}
 
-    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.synthButton),
-                        [safe = juce::Component::SafePointer<MpeRollEditor> (this), types, shown] (int result)
+void MpeRollEditor::showSynthMenu()
+{
+    using namespace SynthMenu;
+
+    // The same lists makeSynthMenu numbers its synths from, to know which one was picked.
+    const auto types = rollProcessor.getSynth().getInstrumentTypes();
+    const auto shown = HostedSynth::withDistinctNames (types);
+
+    makeSynthMenu().showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.synthButton),
+                                   [safe = juce::Component::SafePointer<MpeRollEditor> (this), types, shown] (int result)
     {
         if (safe == nullptr || result == 0)
             return;
@@ -1012,7 +1027,7 @@ void MpeRollEditor::browseForPlugin()
 }
 
 //==============================================================================
-void MpeRollEditor::showMidiMenu()
+juce::PopupMenu MpeRollEditor::makeMidiMenu() const
 {
     const auto hasSynth = rollProcessor.getSynth().isLoaded();
 
@@ -1035,9 +1050,13 @@ void MpeRollEditor::showMidiMenu()
     // are a link at the foot of MPE settings.)
     menu.addItem (9, "Report a bug...");
     menu.addItem (8, getBuildName(), false);
+    return menu;
+}
 
-    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.midiButton),
-                        [safe = juce::Component::SafePointer<MpeRollEditor> (this)] (int result)
+void MpeRollEditor::showMidiMenu()
+{
+    makeMidiMenu().showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.midiButton),
+                                  [safe = juce::Component::SafePointer<MpeRollEditor> (this)] (int result)
     {
         if (safe == nullptr)
             return;

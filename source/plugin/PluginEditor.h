@@ -35,6 +35,12 @@ public:
     bool isInterestedInFileDrag (const juce::StringArray& files) override;
     void filesDropped (const juce::StringArray& files, int x, int y) override;
 
+    /** The File menu and the Load synth menu as they'd be shown now. The harness reads them here: a
+        menu shown on screen closes itself at once where this process isn't the one in front, as on
+        a build machine. */
+    juce::PopupMenu makeMidiMenu() const;
+    juce::PopupMenu makeSynthMenu() const;
+
 private:
     class Splitter;
     class MidiDragListener;

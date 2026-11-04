@@ -2151,33 +2151,16 @@ juce::AlertWindow* findAlert (const juce::String& title)
     return nullptr;
 }
 
-/** The items of the popup menu on screen, top to bottom, as a screen reader reads them: each one's
-    text, and whether it can be chosen. */
-std::vector<std::pair<juce::String, bool>> menuOnScreen()
+/** A menu's items, top to bottom, separators left out: each one's text, and whether it can be
+    chosen. (Read from the menu the editor makes rather than from one shown on screen, which closes
+    itself at once on a machine where this process isn't the one in front.) */
+std::vector<std::pair<juce::String, bool>> menuItems (const juce::PopupMenu& menu)
 {
-    std::vector<std::tuple<int, juce::String, bool>> found;
-    std::function<void (juce::Component&)> visit = [&] (juce::Component& c)
-    {
-        for (auto* child : c.getChildren())
-        {
-            if (auto* handler = child->getAccessibilityHandler(); handler != nullptr && handler->getTitle().isNotEmpty())
-                found.emplace_back (child->getScreenY(), handler->getTitle(), handler->getRole() == juce::AccessibilityRole::menuItem);
-
-            visit (*child);
-        }
-    };
-
-    auto& desktop = juce::Desktop::getInstance();
-
-    for (int i = 0; i < desktop.getNumComponents(); ++i)
-        if (auto* menu = desktop.getComponent (i); menu != nullptr && menu->getName() == "menu")
-            visit (*menu);
-
-    std::stable_sort (found.begin(), found.end(), [] (const auto& a, const auto& b) { return std::get<0> (a) < std::get<0> (b); });
     std::vector<std::pair<juce::String, bool>> items;
 
-    for (const auto& [y, text, enabled] : found)
-        items.emplace_back (text, enabled);
+    for (juce::PopupMenu::MenuItemIterator it (menu); it.next();)
+        if (const auto& item = it.getItem(); ! item.isSeparator)
+            items.emplace_back (item.text, item.isEnabled);
 
     return items;
 }
@@ -2349,26 +2332,31 @@ void editorUiChecks (Check& check)
             editor->setVisible (true);
             mm.runDispatchLoopUntil (200);
 
-            // Read as a screen reader reads them. Their Report items open a web browser, so they're
-            // only looked at here, never chosen.
+            // The menus the File and Load synth buttons show. Their Report items open a web browser,
+            // so they're only looked at here, never chosen.
             std::printf ("The File and Load synth menus\n");
-            bar->midiButton.triggerClick();
-            mm.runDispatchLoopUntil (200);
-            auto items = menuOnScreen();
-            check (items.size() >= 2 && items.back().first == getBuildName() && ! items.back().second
-                       && items[items.size() - 2].first == "Report a bug..." && items[items.size() - 2].second,
-                   "the File menu ends with Report a bug..., then the build's name: " + describeMenu (items));
-            check (std::none_of (items.begin(), items.end(), [] (const auto& item) { return item.first.containsIgnoreCase ("donate"); }),
-                   "and has no donation item: that's at the foot of MPE settings");
-            juce::PopupMenu::dismissAllActiveMenus();
-            mm.runDispatchLoopUntil (100);
+            auto* rollEditor = dynamic_cast<MpeRollEditor*> (editor.get());
+            check (rollEditor != nullptr, "the editor is MPE Roll's");
 
-            bar->synthButton.triggerClick();
-            mm.runDispatchLoopUntil (200);
-            items = menuOnScreen();
-            check (items.size() >= 2 && items.back().first == "Report a synth that won't load..."
-                       && items[items.size() - 2].first.startsWith ("Show the plugin log"),
-                   "with no synth loaded, the Load synth menu ends with Report a synth that won't load...: " + describeMenu (items));
+            if (rollEditor != nullptr)
+            {
+                auto items = menuItems (rollEditor->makeMidiMenu());
+                check (items.size() >= 2 && items.back().first == getBuildName() && ! items.back().second
+                           && items[items.size() - 2].first == "Report a bug..." && items[items.size() - 2].second,
+                       "the File menu ends with Report a bug..., then the build's name: " + describeMenu (items));
+                check (std::none_of (items.begin(), items.end(), [] (const auto& item) { return item.first.containsIgnoreCase ("donate"); }),
+                       "and has no donation item: that's at the foot of MPE settings");
+
+                items = menuItems (rollEditor->makeSynthMenu());
+                check (items.size() >= 2 && items.back().first == "Report a synth that won't load..."
+                           && items[items.size() - 2].first.startsWith ("Show the plugin log"),
+                       "with no synth loaded, the Load synth menu ends with Report a synth that won't load...: " + describeMenu (items));
+            }
+
+            // The File button shows that menu (closed again unchecked: on screen it can't be read
+            // everywhere, as above).
+            bar->midiButton.triggerClick();
+            mm.runDispatchLoopUntil (100);
             juce::PopupMenu::dismissAllActiveMenus();
             mm.runDispatchLoopUntil (100);
 
