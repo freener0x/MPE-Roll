@@ -39,9 +39,13 @@ an answer. You'll be credited in the fix's notes if you want to be.
   a script that does anything but rebuild the clip), and the settings and project state it reads
   back. A crafted MIDI file that crashes MPE Roll, or a clip that makes the script do something
   else, is a report we want.
-- **No network code in 0.1.0.** MPE Roll makes no network requests (see the
-  [Privacy page](https://freener0x.github.io/MPE-Roll/PRIVACY.html)); the only web addresses it
-  opens are the donation links, in your browser, when you click them.
+- **Network: the update check only.** Release 0.1.0 makes no network requests. The builds since
+  have an update check, off until the user turns it on or asks: an HTTPS request to GitHub for the
+  latest release (the [Privacy page](https://freener0x.github.io/MPE-Roll/PRIVACY.html) says
+  exactly what it sends). What MPE Roll reads from the answer, the release's tag from GitHub's JSON
+  or from the release page's redirect, is in scope; the page it opens is built from that tag, never
+  taken from the answer. Otherwise the only web addresses it opens are links you click (donation,
+  share, issue forms), in your browser.
 - **Supply chain.** The downloads are built by GitHub Actions from the public source and aren't code
   signed (why, and how to check a download, is on the
   [Unsigned builds page](https://freener0x.github.io/MPE-Roll/UNSIGNED_BUILDS.html)). JUCE, CLAP

@@ -146,13 +146,16 @@ experimental Linux build (`MPE-Roll-<version>-Linux.tar.gz`) and `SHA256SUMS.txt
 the files ([how to check a download](docs/UNSIGNED_BUILDS.md#verify-what-you-downloaded)).
 
 To make a release (maintainers): set the version in `CMakeLists.txt` (`project(MPE_ROLL VERSION
-…)`), rename the *[Unreleased]* section of `CHANGELOG.md` to that version and the day, merge, then
-either tag that commit `v<version>` and push the tag, or open the *Release* workflow under *Actions*
-and *Run workflow* on `main`, which tags main's commit for you. The workflow checks the tag against
-the version and that `CHANGELOG.md` has a section for it, builds everything, runs the unit tests,
-the installer's test and Apple's AU validator, and publishes the release with that section in its
-notes. A tag with a suffix (`v0.2.0-beta1`, or a suffix typed into *Run workflow*) is marked a
-pre-release; it needs the section for its version too (`## [0.2.0]` for `v0.2.0-beta1`).
+…)`, three numbers such as `0.2.0`), rename the *[Unreleased]* section of `CHANGELOG.md` to that
+version and the day, merge, then either tag that commit `v<version>` and push the tag, or open the
+*Release* workflow under *Actions* and *Run workflow* on `main`, which tags main's commit for you.
+The workflow checks the tag against the version and that `CHANGELOG.md` has a section for it,
+builds everything, runs the unit tests, the installer's test and Apple's AU validator, and
+publishes the release with that section in its notes. A tag with a suffix (`v0.2.0-beta1`, or a
+suffix typed into *Run workflow*) is marked a pre-release; it needs the section for its version too
+(`## [0.2.0]` for `v0.2.0-beta1`). The suffix is letters and digits with dots between (`beta1`,
+`rc.1`), and the build runs as `0.2.0-beta1`, so its update check offers 0.2.0 once that's out.
+The update check reads versions only in these shapes, so the workflow refuses others.
 
 **Builds between releases.** Every code change is built by GitHub Actions (a change to the
 documentation alone builds nothing).
@@ -209,7 +212,8 @@ wanted: please say how it went, working or not, in an
 with `tar -xzf`, it's a folder `MPE Roll` with `MPE Roll.vst3` (copy it to `~/.vst3`), the
 standalone app and the scanner. FL Studio has no Linux version, and no Linux host has run this
 build yet; it's built on Ubuntu 24.04 with the libraries listed under [Building](#building).
-Reports from Bitwig, Reaper or Ardour users are welcome.
+Reports from Bitwig, Reaper or Ardour users are welcome. Its update check (below) can't reach
+GitHub: JUCE's networking on Linux has no HTTPS, so it says so when asked and sends nothing.
 
 These builds aren't code signed. Windows may show a SmartScreen warning for the installer and the
 standalone app, and on macOS you need to remove the quarantine flag from the unzipped `MPE Roll`
@@ -217,6 +221,26 @@ folder before a DAW will load the bundles (`xattr -dr com.apple.quarantine ~/Dow
 for the folder unzipped in Downloads; it covers all three).
 [docs/UNSIGNED_BUILDS.md](docs/UNSIGNED_BUILDS.md) says what each system shows, how to get past
 it, and how to check a download.
+
+**Update check (off by default).** MPE Roll can tell you when a new release is out. Turn it on
+under *MPE settings › Updates*, or ask once with *File › Check for updates now…*. When it checks,
+MPE Roll sends one plain HTTPS request to GitHub for the latest release (api.github.com, or on
+Windows github.com/freener0x/MPE-Roll/releases/latest if that fails). Nothing about you, your
+computer or your project goes with it beyond what every web request carries: your IP address, the
+plugin's name and version in the request's User-Agent header (`MPE Roll/0.2.0`, say), and the
+headers your system adds to any request (on a Mac, the languages it prefers, and cookies for
+github.com if the host program keeps any). MPE Roll keeps only whether the check is on, the time of
+the last check and how it went, the version it found and any version you chose to skip, in a
+settings file of its own (`%APPDATA%\MPE Roll\Update check.settings` on Windows), which every MPE
+Roll you run goes by: turned off in one, the check is off in those already open too, and a check
+waiting for GitHub's answer is called off. Turned on, it checks at most once a day, as MPE Roll
+opens; a newer release shows as an *Update to
+0.2.0* button (with the version found) beside the status line until you install or skip it, and
+the button opens the release's page in your browser. MPE Roll downloads and installs nothing
+itself, never offers a pre-release, and *File › Skip version 0.2.0* keeps it quiet until a newer
+one is out. A check that gets no answer says nothing unless you asked for it. The builds since
+0.1.0 have it, release 0.1.0 doesn't.
+[docs/PRIVACY.md](docs/PRIVACY.md#the-update-check-off-by-default) has the details.
 
 ## Building
 
@@ -325,6 +349,15 @@ clipboard to paste into it. Nothing is sent until you submit the form on GitHub.
   tab, for instruments that have one) and *Zone bend range* set to match, which the status line now
   says when a glide goes past it. Nexus is untried. A synth may mind having many copies of itself
   (licence checks, memory); please report what you find.
+- **The update check is new** (in the builds since 0.1.0, off unless you turn it on). It's tested
+  automatically against a stand-in for GitHub's answers, in the Linux and Windows builds' checks,
+  but hasn't yet asked GitHub itself from Windows or macOS, nor gone through a proxy; the
+  experimental Linux build can't ask GitHub at all (no HTTPS there), and says so. On a Mac it asks
+  GitHub's API alone (Privacy says why), so a network that has used up the API's 60 requests an
+  hour can't check there until the hour is out: *File › Check for updates now…* then says GitHub's
+  limit of requests from your network is used up. If it says it couldn't check for any other
+  reason while your browser reaches github.com, please report it with the *Last check* line from
+  *MPE settings › Updates*.
 - **CLAP and VST2 hosting are new.** Both are tested automatically with small test synths on
   Linux, and compiled for Windows and macOS. In FL Studio 26.1.7 on Windows 11, Surge XT's CLAP
   plays with CLAP note expressions and opens its own window separately from MPE Roll's, which says
@@ -398,7 +431,8 @@ all of them.
 ## Support MPE Roll
 
 MPE Roll is free and open source, with no ads and no tracking ([docs/PRIVACY.md](docs/PRIVACY.md)
-says what it keeps on your computer). If it helps you, a donation keeps it going: see
+says what it keeps on your computer, and what its update check, off unless you turn it on, sends).
+If it helps you, a donation keeps it going: see
 [DONATE.md](DONATE.md) (Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code). Inside the
 plugin, *MPE settings › Support MPE Roll* (the link at the foot of the settings) opens the same
 details in a window of its own, QR codes and Copy buttons included, with nothing to load from the

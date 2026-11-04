@@ -88,6 +88,18 @@ a build made since (see the README's
   (licence checks, memory). *What to do:* set the synth's bend range (in copy 1's window) and *Zone
   bend range* in *MPE settings* to the same value; the status line says so when a glide goes past
   it. *Status:* by design (the ranges); reports on other synths wanted.
+- **The update check is new** (in the builds since 0.1.0, off unless you turn it on under
+  *MPE settings › Updates*). It's tested automatically against a stand-in for GitHub's answers, in
+  the Linux and Windows builds' checks, but hasn't yet asked GitHub itself from Windows or macOS,
+  nor gone through a proxy; the experimental Linux build can't ask GitHub at all (no HTTPS there),
+  and says so. On a Mac it asks GitHub's API alone, not the release page as well (the
+  [Privacy](PRIVACY.md) page says why), so a network that has used up the API's 60 requests an
+  hour can't check there until the hour is out: *File › Check for updates now…* then says GitHub's
+  limit of requests from your network is used up. *What to do:* if it says it couldn't check for
+  any other reason while your browser reaches github.com, please report it with the *Last check*
+  line from *MPE settings › Updates*. The
+  [latest release](https://github.com/freener0x/MPE-Roll/releases/latest) is always on GitHub.
+  *Status:* waiting on a test on Windows and macOS.
 - **CLAP and VST2 hosting are new.** Both are tested automatically with small test synths on Linux
   and compiled for Windows and macOS; the real synths tried are Surge XT's CLAP and Analog Lab's
   VST2, in FL Studio 26.1.7 on Windows 11. VST2 hosting uses FST, a clean-room reimplementation of

@@ -23,6 +23,9 @@
 //                                                       plugin files are looked at in the scanner process
 //   MpeRollHarness loadfailtest <scanner> <synth.vst3> <VST2 synth>
 //                                                       a load that fails says why
+//   MpeRollHarness updatetest <tools/fake_releases_server.py>
+//                                                       the update check, against a stand-in for GitHub
+//                                                       run with Python on this computer
 
 #include "core/FlScriptExporter.h"
 #include "plugin/BugReport.h"
@@ -34,6 +37,7 @@
 #include "plugin/PluginLog.h"
 #include "plugin/PluginProcessor.h"
 #include "plugin/PluginScanner.h"
+#include "plugin/UpdateChecker.h"
 #include "plugin/ui/DonatePanel.h"
 #include "plugin/ui/NoteToolDialog.h"
 #include "plugin/ui/SettingsPanel.h"
@@ -175,9 +179,10 @@ int settingsSnapshot (const juce::File& target, const juce::String& openSections
     MpeRollProcessor processor;
     MpeLookAndFeel lookAndFeel;
     juce::LookAndFeel::setDefaultLookAndFeel (&lookAndFeel);
+    juce::SharedResourcePointer<UpdateChecker> updates;     // an editor's, which the panel borrows
 
     {
-        SettingsPanel panel (processor);
+        SettingsPanel panel (processor, updates.getObject());
         panel.setSize (460, 980);
 
         // Given section names (comma-separated), only those are open.
@@ -5512,6 +5517,1149 @@ int vst3HostMidiTest (const juce::File& pluginFile)
     return check.failures == 0 ? 0 : 1;
 }
 
+//==============================================================================
+/** The update check, against tools/fake_releases_server.py standing in for GitHub over plain HTTP
+    on this computer (the Linux build has no TLS, and this never asks GitHub itself): nothing is sent
+    while it's off, which it is until turned on, or once turned off; turned on, it asks once a day,
+    as MPE Roll opens, and shows a newer release as the Update button and in the File menu, which
+    stay until it's installed or skipped, whether the daily check is on or not; the release page's
+    redirect answers when the API refuses or doesn't answer in time; a pre-release or a draft is
+    never offered, nor a skipped version until a newer one is out; failures are said only when
+    asked; two MPE Rolls running at once (each with a copy of the computer's settings, and a checker,
+    of its own) keep to what the other switched or skipped; and a request under way is called off at
+    once as the last window closes.
+*/
+int updateCheckTest (const juce::File& serverScript)
+{
+    Check check;
+    auto& mm = *juce::MessageManager::getInstance();
+    ignoreXErrors();
+
+    const auto folder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("MPE Roll update check");
+    folder.deleteRecursively();
+    folder.createDirectory();
+    PluginLog::setFileForTesting (folder.getChildFile ("Plugin log.txt"));
+
+    // The settings every MPE Roll here shares, in a file of the test's own, kept open by this one for
+    // as long as the test runs; and the look's.
+    HostedSynth keeper;
+    keeper.useSettingsFile (folder.getChildFile ("MPE Roll.settings"));
+    auto* settings = keeper.getUserSettings();
+    juce::SharedResourcePointer<SkinManager> skins;
+    skins->useSettingsFile (folder.getChildFile ("Look.settings"));
+
+    // The update check's own settings, beside those: read here as a fresh copy of the file has them,
+    // and written there, as another MPE Roll running at the same time would.
+    const auto updateSettings = UpdateChecker::getSettingsFile (settings);
+    check (updateSettings == folder.getChildFile ("Update check.settings"),
+           "the update check keeps its settings in Update check.settings, beside MPE Roll.settings: "
+               + updateSettings.getFullPathName());
+
+    const auto keyOptions = []
+    {
+        juce::PropertiesFile::Options options;
+        options.storageFormat = juce::PropertiesFile::storeAsXML;
+        options.millisecondsBeforeSaving = -1;
+        return options;
+    };
+
+    const auto getKey = [&] (const char* key) { return juce::PropertiesFile (updateSettings, keyOptions()).getValue (key); };
+    const auto hasKey = [&] (const char* key) { return juce::PropertiesFile (updateSettings, keyOptions()).containsKey (key); };
+
+    const auto setKey = [&] (const char* key, const juce::var& value)
+    {
+        juce::PropertiesFile keys (updateSettings, keyOptions());
+        keys.setValue (key, value);
+        keys.saveIfNeeded();
+    };
+
+    const auto removeKey = [&] (const char* key)
+    {
+        juce::PropertiesFile keys (updateSettings, keyOptions());
+        keys.removeValue (key);
+        keys.saveIfNeeded();
+    };
+
+    const auto version = getVersionString();
+    const juce::String apiPath ("/repos/freener0x/MPE-Roll/releases/latest"), pagePath ("/freener0x/MPE-Roll/releases/latest");
+    const auto now = [] { return juce::Time::getMillisecondCounterHiRes(); };
+
+    const auto setEnvironment = [] (const char* name, const juce::String& value)
+    {
+       #if JUCE_WINDOWS
+        _putenv_s (name, value.toRawUTF8());
+       #else
+        setenv (name, value.toRawUTF8(), 1);
+       #endif
+    };
+
+   #if ! JUCE_WINDOWS
+    // JUCE's Linux networking sends every request through http_proxy when that's set, and a proxy
+    // can't reach a server on this computer.
+    unsetenv ("http_proxy");
+   #endif
+
+    // The check is pointed at the stand-in by these environment variables, which JUCE reads from the
+    // system rather than from the C library that sets them here. Were they not to reach it, the check
+    // would ask GitHub itself, which no test does: stopped before anything is asked.
+    {
+        const juce::String probe ("http://127.0.0.1:9/probe");
+        setEnvironment ("MPEROLL_UPDATE_URL", probe);
+        const auto seen = juce::SystemStats::getEnvironmentVariable ("MPEROLL_UPDATE_URL", {});
+        setEnvironment ("MPEROLL_UPDATE_URL", {});
+
+        if (seen != probe || juce::SystemStats::getEnvironmentVariable ("MPEROLL_UPDATE_URL", {}).isNotEmpty())
+        {
+            std::printf ("  [FAIL] MPEROLL_UPDATE_URL set here reads back in JUCE as '%s', not '%s': the check would ask "
+                         "GitHub itself, so nothing is tested\nFAIL: 1 failure(s)\n", seen.toRawUTF8(), probe.toRawUTF8());
+            PluginLog::setFileForTesting ({});
+            UpdateChecker::setBrowserForTesting ({});
+            return 1;
+        }
+    }
+
+    // Release pages are noted here rather than opened in a browser.
+    juce::StringArray pagesOpened;
+    UpdateChecker::setBrowserForTesting ([&pagesOpened] (const juce::URL& page)
+    {
+        pagesOpened.add (page.toString (false));
+        return true;
+    });
+
+    //==========================================================================
+    // The stand-in for GitHub, started afresh for each way it's to answer, with a log of its own.
+    std::unique_ptr<juce::ChildProcess> server;
+    juce::File requestLog;
+    int port = 0, serversStarted = 0;
+
+    const auto stopServer = [&]
+    {
+        if (server != nullptr)
+            server->kill();
+
+        server.reset();
+    };
+
+    const auto startServer = [&] (const juce::StringArray& options)
+    {
+        stopServer();
+        ++serversStarted;
+        requestLog = folder.getChildFile ("requests " + juce::String (serversStarted) + ".jsonl");
+        const auto portFile = folder.getChildFile ("port " + juce::String (serversStarted) + ".txt");
+        port = 0;
+        juce::StringArray tried;
+
+        // python3 where there's one, else python (as on Windows). Its output isn't wanted: what it's
+        // asked goes to its log, and a pipe nobody reads would stop it once full. It stops by itself
+        // within two minutes, longer than any section here takes: on Windows it doesn't see this
+        // process go, and, holding handles of this one's, would keep a crashed run's step waiting.
+        for (const auto* python : { "python3", "python" })
+        {
+            juce::StringArray command { python, serverScript.getFullPathName(), "--port-file", portFile.getFullPathName(),
+                                        "--log", requestLog.getFullPathName(), "--max-seconds", "120" };
+            command.addArray (options);
+            auto process = std::make_unique<juce::ChildProcess>();
+
+            if (! process->start (command, 0))
+            {
+                tried.add (juce::String (python) + " (didn't start)");
+                continue;
+            }
+
+            for (const auto end = now() + 10000.0; port <= 0 && process->isRunning() && now() < end;)
+            {
+                juce::Thread::sleep (20);
+                port = portFile.existsAsFile() ? portFile.loadFileAsString().trim().getIntValue() : 0;
+            }
+
+            if (port > 0)
+            {
+                server = std::move (process);
+                break;
+            }
+
+            tried.add (juce::String (python) + (process->isRunning() ? " (no port within 10 s)"
+                                                                     : " (ended, exit code " + juce::String (process->getExitCode()) + ")"));
+            process->kill();
+        }
+
+        const auto address = "http://127.0.0.1:" + juce::String (port);
+        setEnvironment ("MPEROLL_UPDATE_URL", address + apiPath);
+        setEnvironment ("MPEROLL_UPDATE_PAGE_URL", address + pagePath);
+        const auto pointed = juce::SystemStats::getEnvironmentVariable ("MPEROLL_UPDATE_URL", {}) == address + apiPath
+                          && juce::SystemStats::getEnvironmentVariable ("MPEROLL_UPDATE_PAGE_URL", {}) == address + pagePath;
+        check (port > 0 && pointed, "  (the stand-in for GitHub answers " + options.joinIntoString (" ") + ")"
+                                        + (port > 0 ? juce::String() : ": no Python started it: " + tried.joinIntoString (", "))
+                                        + (pointed ? juce::String() : ": the check isn't pointed at it"));
+    };
+
+    /** What the server was asked, oldest first: each request's path, its headers, as [name, value]
+        pairs in the order they came, and when ("t", seconds since the server started). Whole lines
+        only: one being written as this reads is counted next time. */
+    const auto requests = [&]
+    {
+        std::vector<juce::var> found;
+        const auto written = requestLog.loadFileAsString().upToLastOccurrenceOf ("\n", false, false);
+
+        for (const auto& line : juce::StringArray::fromLines (written))
+            if (line.isNotEmpty())
+                found.push_back (juce::JSON::parse (line));
+
+        return found;
+    };
+
+    const auto pathsAsked = [&]
+    {
+        juce::StringArray paths;
+
+        for (const auto& request : requests())
+            paths.add (request["path"].toString());
+
+        return paths;
+    };
+
+    /** The requests as the server saw them, for a failure to say what happened and when: a system's
+        networking that tried again, or waited longer than it was told, shows here. */
+    const auto describeRequests = [&]
+    {
+        juce::StringArray lines;
+
+        for (const auto& request : requests())
+            lines.add (request["path"].toString() + " at " + juce::String ((double) request["t"], 2) + " s");
+
+        return lines.isEmpty() ? juce::String ("none") : lines.joinIntoString (", ");
+    };
+
+    // The headers the system's networking adds to every request of its own accord, which carry nothing
+    // of MPE Roll's: JUCE's own on Linux adds these two. WinINet and Apple's URL session add more of
+    // the standard ones (what answers they accept, caching), which a run there lists if it fails.
+   #if JUCE_LINUX
+    const juce::StringArray systemHeaders { "Host", "Connection" };
+   #else
+    const juce::StringArray systemHeaders { "Host", "Connection", "Accept", "Accept-Encoding", "Accept-Language",
+                                            "Cache-Control", "Pragma" };
+   #endif
+
+    /** What's wrong with a request's headers, or nothing: it must carry MPE Roll's User-Agent, and no
+        header but those MPE Roll sends and the system's own, each once. Said as the server got them,
+        so that a run on a system whose networking keeps a header of its own beside MPE Roll's (WinINet
+        its session's agent, "juce", beside MPE Roll's User-Agent, or its Accept of any type beside
+        the API's), or adds one that isn't listed here, says which, and with what. */
+    const auto headerProblems = [&version, &systemHeaders] (const juce::var& request, const juce::StringArray& mpeRolls)
+    {
+        juce::StringArray names, problems;
+        std::map<juce::String, juce::StringArray> sent;     // the values, by name in lower case
+
+        if (const auto* headers = request["headers"].getArray())
+            for (const auto& header : *headers)
+            {
+                names.add (header[0].toString());
+                sent[header[0].toString().toLowerCase()].add ("'" + header[1].toString() + "'");
+            }
+
+        const auto& agents = sent["user-agent"];
+
+        if (agents.size() != 1 || agents[0] != "'MPE Roll/" + version + "'")
+            problems.add ("User-Agent " + (agents.isEmpty() ? juce::String ("missing") : "sent as " + agents.joinIntoString (" and "))
+                          + ", not once as 'MPE Roll/" + version + "'");
+
+        for (const auto& [name, values] : sent)
+            if (values.size() > 1 && name != "user-agent")
+                problems.add (name + " sent " + juce::String (values.size()) + " times: " + values.joinIntoString (", "));
+
+        for (const auto& name : names)
+            if (! mpeRolls.contains (name, true) && ! systemHeaders.contains (name, true))
+                problems.addIfNotAlreadyThere ("a header not expected: " + name + ": " + sent[name.toLowerCase()].joinIntoString (", "));
+
+        return problems.joinIntoString ("; ");
+    };
+
+    const auto describeRequest = [] (const juce::var& request) { return juce::JSON::toString (request["headers"], true); };
+
+    /** A check of a request's headers, whose failure says what was wrong and everything sent. */
+    const auto checkHeaders = [&] (const juce::var& request, const juce::StringArray& mpeRolls, const juce::String& what)
+    {
+        const auto problems = headerProblems (request, mpeRolls);
+        check (problems.isEmpty(), what + (problems.isEmpty() ? juce::String() : ": " + problems + ". All it carried: " + describeRequest (request)));
+    };
+
+    //==========================================================================
+    // MPE Roll's window, opened and closed as FL opens and closes it.
+    MpeRollProcessor processor;
+    std::unique_ptr<juce::AudioProcessorEditor> editor;
+
+    // On the desktop, as a host shows it: MPE settings opens in a call-out over it.
+    const auto open = [&]
+    {
+        editor.reset (processor.createEditorAndMakeActive());
+        editor->setSize (1200, 760);
+        editor->addToDesktop (0);
+        editor->setVisible (true);
+        mm.runDispatchLoopUntil (100);
+    };
+
+    /** Closes the window and answers how long deleting it took, in milliseconds. */
+    const auto close = [&]
+    {
+        editor->removeFromDesktop();
+        const auto start = now();
+        processor.editorBeingDeleted (editor.get());
+        editor.reset();
+        const auto took = now() - start;
+        mm.runDispatchLoopUntil (100);
+        return took;
+    };
+
+    const auto toolbar = [&]() -> Toolbar& { return *findChild<Toolbar> (*editor); };
+    const auto status = [&] { return toolbar().status.getText(); };
+    const auto updateButton = [&]() -> juce::TextButton& { return toolbar().updateButton; };
+
+    /** Waits for the check under way to end, and its news to reach the windows. False if it didn't. */
+    const auto waitForCheck = [&] (double timeoutMs)
+    {
+        juce::SharedResourcePointer<UpdateChecker> updates;     // the windows', while one is open
+
+        for (const auto end = now() + timeoutMs; updates->getState().phase == UpdateChecker::Phase::checking && now() < end;)
+            mm.runDispatchLoopUntil (20);
+
+        mm.runDispatchLoopUntil (100);
+        return updates->getState().phase != UpdateChecker::Phase::checking;
+    };
+
+    // The File menu as its button would show it now (read from the editor, as the uitest does: on
+    // screen it closes itself at once where this process isn't the one in front).
+    const auto fileMenu = [&]
+    {
+        auto* rollEditor = dynamic_cast<MpeRollEditor*> (editor.get());
+        return rollEditor != nullptr ? menuItems (rollEditor->makeMidiMenu()) : std::vector<std::pair<juce::String, bool>>();
+    };
+
+    const auto menuHas = [] (const std::vector<std::pair<juce::String, bool>>& items, const juce::String& text)
+    {
+        return std::any_of (items.begin(), items.end(), [&text] (const auto& item) { return item.first == text && item.second; });
+    };
+
+    const auto menuEndsAsBefore = [] (const std::vector<std::pair<juce::String, bool>>& items)
+    {
+        return items.size() >= 2 && items.back().first == getBuildName() && items[items.size() - 2].first == "Report a bug...";
+    };
+
+    /** The window's MPE settings, opened at the Updates section. */
+    const auto openSettings = [&]() -> juce::Component*
+    {
+        toolbar().settingsButton.triggerClick();
+        mm.runDispatchLoopUntil (100);
+        auto* box = findChild<juce::CallOutBox> (*editor);
+        auto* panel = box != nullptr ? findChild<SettingsPanel> (*box) : nullptr;
+
+        if (auto* sections = panel != nullptr ? findChild<juce::PropertyPanel> (*panel) : nullptr)
+            sections->setSectionOpen (sections->getSectionNames().indexOf ("Updates"), true);
+
+        return panel;
+    };
+
+    const auto lineOf = [] (juce::Component* panel, const juce::String& name)
+    {
+        auto* row = panel != nullptr ? findNamed (*panel, name) : nullptr;
+        auto* label = row != nullptr ? findChild<juce::Label> (*row) : nullptr;
+        return label != nullptr ? label->getText() : juce::String ("(no " + name + " line)");
+    };
+
+    const auto buttonIn = [] (juce::Component* panel, const juce::String& name) -> juce::Button*
+    {
+        auto* row = panel != nullptr ? findNamed (*panel, name) : nullptr;
+        return row != nullptr ? findChild<juce::Button> (*row) : nullptr;
+    };
+
+    const auto click = [&mm] (juce::Button* button)
+    {
+        if (button != nullptr)
+            button->triggerClick();
+
+        mm.runDispatchLoopUntil (50);       // the click is posted
+    };
+
+    const auto anyAlert = []
+    {
+        auto& desktop = juce::Desktop::getInstance();
+
+        for (int i = 0; i < desktop.getNumComponents(); ++i)
+            if (dynamic_cast<juce::AlertWindow*> (desktop.getComponent (i)) != nullptr)
+                return true;
+
+        return false;
+    };
+
+    const juce::String automaticName ("Check for updates when MPE Roll opens (once a day)");
+    const auto lastAttempt = [&] { return getKey ("updateCheckLast").getLargeIntValue(); };
+    const auto outcome = [&] { return getKey ("updateCheckLastOutcome"); };
+    const auto dueNow = [&] { setKey ("updateCheckLast", "0"); };
+
+    //==========================================================================
+    std::printf ("Off until it's turned on: nothing is sent\n");
+    {
+        startServer ({ "--tag", "v9.9.0" });
+        open();
+        mm.runDispatchLoopUntil (1500);
+        check (! hasKey ("updateCheck") && requests().empty(), "MPE Roll opened with the check never turned on sends nothing");
+        check (! updateButton().isVisible(), "and shows no Update button");
+
+        auto items = fileMenu();
+        check (menuHas (items, "Check for updates now...") && ! menuHas (items, "Get MPE Roll 9.9.0 (release page)...")
+                   && menuEndsAsBefore (items),
+               "the File menu offers Check for updates now..., and still ends with Report a bug... and the build: "
+                   + describeMenu (items));
+
+        // Nor is anything written: the window, the File menu and MPE settings (opened at Updates, and
+        // left open a while) only read.
+        openSettings();
+        mm.runDispatchLoopUntil (1500);
+        check (! updateSettings.existsAsFile() && requests().empty(),
+               "the window, its File menu and MPE settings open, with the check never used, write no Update check.settings");
+
+        // As a user who turned it off has it: off, with the last attempt a day ago or more.
+        setKey ("updateCheck", false);
+        setKey ("updateCheckLast", juce::String (juce::Time::currentTimeMillis() - 2 * updates::checkIntervalMs));
+        close();
+        open();
+        mm.runDispatchLoopUntil (1500);
+        check (requests().empty() && ! updateButton().isVisible(),
+               "turned off, with the last attempt two days ago, MPE Roll opening sends nothing either");
+        removeKey ("updateCheck");
+        removeKey ("updateCheckLast");
+
+        auto* panel = openSettings();
+        auto* automatic = dynamic_cast<juce::ToggleButton*> (buttonIn (panel, automaticName));
+        check (automatic != nullptr && ! automatic->getToggleState(), "MPE settings has the daily check, off");
+        check (lineOf (panel, "Last check").startsWith ("Never. Nothing is sent until you turn the check on"),
+               "and says nothing has been sent: " + lineOf (panel, "Last check"));
+       #if JUCE_LINUX
+        // The Linux build can't make HTTPS requests: it says it sends nothing, rather than what the
+        // Windows and macOS builds send.
+        check (lineOf (panel, "What it sends").startsWith ("Nothing: this Linux build can't make HTTPS requests"),
+               "and that this build sends nothing: " + lineOf (panel, "What it sends"));
+       #else
+        check (lineOf (panel, "What it sends").contains ("(MPE Roll/" + version + ")"),
+               "and what a check would send: " + lineOf (panel, "What it sends"));
+       #endif
+
+        auto* none = buttonIn (panel, "Newer release");
+        check (none != nullptr && ! none->isEnabled() && none->getButtonText() == "None known",
+               "with no newer release known, which it doesn't call one not found: "
+                   + (none != nullptr ? none->getButtonText() : juce::String ("(no row)")));
+        mm.runDispatchLoopUntil (1000);
+        check (requests().empty(), "opening MPE settings sends nothing either");
+
+        std::printf ("Turned on, it asks at once, quietly, and a newer release is the Update button\n");
+        click (automatic);
+        check (UpdateChecker::isAutomatic (settings) && getKey ("updateCheck") == "1" && ! settings->containsKey ("updateCheck"),
+               "the switch turns the daily check on, kept in the update check's settings (not MPE Roll.settings)");
+        // Waited for before the checks, rather than in them: a check's words can be put together before
+        // its condition is worked out.
+        const auto answered = waitForCheck (20000.0);
+        check (answered && pathsAsked() == juce::StringArray (apiPath),
+               "and it asks GitHub's API at once, never having asked: " + describeRequests());
+        check (updateButton().isVisible() && updateButton().getButtonText() == "Update to 9.9.0",
+               "9.9.0 being out, the Update button says so: " + updateButton().getButtonText());
+        check (updateButton().getTooltip().contains ("MPE Roll 9.9.0 is out (you have " + version + ")"),
+               "its tooltip names this version: " + updateButton().getTooltip());
+        check (! status().contains ("9.9.0") && ! anyAlert(), "and the status line says nothing of it, with no box either: " + status());
+        check (getKey ("updateCheckLastTag") == "v9.9.0" && outcome() == "newer"
+                   && std::abs (juce::Time::currentTimeMillis() - lastAttempt()) < 60000,
+               "the settings keep when it asked and what it found");
+        check (lineOf (panel, "Last check").contains ("MPE Roll 9.9.0 is out (you have " + version + ")"),
+               "as MPE settings' Last check line says: " + lineOf (panel, "Last check"));
+
+        if (! requests().empty())
+            checkHeaders (requests()[0], { "User-Agent", "Accept", "X-GitHub-Api-Version" },
+                          "the request carried MPE Roll's name and version and the API's format, nothing else");
+
+        items = fileMenu();
+        check (menuHas (items, "Get MPE Roll 9.9.0 (release page)...") && menuHas (items, "Skip version 9.9.0")
+                   && menuEndsAsBefore (items),
+               "the File menu offers to get it or skip it: " + describeMenu (items));
+
+        const auto page = "http://127.0.0.1:" + juce::String (port) + "/freener0x/MPE-Roll/releases/tag/v9.9.0";
+        click (&updateButton());
+        check (pagesOpened == juce::StringArray (page), "the Update button opens the release's page: " + pagesOpened.joinIntoString (", "));
+
+        auto* get = buttonIn (panel, "Newer release");
+        check (get != nullptr && get->isEnabled() && get->getButtonText() == "Get MPE Roll 9.9.0 (release page)...",
+               "as does MPE settings' Get MPE Roll 9.9.0 (release page)...");
+        click (get);
+        check (pagesOpened.size() == 2 && pagesOpened[1] == page, "to the same page");
+        close();
+    }
+
+    std::printf ("Once a day, counted from the last attempt\n");
+    {
+        // Every window closed, so the checker went with them, as when FL is started again later.
+        open();
+        mm.runDispatchLoopUntil (1000);
+        check (requests().size() == 1, "opening MPE Roll again the same day asks nothing");
+        check (updateButton().isVisible() && updateButton().getButtonText() == "Update to 9.9.0",
+               "and the release found is still offered: the notice stands until it's installed or skipped");
+
+        MpeRollProcessor another;
+        std::unique_ptr<juce::AudioProcessorEditor> second (another.createEditorAndMakeActive());
+        second->setSize (1200, 760);
+        mm.runDispatchLoopUntil (500);
+        auto* secondBar = findChild<Toolbar> (*second);
+        check (requests().size() == 1 && secondBar != nullptr && secondBar->updateButton.isVisible(),
+               "a second MPE Roll opened meanwhile asks nothing either, and offers it too");
+        another.editorBeingDeleted (second.get());
+        second.reset();
+        close();
+    }
+
+    std::printf ("A day later it asks again; the same version as this one is no news\n");
+    {
+        startServer ({ "--tag", "v" + version });
+        setKey ("updateCheckLast", juce::String (juce::Time::currentTimeMillis() - updates::checkIntervalMs - 1000));
+        open();
+        check (waitForCheck (20000.0) && pathsAsked() == juce::StringArray (apiPath), "a day after the last attempt, it asks again");
+        check (! updateButton().isVisible() && outcome() == "latest" && ! status().contains (version + " is the latest"),
+               "with this version the latest: no button, and nothing said");
+        close();
+    }
+
+    std::printf ("A build newer than the latest release (one made between releases) is told of nothing\n");
+    {
+        startServer ({ "--tag", "v0.0.0" });
+        dueNow();
+        open();
+        check (waitForCheck (20000.0) && requests().size() == 1 && ! updateButton().isVisible() && outcome() == "ahead"
+                   && ! status().contains ("0.0.0"),
+               "the daily check finds an older release: no button, and nothing said");
+
+        {
+            juce::SharedResourcePointer<UpdateChecker> updates;
+            updates->checkNow (settings);   // as File > Check for updates now... does
+            const auto answered = waitForCheck (20000.0);
+            check (answered && status() == "This MPE Roll, " + version + ", is newer than the latest release, 0.0.0."
+                       && ! updateButton().isVisible(),
+                   "asked, the status line says this build is the newer one: " + status());
+        }
+
+        close();
+    }
+
+    std::printf ("A skipped version is no news until a newer one is out\n");
+    {
+        startServer ({ "--tag", "v9.9.0" });
+        setKey ("updateCheckSkippedTag", "v9.9.0");
+        dueNow();
+        open();
+        check (waitForCheck (20000.0) && requests().size() == 1 && ! updateButton().isVisible() && outcome() == "newer",
+               "9.9.0, skipped, shows no button");
+
+        {
+            juce::SharedResourcePointer<UpdateChecker> updates;
+            check (updates->describeLastCheck (settings).contains ("MPE Roll 9.9.0 is out, and you chose to skip it"),
+                   "MPE settings says it's out and skipped: " + updates->describeLastCheck (settings));
+
+            // Asked, it's said, as the answer to the question: the user wants to know what there is.
+            // But the user chose not to be told of it, so nothing more: no button, and nothing in
+            // the File menu, which would have no way to hide either.
+            updates->checkNow (settings);
+            const auto answered = waitForCheck (20000.0);
+            check (answered && status().startsWith ("MPE Roll 9.9.0 is out (you have " + version + "), but you chose to skip it."),
+                   "asked, the status line names it, and that it's skipped: " + status());
+            check (! updateButton().isVisible(), "but shows no button for it");
+
+            const auto items = fileMenu();
+            check (! menuHas (items, "Get MPE Roll 9.9.0 (release page)...") && ! menuHas (items, "Skip version 9.9.0"),
+                   "nor offers it in the File menu: " + describeMenu (items));
+
+            // MPE settings, where the user goes to look, still has its page.
+            auto* panel = openSettings();
+            auto* get = buttonIn (panel, "Newer release");
+            auto* skip = buttonIn (panel, "Skip it");
+            check (get != nullptr && get->isEnabled() && get->getButtonText() == "Get MPE Roll 9.9.0 (release page)...",
+                   "MPE settings still offers its page: " + (get != nullptr ? get->getButtonText() : juce::String ("(no row)")));
+            check (skip != nullptr && ! skip->isEnabled() && skip->getButtonText() == "Skipped",
+                   "and says it's skipped: " + (skip != nullptr ? skip->getButtonText() : juce::String ("(no row)")));
+        }
+
+        close();
+        startServer ({ "--tag", "v9.9.1" });
+        dueNow();
+        open();
+        check (waitForCheck (20000.0) && updateButton().isVisible() && updateButton().getButtonText() == "Update to 9.9.1",
+               "a release newer than the skipped one is offered");
+
+        auto* panel = openSettings();
+        auto* skip = buttonIn (panel, "Skip it");
+        check (skip != nullptr && skip->isEnabled() && skip->getButtonText() == "Skip version 9.9.1",
+               "MPE settings offers Skip version 9.9.1");
+        click (skip);
+        check (! updateButton().isVisible() && getKey ("updateCheckSkippedTag") == "v9.9.1",
+               "which hides the button, and is kept");
+        check (skip != nullptr && ! skip->isEnabled() && skip->getButtonText() == "Skipped", "and can't be clicked again");
+
+        // Skipping an older version (one a menu still showed, say) doesn't bring a newer skipped one
+        // back.
+        {
+            updates::Release older;
+            older.tag = "v9.9.0";
+            juce::SharedResourcePointer<UpdateChecker> checker;
+            checker->skip (settings, older);
+            check (getKey ("updateCheckSkippedTag") == "v9.9.1" && ! updateButton().isVisible(),
+                   "skipping an older version leaves the newer one skipped: " + getKey ("updateCheckSkippedTag"));
+        }
+
+        close();
+        removeKey ("updateCheckSkippedTag");
+    }
+
+    std::printf ("GitHub's API refusing (its limit of requests): the release page's redirect names the release\n");
+    {
+        startServer ({ "--tag", "v9.9.2", "--api", "403" });
+        dueNow();
+        open();
+        check (waitForCheck (20000.0) && updateButton().getButtonText() == "Update to 9.9.2" && outcome() == "newer",
+               "the release is found all the same");
+        check (pathsAsked() == juce::StringArray (apiPath, pagePath), "from the release page, after the API: " + describeRequests());
+
+        if (requests().size() == 2)
+            checkHeaders (requests()[1], { "User-Agent" }, "which was sent MPE Roll's name and version alone");
+
+        close();
+    }
+
+    std::printf ("What an earlier check found stands when one gets no answer\n");
+    {
+        stopServer();       // 9.9.2 was found just now; nothing answers from here on
+        dueNow();
+        open();
+        check (updateButton().getButtonText() == "Update to 9.9.2", "as MPE Roll opens, the release found is offered");
+        auto answered = waitForCheck (20000.0);
+        check (answered && outcome() == "failed: no answer from GitHub" && updateButton().isVisible()
+                   && updateButton().getButtonText() == "Update to 9.9.2" && ! status().contains ("Couldn't check"),
+               "and still is after a daily check with no answer, which says nothing: " + updateButton().getButtonText());
+
+        {
+            juce::SharedResourcePointer<UpdateChecker> updates;
+            updates->checkNow (settings);
+            check (updateButton().isVisible(), "while a check is under way too");
+            answered = waitForCheck (20000.0);
+            check (answered && status().startsWith ("Couldn't check for updates") && updateButton().getButtonText() == "Update to 9.9.2",
+                   "asked, it says it couldn't check, and the button stays: " + status());
+        }
+
+        close();
+    }
+
+    std::printf ("Pre-releases and drafts are never offered\n");
+    {
+        removeKey ("updateCheckLastTag");       // what an earlier check found would be offered
+        startServer ({ "--tag", "v9.9.3-beta1", "--api", "prerelease" });
+        dueNow();
+        open();
+        const auto answered = waitForCheck (20000.0);
+        check (answered && ! updateButton().isVisible() && outcome().startsWith ("failed: "),
+               "a pre-release, from the API and from the release page alike, isn't: " + outcome());
+        check (! status().contains ("Couldn't check"), "and, unasked, nothing is said of it");
+        close();
+
+        startServer ({ "--tag", "v9.9.4", "--api", "draft", "--page-tag", "v" + version });
+        dueNow();
+        open();
+        check (waitForCheck (20000.0) && ! updateButton().isVisible() && outcome() == "latest" && pathsAsked().size() == 2,
+               "nor a draft: the release page's latest, this version, answers instead");
+        close();
+    }
+
+    std::printf ("No answer: said only when asked\n");
+    {
+        stopServer();       // nothing listening: refused at once, as when offline
+        dueNow();
+        open();
+        auto answered = waitForCheck (20000.0);
+        check (answered && ! updateButton().isVisible() && ! status().contains ("Couldn't check") && ! anyAlert(),
+               "unasked, a check with no answer says nothing: " + status());
+        check (outcome() == "failed: no answer from GitHub", "and the settings keep what happened: " + outcome());
+
+        auto* panel = openSettings();
+        check (lineOf (panel, "Last check").endsWith (": no answer from GitHub."), "as MPE settings' Last check line says: " + lineOf (panel, "Last check"));
+
+        click (buttonIn (panel, "Check now"));
+        answered = waitForCheck (20000.0);
+        check (answered && status().startsWith ("Couldn't check for updates: no answer from GitHub."),
+               "asked with Check now, the status line says so: " + status());
+        check (! anyAlert(), "and nothing else does: no box to close");
+        close();
+    }
+
+    std::printf ("Check now works with the daily check off, and answers in the status line\n");
+    {
+        startServer ({ "--tag", "v" + version });
+        open();
+        auto* panel = openSettings();
+        auto* automatic = dynamic_cast<juce::ToggleButton*> (buttonIn (panel, automaticName));
+        click (automatic);
+        check (! UpdateChecker::isAutomatic (settings) && requests().empty(), "the switch turns the daily check off, which sends nothing");
+        check (automatic != nullptr && ! automatic->getToggleState() && automatic->getButtonText() == "Off",
+               "and shows it off");
+
+        click (buttonIn (panel, "Check now"));
+        check (waitForCheck (20000.0) && requests().size() == 1, "Check now asks all the same");
+        check (status() == "MPE Roll " + version + " is the latest release." && ! anyAlert(),
+               "and says this version is the latest in the status line, and nowhere else: " + status());
+        close();
+
+        startServer ({ "--tag", "v9.9.5" });
+        open();
+
+        {
+            juce::SharedResourcePointer<UpdateChecker> updates;
+            updates->checkNow (settings);   // as File > Check for updates now... does
+            const auto answered = waitForCheck (20000.0);
+            check (answered && updateButton().isVisible()
+                       && status() == "MPE Roll 9.9.5 is out (you have " + version + "): click Update to 9.9.5 to get it.",
+                   "a newer release, asked for, is named in the status line, with the button: " + status());
+        }
+
+        // The daily check still off, every window closed and one opened again (FL started again,
+        // say): what the check found is offered until it's installed or skipped, as MPE settings'
+        // Last check line says it's out.
+        close();
+        open();
+        mm.runDispatchLoopUntil (500);
+        check (requests().size() == 1 && updateButton().isVisible() && updateButton().getButtonText() == "Update to 9.9.5",
+               "opened again, the release found is still offered, and nothing is asked: "
+                   + updateButton().getButtonText());
+
+        const auto items = fileMenu();
+        check (menuHas (items, "Get MPE Roll 9.9.5 (release page)...") && menuHas (items, "Skip version 9.9.5"),
+               "in the File menu too: " + describeMenu (items));
+
+        panel = openSettings();
+        auto* get = buttonIn (panel, "Newer release");
+        check (lineOf (panel, "Last check").contains ("MPE Roll 9.9.5 is out")
+                   && get != nullptr && get->isEnabled() && get->getButtonText() == "Get MPE Roll 9.9.5 (release page)...",
+               "and in MPE settings, whose Last check line agrees: " + lineOf (panel, "Last check") + " / "
+                   + (get != nullptr ? get->getButtonText() : juce::String ("(no row)")));
+        close();
+    }
+
+    std::printf ("Two MPE Rolls at once, each with the computer's settings as it read them when it started (the VST2 "
+                 "and the VST3 in one FL project): what's switched or skipped in one holds in the other\n");
+    {
+        startServer ({ "--tag", "v9.9.8" });
+
+        // The check on, and a day past the last attempt, when the project opened and each MPE Roll read
+        // the computer's settings: this process's (the VST3's, say), and the other plugin file's, which
+        // has a copy of its own, and a checker of its own.
+        setKey ("updateCheck", true);
+        setKey ("updateCheckLast", juce::String (juce::Time::currentTimeMillis() - 2 * updates::checkIntervalMs));
+
+        juce::PropertiesFile::Options sharedOptions;
+        sharedOptions.storageFormat = juce::PropertiesFile::storeAsXML;
+        juce::PropertiesFile otherSettings (settings->getFile(), sharedOptions);
+        UpdateChecker here, other;
+
+        const auto waitFor = [&] (UpdateChecker& checker)
+        {
+            for (const auto end = now() + 20000.0; checker.getState().phase == UpdateChecker::Phase::checking && now() < end;)
+                mm.runDispatchLoopUntil (20);
+
+            mm.runDispatchLoopUntil (50);
+        };
+
+        // Whether the check is off for both, and for a third MPE Roll started now.
+        const auto offForAll = [&]
+        {
+            juce::PropertiesFile third (settings->getFile(), sharedOptions);
+            return ! UpdateChecker::isAutomatic (settings) && ! UpdateChecker::isAutomatic (&otherSettings)
+                && ! UpdateChecker::isAutomatic (&third);
+        };
+
+        here.setAutomatic (settings, false);        // switched off in this one's MPE settings
+        check (offForAll(), "switched off in one MPE Roll, it's off in the other too");
+
+        other.checkIfDue (&otherSettings);          // the other's window opens
+        waitFor (other);
+        check (requests().empty(), "whose window opening sends nothing: " + describeRequests());
+
+        // Anything else the other saves (the marker a synth being loaded leaves, say) leaves it off.
+        otherSettings.setValue ("synthLoading", "marker");
+        otherSettings.saveIfNeeded();
+        otherSettings.removeValue ("synthLoading");
+        otherSettings.saveIfNeeded();
+        check (offForAll(), "and a save of anything else in the other leaves it off, for every MPE Roll");
+
+        // Switched on again in this one, which asks at once (a day having passed): the other doesn't ask
+        // again that day, and offers what this one found.
+        here.setAutomatic (settings, true);
+        waitFor (here);
+        check (pathsAsked() == juce::StringArray (apiPath) && here.getState().newer.has_value(), "switched on again in one, it asks");
+        other.checkIfDue (&otherSettings);
+        waitFor (other);
+        check (requests().size() == 1 && other.getState().newer.has_value() && other.getState().newer->tag == "v9.9.8",
+               "the other asks nothing that day, and offers what the first found: " + describeRequests());
+
+        // Skipped in this one: no longer offered in the other once its window opens, and still skipped
+        // after the other saves.
+        if (const auto found = here.getState().newer)
+            here.skip (settings, *found);
+
+        other.checkIfDue (&otherSettings);
+        waitFor (other);
+        otherSettings.setValue ("synthLoading", "marker");
+        otherSettings.saveIfNeeded();
+        check (requests().size() == 1 && ! here.getState().newer.has_value() && ! other.getState().newer.has_value()
+                   && getKey ("updateCheckSkippedTag") == "v9.9.8",
+               "skipped in one, it's offered in neither");
+
+        otherSettings.removeValue ("synthLoading");
+        otherSettings.saveIfNeeded();
+        removeKey ("updateCheckSkippedTag");
+        removeKey ("updateCheckLastTag");
+        setKey ("updateCheck", false);
+    }
+
+    /** Waits, running the message loop, for a checker's check to end. */
+    const auto waitForChecker = [&] (UpdateChecker& checker)
+    {
+        for (const auto end = now() + 20000.0; checker.getState().phase == UpdateChecker::Phase::checking && now() < end;)
+            mm.runDispatchLoopUntil (20);
+
+        mm.runDispatchLoopUntil (50);
+    };
+
+    // A click as JUCE acts on it once the mouse is let go, but at once: a click on the screen is a
+    // message, and others (a timer's) could come first, which a test of what a click does to what's
+    // shown can't have.
+    const auto clickAtOnce = [] (juce::Button* button)
+    {
+        if (button != nullptr && button->onClick != nullptr)
+            button->onClick();
+    };
+
+    // A little longer than an MPE Roll takes to look at the update check's file again.
+    constexpr int lookAgainMs = 1600;
+
+    std::printf ("Two MPE Rolls' MPE settings open at once: a switch does what it shows, and soon shows what the "
+                 "other did\n");
+    {
+        startServer ({ "--tag", "v9.9.8" });
+        setKey ("updateCheck", true);
+        setKey ("updateCheckLast", juce::String (juce::Time::currentTimeMillis() - 2 * updates::checkIntervalMs));
+
+        // Two MPE Rolls (the VST3 and the VST2 in one FL project, say), each with a checker of its
+        // own, and each with its MPE settings open: one plugin file's call-out isn't closed by clicks
+        // in the other's window. Both panels get this process's settings, but what the update check
+        // keeps is in its own file, read afresh, so they're two MPE Rolls as far as it goes.
+        UpdateChecker checkerA, checkerB;
+        SettingsPanel panelA (processor, checkerA), panelB (processor, checkerB);
+        auto* switchA = buttonIn (&panelA, automaticName);
+        auto* switchB = buttonIn (&panelB, automaticName);
+
+        const auto shows = [] (juce::Button* s)
+        {
+            return s == nullptr ? juce::String ("(no switch)") : s->getToggleState() ? juce::String ("On") : juce::String ("Off");
+        };
+
+        check (shows (switchA) == "On" && shows (switchB) == "On", "both show the daily check on: " + shows (switchA) + ", " + shows (switchB));
+
+        clickAtOnce (switchA);      // switched off in one
+        check (getKey ("updateCheck") == "0" && shows (switchA) == "Off",
+               "switched off in one, which shows it off at once: updateCheck " + getKey ("updateCheck") + ", " + shows (switchA));
+        check (shows (switchB) == "On", "while the other's, not looked at since, still shows it on");
+
+        // The user turns it off in the other too, where it still shows on: off it stays.
+        clickAtOnce (switchB);
+        mm.runDispatchLoopUntil (lookAgainMs);
+        check (getKey ("updateCheck") == "0" && requests().empty() && checkerB.getState().phase != UpdateChecker::Phase::checking,
+               "clicking the other's switch, shown on, leaves the check off, and sends nothing: updateCheck "
+                   + getKey ("updateCheck") + ", requests: " + describeRequests());
+        check (shows (switchB) == "Off", "and it shows it off: " + shows (switchB));
+
+        // The other way round: switched on in one (no check due today), then clicked on in the other,
+        // where it still shows off: on it stays.
+        setKey ("updateCheckLast", juce::String (juce::Time::currentTimeMillis()));
+        clickAtOnce (switchA);
+        check (getKey ("updateCheck") == "1" && shows (switchB) == "Off", "switched on in one, while the other still shows it off");
+        clickAtOnce (switchB);
+        check (getKey ("updateCheck") == "1" && shows (switchB) == "On",
+               "clicking the other's, shown off, leaves it on: updateCheck " + getKey ("updateCheck") + ", " + shows (switchB));
+
+        // Left alone, each shows what the other did a moment later.
+        clickAtOnce (switchA);
+        mm.runDispatchLoopUntil (lookAgainMs);
+        check (getKey ("updateCheck") == "0" && shows (switchB) == "Off",
+               "switched off in one, the other's MPE settings shows it off a moment later, unclicked: " + shows (switchB));
+        clickAtOnce (switchA);
+        mm.runDispatchLoopUntil (lookAgainMs);
+        check (getKey ("updateCheck") == "1" && shows (switchB) == "On", "and on again: " + shows (switchB));
+        clickAtOnce (switchA);
+        check (requests().empty(), "nothing was sent throughout: " + describeRequests());
+
+        // The newer release's rows act on the release they show, even if another MPE Roll has found a
+        // newer one since they were drawn: Skip version 9.9.0 never skips 9.9.1.
+        setKey ("updateCheckLastTag", "v9.9.0");
+        mm.runDispatchLoopUntil (lookAgainMs);
+        auto* getB = buttonIn (&panelB, "Newer release");
+        auto* skipB = buttonIn (&panelB, "Skip it");
+        check (skipB != nullptr && skipB->getButtonText() == "Skip version 9.9.0"
+                   && getB != nullptr && getB->getButtonText() == "Get MPE Roll 9.9.0 (release page)...",
+               "found in one, the other's MPE settings offers 9.9.0 a moment later: "
+                   + (skipB != nullptr ? skipB->getButtonText() : juce::String ("(no row)")));
+
+        setKey ("updateCheckLastTag", "v9.9.1");    // another MPE Roll finds 9.9.1 meanwhile
+        pagesOpened.clear();
+        clickAtOnce (getB);
+        check (pagesOpened.size() == 1 && pagesOpened[0].endsWith ("/releases/tag/v9.9.0"),
+               "Get MPE Roll 9.9.0 opens 9.9.0's page: " + pagesOpened.joinIntoString (", "));
+        clickAtOnce (skipB);
+        check (getKey ("updateCheckSkippedTag") == "v9.9.0", "and Skip version 9.9.0 skips 9.9.0: " + getKey ("updateCheckSkippedTag"));
+        mm.runDispatchLoopUntil (lookAgainMs);
+        check (skipB != nullptr && skipB->getButtonText() == "Skip version 9.9.1" && skipB->isEnabled(),
+               "so 9.9.1 is still offered: " + (skipB != nullptr ? skipB->getButtonText() : juce::String ("(no row)")));
+
+        removeKey ("updateCheckSkippedTag");
+        removeKey ("updateCheckLastTag");
+        setKey ("updateCheck", false);
+        pagesOpened.clear();
+    }
+
+    std::printf ("What another MPE Roll finds or skips shows in this one's window, open all the while\n");
+    {
+        startServer ({ "--tag", "v9.9.9" });
+        open();
+        check (! updateButton().isVisible(), "the window opens with nothing to offer");
+
+        // Another MPE Roll, with its window open too: its own checker, and its own copy of the settings.
+        juce::PropertiesFile::Options sharedOptions;
+        sharedOptions.storageFormat = juce::PropertiesFile::storeAsXML;
+        juce::PropertiesFile otherSettings (settings->getFile(), sharedOptions);
+        UpdateChecker other;
+        other.checkIfDue (&otherSettings);
+
+        other.checkNow (&otherSettings);        // File > Check for updates now... there
+        waitForChecker (other);
+        mm.runDispatchLoopUntil (lookAgainMs);
+        auto items = fileMenu();
+        check (other.getState().newer.has_value() && updateButton().isVisible() && updateButton().getButtonText() == "Update to 9.9.9"
+                   && menuHas (items, "Get MPE Roll 9.9.9 (release page)...") && menuHas (items, "Skip version 9.9.9"),
+               "9.9.9, found by the other, is offered here a moment later, by the button and the File menu: "
+                   + updateButton().getButtonText() + " / " + describeMenu (items));
+
+        if (const auto found = other.getState().newer)
+            other.skip (&otherSettings, *found);    // File > Skip version 9.9.9 there
+
+        mm.runDispatchLoopUntil (lookAgainMs);
+        items = fileMenu();
+        check (! updateButton().isVisible() && ! menuHas (items, "Skip version 9.9.9") && ! menuHas (items, "Get MPE Roll 9.9.9 (release page)..."),
+               "skipped there, it's gone from here a moment later: " + describeMenu (items));
+
+        // And the other way round: found here, offered there.
+        startServer ({ "--tag", "v9.9.10" });
+
+        {
+            juce::SharedResourcePointer<UpdateChecker> updates;
+            updates->checkNow (settings);
+            waitForCheck (20000.0);
+        }
+
+        mm.runDispatchLoopUntil (lookAgainMs);
+        check (updateButton().getButtonText() == "Update to 9.9.10" && other.getState().newer.has_value()
+                   && other.getState().newer->tag == "v9.9.10",
+               "found here, 9.9.10 is offered there a moment later");
+        close();
+        removeKey ("updateCheckSkippedTag");
+        removeKey ("updateCheckLastTag");
+    }
+
+    std::printf ("Switched off while a daily check waits for GitHub: the check is called off, and nothing more is "
+                 "sent\n");
+    {
+        // In MPE settings of the MPE Roll whose window started it.
+        startServer ({ "--tag", "v9.9.6", "--api", "hang" });
+        setKey ("updateCheck", true);
+        dueNow();
+        open();
+
+        for (const auto end = now() + 5000.0; requests().empty() && now() < end;)
+            mm.runDispatchLoopUntil (20);
+
+        auto* panel = openSettings();
+
+        {
+            juce::SharedResourcePointer<UpdateChecker> updates;
+            check (requests().size() == 1 && updates->getState().phase == UpdateChecker::Phase::checking,
+                   "the daily check's request is under way, and GitHub (here) isn't answering: " + describeRequests());
+
+            click (buttonIn (panel, automaticName));
+            check (! UpdateChecker::isAutomatic (settings) && updates->getState().phase != UpdateChecker::Phase::checking,
+                   "switched off in MPE settings, the check is called off at once");
+        }
+
+        mm.runDispatchLoopUntil (9500);         // past the API's 8 s, when the release page would be asked
+        check (requests().size() == 1, "and nothing more is sent, the release page included: " + describeRequests());
+        check (outcome() == "failed: the check was switched off before GitHub answered", "the settings say why it ended: " + outcome());
+        check (lineOf (panel, "Last check").endsWith (": the check was switched off before GitHub answered."),
+               "as MPE settings does: " + lineOf (panel, "Last check"));
+        check (! updateButton().isVisible() && ! status().contains ("Couldn't") && ! anyAlert(), "and nothing else is said: " + status());
+        close();
+
+        // In another MPE Roll, while this one's daily check waits: this one calls it off on its next look
+        // at the file. Meanwhile a third's MPE settings says a check is under way, not that one ended.
+        startServer ({ "--tag", "v9.9.6", "--api", "hang" });
+        setKey ("updateCheck", true);
+        dueNow();
+
+        {
+            UpdateChecker here;
+            here.checkIfDue (settings);         // its window opens
+
+            for (const auto end = now() + 5000.0; requests().empty() && now() < end;)
+                mm.runDispatchLoopUntil (20);
+
+            const auto meanwhile = UpdateChecker().describeLastCheck (settings);
+            check (meanwhile.startsWith ("Asked GitHub ") && meanwhile.endsWith ("; no answer yet."),
+                   "while it waits, another MPE Roll's MPE settings says so: " + meanwhile);
+
+            setKey ("updateCheck", false);      // as another MPE Roll's switch writes it
+            mm.runDispatchLoopUntil (lookAgainMs);
+            check (here.getState().phase != UpdateChecker::Phase::checking && requests().size() == 1
+                       && outcome() == "failed: the check was switched off before GitHub answered",
+                   "switched off in another MPE Roll, the check is called off a moment later: " + outcome() + ", requests: "
+                       + describeRequests());
+        }
+
+        // Switched off in another MPE Roll just as the API refuses, before this one has looked at the
+        // file again (its message loop isn't run meanwhile): the release page isn't asked either.
+        startServer ({ "--tag", "v9.9.6", "--api", "403", "--api-delay", "1" });
+        setKey ("updateCheck", true);
+        dueNow();
+
+        {
+            UpdateChecker here;
+            here.checkIfDue (settings);
+            setKey ("updateCheck", false);
+            juce::Thread::sleep (2500);         // the API refuses after a second
+            mm.runDispatchLoopUntil (300);
+            check (requests().size() == 1 && here.getState().phase == UpdateChecker::Phase::failed
+                       && outcome() == "failed: the check was switched off before GitHub answered" && ! here.getState().newer.has_value(),
+                   "switched off as the API refuses, the release page isn't asked: " + describeRequests() + ", " + outcome());
+        }
+    }
+
+    std::printf ("Closing the last MPE Roll during a check calls the request off at once\n");
+    {
+        startServer ({ "--tag", "v9.9.6", "--api", "hang" });
+        setKey ("updateCheck", true);
+        dueNow();
+        open();
+
+        for (const auto end = now() + 5000.0; requests().empty() && now() < end;)
+            mm.runDispatchLoopUntil (20);
+
+        check (requests().size() == 1, "the request is under way, and GitHub (here) isn't answering: " + describeRequests());
+        const auto took = close();
+        check (took < 2000.0, "closing the window took " + juce::String (juce::roundToInt (took))
+                                  + " ms: the request was called off, not waited for (8 s)");
+        check (outcome() == "failed: MPE Roll closed before GitHub answered",
+               "and the settings say the check didn't finish, and why: " + outcome());
+
+        open();
+        auto* panel = openSettings();
+        check (requests().size() == 1, "that attempt counts for the day: opening MPE Roll again asks nothing");
+        check (lineOf (panel, "Last check").endsWith (": MPE Roll closed before GitHub answered."),
+               "and MPE settings says so: " + lineOf (panel, "Last check"));
+
+        // Asked for, while GitHub (here) takes its time: the status line says it's asking, and closing
+        // calls this one off too.
+        click (buttonIn (panel, "Check now"));
+
+        for (const auto end = now() + 5000.0; requests().size() < 2 && now() < end;)
+            mm.runDispatchLoopUntil (20);
+
+        check (requests().size() == 2 && status() == "Checking for updates...", "Check now says it's asking: " + status());
+        const auto tookAsked = close();
+        check (tookAsked < 2000.0, "and closing the window meanwhile is as quick: " + juce::String (juce::roundToInt (tookAsked)) + " ms");
+    }
+
+    std::printf ("No answer from the API in 8 s: the release page is asked instead\n");
+    {
+        // MPE Roll gives the system's networking 8 s for an answer (on Windows, WinINet's receive
+        // timeout), after which the request ends once, unrepeated. What the stand-in saw, with its
+        // times, says what the networking did if not.
+        dueNow();       // the same server, whose API still doesn't answer
+        const auto start = now();
+        open();
+        const auto answered = waitForCheck (30000.0);
+        const auto took = now() - start;
+        check (answered && updateButton().getButtonText() == "Update to 9.9.6",
+               "the release is found from the release page: " + (answered ? updateButton().getButtonText() : juce::String ("no end to the check in 30 s"))
+                   + "; requests: " + describeRequests());
+        check (took >= 7000.0 && took < 20000.0,
+               "after the API's 8 s were up: found " + juce::String (took / 1000.0, 1) + " s after the window opened; requests: "
+                   + describeRequests());
+        const auto asked = pathsAsked();
+        check (asked.size() == 4 && asked[2] == apiPath && asked[3] == pagePath,
+               "the API once, then the release page, neither asked again: " + describeRequests());
+        close();
+    }
+
+    std::printf ("For testing by hand, updateCheckUrl in the settings points the API elsewhere\n");
+    {
+        startServer ({ "--tag", "v9.9.7" });
+        setKey ("updateCheckUrl", juce::SystemStats::getEnvironmentVariable ("MPEROLL_UPDATE_URL", {}));
+        setEnvironment ("MPEROLL_UPDATE_URL", {});
+        dueNow();
+        open();
+        check (waitForCheck (20000.0) && pathsAsked() == juce::StringArray (apiPath) && updateButton().getButtonText() == "Update to 9.9.7",
+               "the API asked is the one the settings name");
+        close();
+        removeKey ("updateCheckUrl");
+    }
+
+    // Nothing of the check's went into the settings every MPE Roll writes whole.
+    {
+        juce::PropertiesFile::Options sharedOptions;
+        sharedOptions.storageFormat = juce::PropertiesFile::storeAsXML;
+        juce::PropertiesFile onDisk (settings->getFile(), sharedOptions);
+        check (! onDisk.getAllProperties().getAllKeys().joinIntoString (" ").contains ("updateCheck")
+                   && ! settings->getAllProperties().getAllKeys().joinIntoString (" ").contains ("updateCheck"),
+               "MPE Roll.settings holds nothing of the update check's: "
+                   + onDisk.getAllProperties().getAllKeys().joinIntoString (", "));
+    }
+
+   #if JUCE_LINUX
+    // GitHub's own addresses: on Linux the check stops before a thread or a connection is made.
+    std::printf ("On Linux, with no HTTPS, GitHub isn't asked, and asked for a check it says why\n");
+    {
+        stopServer();
+        setEnvironment ("MPEROLL_UPDATE_URL", {});
+        setEnvironment ("MPEROLL_UPDATE_PAGE_URL", {});
+        open();
+
+        {
+            juce::SharedResourcePointer<UpdateChecker> updates;
+            updates->checkNow (settings);
+            const auto answered = waitForCheck (5000.0);
+            check (answered && status().startsWith ("Couldn't check for updates: the Linux build can't make HTTPS requests, "
+                                                    "so it can't ask GitHub."),
+                   "the status line: " + status());
+        }
+
+        close();
+    }
+   #endif
+
+    stopServer();
+    setEnvironment ("MPEROLL_UPDATE_URL", {});
+    setEnvironment ("MPEROLL_UPDATE_PAGE_URL", {});
+    UpdateChecker::setBrowserForTesting ({});
+    PluginLog::setFileForTesting ({});
+    folder.deleteRecursively();
+    std::printf ("%s: %d failure(s)\n", check.failures == 0 ? "PASS" : "FAIL", check.failures);
+    return check.failures == 0 ? 0 : 1;
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -5595,6 +6743,9 @@ int main (int argc, char** argv)
         return loadFailTest (cwd.getChildFile (args[1]), cwd.getChildFile (args[2]), cwd.getChildFile (args[3]),
                              args.size() >= 5 ? cwd.getChildFile (args[4]) : juce::File());
 
+    if (args.size() >= 2 && args[0] == "updatetest")
+        return updateCheckTest (cwd.getChildFile (args[1]));
+
     std::printf ("Usage:\n  MpeRollHarness snapshot <out.png> [width height]\n"
                  "  MpeRollHarness settings <out.png>\n"
                  "  MpeRollHarness skins <folder>\n"
@@ -5612,6 +6763,7 @@ int main (int argc, char** argv)
                  "  MpeRollHarness vst3hostmidi <MPE Roll.vst3>\n"
                  "  MpeRollHarness crashtest <report.txt> [overflow]\n"
                  "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n"
-                 "  MpeRollHarness loadfailtest <MPE Roll Scanner> <synth.vst3> <VST2 synth>\n");
+                 "  MpeRollHarness loadfailtest <MPE Roll Scanner> <synth.vst3> <VST2 synth>\n"
+                 "  MpeRollHarness updatetest <tools/fake_releases_server.py>\n");
     return 2;
 }

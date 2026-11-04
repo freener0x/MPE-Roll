@@ -21,6 +21,24 @@ and the release tags; a build between releases names itself by its number and co
 
 ### Added
 
+- An update check, off until you turn it on. *MPE settings › Updates › Check for updates when MPE
+  Roll opens (once a day)* asks GitHub for the latest release at most once a day, as MPE Roll opens;
+  *File › Check for updates now…* (or *Check now* in the same section) asks once, whether the daily
+  check is on or not. A newer release shows as an *Update to 0.2.0* button (with the version found)
+  beside the status line, and in the File menu as *Get MPE Roll 0.2.0 (release page)…* and *Skip
+  version 0.2.0*, until you install or skip it. The button and *Get* open the release's page in
+  your browser: MPE Roll downloads and installs nothing. Pre-releases are never offered, a skipped
+  version stays quiet until a newer one is out, and a check that gets no answer says nothing unless
+  you asked. A pre-release build checks as its whole version (0.2.0-beta1), so it's told when its
+  release is out. A check sends GitHub one request (on Windows a second, to the release page, if
+  the first fails) with MPE Roll's name and version, and nothing about you beyond what every web
+  request carries; the
+  [Privacy](https://freener0x.github.io/MPE-Roll/PRIVACY.html#the-update-check-off-by-default) page
+  says exactly what it sends and keeps. What it keeps is in a settings file of its own, which every
+  MPE Roll you run goes by, so the check switched off in one is off in those already open too (a
+  check waiting for GitHub's answer is called off), and what one finds or skips shows in the
+  others' windows a moment later. The experimental Linux build can't reach GitHub (it has no HTTPS)
+  and says so.
 - An icon: a piano-roll note whose end glides up. It shows on the Windows app, plugin and scanner
   files, on the VST3 folder in Explorer, in the macOS bundles, in the installer and on the website,
   and the README opens with a banner.
@@ -54,6 +72,8 @@ and the release tags; a build between releases names itself by its number and co
 
 - The website's Download button opens the latest release.
 - GitHub Actions updated (checkout v7, upload-artifact v7, download-artifact v8).
+- The release workflow takes only a version of three numbers (`0.2.0`) and a pre-release suffix of
+  letters and digits with dots between (`beta1`, `rc.1`), the shapes the update check reads.
 - The macOS bundles carry an ad-hoc code signature. It names no developer and isn't notarized, so
   macOS still warns about a download and the quarantine step stays.
 - The release notes give the quarantine command for the whole unzipped `MPE Roll` folder, and the

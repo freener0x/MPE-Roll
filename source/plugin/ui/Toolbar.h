@@ -42,6 +42,10 @@ public:
     IconButton toolsButton { "Tools", Icon::tools, {} };
     IconButton midiButton { "File", Icon::file, {} };
     IconButton flButton { "Send to FL piano roll", Icon::sendToFl, {} };
+
+    /** "Update to 0.2.0", beside the status line, while the update check knows of a newer release:
+        hidden otherwise. Laid out again (resized()) when it's shown, hidden or renamed. */
+    juce::TextButton updateButton;
     juce::Label status;
 
     /** Snap values in beats, matching the snap box item order (0 is off). */

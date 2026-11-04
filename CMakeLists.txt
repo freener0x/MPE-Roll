@@ -115,6 +115,8 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/PluginScanner.cpp
     source/plugin/SynthParameters.cpp
     source/plugin/SynthProfiles.cpp
+    source/plugin/UpdateCheck.cpp
+    source/plugin/UpdateChecker.cpp
     source/plugin/Vst3NoteExpressions.cpp
     source/plugin/Vst3Support.cpp
     source/plugin/ui/MpeLookAndFeel.cpp
@@ -312,8 +314,10 @@ if(MPEROLL_BUILD_TESTS)
         tests/NoteToolsTests.cpp
         tests/CopyRouterTests.cpp
         tests/CopyWorkersTests.cpp
+        tests/UpdateCheckTests.cpp
         source/plugin/CopySafety.cpp
-        source/plugin/CopyWorkers.cpp)
+        source/plugin/CopyWorkers.cpp
+        source/plugin/UpdateCheck.cpp)
 
     if(MPEROLL_HOST_CLAP)
         target_sources(MpeRollTests PRIVATE

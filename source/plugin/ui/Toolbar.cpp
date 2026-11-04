@@ -135,6 +135,11 @@ Toolbar::Toolbar()
                          "piano roll, with slide notes, fine pitch and Mod X/Y, for FL's native synths. In FL: piano roll "
                          "menu > Tools > MPE Roll Import");
 
+    // In the glide colour, as the Support window's buttons are: a notice, but not a warning.
+    addChildComponent (updateButton);
+    updateButton.setColour (juce::TextButton::buttonColourId, Theme::glide);
+    updateButton.setColour (juce::TextButton::textColourOffId, juce::Colours::black);
+
     status.setColour (juce::Label::textColourId, Theme::textDim);
     status.setFont (juce::FontOptions (12.5f));
     status.setJustificationType (juce::Justification::centredRight);
@@ -143,6 +148,7 @@ Toolbar::Toolbar()
 void Toolbar::lookAndFeelChanged()
 {
     recordButton.setColour (juce::TextButton::buttonOnColourId, Theme::record.darker (0.3f));
+    updateButton.setColour (juce::TextButton::buttonColourId, Theme::glide);
     status.setColour (juce::Label::textColourId, Theme::textDim);
 }
 
@@ -186,6 +192,14 @@ void Toolbar::resized()
     place (row2, toolsButton, menuButtonWidth);
     place (row2, midiButton, menuButtonWidth);
     place (row2, flButton, iconButtonWidth, 10);
+
+    // The update notice, as wide as its words, and the status line in the rest.
+    if (updateButton.isVisible())
+    {
+        updateButton.changeWidthToFitText (row2.getHeight());
+        place (row2, updateButton, updateButton.getWidth(), 10);
+    }
+
     status.setBounds (row2);
 }
 

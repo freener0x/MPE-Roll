@@ -6,9 +6,11 @@ name: Release
 # version (the run stops if there is none) and from the pull requests merged since the last release.
 # The version in CMakeLists.txt has to match the tag, so a build names itself after the release it
 # came from (File menu, MPE settings): "MPE Roll 0.1.0, release v0.1.0, f2ea3c4, 2026-10-28". A tag
-# with a suffix (v0.2.0-beta1) is marked a pre-release. The code itself is tested by the Build
-# workflow on every change; here the unit tests, the installer's own test and Apple's AU validation
-# run again on what's shipped.
+# with a suffix (v0.2.0-beta1) is marked a pre-release, and its build runs as 0.2.0-beta1 (read from
+# that name), so its update check offers 0.2.0 once it's out. The version is three numbers and the
+# suffix is Semantic Versioning's, which is how the update check reads tags. The code itself is
+# tested by the Build workflow on every change; here the unit tests, the installer's own test and
+# Apple's AU validation run again on what's shipped.
 #
 # Or run it by hand (Actions, Release, Run workflow) on main: it then tags main's commit itself with
 # the version from CMakeLists.txt (plus the suffix given, for a pre-release) and releases that. A tag
@@ -49,6 +51,13 @@ jobs:
             echo "CMakeLists.txt has no 'project(MPE_ROLL VERSION ...)' line to take the version from."
             exit 1
           fi
+          # Three numbers, as Semantic Versioning has them: every MPE Roll's update check reads the
+          # latest release's tag that way (source/plugin/UpdateCheck.cpp), and would take a v1.0 or
+          # a v1.0.0.1 for no release at all.
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "The version in CMakeLists.txt, $version, isn't three numbers (1.0.0, not 1.0 or 1.0.0.1): the update check in every MPE Roll reads a release's tag that way."
+            exit 1
+          fi
           # The release notes carry CHANGELOG.md's section for the version, so it has to be there:
           # checked before any tag is made or moved below, the way the Notes step finds it.
           if ! awk -v v="$version" 'index($0, "## [" v "]") == 1 { found = 1 } END { exit !found }' CHANGELOG.md; then
@@ -63,7 +72,7 @@ jobs:
             fi
             case "$SUFFIX" in
               '') tag="v$version" ;;
-              *[!A-Za-z0-9.]*) echo "The suffix '$SUFFIX' can only have letters, digits and dots."; exit 1 ;;
+              *[!A-Za-z0-9.]*|.*|*.|*..*) echo "The suffix '$SUFFIX' can only have letters and digits, with single dots between them (beta1, rc.1)."; exit 1 ;;
               *) tag="v$version-$SUFFIX" ;;
             esac
             if git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag" 2> /dev/null; then
@@ -90,6 +99,14 @@ jobs:
           tagged=${tagged%%-*}
           if [ "$version" != "$tagged" ]; then
             echo "The tag $tag doesn't match the version in CMakeLists.txt ($version): change one, then tag again."
+            exit 1
+          fi
+          # A pre-release's suffix as Semantic Versioning has it (and as one typed in above has to
+          # be), which the build reads its version from (it's named "release <tag>, ...",
+          # source/plugin/BuildInfo.cpp), so its update check tells testers when the release is out.
+          semver='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$'
+          if ! [[ "$tag" =~ $semver ]]; then
+            echo "The tag $tag isn't v<version>, or v<version>-<suffix> with a suffix of letters and digits, single dots between (v0.2.0-beta1, v1.0.0-rc.1)."
             exit 1
           fi
           case "$tag" in

@@ -108,6 +108,15 @@ jobs:
       - name: UI interaction test
         run: '"$HARNESS" uitest'
 
+      # The update check against tools/fake_releases_server.py, as in the Linux job, here through
+      # WinINet as on users' computers: the headers it sends, the release page's redirect read with
+      # redirects off, its 8 s timeout, and a request called off as the window closes. The runner's
+      # Python serves it over plain HTTP on this machine; CI never asks GitHub itself (the harness
+      # stops before any check if it can't point the check elsewhere). A failure says what WinINet
+      # sent and when.
+      - name: Update check against a stand-in for GitHub (off by default, once a day, fallback)
+        run: '"$HARNESS" updatetest tools/fake_releases_server.py'
+
       - name: Hosted VST3 synth (parameters, render)
         run: |
           "$HARNESS" params "$VST3_SYNTH"
@@ -432,6 +441,15 @@ jobs:
           "build/MpeRollTestSynth_artefacts/Release/VST3/MPE Roll Test Synth.vst3"
           "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"
           "build/MpeRollFlakyTestSynth_artefacts/Release/MPE Roll Flaky Test Synth.so"
+
+      # The update check against tools/fake_releases_server.py, a stand-in for GitHub run with
+      # Python on this machine over plain HTTP: this build has no TLS, and CI never asks GitHub
+      # itself. Nothing sent while the check is off, once a day when on, the release page when the
+      # API refuses or doesn't answer, never a pre-release, failures said only when asked, two MPE
+      # Rolls running at once going by the same file, a check called off when switched off, and a
+      # request under way called off as the window closes. The Windows job runs it through WinINet.
+      - name: Update check against a stand-in for GitHub (off by default, once a day, fallback)
+        run: xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness updatetest tools/fake_releases_server.py
 
       # The same build for people who'd try MPE Roll in a Linux host (FL Studio has none, and no
       # Linux host has run it): the VST3 with the scanner inside, the standalone app and the

@@ -143,12 +143,19 @@ MpeRollEditor::MpeRollEditor (MpeRollProcessor& p)
 
     wireToolbar();
 
+    // The update check, once a day as MPE Roll opens, if the user has turned it on. What was asked
+    // for before this window opened isn't reported in its status line again.
+    reportedCheck = reportedAnswer = updates->getState().checkNumber;
+    updates->addChangeListener (this);
+    updates->checkIfDue (rollProcessor.getSynth().getUserSettings());
+
     setResizable (true, true);
     setResizeLimits (860, 540, 3200, 2200);
     setSize (1200, 760);
 
     scrollToContent();
     refreshToolbar();
+    refreshUpdateButton();
     startTimerHz (30);
 }
 
@@ -181,6 +188,7 @@ MpeRollEditor::~MpeRollEditor()
     rollProcessor.onStatusChanged = nullptr;
     rollProcessor.onCopiesChanged = nullptr;
     toolbar.midiButton.removeMouseListener (midiDragListener.get());
+    updates->removeChangeListener (this);
     skins->removeChangeListener (this);
     document.getUndoManager().removeChangeListener (this);
     document.removeChangeListener (this);
@@ -318,6 +326,11 @@ void MpeRollEditor::wireToolbar()
     };
 
     toolbar.flButton.onClick = [this] { sendToFl(); };
+    toolbar.updateButton.onClick = [this]
+    {
+        if (const auto& newer = updates->getState().newer)
+            openUpdatePage (*newer);
+    };
 }
 
 void MpeRollEditor::refreshToolbar()
@@ -544,6 +557,12 @@ void MpeRollEditor::timerCallback()
 
 void MpeRollEditor::changeListenerCallback (juce::ChangeBroadcaster* source)
 {
+    if (source == &updates.getObject())
+    {
+        updateCheckChanged();
+        return;
+    }
+
     if (source == &skins.getObject())
     {
         // The skin has changed Theme's colours: everything takes them up and is drawn again.
@@ -1046,6 +1065,19 @@ juce::PopupMenu MpeRollEditor::makeMidiMenu() const
     menu.addItem (3, "Tip: drag this button into FL to drop the clip as a MIDI file", false);
     menu.addSeparator();
 
+    // Asking GitHub for a newer release, whether the daily check is on or not, and what to do with
+    // one a check found. (The daily check is turned on in MPE settings.)
+    const auto& newer = updates->getState().newer;
+    menu.addItem (10, "Check for updates now...");
+
+    if (newer.has_value())
+    {
+        menu.addItem (11, "Get MPE Roll " + newer->version() + " (release page)...");
+        menu.addItem (12, "Skip version " + newer->version());
+    }
+
+    menu.addSeparator();
+
     // The issue form with the build filled in, so the line below needn't be copied by hand. (Donations
     // are a link at the foot of MPE settings.)
     menu.addItem (9, "Report a bug...");
@@ -1055,8 +1087,16 @@ juce::PopupMenu MpeRollEditor::makeMidiMenu() const
 
 void MpeRollEditor::showMidiMenu()
 {
+    // What another MPE Roll found or skipped in the last second too (the checker looks at its file
+    // every second by itself).
+    updates->followFile();
+
+    // The newer release the menu names, which its Get and Skip items act on, even if a check ends
+    // while the menu is open and finds another.
+    const auto shownRelease = updates->getState().newer;
+
     makeMidiMenu().showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.midiButton),
-                                  [safe = juce::Component::SafePointer<MpeRollEditor> (this)] (int result)
+                                  [safe = juce::Component::SafePointer<MpeRollEditor> (this), shownRelease] (int result)
     {
         if (safe == nullptr)
             return;
@@ -1071,7 +1111,57 @@ void MpeRollEditor::showMidiMenu()
             safe->exportAudio (AudioExport::Format::mp3);
         else if (result == 9)
             safe->reportProblem (BugReport::bugTemplate, PluginLog::report (nullptr, {}));
+        else if (result == 10)
+            safe->updates->checkNow (safe->rollProcessor.getSynth().getUserSettings());
+        else if (result == 11 && shownRelease.has_value())
+            safe->openUpdatePage (*shownRelease);
+        else if (result == 12 && shownRelease.has_value())
+            safe->updates->skip (safe->rollProcessor.getSynth().getUserSettings(), *shownRelease);
     });
+}
+
+void MpeRollEditor::updateCheckChanged()
+{
+    const auto& state = updates->getState();
+
+    // MPE Roll's own daily check says nothing in the status line, found or not: only the button.
+    if (state.askedByUser)
+    {
+        auto& reported = state.phase == UpdateChecker::Phase::checking ? reportedCheck : reportedAnswer;
+
+        if (reported != state.checkNumber)
+        {
+            reported = state.checkNumber;
+            setStatus (updates->describeAnswer());
+        }
+    }
+
+    refreshUpdateButton();
+}
+
+void MpeRollEditor::refreshUpdateButton()
+{
+    const auto& newer = updates->getState().newer;
+    const auto show = newer.has_value();
+    const auto version = show ? newer->version() : juce::String();
+    const auto text = show ? "Update to " + version : juce::String();
+
+    if (show == toolbar.updateButton.isVisible() && text == toolbar.updateButton.getButtonText())
+        return;
+
+    toolbar.updateButton.setButtonText (text);
+    toolbar.updateButton.setTooltip (show ? "MPE Roll " + version + " is out (you have " + getVersionString() + "). Opens its "
+                                            "page in your browser, where the downloads are. File > Skip version " + version
+                                            + " hides this."
+                                          : juce::String());
+    toolbar.updateButton.setVisible (show);
+    toolbar.resized();
+}
+
+void MpeRollEditor::openUpdatePage (const updates::Release& release)
+{
+    if (! UpdateChecker::openReleasePage (release))
+        setStatus ("No web browser would open: MPE Roll " + release.version() + " is at " + release.pageUrl);
 }
 
 void MpeRollEditor::exportAudio (AudioExport::Format format)
@@ -1354,7 +1444,7 @@ void MpeRollEditor::sendToFl()
 
 void MpeRollEditor::showSettings()
 {
-    auto panel = std::make_unique<SettingsPanel> (rollProcessor);
+    auto panel = std::make_unique<SettingsPanel> (rollProcessor, updates.getObject());
     const auto area = toolbar.settingsButton.getBounds() + toolbar.getPosition();
     settingsBox = &juce::CallOutBox::launchAsynchronously (std::move (panel), area, this);
 }

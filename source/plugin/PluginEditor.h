@@ -2,6 +2,7 @@
 
 #include "AudioExport.h"
 #include "PluginProcessor.h"
+#include "UpdateChecker.h"
 #include "ui/ExpressionLane.h"
 #include "ui/MpeLookAndFeel.h"
 #include "ui/NoteGrid.h"
@@ -50,6 +51,12 @@ private:
     juce::SharedResourcePointer<SkinManager> skins;     // before the look and feel, which takes up its colours
     MpeLookAndFeel lookAndFeel;
     ViewState view;
+
+    // Shared by every editor in the process, and gone with the last: an MPE settings panel left open
+    // borrows it rather than keeping it.
+    juce::SharedResourcePointer<UpdateChecker> updates;
+    int reportedCheck = 0;          // the last check whose "Checking..." the status line showed
+    int reportedAnswer = 0;         // ...and whose answer it showed: each is shown once
 
     Toolbar toolbar;
     TimeRuler ruler;
@@ -126,6 +133,14 @@ private:
     void reportSynthProblem();
 
     void showMidiMenu();
+
+    /** The update check's news: an answer the user asked for goes in the status line, whatever it
+        is; a newer release shows as the Update button however it was found, unless it's the one
+        the user chose to skip. */
+    void updateCheckChanged();
+    void refreshUpdateButton();
+    void openUpdatePage (const updates::Release&);
+
     void importMidi();
     void importMidiFile (const juce::File&);
     void exportMidi();
