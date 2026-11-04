@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // A minimal polyphonic VST3 sine synth, written directly against the VST3 SDK's interfaces
 // (pluginterfaces only: no JUCE, no public.sdk classes). It's only used by the developer harness to
 // check how MPE Roll plays VST3 synths that aren't built with JUCE.
@@ -76,7 +79,7 @@ using FUnknownPrivate::iidEqual;
 constexpr TUID synthClassId = INLINE_UID (0x4D50454E, 0x4F544558, 0x50544553, 0x54535931);
 
 constexpr const char* synthName = "MPE Roll Note Expression Test Synth";
-constexpr const char* vendorName = "Glowing Pancake";
+constexpr const char* vendorName = "MPE Roll";
 
 constexpr Vst::ParamID pitchBendId = 1;
 constexpr Vst::NoteExpressionTypeID pressureTypeId = Vst::kCustomStart;     // 100000

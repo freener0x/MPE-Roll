@@ -1,0 +1,11 @@
+# Dependabot keeps the GitHub Actions the workflows use (actions/checkout and the like) up to date:
+# it opens a pull request when one has a new version, checking weekly. The workflows name the
+# actions by major version (checkout@v7), so a pull request comes only for a new major version.
+# JUCE, CLAP and LAME are pinned through CMake's FetchContent in CMakeLists.txt, which Dependabot
+# doesn't cover: those are updated by hand.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

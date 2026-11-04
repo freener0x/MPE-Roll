@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #include "SettingsPanel.h"
 #include "MpeLookAndFeel.h"
 #include "PropertyFields.h"
@@ -5,6 +8,8 @@
 #include "core/ControllerPresets.h"
 #include "DonatePanel.h"
 #include "plugin/BuildInfo.h"
+#include "plugin/Links.h"
+#include "plugin/UpdateChecker.h"
 
 namespace mperoll
 {
@@ -78,18 +83,80 @@ namespace
     class ActionProp : public juce::ButtonPropertyComponent
     {
     public:
-        ActionProp (const juce::String& name, const juce::String& text, std::function<void()> actionFn)
-            : ButtonPropertyComponent (name, false), buttonText (text), action (std::move (actionFn))
+        ActionProp (const juce::String& name, const juce::String& buttonText, std::function<void()> actionFn)
+            : ActionProp (name, [buttonText] { return buttonText; }, {}, std::move (actionFn))
+        {
+        }
+
+        /** A button whose words, and whether it can be pressed, follow what it acts on. */
+        ActionProp (const juce::String& name, std::function<juce::String()> textFn, std::function<bool()> enabledFn,
+                    std::function<void()> actionFn)
+            : ButtonPropertyComponent (name, false), text (std::move (textFn)), enabled (std::move (enabledFn)),
+              action (std::move (actionFn))
         {
             refresh();
         }
 
+        void refresh() override
+        {
+            if (enabled != nullptr)
+                setEnabled (enabled());
+
+            ButtonPropertyComponent::refresh();
+        }
+
         void buttonClicked() override               { action(); }
-        juce::String getButtonText() const override { return buttonText; }
+        juce::String getButtonText() const override { return text(); }
 
     private:
-        juce::String buttonText;
+        std::function<juce::String()> text;
+        std::function<bool()> enabled;
         std::function<void()> action;
+    };
+
+    /** A button for the newer release the update check knows of, which acts on the release it shows:
+        another MPE Roll may have found a newer one since the row was drawn, and Skip version 0.2.0
+        must never skip 0.2.1. */
+    class ReleaseProp : public juce::ButtonPropertyComponent
+    {
+    public:
+        using Known = std::optional<UpdateChecker::KnownRelease>;
+
+        ReleaseProp (const juce::String& name, std::function<Known()> findFn, std::function<juce::String (const Known&)> textFn,
+                     std::function<bool (const Known&)> enabledFn, std::function<void (const UpdateChecker::KnownRelease&)> actionFn)
+            : ButtonPropertyComponent (name, false), find (std::move (findFn)), text (std::move (textFn)),
+              enabled (std::move (enabledFn)), action (std::move (actionFn))
+        {
+            refresh();
+        }
+
+        void refresh() override
+        {
+            shown = find();
+            setEnabled (enabled (shown));
+            ButtonPropertyComponent::refresh();
+        }
+
+        void buttonClicked() override
+        {
+            if (shown.has_value() && enabled (shown))
+            {
+                const juce::Component::SafePointer<ReleaseProp> safe (this);
+                action (*shown);
+
+                if (safe != nullptr)
+                    refresh();
+            }
+        }
+
+        juce::String getButtonText() const override     { return text (shown); }
+
+    private:
+        std::function<Known()> find;
+        std::function<juce::String (const Known&)> text;
+        std::function<bool (const Known&)> enabled;
+        std::function<void (const UpdateChecker::KnownRelease&)> action;
+        Known shown;
     };
 
     /** A line of text to type in, taken when Return is pressed or the field loses focus. */
@@ -135,8 +202,8 @@ namespace
     };
 }
 
-SettingsPanel::SettingsPanel (MpeRollProcessor& p)
-    : processor (p), document (p.getDocument())
+SettingsPanel::SettingsPanel (MpeRollProcessor& p, UpdateChecker& u)
+    : processor (p), document (p.getDocument()), updates (&u)
 {
     auto settings = [this] { return document.getSettings(); };
 
@@ -343,6 +410,17 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     playback.add (new BoolProp ("Chase notes",
         [settings] { return settings().playback.chaseNotes; },
         [this] (bool b) { edit ([b] (EngineSettings& e) { e.playback.chaseNotes = b; }); }));
+
+    // Follow FL with FL's own notes for the channel saying when the clip sounds, so FL's Channel Rack
+    // switch stops it too. The song position alone can't: it runs on with the channel switched off.
+    auto* gate = new BoolProp ("Follow FL only while FL holds a note",
+        [settings] { return settings().playback.gateByHostNotes; },
+        [this] (bool b) { edit ([b] (EngineSettings& e) { e.playback.gateByHostNotes = b; }); });
+    gate->setTooltip ("Put a note under MPE Roll's channel in FL's piano roll or playlist; the clip sounds only while it "
+                      "lasts, at the song position, so the Channel Rack switch, patterns and the playlist control it. "
+                      "Those notes only open the gate: they aren't played.");
+    gate->setPreferredHeight (40);      // two lines for its name, which one line would cut short
+    playback.add (gate);
     playback.add (new NumberProp ("Expression resolution (ms)", 0.1, 20.0, 0.1,
         [settings] { return (double) settings().playback.controlIntervalMs; },
         [this] (double v) { edit ([v] (EngineSettings& e) { e.playback.controlIntervalMs = (float) v; }); }));
@@ -365,6 +443,103 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
 
     window.add (new InfoProp ("Window", [this] { return WindowDrawing::describe (*this); }));
     panel.addSection ("Window", window, false);
+
+    // Updates: whether MPE Roll asks GitHub for a newer release as it opens, once a day (off unless
+    // turned on here), what it found last time, and asking now. Kept for the computer, beside the
+    // window's settings, in a file every MPE Roll running goes by: the rows are drawn from it again
+    // whenever the checker says it's changed, which it does a moment after another MPE Roll changes
+    // it too. Detached, the panel has no checker, and its lines say nothing.
+    Comps updateItems;
+
+    // The newer release the last check found, for its page even if it's skipped: the Update button
+    // and the File menu leave a skipped one out, so this is where it can still be got.
+    const auto known = [this, userSettings]
+    {
+        return updates != nullptr ? UpdateChecker::findNewerRelease (userSettings()) : std::nullopt;
+    };
+
+    auto* automatic = new BoolProp ("Check for updates when MPE Roll opens (once a day)",
+        [userSettings] { return UpdateChecker::isAutomatic (userSettings()); },
+        [this, userSettings] (bool b)
+        {
+            if (updates != nullptr)
+                updates->setAutomatic (userSettings(), b);
+        });
+    automatic->setTooltip (UpdateChecker::reachesGitHub()
+                               ? "Once a day, as MPE Roll opens, asks GitHub whether a newer MPE Roll is out, and shows one as an "
+                                 "Update button beside the status line. Off unless you turn it on."
+                               : "On Windows and macOS, asks GitHub once a day, as MPE Roll opens, whether a newer MPE Roll is "
+                                 "out. This Linux build can't make HTTPS requests, so it sends nothing. Off unless you turn it on.");
+    automatic->setPreferredHeight (40);     // two lines for its name, which one line would cut short
+    updateItems.add (automatic);
+    updateItems.add (new InfoProp ("Last check", [this, userSettings]
+    {
+        return updates != nullptr ? updates->describeLastCheck (userSettings()) : juce::String();
+    }, 60));
+    updateItems.add (new ActionProp ("Check now",
+        [this]
+        {
+            return updates != nullptr && updates->getState().phase == UpdateChecker::Phase::checking
+                     ? juce::String ("Checking...") : juce::String ("Check for updates now");
+        },
+        [this] { return updates != nullptr && updates->getState().phase != UpdateChecker::Phase::checking; },
+        [this, userSettings]
+        {
+            if (updates != nullptr)
+                updates->checkNow (userSettings());
+        }));
+    updateItems.add (new ReleaseProp ("Newer release", known,
+        [] (const ReleaseProp::Known& release)
+        {
+            return release.has_value() ? "Get MPE Roll " + release->release.version() + " (release page)..." : juce::String ("None known");
+        },
+        [] (const ReleaseProp::Known& release) { return release.has_value(); },
+        [] (const UpdateChecker::KnownRelease& release) { UpdateChecker::openReleasePage (release.release); }));
+    updateItems.add (new ReleaseProp ("Skip it", known,
+        [] (const ReleaseProp::Known& release)
+        {
+            return ! release.has_value() ? juce::String ("Skip version")
+                 : release->skipped      ? juce::String ("Skipped")
+                                         : "Skip version " + release->release.version();
+        },
+        [] (const ReleaseProp::Known& release) { return release.has_value() && ! release->skipped; },
+        [this, userSettings] (const UpdateChecker::KnownRelease& release)
+        {
+            if (updates != nullptr)
+                updates->skip (userSettings(), release.release);
+        }));
+    // Room for its lines in JUCE's default typeface, which on Windows and macOS (Verdana, Lucida
+    // Grande) is wider than the one it was laid out with here on Linux, where the Windows wording
+    // takes eight lines of 112 pixels: ten there.
+   #if JUCE_LINUX
+    constexpr int sendsHeight = 112;
+   #else
+    constexpr int sendsHeight = 150;
+   #endif
+
+    updateItems.add (new InfoProp ("What it sends", []
+    {
+        // The Linux build can't make HTTPS requests: it sends GitHub nothing, whatever the switch says.
+        if (! UpdateChecker::reachesGitHub())
+            return juce::String ("Nothing: this Linux build can't make HTTPS requests, so it never asks GitHub, and a check only "
+                                 "says so. On Windows and macOS a check sends GitHub one request, with MPE Roll's name and "
+                                 "version; MPE Roll's Privacy page has the details.");
+
+       #if JUCE_MAC
+        const juce::String systemHeaders ("the headers macOS adds (your Mac's languages, and any github.com cookies the host keeps)");
+       #else
+        const juce::String systemHeaders ("the standard headers your system adds");
+       #endif
+
+        return juce::String (UpdateChecker::asksReleasePage()
+                                 ? "One request to GitHub for the latest release (a second, to the release page, if that fails). "
+                                 : "One request to GitHub's API for the latest release. ")
+             + "Nothing about you, your computer or your projects goes with it beyond what every web request carries: your IP "
+               "address, " + systemHeaders + ", and MPE Roll's name and version (MPE Roll/" + getVersionString()
+             + "). MPE Roll's Privacy page has the details.";
+    }, sendsHeight));
+    updateRows = updateItems;
+    panel.addSection ("Updates", updateItems, false);
 
     // The look: a skin, the user's own colours on top of it, and a picture behind the grid. Kept for
     // every MPE Roll on this computer.
@@ -413,6 +588,15 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
     supportLink.setColour (juce::HyperlinkButton::textColourId, Theme::glide);
     addAndMakeVisible (supportLink);
 
+    // And a word to friends: the website has posts ready to put on X, Instagram and Facebook. In the
+    // dim text colour, so it asks for no attention of its own.
+    shareLink.setButtonText ("Share MPE Roll");
+    shareLink.setURL (juce::URL (juce::String (links::share)));
+    shareLink.setTooltip ("Opens the website's share page: ready-made posts for X, Instagram and Facebook");
+    shareLink.setJustificationType (juce::Justification::centredLeft);
+    shareLink.setColour (juce::HyperlinkButton::textColourId, Theme::textDim);
+    addAndMakeVisible (shareLink);
+
     // Which build this is, so a tester can tell which one the DAW loaded.
     buildName.setText (getBuildName(), juce::dontSendNotification);
     buildName.setJustificationType (juce::Justification::centredRight);
@@ -423,6 +607,7 @@ SettingsPanel::SettingsPanel (MpeRollProcessor& p)
 
     document.addChangeListener (this);
     skins->addChangeListener (this);
+    updates->addChangeListener (this);
     setSize (460, 640);
 
     // The copies load, sleep and wake on their own: their lines are kept up to date.
@@ -435,6 +620,7 @@ SettingsPanel::~SettingsPanel()
 
     if (! detached)
     {
+        updates->removeChangeListener (this);
         skins->removeChangeListener (this);
         document.removeChangeListener (this);
     }
@@ -449,6 +635,9 @@ void SettingsPanel::detach()
     stopTimer();
     copyStatus = nullptr;
     playedWith = nullptr;
+    updateRows.clear();
+    updates->removeChangeListener (this);
+    updates = nullptr;      // the editor's, which goes with it
     skins->removeChangeListener (this);
     document.removeChangeListener (this);
     panel.clear();      // and with the properties go their callbacks into the processor and document
@@ -477,10 +666,21 @@ void SettingsPanel::edit (const std::function<void (EngineSettings&)>& change)
     document.setSettings (s);
 }
 
-void SettingsPanel::changeListenerCallback (juce::ChangeBroadcaster*)
+void SettingsPanel::changeListenerCallback (juce::ChangeBroadcaster* source)
 {
+    // The update check's news, which another MPE Roll's change to its file brings too: its rows
+    // alone, so a line being typed elsewhere in the panel is left as it is.
+    if (updates != nullptr && source == updates)
+    {
+        for (auto* row : updateRows)
+            row->refresh();
+
+        return;
+    }
+
     panel.refreshAll();
     supportLink.setColour (juce::HyperlinkButton::textColourId, Theme::glide);   // the skin may have changed
+    shareLink.setColour (juce::HyperlinkButton::textColourId, Theme::textDim);
     buildName.setColour (juce::Label::textColourId, Theme::textDim);
     repaint();
 }
@@ -493,12 +693,20 @@ void SettingsPanel::paint (juce::Graphics& g)
 void SettingsPanel::resized()
 {
     auto area = getLocalBounds().reduced (4);
-    // The link as wide as its words in whatever font the system has, the build's name in the rest.
+    // The links as wide as their words in whatever font the system has, the build's name in the rest,
+    // or on a line of its own above them when the rest is too narrow for all of it: a build's name
+    // ("MPE Roll 0.2.0, build 123, f2ea3c4, 2026-11-03") is only any use whole.
     auto bottom = area.removeFromBottom (24).withTrimmedLeft (4);
     supportLink.setBounds (bottom);
     supportLink.changeWidthToFitText();
     bottom.removeFromLeft (supportLink.getWidth() + 8);
-    buildName.setBounds (bottom);
+    shareLink.setBounds (bottom);
+    shareLink.changeWidthToFitText();
+    bottom.removeFromLeft (shareLink.getWidth() + 8);
+
+    const auto buildWidth = juce::GlyphArrangement::getStringWidth (buildName.getFont(), buildName.getText())
+                          + (float) buildName.getBorderSize().getLeftAndRight();
+    buildName.setBounds ((float) bottom.getWidth() >= buildWidth ? bottom : area.removeFromBottom (20).withTrimmedLeft (4));
     panel.setBounds (area);
 }
 

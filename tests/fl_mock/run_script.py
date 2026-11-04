@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Runs a generated FL Studio piano roll script against the mock flpianoroll module and checks the result.
 
 Usage: run_script.py path/to/script.pyscript   (expects path/to/script.expect.json next to it)

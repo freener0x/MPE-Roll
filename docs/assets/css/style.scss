@@ -1,9 +1,33 @@
 ---
 ---
 
+// MPE Roll's additions to Cayman, in its colours (_sass/variables.scss of the theme), with three of
+// them darker, for text that reads well enough (WCAG AA: 4.5:1 for text under 24 px, 3:1 above).
+// Set before the theme, whose variables are !default, so every page has them.
+
+// Headings: Cayman's green is 3.7:1 on white and 3.4:1 on the front page's tinted bands, too light
+// for the smaller headings (h3 and below, under 24 px); this one is 5.4:1 and 5:1.
+$section-headings-color: #127a46;
+
+// Small grey text (notes under buttons, captions, the hero's fine print, the footer's credits, the
+// guides' quotes): Cayman's $blockquote-text-color is too light for it (3.3:1 on white); this one
+// is 5:1 on white and 4.6:1 on the tinted bands.
+$muted-text-color: #637279;
+$blockquote-text-color: $muted-text-color;
+
 @import "jekyll-theme-cayman";
 
-// MPE Roll's additions to Cayman, in its colours (_sass/variables.scss of the theme).
+// The buttons' gradient: Cayman's header colours, with the green end as dark as the headings', so
+// their white words are 5.4:1 there too (on Cayman's green they'd be 3.7:1).
+$button-green: $section-headings-color;
+
+// The icon above the site's name (images/logo.svg, made by tools/make_icons.py).
+.project-logo {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 12px;
+}
 
 .project-name a {
   color: inherit;
@@ -30,8 +54,19 @@
     border-color: rgba(255, 255, 255, 0.45);
   }
 
+  // Two buttons to a row on a phone, so the header doesn't push the page a screen down.
   @include small {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.6rem 0.5rem;
+      text-align: center;
+    }
   }
 }
 
@@ -41,7 +76,7 @@
   }
 
   .muted {
-    color: $blockquote-text-color;
+    color: $muted-text-color;
   }
 
   .small {
@@ -70,13 +105,36 @@
   padding: 0.5rem 1.1rem;
   color: #fff;
   font-weight: bold;
-  background-color: $header-bg-color;
-  background-image: linear-gradient(120deg, $header-bg-color-secondary, $header-bg-color);
+  background-color: $button-green;
+  background-image: linear-gradient(120deg, $header-bg-color-secondary, $button-green);
   border-radius: 0.3rem;
 
   &:hover {
     text-decoration: none;
     filter: brightness(1.1);
+  }
+}
+
+// The same look on a <button> (the share page's Share button).
+button.button-link {
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  border: 0;
+}
+
+// A link that looks like a button, without asking for as much attention: the issue forms.
+.button-quiet {
+  display: inline-block;
+  padding: 0.45rem 0.9rem;
+  color: $body-link-color;
+  background: #fff;
+  border: 1px solid $border-color;
+  border-radius: 0.3rem;
+
+  &:hover {
+    text-decoration: none;
+    border-color: $body-link-color;
   }
 }
 
@@ -141,4 +199,458 @@ button[data-copy] {
 
 .page-header :focus-visible {
   outline-color: #fff;
+}
+
+.site-footer-links {
+  display: block;
+}
+
+// The share page: each post as it will read, wrapped like text rather than scrolled like code.
+.main-content pre.post-text {
+  max-width: 44rem;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #fff;
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+}
+
+// The picture for an Instagram post, as the front page shows it, a little smaller.
+.main-content img.share-picture {
+  display: block;
+  width: 36rem;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.4rem;
+  box-shadow: 0 0.4rem 1.6rem rgba(0, 0, 0, 0.18);
+}
+
+// ------------------------------------------------------------- the front page (_layouts/home.html)
+
+// Its sections run the window's full width, as bands, every other one tinted; what's in a band
+// keeps to a column of at most 72rem.
+$home-width: 72rem;
+$home-tint: #f3f6fa;
+$home-wide: "screen and (min-width: 52em)";
+
+.main-content.home {
+  max-width: none;
+  padding: 0;
+
+  // The pictures carry their width and height, so they keep their shape when scaled down.
+  img,
+  video {
+    height: auto;
+  }
+
+  // Lined up with the bands' columns above it.
+  .site-footer {
+    width: calc(100% - 3rem);
+    max-width: $home-width;
+    margin: 0 auto;
+    padding: 2rem 0 3rem;
+
+    @include small {
+      width: calc(100% - 2rem);
+    }
+  }
+}
+
+.home {
+  // flow-root keeps the margins of what's inside a band (a heading's, at its foot) inside it, so no
+  // strip of the page shows between two tinted bands.
+  .band {
+    display: flow-root;
+    padding: 3.5rem 1.5rem;
+
+    @include small {
+      padding: 2.25rem 1rem;
+    }
+  }
+
+  .band-inner {
+    max-width: $home-width;
+    margin: 0 auto;
+  }
+
+  .tint {
+    background-color: $home-tint;
+  }
+
+  h2 {
+    margin-top: 0;
+    font-size: 1.9rem;
+
+    @include small {
+      font-size: 1.6rem;
+    }
+  }
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1.35rem;
+  }
+
+  // A picture, or the clip: a shadow sets it off the page; the caption is small, under it.
+  .shot {
+    margin: 0;
+
+    img,
+    video {
+      display: block;
+      max-width: 100%;
+      border-radius: 0.4rem;
+      box-shadow: 0 0.4rem 1.6rem rgba(0, 0, 0, 0.18);
+    }
+
+    a {
+      display: block;
+    }
+
+    figcaption {
+      margin-top: 0.6rem;
+      font-size: 0.85em;
+      color: $muted-text-color;
+    }
+  }
+
+  // A picture taller than it's wide keeps to most of a screen's height (_includes/screenshot.html
+  // caps its width for that), in the middle of its column.
+  .shot.tall {
+    justify-self: center;
+  }
+
+  // A file's name, as a chip that shows on the tinted bands too, where Cayman's own background for
+  // code is the band's colour (and its padding would read as a space before a comma). Its text is
+  // darker than Cayman's code colour, which is 4:1 on the chip on a tinted band; this is 5:1. On
+  // one line ("MPE Roll.vst3" isn't to be split after MPE), but on the narrowest phones, where the
+  // longest wouldn't fit; _includes/inline.html keeps the punctuation after it on its line.
+  code {
+    padding: 0.1em 0.3em;
+    color: #4a6470;
+    white-space: nowrap;
+    background-color: rgba(86, 116, 130, 0.12);
+    border-radius: 0.25rem;
+
+    @media screen and (max-width: 21.5em) {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+  }
+}
+
+// The hero: the lead, the Download box and the fine print on the left, the editor's picture on the
+// right, so both the button and the picture show on a laptop's first screen. On a narrow screen
+// they're under each other, the picture straight after the lead. Half and half on a tablet, where a
+// narrower left column would be too narrow for the file names in the Download box.
+.home .hero {
+  padding-top: 2rem;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "lead" "picture" "download" "notes";
+  gap: 1.25rem;
+
+  @media #{$home-wide} {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    // The last row takes what the picture needs beyond the left column, rather than spreading it
+    // between the lead, the box and the fine print.
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas: "lead picture" "download picture" "notes picture";
+    gap: 1.25rem 2.5rem;
+    align-items: start;
+  }
+
+  @media screen and (min-width: 64em) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: 3rem;
+  }
+
+  > .hero-lead {
+    grid-area: lead;
+  }
+
+  > .hero-picture {
+    grid-area: picture;
+  }
+
+  > .download {
+    grid-area: download;
+  }
+
+  > .hero-notes {
+    grid-area: notes;
+  }
+}
+
+.hero-lead p {
+  margin: 0;
+  font-size: 1.15em;
+}
+
+.hero-notes {
+  font-size: 0.9em;
+  color: $muted-text-color;
+
+  .tested {
+    margin-bottom: 0.4rem;
+    font-weight: bold;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.download {
+  padding: 1.25rem 1.5rem;
+  background: $home-tint;
+  border: 1px solid $border-color;
+  border-radius: 0.5rem;
+
+  @include small {
+    padding: 1rem;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  .download-hint {
+    margin: 0.75rem 0 0.5rem;
+  }
+
+  .download-more {
+    font-size: 0.9em;
+  }
+}
+
+// The Download box again, at the foot of At a glance: white on the tinted band, the button beside
+// the words where there's room.
+.home .download-row {
+  margin-top: 1.5rem;
+  background: #fff;
+
+  @media #{$home-wide} {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem 1.75rem;
+
+    .download-main {
+      flex: none;
+    }
+
+    .download-hint {
+      margin-top: 0;
+    }
+  }
+}
+
+.button-link.button-big {
+  padding: 0.75rem 1.75rem;
+  font-size: 1.2em;
+}
+
+.download-list {
+  margin: 0 0 0.5rem;
+  padding: 0;
+  font-size: 0.9em;
+  list-style: none;
+
+  li {
+    margin: 0.2rem 0;
+  }
+}
+
+// Why MPE Roll: three cards, side by side where there's room.
+.home .cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+
+  @media #{$home-wide} {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.home .card {
+  padding: 1.25rem 1.5rem;
+  background: #fff;
+  border: 1px solid $border-color;
+  border-top: 4px solid $header-bg-color;
+  border-radius: 0.5rem;
+
+  @include small {
+    padding: 1rem 1.1rem;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+// The clip, under its heading at the left as every section's content is; its caption no wider.
+.home .demo .shot {
+  max-width: 960px;
+}
+
+// The feature panels: the words beside a picture, its side alternating; or beside a short list.
+// The heading above them shares the first one's tint, and sits close above it. A panel's heading
+// lines up with the top of its picture.
+.home .features-head {
+  padding-bottom: 0;
+
+  + .panel {
+    padding-top: 1.5rem;
+  }
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+
+  @media #{$home-wide} {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 3rem;
+  }
+}
+
+@media #{$home-wide} {
+  .panel-flip .panel-grid {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .panel-flip .panel-text {
+    order: 2;
+  }
+
+  // A picture taller than it's wide (the lane menu, the settings) gets a column just its width,
+  // and the words the rest, in lines no longer than they're easy to read.
+  .panel-grid.panel-tall {
+    grid-template-columns: minmax(0, 1fr) auto;
+
+    .panel-text {
+      max-width: 38rem;
+    }
+  }
+
+  .panel-flip .panel-grid.panel-tall {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+// A panel whose picture hasn't been made: its words in a column of reading width, under the
+// heading's left edge.
+.home .panel-grid.panel-text-only {
+  display: block;
+
+  .panel-text {
+    max-width: 48rem;
+  }
+}
+
+.home .panel-text p:last-child {
+  margin-bottom: 0;
+}
+
+.home .panel-list {
+  margin: 0;
+  padding: 1rem 1.25rem 1rem 2.25rem;
+  background: #fff;
+  border: 1px solid $border-color;
+  border-left: 4px solid $header-bg-color;
+  border-radius: 0.4rem;
+
+  li {
+    margin: 0.3rem 0;
+  }
+}
+
+// At a glance: three columns where there's room for the file names on one line (on a tablet, two,
+// what's in each download across both under them), then the note on unsigned builds and the
+// Download box again.
+.home .glance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+
+  @media #{$home-wide} {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem 2.5rem;
+
+    > :nth-child(3) {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media screen and (min-width: 64em) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2.5rem;
+
+    > :nth-child(3) {
+      grid-column: auto;
+    }
+  }
+
+  ul {
+    padding-left: 1.2rem;
+  }
+
+  li {
+    margin-bottom: 0.5rem;
+  }
+}
+
+.home .note-box {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: #fff8e6;
+  border-left: 4px solid #e0a020;
+  border-radius: 0.3rem;
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.home .guide-list li {
+  margin-bottom: 0.5rem;
+}
+
+.home .issue-forms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+// Spread the word and Support MPE Roll, side by side where there's room.
+.home .pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2.5rem;
+
+  @media #{$home-wide} {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4rem;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
 }

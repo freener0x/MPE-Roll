@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The website's touch icon (docs/apple-touch-icon.png, for iPhone and iPad home screens): the icon
+       as a full-bleed square. iOS rounds a touch icon's corners itself and fills any transparency with
+       black, so this one is ink to the edges, with no rim of its own and no transparency. The group
+       holds a copy of mpe-roll.svg's shapes without its tile, the note and the glide at the same size
+       and place; the roll lines cross the whole width instead of stopping at a rim. tools/make_icons.py
+       renders it at 180 px and checks the copy (the lines by their heights). -->
+  <rect width="64" height="64" fill="#16181c"/>
+  <g>
+    <path d="M0 24.5H64M0 36.5H64M0 48.5H64" fill="none" stroke="#292d35" stroke-width="1"/>
+    <rect x="6" y="38" width="30" height="9" rx="4.5" fill="#6fcf97"/>
+    <path d="M36 42.5C45 42.5 43 18.5 52 18.5H56" fill="none" stroke="#ffb04a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

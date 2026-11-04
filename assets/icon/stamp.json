@@ -1,0 +1,176 @@
+{
+  "made_by": "tools/make_icons.py",
+  "renderer": "Chromium 141.0.7390.37",
+  "inputs": {
+    "assets/icon/mpe-roll.svg": "d38cb6ba0ccffae9c5f054a22af58837659e1fa61545708c20d407bc0e7bcc1e",
+    "assets/icon/mpe-roll-small.svg": "c018cfe44a699d03fcf29444fb434c794e9b6a3f38a08e09dbb7c9c0152091b7",
+    "assets/icon/social.svg": "eeb749d0696620268ae00e7288a4fb12dd3ba46ed948c17923e45a44e43b0c74",
+    "assets/icon/banner.svg": "393b392f84eac2a6f3ffc04372e2b6d94f3cd1adb5163d4a32c8d7e1d22925b4",
+    "assets/icon/banner-light.svg": "39ee64317e59f17d10a66c57985c3d8ee16ebcacfa41bd158fde29483c87a53c",
+    "assets/icon/wizard-large.svg": "d266dbe9ce20822296d6136a099a9fc165a01ee5165e12c966c8218a9212294a",
+    "assets/icon/wizard-small.svg": "4e6632a3a5aaf2c1a303e5f0f2eea5ff54349ecc1569f6aaacc74b02fab4c203",
+    "assets/icon/apple-touch-icon.svg": "53f2950f8d3f1e5a4cd606af9ade403aa9e26609532631a478945dc8ce1085a5",
+    "tools/make_icons.py": "6a90b251c296fcebdb4c7fa5159dcd45d52e41b61c0c540fdacc9eb826d99de8"
+  },
+  "outputs": {
+    "assets/icon/png/icon-16.png": {
+      "size": [16, 16],
+      "sha256": "0e461c8591046671088fb63c32362635f65de1a99173bd8c88036e8636fdb87f"
+    },
+    "assets/icon/png/icon-20.png": {
+      "size": [20, 20],
+      "sha256": "a27fe2b297d35368b334595092b0da498873810a9f46f02cd29ab74142b6a5bd"
+    },
+    "assets/icon/png/icon-24.png": {
+      "size": [24, 24],
+      "sha256": "d4000daa5ece8edd78d42d7cf4df6806c20f52d521db2d04d0641c6baefaaf0b"
+    },
+    "assets/icon/png/icon-32.png": {
+      "size": [32, 32],
+      "sha256": "d02768ab6634eb0802843fe54986b00f4f6eb0e1ab23c5be91d2886342f2b43e"
+    },
+    "assets/icon/png/icon-40.png": {
+      "size": [40, 40],
+      "sha256": "0cc32e8fe51da569942770c89f513cdc1c0a3879f814d4ef5b142d75401cc3eb"
+    },
+    "assets/icon/png/icon-48.png": {
+      "size": [48, 48],
+      "sha256": "dde63d1493de06e5d6eb82fe4d7e3e02346e7339b6d65f94dd9db8f32e47f06b"
+    },
+    "assets/icon/png/icon-64.png": {
+      "size": [64, 64],
+      "sha256": "45b055fae0bc6f2e8daddff61b06d0b21a4bdc08b853fe996e5790818c380a18"
+    },
+    "assets/icon/png/icon-128.png": {
+      "size": [128, 128],
+      "sha256": "c9cbcd3dee110364e6cf00c22a9d9ada95295e7264fd2375e1f391fc22ef7cab"
+    },
+    "assets/icon/png/icon-256.png": {
+      "size": [256, 256],
+      "sha256": "0cfe5dead4c93946f6fde0127868e5c77a7e6d180395f7efe81346f32910725e"
+    },
+    "assets/icon/png/icon-512.png": {
+      "size": [512, 512],
+      "sha256": "effeb58f3e802396362f7ab50eb47b72161c7cde67b293b24de9957672380d69"
+    },
+    "assets/icon/png/icon-1024.png": {
+      "size": [1024, 1024],
+      "sha256": "df48a8f06b57487a7822d633a69e77e4c29001b423691c078a49165321903195"
+    },
+    "assets/icon/icon-big-1024.png": {
+      "size": [1024, 1024],
+      "sha256": "df48a8f06b57487a7822d633a69e77e4c29001b423691c078a49165321903195"
+    },
+    "assets/icon/icon-small-64.png": {
+      "size": [64, 64],
+      "sha256": "a3fb05333edf2bf0d55d82c9b402fb7266e0d77bfaef0c68bf95c4046d3c7425"
+    },
+    "assets/icon/icon-big-mac-1024.png": {
+      "size": [1024, 1024],
+      "sha256": "343548a021822817cdca050d5994fadab941cd11c52130d21357e0d03d2677a9"
+    },
+    "assets/icon/icon-small-mac-64.png": {
+      "size": [64, 64],
+      "sha256": "eabb5ebac49033f060fc41f69e48f07f3a2843d206b6719ad8fb6ba34918a979"
+    },
+    "assets/icon/mpe-roll.ico": {
+      "images": ["16x16 bmp", "24x24 bmp", "32x32 bmp", "48x48 bmp", "64x64 bmp", "256x256 png"],
+      "sha256": "9402685e910475c4f0b309a80454eac398d75d14c50d5cf3584d3c7e67bcccde"
+    },
+    "assets/icon/wizard-large-202x386.png": {
+      "size": [202, 386],
+      "sha256": "96ae327c65c3846c43548cc836c04935437be28cb71c0e4c6a24934261966572"
+    },
+    "assets/icon/wizard-large-269x515.png": {
+      "size": [269, 515],
+      "sha256": "6b83a7e4289d70cf34b8742b27a2dbab5dd869d861b878985e84b5113276e3bc"
+    },
+    "assets/icon/wizard-large-336x643.png": {
+      "size": [336, 643],
+      "sha256": "b0ad2bb593dc213fe554ad68c9341b71914f5bced1e17b369638c0cf803fb9fa"
+    },
+    "assets/icon/wizard-large-403x772.png": {
+      "size": [403, 772],
+      "sha256": "7b709e39fba8358112ff889bdf10d2f1d3d92d45f456149486fd6826e2d35434"
+    },
+    "assets/icon/wizard-large-430x824.png": {
+      "size": [430, 824],
+      "sha256": "bee03ef009723e152df56e65ec0ca420742d78e6c691911d97d62d1008811172"
+    },
+    "assets/icon/wizard-large-498x953.png": {
+      "size": [498, 953],
+      "sha256": "5be7621da27904c7f3bea6be33cf87fff34a63931939c47e65dee4237d291a16"
+    },
+    "assets/icon/wizard-large-534x1022.png": {
+      "size": [534, 1022],
+      "sha256": "bf3785a27436354db743ae8a62c40bcb83e57ccc00fa2bc3504f9d0f6f04768e"
+    },
+    "assets/icon/wizard-small-58.png": {
+      "size": [58, 58],
+      "sha256": "9b685c444daf7da962293acdd480b43031780f21681c1bfe91b3861728830d42"
+    },
+    "assets/icon/wizard-small-77.png": {
+      "size": [77, 77],
+      "sha256": "bd1d685a015ebb9db001f27dc7a688ceeffbb85b89837b1b65d195b24f5f3e6f"
+    },
+    "assets/icon/wizard-small-97.png": {
+      "size": [97, 97],
+      "sha256": "a794d3ffe6c1e38ea912de0d4b70fb2d930e506578677c13f43d57e891082f47"
+    },
+    "assets/icon/wizard-small-116.png": {
+      "size": [116, 116],
+      "sha256": "16e8dca17ad77b6c8b6ad1d936580e02984d1b56877b1718b4fd02c1a50cbfcc"
+    },
+    "assets/icon/wizard-small-124.png": {
+      "size": [124, 124],
+      "sha256": "84b087bef09edc21c68f8ad915f94a88a6712eff2a463d22e91fc7495bd7fa17"
+    },
+    "assets/icon/wizard-small-143.png": {
+      "size": [143, 143],
+      "sha256": "c0021997bc843b640ab874727d46eeac8858f079cea502086b59cee8a64b4235"
+    },
+    "assets/icon/wizard-small-159.png": {
+      "size": [159, 159],
+      "sha256": "4b4909e87f0f145262e031e5b16e52857d6bc84049c7e6507f4743ef76bd1c4f"
+    },
+    "docs/favicon.svg": {
+      "copy_of": "assets/icon/mpe-roll-small.svg",
+      "viewBox": [64, 64],
+      "sha256": "c018cfe44a699d03fcf29444fb434c794e9b6a3f38a08e09dbb7c9c0152091b7"
+    },
+    "docs/favicon.ico": {
+      "images": ["16x16 bmp", "32x32 bmp", "48x48 bmp"],
+      "sha256": "af62b600c12af611434060b968908184aed715eaaf66fbb22f57bee242bca867"
+    },
+    "docs/apple-touch-icon.png": {
+      "size": [180, 180],
+      "sha256": "029a98a0f6c2d5c5e870a7318f8a9ea9e0ff1a2b23803fafaec74b6ee5bf2d48"
+    },
+    "docs/images/logo.svg": {
+      "copy_of": "assets/icon/mpe-roll.svg",
+      "viewBox": [64, 64],
+      "sha256": "d38cb6ba0ccffae9c5f054a22af58837659e1fa61545708c20d407bc0e7bcc1e"
+    },
+    "docs/images/icon-192.png": {
+      "size": [192, 192],
+      "sha256": "eee93cc7e6bad0909e118a0d04e40d09d4a84356b93c41546e7d74943b072d76"
+    },
+    "docs/images/icon-512.png": {
+      "size": [512, 512],
+      "sha256": "effeb58f3e802396362f7ab50eb47b72161c7cde67b293b24de9957672380d69"
+    },
+    "docs/images/social.png": {
+      "size": [1280, 640],
+      "sha256": "13235ed68c01efa4c3ae56e1efd5ca1c6176df20181b5550b6ff3aa00e3d5c85",
+      "bytes": 30017
+    },
+    "docs/images/banner-dark.png": {
+      "size": [1280, 320],
+      "sha256": "4cddb05637c5d199461b4392d75fc657c122fd5acb24ee6edb7e940db1d2d119"
+    },
+    "docs/images/banner-light.png": {
+      "size": [1280, 320],
+      "sha256": "436e40d5aa25f6f19ad4c8abe908b72096a976f997dd85c895b055575a41c5bb"
+    }
+  }
+}

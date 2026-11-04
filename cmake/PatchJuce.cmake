@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Fixes and additions in JUCE's source, run in its source folder as the patch step when CMake
 # fetches it (cmake -P PatchJuce.cmake). Each one only changes text still in its original form, so
 # running it again does nothing.
@@ -276,8 +279,16 @@ mperoll_patch("${vst2_impl}"
 # turns those back into note on/off events with IDs and note expression values. Other SysEx is
 # passed on as before.
 # The decoder goes in front of MidiEventList; a decoder from an earlier patch is replaced, so a
-# checkout patched before keeps up with changes to it.
+# checkout patched before keeps up with changes to it. Only the file from its begin marker goes
+# in: its SPDX header stays out of JUCE's file.
 file(READ "${CMAKE_CURRENT_LIST_DIR}/juce/MpeRollVst3Events.inc" decoder)
+string(FIND "${decoder}" "// MPE Roll VST3 events: begin" start)
+
+if(start EQUAL -1)
+    message(FATAL_ERROR "PatchJuce.cmake: juce/MpeRollVst3Events.inc has lost its begin marker")
+endif()
+
+string(SUBSTRING "${decoder}" ${start} -1 decoder)
 file(READ "${vst3_common}" text)
 string(FIND "${text}" "// MPE Roll VST3 events: begin" begin)
 string(FIND "${text}" "// MPE Roll VST3 events: end" end)

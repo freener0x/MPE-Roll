@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // macOS only: a plain NSView for a CLAP plugin to put its own view into.
 
 #import <AppKit/AppKit.h>

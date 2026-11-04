@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 name: Build
 
 on:
@@ -57,6 +60,19 @@ jobs:
       - name: The synth list matches docs/synths.json
         run: python3 tools/make_synth_list.py --check
 
+      # The icon's PNGs, .ico files and website images are made from the SVGs in assets/icon by
+      # tools/make_icons.py, which needs a browser to render them; --check needs only Python, and
+      # says whether what's committed was made from the SVGs that are committed.
+      - name: The icon images match assets/icon
+        run: python3 tools/make_icons.py --check
+
+      # The files of the plugin's code, tests, tools, build, installer and CI workflows start with
+      # MPE Roll's SPDX header (the licence, AGPL-3.0-only, and the copyright); README's License
+      # section lists them. Other files, Markdown, JSON and images aside, mustn't have it.
+      # tools/check_spdx.py --fix adds a missing header.
+      - name: The code, build, installer and CI files start with their SPDX header
+        run: python3 tools/check_spdx.py
+
   windows:
     name: Windows (VST3, Standalone)
     needs: changes
@@ -102,6 +118,15 @@ jobs:
       - name: UI interaction test
         run: '"$HARNESS" uitest'
 
+      # The update check against tools/fake_releases_server.py, as in the Linux job, here through
+      # WinINet as on users' computers: the headers it sends, the release page's redirect read with
+      # redirects off, its 8 s timeout, and a request called off as the window closes. The runner's
+      # Python serves it over plain HTTP on this machine; CI never asks GitHub itself (the harness
+      # stops before any check if it can't point the check elsewhere). A failure says what WinINet
+      # sent and when.
+      - name: Update check against a stand-in for GitHub (off by default, once a day, fallback)
+        run: '"$HARNESS" updatetest tools/fake_releases_server.py'
+
       - name: Hosted VST3 synth (parameters, render)
         run: |
           "$HARNESS" params "$VST3_SYNTH"
@@ -128,6 +153,13 @@ jobs:
         run: |
           "$HARNESS" bendtweaks "$PLAIN_VST3_SYNTH"
           "$HARNESS" bendtweaks "$PLAIN_VST2_SYNTH"
+
+      # The harness hands the host's MIDI to MPE Roll's own processBlock: this checks the engine, not
+      # how a host's All Notes Off reaches MPE Roll's VST3 or VST2. The synth only plays along, and its
+      # format changes nothing here, so one run is enough.
+      - name: The host's All Notes Off and notes stop or gate the clip (Follow FL, Note trigger)
+        run: |
+          "$HARNESS" gatetest "$PLAIN_VST3_SYNTH"
 
       - name: Hosted VST3 synth that takes MPE only as VST3 note expressions
         run: |
@@ -161,7 +193,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item -Recurse "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" dist/
+          Copy-Item -Recurse -Force "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" dist/   # -Force: the hidden Plugin.ico and desktop.ini too
           if (-not (Test-Path "dist/MPE Roll.vst3/Contents/x86_64-win/MPE Roll Scanner.exe")) { throw "The scanner isn't in the VST3 bundle" }
           Copy-Item "build/MpeRoll_artefacts/Release/VST/MPE Roll.dll" dist/
           Copy-Item "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner.exe" dist/
@@ -225,6 +257,38 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+      # An ad-hoc signature (identity "-", no certificate) on the three bundles: where the linker
+      # signed only the arm64 half of each binary, this signs each bundle whole, both halves with
+      # its Info.plist and resources. That meets Apple silicon's rule that arm64 code be signed, and
+      # nothing more: it names no developer and isn't notarized, so Gatekeeper still warns about a
+      # download (docs/UNSIGNED_BUILDS.md says what to do). A failing codesign stops the job.
+      - name: Sign (ad hoc)
+        run: |
+          for bundle in "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" \
+                        "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" \
+                        "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app"; do
+            codesign --force --deep -s - "$bundle"
+            codesign --verify --deep --strict --verbose=2 "$bundle"
+          done
+
+      # Apple's AU validator, on the component as signed above: an instrument (aumu) with the plugin
+      # and maker codes from CMakeLists.txt (Mpr1, Glpk). auval looks in the plug-in folders only,
+      # so a copy goes into the user's one for the check and is removed again. macOS has no timeout
+      # command; perl's alarm survives the exec and ends auval after 180 s (exit 142) if it hangs.
+      # The registrar is restarted first in case it holds a cached list (harmless if it isn't
+      # running).
+      - name: AU validation (auval)
+        run: |
+          components="$HOME/Library/Audio/Plug-Ins/Components"
+          mkdir -p "$components"
+          cp -R "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" "$components/"
+          killall -9 AudioComponentRegistrar 2> /dev/null || true
+          status=0
+          perl -e 'alarm shift; exec @ARGV' 180 auval -v aumu Mpr1 Glpk || status=$?
+          rm -rf "$components/MPE Roll.component"
+          if [ "$status" = 142 ]; then echo "auval didn't finish within 180 s."; fi
+          exit "$status"
 
       # Artifacts lose file permissions, which would leave the app's executable without its
       # executable bit. ditto zips the bundles with their permissions kept.
@@ -334,6 +398,22 @@ jobs:
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness bendtweaks \
             "build/MpeRollPlainTestSynth_artefacts/Release/VST/libMPE Roll Plain Test Synth.so"
 
+      # The harness hands the host's MIDI to MPE Roll's own processBlock: this checks the engine, not
+      # how a host's All Notes Off reaches MPE Roll's VST3 or VST2. The synth only plays along, and its
+      # format changes nothing here, so one run is enough.
+      - name: The host's All Notes Off and notes stop or gate the clip (Follow FL, Note trigger)
+        run: |
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness gatetest \
+            "build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3"
+
+      # A VST3 gets a host's MIDI controllers only as changes of the parameters it maps them to
+      # (IMidiMapping), which is how JUCE's VST3 host sends them: MPE Roll's own VST3, loaded that
+      # way, must stop its clip for an All Notes Off. Whether FL sends controllers so isn't shown here.
+      - name: MPE Roll's VST3 stops for an All Notes Off sent through its controller mapping
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness vst3hostmidi
+          "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3"
+
       # A VST3 synth that maps pitch bend on MIDI channel 1 only (JUCE's VST3 host drops MPE's bends on
       # the other channels) but takes VST3 note expressions: its notes glide only if MPE Roll sends them.
       - name: Render through a VST3 synth that takes MPE only as VST3 note expressions
@@ -372,6 +452,35 @@ jobs:
           "build/MpeRollTestSynth_artefacts/Release/VST/libMPE Roll Test Synth.so"
           "build/MpeRollFlakyTestSynth_artefacts/Release/MPE Roll Flaky Test Synth.so"
 
+      # The update check against tools/fake_releases_server.py, a stand-in for GitHub run with
+      # Python on this machine over plain HTTP: this build has no TLS, and CI never asks GitHub
+      # itself. Nothing sent while the check is off, once a day when on, the release page when the
+      # API refuses or doesn't answer, never a pre-release, failures said only when asked, two MPE
+      # Rolls running at once going by the same file, a check called off when switched off, and a
+      # request under way called off as the window closes. The Windows job runs it through WinINet.
+      - name: Update check against a stand-in for GitHub (off by default, once a day, fallback)
+        run: xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness updatetest tools/fake_releases_server.py
+
+      # The same build for people who'd try MPE Roll in a Linux host (FL Studio has none, and no
+      # Linux host has run it): the VST3 with the scanner inside, the standalone app and the
+      # scanner, in a tar so the executable bits survive the artifact. The release attaches it as
+      # experimental.
+      - name: Package
+        run: |
+          mkdir -p "MPE Roll"
+          cp -R "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" "MPE Roll/"
+          cp "build/MpeRoll_artefacts/Release/Standalone/MPE Roll" "MPE Roll/"
+          cp "build/MpeRollScanner_artefacts/Release/MPE Roll Scanner" "MPE Roll/"
+          if [ ! -x "MPE Roll/MPE Roll.vst3/Contents/x86_64-linux/MPE Roll Scanner" ]; then echo "The scanner isn't in the VST3 bundle"; exit 1; fi
+          tar -czf MPE-Roll-Linux.tar.gz "MPE Roll"
+          tar -tzvf MPE-Roll-Linux.tar.gz
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: MPE-Roll-Linux-build-${{ github.run_number }}
+          path: MPE-Roll-Linux.tar.gz
+          compression-level: 0
+
   # The website (docs/), built as GitHub Pages builds it after a merge to main: Jekyll with the
   # Cayman theme. Built for every change, documentation included, since that's what it's made of.
   site:
@@ -388,8 +497,14 @@ jobs:
 
       - name: Its pages are there, and load nothing from other sites
         run: |
-          ls _site/index.html _site/donate.html _site/FL_STUDIO.html _site/MPE_SYNTHS.html _site/assets/css/style.css
+          ls _site/index.html _site/donate.html _site/share.html _site/FL_STUDIO.html _site/MPE_SYNTHS.html \
+            _site/UNSIGNED_BUILDS.html _site/KNOWN_ISSUES.html _site/PRIVACY.html _site/assets/css/style.css
           if grep -rlE 'fonts\.(googleapis|gstatic)\.com' _site; then
             echo "These load fonts from Google"
             exit 1
           fi
+
+      # Every picture, clip, script, stylesheet and icon the pages load is the site's own, and every
+      # link into the site (pages, pictures, #places on a page) leads to something that's there.
+      - name: Nothing loaded from elsewhere, no link into the site leading nowhere
+        run: python3 tools/check_site.py _site

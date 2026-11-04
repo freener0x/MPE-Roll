@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Hosting a CLAP plugin as a juce::AudioPluginInstance.
 //
 // Threads, as CLAP defines them: the "main thread" is JUCE's message thread and the "audio
@@ -27,8 +30,10 @@
  #include <poll.h>
 #endif
 
+// The host version a CLAP plugin is given. Every target that builds this file passes it from
+// CMakeLists.txt (the plugin's through juce_add_plugin), so this is only a guard.
 #ifndef JucePlugin_VersionString
- #define JucePlugin_VersionString "0.1.0"
+ #define JucePlugin_VersionString "0.2.0"
 #endif
 
 namespace mperoll
@@ -1949,7 +1954,7 @@ ClapHostContext::ClapHostContext()
     host.clap_version = CLAP_VERSION;
     host.host_data = this;
     host.name = "MPE Roll";
-    host.vendor = "Glowing Pancake";
+    host.vendor = "MPE Roll";
     host.url = mperoll::links::repository;
     host.version = JucePlugin_VersionString;
     host.get_extension = hostcallbacks::getExtension;

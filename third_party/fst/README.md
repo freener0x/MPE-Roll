@@ -4,13 +4,14 @@ Clean-room headers for the VST2 plugin interface, written without the Steinberg 
 them so it can host VST2 synths. They come from FST 0.123 by IOhannes m zmölnig (IEM), as packaged by
 Debian (`fst-dev`). Upstream: <https://git.iem.at/zmoelnig/FST>.
 
-Licensed under the GNU General Public License, version 3 or later (see `LICENSE`). That is compatible
-with MPE Roll's AGPL-3.0 licence. FST's authors ask that projects using it are released under a
-compatible open-source licence.
+FST's headers, in `pluginterfaces/fst/`, are licensed under the GNU General Public License, version
+3 or later (see `LICENSE`). That is compatible with MPE Roll's licence, the AGPL-3.0-only. FST's
+authors ask that projects using it are released under a compatible open-source licence.
 
 `pluginterfaces/vst2.x/` holds two small shims that point the include path JUCE uses at FST, quieten
 its notes about undocumented symbols, and give placeholder names to the MIDI key name query that JUCE
-declares but MPE Roll never uses.
+declares but MPE Roll never uses. They were written for MPE Roll and are under its licence, the
+AGPL-3.0-only, as their SPDX headers say.
 
 Local changes to `fst.h`:
 

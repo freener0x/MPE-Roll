@@ -3,9 +3,11 @@
 FL Studio's piano roll can't send per-note expression to plugins. MPE Roll gets around that by being
 the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted inside it.
 
-> These steps follow Image-Line's documentation and user reports. MPE Roll has been checked inside
-> FL Studio 26.1.7 on Windows 11 with Analog Lab and Omnisphere 3 (section 7); the rest hasn't been
-> tried hands-on yet. If something here doesn't match what you see, please open an issue.
+> These steps follow Image-Line's documentation and user reports. Release 0.1.0 has been tested in
+> FL Studio 26.1.7 on Windows 11: the installer (over an earlier build too), Analog Lab as VST2 and
+> as VST3, Omnisphere 3 over MPE and Surge XT as CLAP (section 7), and *Send to FL piano roll*
+> (section 5). Release 0.2.0 hasn't been run in FL yet. The rest rests on the documentation and
+> reports, not on tests in FL. If something here doesn't match what you see, please open an issue.
 
 ## 1. Install
 
@@ -15,23 +17,49 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    it yourself.
 2. On Windows, close FL Studio and run the installer, `MPE-Roll-Setup-<version>.exe` (a build between
    releases comes zipped, with `MPE-Roll-Setup-build-N.exe` inside). If Windows says
-   *Windows protected your PC*, choose *More info*, then *Run anyway*. For the VST2, pick one of the
-   folders listed under *Options › Manage plugins*. The installer offers to remove older copies of
-   MPE Roll it finds in the plugin folders; leave them ticked unless a project of yours still needs
-   one. To install by hand instead,
-   copy the whole `MPE Roll.vst3` folder to `C:\Program Files\Common Files\VST3` (macOS:
-   `/Library/Audio/Plug-Ins/VST3`). On Windows you can use `MPE Roll.dll`, the VST2 version, instead:
-   put it in one of the plugin folders listed under *Options › Manage plugins*, with
-   `MPE Roll Scanner.exe` beside it (see step 2 below). When you update, close FL Studio first
-   (Windows can't replace a plugin file that FL has loaded) and replace every copy you installed
-   before, the `.dll` too if you used it.
+   *Windows protected your PC*, choose *More info*, then *Run anyway*: the downloads aren't
+   code-signed, and [Unsigned builds](UNSIGNED_BUILDS.md) says what Windows and macOS show, and why.
+   For the VST2, pick one of the folders listed under *Options › Manage plugins*. The installer
+   offers to remove older copies of MPE Roll it finds in the plugin folders; leave them ticked
+   unless a project of yours still needs one. To install by hand instead, copy the whole
+   `MPE Roll.vst3` folder to `C:\Program Files\Common Files\VST3` (macOS:
+   `/Library/Audio/Plug-Ins/VST3`, once the download mark is off the unzipped `MPE Roll` folder:
+   `xattr -dr com.apple.quarantine ~/Downloads/"MPE Roll"`). On Windows you can use `MPE Roll.dll`,
+   the VST2 version, instead: put it in one of the plugin folders listed under *Options › Manage
+   plugins*, with `MPE Roll Scanner.exe` beside it (see step 2 below). When you update, close FL
+   Studio first (Windows can't replace a plugin file that FL has loaded). With the installer, run
+   the newer one over the old (0.1.0's was checked this way on Windows 11); by hand, replace every
+   copy you installed before, the `.dll` too if you used it. No one has run the macOS bundles yet;
+   if you do, please report how it went.
 3. In FL Studio: *Options › Manage plugins › Find installed plugins*. The bottom of MPE Roll's File
    menu names the build that's loaded, e.g. "MPE Roll 0.1.0, release v0.1.0, fd8e433, 2026-11-01"
-   (a build between releases says "build 63" and its commit instead of the release).
+   (a build between releases says "build 63" and its commit instead of the release). From 0.2.0,
+   MPE Roll gives its maker as *MPE Roll*, where earlier builds gave *Glowing Pancake* (the
+   repository's old name). If FL still shows the old name after you update, tick *Verify plugins*
+   and *Rescan previously verified plugins* there, as FL's manual advises after an update, and click
+   *Find installed plugins* again. If it still does, FL has found an older copy: see
+   *After an update, new features are missing* under Troubleshooting. MPE Roll's plugin IDs, which
+   hosts save in projects, don't depend on the name, and neither does its settings folder
+   (`%APPDATA%\MPE Roll` on Windows).
 4. Add **MPE Roll** to the Channel Rack like any other instrument.
 5. In MPE Roll's wrapper settings (the gear icon in the plugin window's title bar), leave *Send pitch
    bend range* off so FL doesn't send its own bend range on top of MPE Roll's. If you use FL's *Smart
    disable*, turn it off for MPE Roll: MPE Roll plays its own clip, so FL may think it's idle.
+6. **Update check (off by default).** MPE Roll can tell you when a new release is out. Turn it on
+   under *MPE settings › Updates*, or ask once with *File › Check for updates now…*. When it checks,
+   MPE Roll sends one plain HTTPS request to GitHub for the latest release (api.github.com, or on
+   Windows github.com/freener0x/MPE-Roll/releases/latest if that fails). Nothing about you, your
+   computer or your project goes with it beyond what every web request carries: your IP address,
+   the plugin's name and version in the request's User-Agent header (`MPE Roll/0.2.0`, say), and
+   the headers your system adds to any request (on a Mac, the languages it prefers, and cookies for
+   github.com if FL keeps any). MPE Roll keeps only whether the check is on, the time of the last
+   check and how it went, the version it found and any version you chose to skip, in a settings
+   file of its own, which the VST2 and the VST3 both go by, even when both are open in one project.
+   Turned on, it checks at most once a day, as MPE Roll's window opens. A newer release shows as an
+   *Update to 0.3.0* button (with the version found) beside the status line until you install or
+   skip it, and the button opens the release's page: download the installer there and run it as in
+   step 2. *File › Skip version 0.3.0* keeps it quiet until a newer one is out. 0.2.0 and later
+   have it; [Privacy](PRIVACY.md#the-update-check-off-by-default) has the details.
 
 ## 2. Load a synth
 
@@ -72,12 +100,14 @@ turn off **Note expressions (CLAP, VST3)** there.
 **VST3 synths** only get MIDI pitch bend, pressure and controllers on the MIDI channels they map them
 on; the rest is dropped (that's how VST3 works). MPE Roll asks each VST3 synth which channels those
 are, and again every few seconds:
-- **Every channel** (JUCE-built synths such as Vital and Surge XT, Omnisphere 3): MPE over MIDI, as
-  above.
+- **Every channel** (JUCE-built synths such as Vital and Surge XT, Omnisphere 3 with its MPE on):
+  MPE over MIDI, as above.
 - **Channel 1 only, but it takes VST3 note expressions:** MPE Roll plays it with those, as Cubase
   and Bitwig do: every note on channel 1 with an ID of its own, its glide as tuning, and its pressure
   and timbre as whatever the synth takes for MPE's pressure and Y. *MPE settings* says *VST3 notes on
   channel 1...*. Serum 2's guide says it takes note expressions with its own MPE switch off.
+  Omnisphere 3 with its MPE off reads this way too, but no per-note expression comes out of it over
+  this path: turn its MPE on (section 7).
 - **Channel 1 only, and no note expressions:** each note's own expression can't reach it. *MPE
   settings* says so, and MPE Roll offers *Plain MIDI* when you load it. If the synth also comes as
   VST2 or CLAP, load that instead: VST2 synths get MIDI on every channel.
@@ -89,7 +119,7 @@ synth's MPE switch is, and for those without MPE (Analog Lab, ZENOLOGY...) MPE R
 MIDI* when you load them. *Keep MPE* (Escape) leaves everything as it is.
 
 The synth and its settings are saved inside your FL project. If you open the project on a computer
-that doesn't have that synth, MPE Roll shows **Missing: <synth name>** and keeps its settings, so
+that doesn't have that synth, MPE Roll shows **Missing: \<synth name\>** and keeps its settings, so
 nothing is lost when you save.
 
 **Synth without MPE?** Set *Synth expects* to **Plain MIDI (one channel)**. The most recent note's
@@ -102,9 +132,10 @@ lane), a controller (back to its usual value when you change this setting), or p
 which keeps each note's own pressure for synths that respond to it.
 
 **To hear real per-note expression**, use a synth with MPE. Two free ones: *Surge XT* (load its
-`.clap` and MPE Roll plays it with CLAP note expressions, nothing to set up; with its VST3, turn on
-MPE in its menu) and *Vital* (turn on MPE in its settings). Or play any synth with one copy per
-note, below.
+`.clap` and MPE Roll plays it with CLAP note expressions, nothing to set up, as checked in FL Studio
+26.1.7 on Windows 11, where its window opens separately from MPE Roll's, with a *Show Surge XT*
+button to bring it up; with its VST3, turn on MPE in its menu) and *Vital* (turn on MPE in its
+settings). Or play any synth with one copy per note, below.
 
 ### One copy per note: MPE for any synth
 
@@ -304,7 +335,8 @@ curves run backwards.
 
 *MPE settings › Look*:
 - **Skin:** ten looks to pick from: MPE Roll, FL Studio, Midnight, Synthwave, Solarized, Paper (light),
-  Forest, Ember, Ocean and High contrast.
+  Forest, Ember, Ocean and High contrast. MPE Roll opens in *FL Studio* until you pick another
+  (0.1.0 opened in *MPE Roll*).
 - **Colours:** every colour of the skin (grid rows and lines, notes, selected notes, glide, pressure,
   timbre, text, buttons, keys...) has a swatch. Click it to pick your own; it changes as you drag.
   *Back to the skin's colours* undoes your changes. Picking another skin starts from its colours.
@@ -329,6 +361,51 @@ Playback*).
 - Put trigger notes in patterns and arrange those patterns in the playlist as usual.
 - Notes outside the trigger range play the hosted synth directly.
 
+### Stopping MPE Roll with the Channel Rack switch
+
+In *Follow FL* mode MPE Roll plays the clip from FL's song or pattern position, not from FL's notes.
+The Channel Rack switch only stops FL's notes to the channel, so in MPE Roll 0.1.0 the clip plays on
+with the channel switched off. Muting MPE Roll's mixer track silences it in either mode. From 0.2.0
+there are two more ways, which should let the switch stop it too. Both depend on what FL does when
+it switches a channel off, which hasn't been tried yet: whether it ends the notes it's playing
+there, with note-offs or All Notes Off.
+
+- **All Notes Off from FL.** When FL sends MPE Roll All Notes Off (CC 123) or All Sound Off
+  (CC 120) while the song plays, as it may for a channel switched off, MPE Roll stops the clip's
+  notes, puts its controllers back at rest, and stays silent until you stop and start the
+  transport, the song position jumps, or FL sends a note. Each time a looping pattern or song
+  starts over counts as a jump, so in pattern mode the clip comes back with the next loop. Picking
+  another clip slot in MPE Roll doesn't end the silence. One that arrives just as the transport
+  starts or jumps is FL tidying up: it ends the notes sounding then but leaves the clip playing,
+  so a channel switched off before you press Play isn't silenced this way. With the transport
+  stopped it only ends the notes. The first time one silences the clip, the plugin log (*Load
+  synth… › Show the plugin log*) says so: "The host sent All Notes Off (CC 123): playback paused
+  until the transport restarts" (or All Sound Off, CC 120). If switching the channel off writes no
+  such line, your FL doesn't send it: use the option below.
+- **Follow FL only while FL holds a note** (*MPE settings › Playback*, Follow FL mode only). Give
+  MPE Roll's channel a note in FL's piano roll and arrange its pattern in the playlist as usual:
+  the clip then sounds only while such a note lasts, at the song position, so patterns and the
+  playlist decide when it plays, and the Channel Rack switch should too, as long as FL ends the
+  note when the channel is switched off. Any key on any channel counts, notes that touch (one
+  ending where the next starts) keep the clip playing without a break, and with *Chase notes* on,
+  the clip's notes already under the playhead start with it. FL sends a note when the playhead
+  reaches its start, so a song started in the middle of one may stay silent until the next. When
+  the last one ends, or FL sends All Notes Off, the clip's notes stop and its zone-wide bend,
+  pressure and pedals go back to rest, as when the transport stops. Switching the option on ends
+  any notes FL was playing through MPE Roll.
+
+  Those notes aren't played, but with *Rec* armed they're recorded like any other, so they become
+  notes of the clip, which plays them from then on like the rest: switch the option off while you
+  record, or delete them from the clip afterwards. Notes from a controller played through FL
+  (section 4) count as FL's too: with the option on they only open the gate, so you hear the clip
+  while you hold a key, and nothing of what you play.
+
+In *Note trigger* mode FL's notes start and stop the clips, so the switch should stop MPE Roll there
+as well, as long as FL ends the trigger note when the channel is switched off. From 0.2.0 an All
+Notes Off or All Sound Off from FL also stops a clip a note started, as the note's end would, and
+the plugin log notes the first: "The host sent All Notes Off (CC 123): the clip playing in Note
+trigger mode stopped".
+
 ## 4. Record from an MPE controller
 
 1. Put the controller in MPE mode (lower zone; most controllers default to this). In MPE Roll, pick
@@ -345,6 +422,11 @@ Playback*).
 
 If notes play twice, FL is also sending the controller to the *selected* Channel Rack channel.
 Select a different channel while you play.
+
+Switch *Follow FL only while FL holds a note* (section 3) off while you record. With it on, the
+controller's notes reach MPE Roll as FL's notes do, so they only open the gate: you hear the clip
+while you hold a key, and nothing of what you play. FL's own notes that open the gate would be
+recorded into the take too.
 
 MPE Roll follows the controller's MPE Configuration Messages automatically. If your controller isn't
 listed, or uses a different bend range or zone, choose *Generic MPE* and adjust the settings below
@@ -372,11 +454,25 @@ For everyone else, the way to play them from MPE Roll is FL's own piano roll. Th
 can't receive MPE; the closest they get to per-note expression is slide notes, fine pitch, and the
 Mod X / Mod Y, pan and release note properties, which *Send to FL piano roll* writes for you.
 
-1. Write or record the clip in MPE Roll, then click **Send to FL piano roll**.
-2. MPE Roll writes `MPE Roll Import.pyscript` to
-   `Documents\Image-Line\FL Studio\Settings\Piano roll scripts`. That's FL's user scripts folder.
-3. In FL, open the piano roll of a native synth's channel and run **MPE Roll Import** from the piano
-   roll's Scripts menu. If it isn't listed, reopen the menu, or restart FL the first time.
+1. Write or record the clip in MPE Roll, then click **Send to FL piano roll** (the FL button on the
+   toolbar).
+2. MPE Roll saves `MPE Roll Import.pyscript` straight into FL's scripts folder,
+   `<User data folder>\FL Studio\Settings\Piano roll scripts`: normally
+   `C:\Users\<you>\Documents\Image-Line\FL Studio\Settings\Piano roll scripts` (macOS:
+   `~/Documents/Image-Line/FL Studio/Settings/Piano roll scripts`), and makes the
+   `Piano roll scripts` folder if FL hasn't yet. On Windows it looks for the user data folder where
+   FL's installer records it. If you moved yours (*Options › File settings › User data folder*)
+   and the box names a different folder from the one shown there, move the file into
+   `FL Studio\Settings\Piano roll scripts` inside the folder FL shows. Only when FL's folder isn't
+   on this computer does MPE Roll ask where to save, and then it warns you if the file lands
+   anywhere else, since FL lists scripts from that folder only. (Release 0.1.0 writes there by
+   itself only when the folder already exists where Windows keeps Documents; otherwise it asks where
+   to save, as it did in the test of 0.1.0: pick that folder, and create the last part of it if FL
+   hasn't yet.)
+3. In FL Studio (21.1 or newer), open the piano roll of a native synth's channel, open the piano
+   roll menu (top left) › **Tools**, and run **MPE Roll Import** from the scripts listed there
+   (checked in FL Studio 26.1.7 on Windows 11). If it isn't listed yet, close and reopen the menu;
+   the first time, restart FL. *Ctrl+Alt+Y* runs the last script again.
 4. Choose the options in the script's dialog:
    - *Existing notes*: replace them or keep them.
    - *Pitch glides*: slide notes, starting pitch only, or off.
@@ -394,9 +490,9 @@ How the clip is translated:
 - Map Mod X / Mod Y in the synth's per-note modulation to whatever pressure and timbre should
   control.
 
-If glides land at the wrong pitch, open the script in a text editor and change
-`PITCHOFS_PER_SEMITONE = 10` to `100`. FL's documentation isn't clear about the unit, so this step
-needs checking in a real FL install.
+FL Studio 26.1.7 takes the tenths of a semitone the script writes: the glides landed in tune
+(checked on Windows 11). If glides land at the wrong pitch in your version of FL, open the script in
+a text editor and change `PITCHOFS_PER_SEMITONE = 10` to `100`.
 
 ## 6. MIDI files and other plugins
 
@@ -420,11 +516,14 @@ needs checking in a real FL install.
 
 ## 7. Notes on particular synths
 
-These come from the makers' documentation and user reports, and from tests of both synths in MPE
-Roll in FL Studio 26.1.7 on Windows 11: Analog Lab loads and plays (zone-wide lanes work, per-note
-ones need *Plain MIDI* as below), and Omnisphere 3's VST3 plays over MPE, per-note lanes included,
-once MPE is on in its System page. Neither synth comes as CLAP, so the CLAP note-expression path
-doesn't apply.
+These come from the makers' documentation and user reports, and from tests in MPE Roll in FL Studio
+26.1.7 on Windows 11 (release 0.1.0): Analog Lab, as VST2 and as VST3, loads and plays (zone-wide
+lanes work, per-note ones need *Plain MIDI* as below; in 0.1.0 its channel pitch-bend parameters
+fill FL's undo history while notes glide, see Troubleshooting); Omnisphere 3's VST3 plays over MPE,
+per-note lanes included, once MPE is on in its System page, and with its MPE off, when MPE Roll
+plays it with *VST3 notes on channel 1*, no per-note expression comes out of it; Surge XT's CLAP
+plays with CLAP note expressions with nothing set up in it, and opens its own window separately.
+Analog Lab and Omnisphere don't come as CLAP, so the note-expression path doesn't apply to them.
 
 MPE in popular synths (from the makers' manuals and support pages, October 2026). MPE Roll knows
 these, and says the same in *MPE settings*. [MPE_SYNTHS.md](MPE_SYNTHS.md) has the full list, with
@@ -445,7 +544,7 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | Zebra 3 | Yes | *MPE* button (*Perform* page), *Pitch Bend Up/Down* (*Pitches* panel) › *MPE*; the CLAP version needs nothing |
 | Zebra2, ZebraHZ | **No** | *One copy per note* or *Plain MIDI* |
 | Phase Plant | Yes | No switch: MIDI channel *Any* (not 1), *Bend Range* 48 in its voice settings; pressure and timbre act where the patch routes its MPE modulators |
-| Surge XT | Yes | Turns itself on from MPE Roll's setup (else *MPE* in its header); the CLAP version needs nothing |
+| Surge XT | Yes | Turns itself on from MPE Roll's setup (else *MPE* in its header); the CLAP version needs nothing (checked in FL Studio 26.1.7; its window opens separately, and *Show Surge XT* brings it up) |
 | Equator2 | Yes | *Mod Panel* › *Note Configuration* › *MPE* mode, *Note Pitch Bend* 48 |
 | Cherry Audio (DCO-106, Dreamsynth, Memorymode, Mercury-4, Miniverse, PS-20, Octave Cat, Sines...) | Yes | *Settings* (gear) › *Interface* › *Enable MPE mode*; bend range on its *MPE* tab |
 | SWAM | Yes, one note at a time | MIDI settings › *MIDI Profile*: *MPE* |
@@ -484,11 +583,15 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 - A parameter only reaches MPE Roll's *Synth* slots after you right-click it in Omnisphere and choose
   **Enable Host Automation**.
 - **Omnisphere 3** has MPE (3.0.1c and later include MPE fixes), and plays over MPE in MPE Roll once
-  it's on, per-note glides, pressure and timbre included (checked with the VST3 in FL 26.1.7). It's off until you turn it on, and until then
-  Omnisphere's Part 1 only hears MIDI channel 1, where MPE Roll sends no notes, so it stays silent. MPE Roll points this out once it has played Omnisphere three seconds of notes, short
-  or long, without a sound (after giving it ten seconds to load its sounds) and offers *Use Plain
-  MIDI*; *Keep MPE* is the default. Its status line keeps saying *No sound from Omnisphere yet* until
-  it hears it.
+  it's on, per-note glides, pressure and timbre included (checked with the VST3 in FL Studio 26.1.7
+  on Windows 11, release 0.1.0, where *Synth is played with* reads *MPE over MIDI*). MPE on is
+  required: with it off, MPE Roll plays it with *VST3 notes on channel 1*, and no per-note
+  expression comes out of it that way, because Omnisphere 3 doesn't take VST3 note expressions
+  (checked the same way). If Omnisphere stays silent instead, its Part 1 is hearing MIDI channel 1
+  only while MPE Roll sends the notes on other channels: MPE Roll points this out once it has
+  played Omnisphere three seconds of notes, short or long, without a sound (after giving it ten
+  seconds to load its sounds) and offers *Use Plain MIDI*; *Keep MPE* is the default. Its status
+  line keeps saying *No sound from Omnisphere yet* until it hears it.
   - Turn MPE on in its **System** page (the SYSTEM button in its header), which has an MPE section.
     Spectrasonics' manual: with MPE on, all 8 Parts are set to MIDI channel *Any*. Set its *MPE Pitch
     Bend Range* to MPE Roll's *Per-note bend range* (48 by default). If Omnisphere doesn't offer 48,
@@ -525,6 +628,12 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
   the zone-wide lanes work. With *Plain MIDI* the newest note's glide, vibrato, pressure and timbre
   work, but every held note follows them. With *One copy per note* (section 2) each note has its
   own, at the cost of an Analog Lab per copy (each takes a while to load).
+- In release 0.1.0, FL's undo history fills with *Knob tweak (channel1 pitch bend)* and the like
+  while notes glide: Analog Lab gives each MIDI channel's pitch bend a parameter of its own, which
+  follows MPE Roll's bends, and 0.1.0 passes those moves on to FL as edits. The sound isn't
+  affected, but your own edits get buried among those entries. 0.2.0 should keep those moves from
+  FL, as a VST2 and as a VST3: MPE Roll's own tests check that with test synths of both formats,
+  but nobody has tried it in FL yet (Troubleshooting has the details).
 - Set *Zone bend range* to the preset's pitch-bend range (often 2). The newest note's glide bends the
   whole channel and stops at the edge of that range. Analog Lab's *Settings* tab shows the range for
   instruments that have one (Augmented VOICES, say): raise it there, and *Zone bend range* with it.
@@ -542,10 +651,16 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 
 ## Troubleshooting
 
+What's known not to work yet, and where each fix stands, is on the [Known issues](KNOWN_ISSUES.md)
+page. If what you see isn't there or below, *Report a bug…* in MPE Roll's File menu opens the issue
+form on GitHub with the build filled in, and puts the plugin log on the clipboard to paste into it.
+Your browser opens only when you click it, and nothing is sent until you submit the form on GitHub.
+
 | Problem | Fix |
 | --- | --- |
 | FL doesn't list MPE Roll | Check where the files went: the whole `MPE Roll.vst3` folder in `C:\Program Files\Common Files\VST3`, or `MPE Roll.dll` in one of the plugin folders listed under *Options › Manage plugins* (the installer puts the VST2 where you told it to). Then click *Find installed plugins*. |
 | After an update, new features (or the toolbar's icons) are missing | FL is loading an older MPE Roll. The bottom of the File menu (and of *MPE settings*) names the build that's loaded, e.g. "release v0.1.0" or "build 63": compare it with the download's name (`MPE-Roll-0.1.0-Windows.zip`, `MPE-Roll-Windows-build-63`). Close FL and run the installer, which finds the older copies FL's plugin database lists (outside FL's own folder) and any in the usual plugin folders. Without the installer, or for a copy it didn't find, look in every folder listed under *Options › Manage plugins* for `MPE Roll.vst3`, `MPE Roll.dll` and `MPE Roll Scanner.exe`, and replace or delete the old ones. A project or channel made with the `.dll` keeps loading the `.dll`, even with a newer `.vst3` installed. Then *Find installed plugins*. |
+| *Couldn't check for updates: …* in the status line | You asked (*File › Check for updates now…*, or *Check now* in *MPE settings › Updates*) and no release came back: you're offline, a firewall or proxy blocks api.github.com and github.com, or GitHub is limiting requests from your network (60 an hour from one address; on Windows MPE Roll then asks the release page instead, which isn't limited that way, and on a Mac the check has to wait for the next hour, and the status line says *GitHub's limit of … requests an hour from your network is used up*). The daily check says nothing when this happens; *MPE settings › Updates › Last check* shows how the last one went. The releases are at github.com/freener0x/MPE-Roll/releases. |
 | Scanning for plugins crashes FL | MPE Roll Scanner isn't installed, so plugins were looked at inside FL. It's inside the `.vst3` folder; with the `.dll`, put `MPE Roll Scanner.exe` next to it. |
 | "… crashed while MPE Roll was checking it" | That plugin crashes when it's loaded outside its usual host, so MPE Roll won't load it (FL would go down with it). Try updating the plugin, and please report which one it is. |
 | Per-note lanes do nothing, zone-wide ones work | The synth isn't in MPE mode, or has none. *MPE settings › Synth is played with* says which, and where the synth's MPE switch is if MPE Roll knows it (section 7). Turn MPE on in the synth, or set *Synth expects* to *Plain MIDI*, where the newest note's expression drives the whole synth. A VST3 synth that takes pitch bend on channel 1 only can't get each note's own expression over MIDI: MPE Roll plays it with VST3 note expressions if it takes them, and otherwise says so (section 2). |
@@ -553,22 +668,24 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 | No sound | Load a synth (*Load synth…*), and check that the synth itself makes sound in its own window. |
 | No sound from a loaded synth; "No sound from …" appears | The synth isn't in MPE mode, so it only listens on channel 1, and MPE Roll plays notes on channels 2–16; or it was still loading its sounds. Turn MPE on in the synth (Omnisphere 3: its *System* page), or click *Use Plain MIDI*. Only that button changes anything: *Keep MPE* takes Return and Escape both, and closing the box keeps MPE too. MPE Roll asks once each time a synth is loaded or a project is opened: it gives the synth ten seconds to load, then asks once three seconds of notes, short or long, have gone without a sound, and not at all if the synth has sounded first. Until it hears the synth, the status line says *No sound from … yet* as well. *Synth is played with* in *MPE settings* shows the channels. |
 | A synth's window opens with its title bar above the top of the screen, or its controls out of reach | MPE Roll opens the synth's window on the screen MPE Roll is on, with the title bar inside the work area (above the taskbar); a synth whose window can be resized is shrunk to fit. If one still ends up out of reach (some synths resize themselves after opening, for example when a preset loads), choose *Load synth… › Bring the synth's window back on screen*. A synth whose window can't be resized and is taller than the screen keeps its title bar on screen and runs off the bottom: lower its own size or zoom setting (most have one), or Windows' display scale. |
-| A synth won't load | MPE Roll says why in a box. For a VST2 or VST3 it finds out first, which takes a moment (*finding out why…* in the status line; if the plugin opens a window of its own meanwhile, such as a licence or sign-in, answer it): Windows' own reason when Windows refuses the file (a DLL it needs is missing, it isn't a 64-bit plugin…), or else the step that failed when MPE Roll Scanner retraced the load one step at a time in a separate process. The plugin may have changed since the scan (an update): *Load synth… › Load plugin file…* on it reads it afresh, where a scan skips a plugin it has listed already. Its component may have refused to start. Or it loads fine there: MPE Roll then loads it once more by itself (a plugin may wait for a licence check the first time), and if that fails too, something in FL's process stops it, such as a second install of the same plugin already loaded (when you pick another install of the loaded synth, MPE Roll unloads the current one first). Click *Copy details* and paste them into your report: they name the plugin, its format and version, the error, and the end of MPE Roll's plugin log, which holds each step. *Load synth… › Show the plugin log* opens the log itself (`%APPDATA%\MPE Roll\Plugin log.txt`), which records every scan and load with how long it took. A plugin that *didn't start when MPE Roll looked inside it* usually isn't activated or authorised yet: open it once directly in FL, or sign in to its maker's app (Roland Cloud Manager for ZENOLOGY), then try again. One that *took too long* may be waiting for a sign-in window the first time. |
+| A synth won't load | MPE Roll says why in a box. For a VST2 or VST3 it finds out first, which takes a moment (*finding out why…* in the status line; if the plugin opens a window of its own meanwhile, such as a licence or sign-in, answer it): Windows' own reason when Windows refuses the file (a DLL it needs is missing, it isn't a 64-bit plugin…), or else the step that failed when MPE Roll Scanner retraced the load one step at a time in a separate process. The plugin may have changed since the scan (an update): *Load synth… › Load plugin file…* on it reads it afresh, where a scan skips a plugin it has listed already. Its component may have refused to start. Or it loads fine there: MPE Roll then loads it once more by itself (a plugin may wait for a licence check the first time), and if that fails too, something in FL's process stops it, such as a second install of the same plugin already loaded (when you pick another install of the loaded synth, MPE Roll unloads the current one first). Click *Report it* to open the *A synth won't load* form on GitHub with the build and the synth filled in and the details on the clipboard to paste into it, or *Copy details* to paste them anywhere: they name the plugin, its format and version, the error, and the end of MPE Roll's plugin log, which holds each step. *Load synth… › Show the plugin log* opens the log itself (`%APPDATA%\MPE Roll\Plugin log.txt`), which records every scan and load with how long it took. A plugin that *didn't start when MPE Roll looked inside it* usually isn't activated or authorised yet: open it once directly in FL, or sign in to its maker's app (Roland Cloud Manager for ZENOLOGY), then try again. One that *took too long* may be waiting for a sign-in window the first time. |
+| MPE Roll keeps playing with its channel switched off in the Channel Rack | In *Follow FL* mode MPE Roll plays the clip from FL's song position, not from FL's notes, which are all the switch stops. Mute MPE Roll's mixer track. Or turn on *MPE settings › Playback › Follow FL only while FL holds a note* and give the channel a note in FL's piano roll for as long as the clip should sound: the switch should then stop it, as long as FL ends the note when the channel is switched off (not confirmed yet). From 0.2.0, an All Notes Off from FL also stops it, until the transport restarts, the song jumps or loops, or FL sends a note; the plugin log says when FL sends one. Section 3, *Stopping MPE Roll with the Channel Rack switch*, has the details. In *Note trigger* mode FL's notes start and stop the clips, so the switch depends on FL ending the trigger note the same way; an All Notes Off from FL stops the clip there too. |
 | Clicks, timing drift or CPU spikes | In MPE Roll's wrapper settings, turn on *Use fixed size buffers* (Troubleshooting tab). |
 | Mouse clicks land away from the pointer after reopening the window | In FL, MPE Roll draws its window in software (*MPE settings › Window › Window drawing: Automatic*), which avoids this. If it still happens, try the other *Window drawing* choices and tell us what the *Window* line next to it says. |
 | Glides are much too big or too small | The synth's MPE bend range doesn't match MPE Roll's *Per-note bend range* (48 by default). |
 | All notes bend together | The synth isn't in MPE mode. Turn MPE on in the synth, or switch MPE Roll to *Plain MIDI*. |
 | Recording catches nothing | The controller's Port in FL's MIDI settings must match MPE Roll's MIDI input port, and FL must be playing. |
 | Notes play twice while recording | FL also sends the controller to the selected channel. Select another channel. |
-| "Missing: <synth>" on the synth button | That synth isn't installed (or scanned) on this computer. Install it, scan, and pick it again. |
-| "Not loaded: <synth>" on the synth button when a project opens | FL Studio (or MPE Roll) closed while that synth was loading last time, so MPE Roll didn't load it again on its own; *MPE settings › Synth is played with* says so too. *Load synth… ›* its name loads it once more. If FL closes again, the plugin crashes on loading here: try its other format (VST2 or VST3), or keep a single install of it (two installs of one plugin in FL can trip over each other), and please report it. |
+| "Missing: \<synth\>" on the synth button | That synth isn't installed (or scanned) on this computer. Install it, scan, and pick it again. |
+| "Not loaded: \<synth\>" on the synth button when a project opens | FL Studio (or MPE Roll) closed while that synth was loading last time, so MPE Roll didn't load it again on its own; *MPE settings › Synth is played with* says so too. *Load synth… ›* its name loads it once more. If FL closes again, the plugin crashes on loading here: try its other format (VST2 or VST3), or keep a single install of it (two installs of one plugin in FL can trip over each other), and please report it. |
 | A CLAP synth plays but doesn't glide, press or brighten | It may not support CLAP note expressions. Turn off *Note expressions (CLAP, VST3)* in *MPE settings* and turn on MPE in the synth instead. |
 | A VST3 synth played with VST3 note expressions doesn't glide | Its own MPE switch may be on (Serum 2 takes note expressions with it off). Or turn off *Note expressions (CLAP, VST3)* to send MPE over MIDI, and please send the plugin log. |
-| A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded and open their own window; MPE Roll says so. Please report synths whose window doesn't appear at all. |
+| A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded in MPE Roll's window and open their own; MPE Roll says so (*Surge XT opened its window separately.*) and shows a *Show Surge XT* button that brings the window up again. Surge XT's CLAP does this in FL Studio 26.1.7 on Windows 11, and plays fine. Please report synths whose window doesn't appear at all. |
 | An automation clip moves the wrong knob | The clip belongs to an MPE Roll slot, and slots are reassigned when you load a different synth. Re-link it with *Last tweaked*. |
-| FL's undo history fills with *Knob tweak (channel1 pitch bend)* and the like while notes glide | Some synths give each MIDI channel's pitch bend (or wheel, or aftertouch) a parameter of its own, which moves with every bend MPE Roll sends: Analog Lab's and Kontakt's are named "channel1 pitch bend" to "channel16 pitch bend". MPE Roll keeps such moves from FL: a parameter named after a channel's or controller's bend or wheel, one the synth's VST3 MIDI mapping moves, and anything the synth reports while it plays a block with bends in it, is the synth following its notes, not an edit. If entries still appear, *Load synth… › Show the plugin log*: a line "…parameter changes reported by the synth passed on to the host as edits" names the parameters that got through; please send it with the synth's name and format (VST2 or VST3). |
+| FL's undo history fills with *Knob tweak (channel1 pitch bend)* and the like while notes glide | Some synths give each MIDI channel's pitch bend (or wheel, or aftertouch) a parameter of its own, which moves with every bend MPE Roll sends: Analog Lab's and Kontakt's are named "channel1 pitch bend" to "channel16 pitch bend". Release 0.1.0 passes Analog Lab's on to FL as edits (seen in FL Studio 26.1.7 on Windows 11); the sound isn't affected. From 0.2.0 on, MPE Roll doesn't pass such moves on to FL: a parameter named after a channel's or controller's bend or wheel, one the synth's VST3 MIDI mapping moves, and anything the synth reports while it plays a block with bends in it, is the synth following its notes, not an edit. MPE Roll's own tests check this with VST2 and VST3 test synths; it hasn't been tried in FL yet. If entries still appear in 0.2.0 or a later build, *Load synth… › Show the plugin log*: a line "…parameter changes reported by the synth passed on to the host as edits" names the parameters that got through; please send it with the synth's name and format (VST2 or VST3). |
 | Vibrato barely moves, or only on the newest note | Vibrato rides on the note's pitch bend, so it needs what glides need: MPE on in the synth with the bend ranges matching, or *Plain MIDI* with *Zone bend range* set to the synth's, where only the newest note's is heard. A synth without MPE can also take the zone-wide *Vibrato* lane. |
 | Harmor, Sytrus or another FL synth can't be scanned or loaded | FL's own synths come in Image-Line's format, which only FL can load, so a scan leaves `Harmor_x64.dll` and the like out and names them in a box when it's done, and *Load plugin file…* says what they are. Use *Send to FL piano roll* (section 5). Image-Line's separate VST versions, if you own one, load as ordinary VST2 synths with *Plain MIDI*. |
+| *MPE Roll Import* isn't in FL's piano roll *Tools* menu | FL lists scripts from one folder only, `<User data folder>\FL Studio\Settings\Piano roll scripts`, and only files ending in `.pyscript`. In FL, *Options › File settings › User data folder* shows where the user data folder is on this computer (if Windows keeps Documents in OneDrive, FL's is often still `C:\Users\<you>\Documents\Image-Line`). The box after *Send to FL piano roll* and the status line say where the file went; if that's anywhere else, the box says so, and its *Show file* button opens the folder so you can move the file. After adding a script, close and reopen the menu; the first time, restart FL. Piano roll scripts need FL Studio 21.1 or newer. |
 | "The MPE Roll Scanner installed here is older than this MPE Roll" | The `MPE Roll Scanner.exe` next to `MPE Roll.dll` is from an older version, so it can't check plugins, and MPE Roll won't load them unchecked. Copy the scanner from the download that this MPE Roll came in (it's also inside the `.vst3` folder) over the old one. |
 | A synth scanned in one MPE Roll channel is missing from another's menu, or the scanned list is gone after a restart | Every MPE Roll of the same kind in FL shares one list and one settings file on this computer (`MPE Roll.settings`), so this shouldn't happen any more. Mixing `MPE Roll.vst3` and `MPE Roll.dll` in one project, a bridged (*Make bridged*) MPE Roll or the standalone app alongside can still overwrite the list: the last to save wins, and scanning again brings it back. If it happens otherwise, please tell us. |
 | One copy per note (or Plain MIDI): glides stop short at 2 semitones, or overshoot | Each copy bends within the synth's own pitch-bend range, 2 semitones in most synths until you change it, so set it (in copy 1's window) and *Zone bend range* in *MPE settings* to the same value, up and down. When a glide goes past *Zone bend range*, the status line says so for a minute, with the number to set; *Synth is played with* in *MPE settings* says where the setting is in Serum, Analog Lab, Kontakt, FabFilter Twin 3, Nexus and Arcade (section 2's table has them too). Many synths save the range with each preset, so check it after picking a new one. |

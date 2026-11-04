@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #include "MpeSettings.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
@@ -294,6 +297,7 @@ std::unique_ptr<juce::XmlElement> EngineSettings::toXml() const
     play->setAttribute ("chaseNotes", playback.chaseNotes);
     play->setAttribute ("controlIntervalMs", playback.controlIntervalMs);
     play->setAttribute ("passThroughInput", playback.passThroughInput);
+    play->setAttribute ("gateByHostNotes", playback.gateByHostNotes);
 
     return xml;
 }
@@ -358,6 +362,7 @@ EngineSettings EngineSettings::fromXml (const juce::XmlElement* xml)
         p.chaseNotes = play->getBoolAttribute ("chaseNotes", p.chaseNotes);
         p.controlIntervalMs = juce::jlimit (0.1f, 50.0f, (float) play->getDoubleAttribute ("controlIntervalMs", p.controlIntervalMs));
         p.passThroughInput = play->getBoolAttribute ("passThroughInput", p.passThroughInput);
+        p.gateByHostNotes = play->getBoolAttribute ("gateByHostNotes", p.gateByHostNotes);
     }
 
     return s;

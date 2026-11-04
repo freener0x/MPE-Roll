@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #pragma once
 
 #include "MpeLookAndFeel.h"
@@ -47,6 +50,10 @@ private:
     std::function<void (double)> setter;
 };
 
+/** An On/Off switch. A click turns over what the switch shows, which is the setting as refresh()
+    last read it: JUCE's switch sets the opposite of getState() when clicked, and the setting itself
+    may have changed since without the switch being drawn again (one kept in a file that another
+    MPE Roll writes, say), where a click on "On" would turn it on. It's drawn again at once. */
 class BoolProp : public juce::BooleanPropertyComponent
 {
 public:
@@ -55,12 +62,31 @@ public:
     {
     }
 
-    void setState (bool state) override     { setter (state); }
-    bool getState() const override          { return getter(); }
+    void refresh() override
+    {
+        shown = getter();
+        BooleanPropertyComponent::refresh();
+    }
+
+    void setState (bool state) override     { setter (state); refresh(); }
+    bool getState() const override          { return shown; }
+
+    // Over the switch as well as the name: a tooltip is the one of the component right under the
+    // mouse, and the switch (private to JUCE's class, so found among the children) takes up most of
+    // the row.
+    void setTooltip (const juce::String& newTooltip) override
+    {
+        BooleanPropertyComponent::setTooltip (newTooltip);
+
+        for (auto* child : getChildren())
+            if (auto* toggle = dynamic_cast<juce::Button*> (child))
+                toggle->setTooltip (newTooltip);
+    }
 
 private:
     std::function<bool()> getter;
     std::function<void (bool)> setter;
+    bool shown = false;     // what the switch was last drawn as (a property panel refreshes it as it's added)
 };
 
 /** A read-only line of explanatory text that can change. */

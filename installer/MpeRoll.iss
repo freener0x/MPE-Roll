@@ -1,3 +1,6 @@
+; SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+; SPDX-License-Identifier: AGPL-3.0-only
+
 ; MPE Roll's Windows installer, built with Inno Setup 6 by the Windows CI job (see
 ; .github/workflows/build.yml). To build it by hand from a CI download or a dist folder:
 ;   iscc /DDistDir=C:\path\to\dist /DBuildNumber=0 installer\MpeRoll.iss
@@ -12,12 +15,15 @@
 ;   MPE-Roll-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /COMPONENTS=vst3,vst2,app
 ;                      /VST2DIR="C:\Program Files\Common Files\VST2"
 ; A silent install removes every older copy it finds, unless /KEEPOLDCOPIES is given.
+;
+; Needs Inno Setup 6.5.2 or newer: the wizard's images (assets\icon, made by tools/make_icons.py) are
+; PNGs with transparency, which older versions don't take. CI's runner has 6.7.1.
 
 #ifndef DistDir
   #define DistDir "..\dist"
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.2.0"
 #endif
 #ifndef BuildNumber
   #define BuildNumber "0"
@@ -35,7 +41,8 @@ AppId={{74C456C0-14CD-4836-A865-C9B0FF60BB0B}
 AppName=MPE Roll
 AppVersion={#AppVersion}
 AppVerName=MPE Roll {#AppVersion} ({#BuildName})
-AppPublisher=Glowing Pancake
+; The publisher in Windows' Installed apps: the plugin's maker name, COMPANY_NAME in CMakeLists.txt.
+AppPublisher=MPE Roll
 AppPublisherURL=https://freener0x.github.io/MPE-Roll/
 VersionInfoVersion={#AppVersion}.{#BuildNumber}
 VersionInfoDescription=MPE Roll installer
@@ -52,6 +59,12 @@ PrivilegesRequired=admin
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+; The icon of Setup and of the uninstaller (UninstallDisplayIcon takes it from the uninstaller's .exe),
+; and the wizard's side and header images at Inno Setup's seven DPI sizes, smallest first: Setup shows
+; the one that best fits the screen.
+SetupIconFile=..\assets\icon\mpe-roll.ico
+WizardImageFile=..\assets\icon\wizard-large-202x386.png,..\assets\icon\wizard-large-269x515.png,..\assets\icon\wizard-large-336x643.png,..\assets\icon\wizard-large-403x772.png,..\assets\icon\wizard-large-430x824.png,..\assets\icon\wizard-large-498x953.png,..\assets\icon\wizard-large-534x1022.png
+WizardSmallImageFile=..\assets\icon\wizard-small-58.png,..\assets\icon\wizard-small-77.png,..\assets\icon\wizard-small-97.png,..\assets\icon\wizard-small-116.png,..\assets\icon\wizard-small-124.png,..\assets\icon\wizard-small-143.png,..\assets\icon\wizard-small-159.png
 UninstallDisplayIcon={uninstallexe}
 UninstallDisplayName=MPE Roll
 ; A DAW that has MPE Roll loaded holds its files: Setup names the programs and offers to close them.
@@ -75,11 +88,22 @@ Name: "app"; Description: "Standalone app"; Types: full
 ; Files a newer build no longer has would otherwise stay inside the bundle.
 Type: filesandordirs; Name: "{commoncf64}\VST3\MPE Roll.vst3"; Components: vst3
 
+[Dirs]
+; Explorer shows the plugin's icon on the bundle's folder: it reads the desktop.ini inside a folder
+; that has the system attribute, as JUCE's build sets it on the bundle (a copy doesn't keep it).
+Name: "{commoncf64}\VST3\MPE Roll.vst3"; Attribs: system; Components: vst3
+
 [Files]
 ; Always installed, and first: older copies are removed just before it, once programs holding them
 ; have been closed (see RemoveOldCopies).
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion; BeforeInstall: RemoveOldCopies
-Source: "{#DistDir}\MPE Roll.vst3\*"; DestDir: "{commoncf64}\VST3\MPE Roll.vst3"; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#DistDir}\MPE Roll.vst3\*"; Excludes: "\desktop.ini,\Plugin.ico"; DestDir: "{commoncf64}\VST3\MPE Roll.vst3"; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
+; The folder icon JUCE writes at the bundle's root on Windows (CMakeLists.txt's ICON_SMALL), Plugin.ico
+; and the desktop.ini that names it, with the attributes Explorer expects on them: the wildcard above
+; leaves them out, as it would install them as plain files. Skipped when the dist folder has none, as
+; from a build without an icon.
+Source: "{#DistDir}\MPE Roll.vst3\desktop.ini"; DestDir: "{commoncf64}\VST3\MPE Roll.vst3"; Components: vst3; Attribs: system hidden; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#DistDir}\MPE Roll.vst3\Plugin.ico"; DestDir: "{commoncf64}\VST3\MPE Roll.vst3"; Components: vst3; Attribs: hidden; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#DistDir}\MPE Roll.dll"; DestDir: "{code:GetVst2Dir}"; Components: vst2; Flags: ignoreversion
 ; MPE Roll looks for its scanner next to its own binary (and in the installed VST3).
 Source: "{#DistDir}\MPE Roll Scanner.exe"; DestDir: "{code:GetVst2Dir}"; Components: vst2; Flags: ignoreversion

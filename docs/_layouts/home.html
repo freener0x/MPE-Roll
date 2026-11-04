@@ -1,0 +1,229 @@
+---
+layout: default
+main_class: home
+---
+{%- comment -%}
+  The front page. docs/index.html (made by tools/make_donate_page.py) asks for this layout, gives the
+  page its description and, as {{ content }}, the Support paragraph. The words are in
+  _data/features.yml, edited by hand; the repository's links come from _data/project.yml (none while
+  the repository is private); every picture comes from _data/screenshots.yml through
+  _includes/screenshot.html, and a picture that isn't there is left out. A line of Markdown is shown
+  inline through _includes/inline.html, the Download box through _includes/download-box.html.
+  default.html puts Cayman's header above (the logo, the name, the tagline and the site's pages)
+  and the footer below; with main_class: home the sections run the window's full width, in bands
+  (style.scss).
+{%- endcomment -%}
+{%- assign words = site.data.features -%}
+{%- assign project = site.data.project -%}
+
+{%- comment -%}
+  The hero: the lead and the Download box beside the editor's picture, the picture on the right
+  (style.scss's grid); on a phone the picture comes straight after the lead.
+{%- endcomment %}
+<section class="band hero" aria-label="MPE Roll">
+  <div class="band-inner hero-grid">
+    <div class="hero-lead">{{ words.hero.lead | markdownify }}</div>
+    {%- include screenshot.html id=words.hero.picture class="hero-picture" caption=words.hero.caption eager=true %}
+    {%- if project.repo_public %}
+    {%- include download-box.html id="download" list=true %}
+    {%- endif %}
+    <div class="hero-notes">
+      <p class="tested">{{ words.hero.tested | smartify }}</p>
+      <p class="unsigned">{% include inline.html text=words.hero.unsigned %}</p>
+    </div>
+  </div>
+</section>
+
+<section class="band why tint" aria-labelledby="why">
+  <div class="band-inner">
+    <h2 id="why">{{ words.why.title | smartify }}</h2>
+    <div class="cards">
+      {%- for card in words.why.cards %}
+      <div class="card">
+        <h3>{{ card.title | smartify }}</h3>
+        {{ card.text | markdownify }}
+      </div>
+      {%- endfor %}
+    </div>
+  </div>
+</section>
+
+{%- assign demo = site.data.screenshots.demo %}
+{%- if demo and demo.file %}
+
+<section class="band demo" aria-labelledby="demo">
+  <div class="band-inner">
+    <h2 id="demo">{{ words.demo.title | smartify }}</h2>
+    {%- include screenshot.html id="demo" class="demo-clip" caption=words.demo.caption %}
+  </div>
+</section>
+{%- endif %}
+
+<section class="features" aria-labelledby="features">
+  <div class="band features-head tint">
+    <div class="band-inner">
+      <h2 id="features">{{ words.features_title | smartify }}</h2>
+    </div>
+  </div>
+  {%- for panel in words.panels %}
+  {%- assign panel_pic = site.data.screenshots[panel.picture] %}
+  {%- assign panel_has_pic = false %}
+  {%- assign panel_tall = false %}
+  {%- if panel.picture and panel_pic and panel_pic.file %}{% assign panel_has_pic = true %}{% endif %}
+  {%- if panel_has_pic and panel_pic.width and panel_pic.height and panel_pic.height > panel_pic.width %}{% assign panel_tall = true %}{% endif %}
+  {%- assign panel_odd = forloop.index | modulo: 2 %}
+  <article class="band panel{% if panel_odd == 0 %} panel-flip{% else %} tint{% endif %}" id="{{ panel.id }}">
+    <div class="band-inner panel-grid{% if panel_tall %} panel-tall{% endif %}{% unless panel_has_pic or panel.list %} panel-text-only{% endunless %}">
+      <div class="panel-text">
+        <h3>{{ panel.title | smartify }}</h3>
+        {{ panel.text | markdownify }}
+        {%- if panel_has_pic and panel.list %}
+        <ul>
+          {%- for item in panel.list %}
+          <li>{% include inline.html text=item %}</li>
+          {%- endfor %}
+        </ul>
+        {%- endif %}
+      </div>
+      {%- if panel_has_pic %}
+      {%- include screenshot.html id=panel.picture class="panel-picture" caption=panel.caption %}
+      {%- elsif panel.list %}
+      <ul class="panel-list">
+        {%- for item in panel.list %}
+        <li>{% include inline.html text=item %}</li>
+        {%- endfor %}
+      </ul>
+      {%- endif %}
+    </div>
+  </article>
+  {%- endfor %}
+</section>
+
+<section class="band glance tint" aria-labelledby="glance">
+  <div class="band-inner">
+    <h2 id="glance">{{ words.glance.title | smartify }}</h2>
+    <div class="glance-grid">
+      {%- for column in words.glance.columns %}
+      <div>
+        <h3>{{ column.title | smartify }}</h3>
+        <ul>
+          {%- for item in column.items %}
+          <li>{% include inline.html text=item %}</li>
+          {%- endfor %}
+        </ul>
+      </div>
+      {%- endfor %}
+    </div>
+    <div class="note-box">{{ words.glance.unsigned | markdownify }}</div>
+    {%- if project.repo_public %}
+    {%- include download-box.html %}
+    {%- endif %}
+  </div>
+</section>
+
+<section class="band guides" aria-labelledby="guides">
+  <div class="band-inner">
+    <h2 id="guides">{{ words.guides.title | smartify }}</h2>
+    <ul class="guide-list">
+      {%- for guide in words.guides.pages %}
+      <li><a href="{{ guide.url | relative_url }}">{{ guide.title | smartify }}</a>: {% include inline.html text=guide.text %}</li>
+      {%- endfor %}
+    </ul>
+  </div>
+</section>
+
+<section class="band community tint" aria-labelledby="community">
+  <div class="band-inner">
+    <h2 id="community">{{ words.community.title | smartify }}</h2>
+    {%- if project.repo_public %}
+    {{ words.community.text | markdownify }}
+    <ul class="issue-forms">
+      {%- for form in words.community.forms %}
+      <li><a class="button-quiet" href="{{ project.issues_url }}/new?template={{ form.template }}">{{ form.title | smartify }}</a></li>
+      {%- endfor %}
+    </ul>
+    {{ words.community.report | markdownify }}
+    {%- if words.community.discussions %}
+    <p><a href="{{ project.repo_url }}/discussions">Discussions</a> on GitHub are open for questions and ideas that aren't an issue yet.</p>
+    {%- endif %}
+    {%- endif %}
+    {{ words.community.synths | markdownify }}
+    {{ words.community.testers | markdownify }}
+  </div>
+</section>
+
+<div class="band last-row">
+  <div class="band-inner pair">
+    <section aria-labelledby="share">
+      <h2 id="share">{{ words.share.title | smartify }}</h2>
+      {{ words.share.text | markdownify }}
+      <p><a class="button-link" href="{{ '/share.html' | relative_url }}">{{ words.share.button }}</a></p>
+    </section>
+    <section aria-labelledby="support">
+      <h2 id="support">{{ words.support.title | smartify }}</h2>
+      {{ content }}
+    </section>
+  </div>
+</div>
+
+<script>
+// The Download buttons name the visitor's system and say which file to pick on the release page,
+// when the browser says which system it's on: Windows, macOS, or Linux on a PC (phones, tablets,
+// ChromeOS, TVs, the BSDs and Linux on ARM, which the releases have no build for, are left with the
+// plain button). They still open the latest release. A system whose files the latest release
+// doesn't have yet has no pick line (download-box.html), and keeps the plain button too.
+(function () {
+  var boxes = document.querySelectorAll('[data-download]');
+  if (!boxes.length) return;
+  var ua = navigator.userAgent || '';
+  var data = navigator.userAgentData;
+  var platform = (data && data.platform) || navigator.platform || '';
+  var mobile = (data && data.mobile) || /android|iphone|ipad|ipod|\bcros\b/i.test(ua);
+  var tv = /smart-?tv|tizen|web0s|webos|hbbtv|netcast/i.test(ua);
+  var arm = /arm|aarch64/i.test(navigator.platform || '');
+  var os = '';
+  if (mobile || tv) {
+    os = '';
+  } else if (/^win/i.test(platform) || /windows/i.test(ua)) {
+    os = 'windows';
+  } else if (/^mac/i.test(platform) || /macintosh|mac os x/i.test(ua)) {
+    os = navigator.maxTouchPoints > 1 ? '' : 'macos';
+  } else if ((/linux/i.test(platform) || /linux/i.test(ua)) && !arm) {
+    os = 'linux';
+  }
+  if (!os) return;
+  Array.prototype.forEach.call(boxes, function (box) {
+    var hint = box.querySelector('[data-hint="' + os + '"]');
+    var button = box.querySelector('[data-download-button]');
+    if (!hint || !button) return;
+    button.textContent = hint.getAttribute('data-label');
+    var any = box.querySelector('[data-hint="any"]');
+    if (any) any.hidden = true;
+    hint.hidden = false;
+    var row = box.querySelector('[data-system="' + os + '"]');
+    if (row) row.hidden = true;
+  });
+})();
+
+// The clip: the GIF where the video can't be played, and no motion for a visitor who asked for less.
+(function () {
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var clips = document.querySelectorAll('video.clip');
+  Array.prototype.forEach.call(clips, function (video) {
+    var source = video.querySelector('source');
+    var gif = video.querySelector('img');
+    var useGif = function () {
+      if (still || !gif || !video.parentNode) return;
+      video.parentNode.replaceChild(gif, video);
+    };
+    if (source) {
+      source.addEventListener('error', useGif);
+      if (video.canPlayType && !video.canPlayType(source.getAttribute('type'))) useGif();
+    }
+    if (still) {
+      video.removeAttribute('autoplay');
+      video.pause();
+    }
+  });
+})();
+</script>

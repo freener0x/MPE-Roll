@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #include "Skins.h"
 #include "MpeLookAndFeel.h"
 
@@ -95,6 +98,22 @@ juce::String skinRoleName (SkinRole role)
     return {};
 }
 
+namespace
+{
+    /** The skin a user who never picked one sees: FL Studio's, so MPE Roll looks at home in FL's
+        window. Found by name, so the list can be reordered without moving it. */
+    int defaultPreset()
+    {
+        const auto& skins = presetSkins();
+
+        for (size_t i = 0; i < skins.size(); ++i)
+            if (skins[i].name == "FL Studio")
+                return (int) i;
+
+        return 0;
+    }
+}
+
 //==============================================================================
 SkinManager::SkinManager()
 {
@@ -136,7 +155,7 @@ void SkinManager::flush()
 
 void SkinManager::load()
 {
-    preset = juce::jlimit (0, (int) presetSkins().size() - 1, settings->getIntValue ("skin", 0));
+    preset = juce::jlimit (0, (int) presetSkins().size() - 1, settings->getIntValue ("skin", defaultPreset()));
     custom.clear();
 
     if (auto xml = settings->getXmlValue ("colours"))

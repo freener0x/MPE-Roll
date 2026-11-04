@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #pragma once
 
 #include <juce_core/juce_core.h>
@@ -10,5 +13,10 @@ namespace mperoll
     which build their DAW loaded.
 */
 juce::String getBuildName();
+
+/** The version alone, "0.1.0": the project's version in CMakeLists.txt, which a release's tag
+    (v0.1.0) matches, with a pre-release's suffix from its tag ("0.2.0-beta1" for v0.2.0-beta1), so
+    the update check tells a beta's testers when its release is out. */
+juce::String getVersionString();
 
 } // namespace mperoll

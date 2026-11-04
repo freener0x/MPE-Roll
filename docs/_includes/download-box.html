@@ -1,0 +1,36 @@
+{%- comment -%}
+  The Download box: a button to the latest release, the line under it, and links to every download.
+  The front page has it in the hero and again at the foot of At a glance:
+
+    {% include download-box.html id="download" list=true %}
+
+  id names the box (the hero's: a link can lead to #download); list adds a line for each system,
+  with its files. The words are download in _data/features.yml. The button reads Download, and
+  under it is download.any. On a system the page recognises, home.html's script names the button
+  after it ("Download for Windows"), shows that system's pick line instead of any, and hides the
+  system's own line in the list, which would say the same again. A system with in_latest: false
+  is never named: the latest release doesn't have its files yet.
+{%- endcomment -%}
+{%- assign download = site.data.features.download -%}
+{%- assign project = site.data.project -%}
+<div class="download{% unless include.list %} download-row{% endunless %}"{% if include.id %} id="{{ include.id }}"{% endif %} data-download>
+  <p class="download-main"><a class="button-link button-big" href="{{ project.download_url }}" data-download-button>Download</a></p>
+  <div class="download-words">
+    <p class="download-hint">
+      <span data-hint="any">{% include inline.html text=download.any %}</span>
+      {%- for system in download.systems %}
+      {%- unless system.in_latest == false %}
+      <span data-hint="{{ system.id }}" data-label="{{ system.label | escape }}" hidden>{% include inline.html text=system.pick %}</span>
+      {%- endunless %}
+      {%- endfor %}
+    </p>
+    {%- if include.list %}
+    <ul class="download-list">
+      {%- for system in download.systems %}
+      <li data-system="{{ system.id }}"><a href="{{ project.download_url }}">{{ system.name }}</a>: {% include inline.html text=system.files %}</li>
+      {%- endfor %}
+    </ul>
+    {%- endif %}
+    <p class="download-more"><a href="{{ project.releases_url }}">All downloads</a> · <a href="{{ project.changelog_url }}">What’s new</a> · <a href="{{ project.builds_url }}">Builds between releases</a></p>
+  </div>
+</div>

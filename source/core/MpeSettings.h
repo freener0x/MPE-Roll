@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #pragma once
 
 #include <juce_core/juce_core.h>
@@ -149,6 +152,9 @@ struct PlaybackSettings
     bool chaseNotes = true;             // start notes that are already under the playhead
     float controlIntervalMs = 1.0f;     // how often expression curves are sampled during playback
     bool passThroughInput = true;       // play incoming MIDI through the hosted synth
+    bool gateByHostNotes = false;       // in Follow FL mode, the clip sounds only while the host holds a note (so
+                                        // FL's channel switch, patterns and playlist control it); those notes
+                                        // aren't played themselves
 
     // Exact on purpose: these comparisons detect edits, not closeness.
     JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfloat-equal")

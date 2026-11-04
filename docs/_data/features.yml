@@ -1,0 +1,343 @@
+# The words on the website's front page, which _layouts/home.html lays out. Edit them here: no
+# script needed, the site is rebuilt from them. Text is Markdown (*italics* for MPE Roll's own
+# labels, as the guides write them; links to the site's pages as FL_STUDIO.html). A picture is an id
+# in _data/screenshots.yml, which names its file; one that isn't there is left out, and the words
+# stand on their own. Say only what the README and the guides say, and keep every number to the
+# source's (the synth counts are docs/MPE_SYNTHS.md's, made from docs/synths.json: CI's
+# `tools/make_synth_list.py --check` fails when the known-synths panel's numbers differ from them).
+# The tagline under the name in the header is the site's description, in _config.yml.
+
+# The lead is short, so the Download button under it and the picture beside it show on a laptop's
+# first screen; what MPE Roll does in more detail is in the cards and panels below.
+hero:
+  lead: >-
+    MPE Roll is a free, open-source instrument plugin for FL Studio with its own piano roll. Load
+    your synth inside it, and every note gets its own pitch glide, vibrato, pressure and timbre,
+    which FL Studio's own piano roll can't send to plugins.
+  tested: >-
+    Release 0.1.0 was tested in FL Studio 26.1.7 on Windows 11 with Analog Lab, Omnisphere 3 and
+    Surge XT (CLAP).
+  unsigned: >-
+    The downloads aren't code-signed: [Unsigned builds](UNSIGNED_BUILDS.html) says what Windows and
+    macOS show about them, and how to get past it.
+  picture: hero
+  caption: MPE Roll in its *FL Studio* skin.
+
+# The Download buttons (in the hero, and again under At a glance) open the latest release. A
+# release's files carry its version in their names, so no link can lead to one file for good: on a
+# computer it recognises, the page names the button after the system and says which file to pick.
+# any is the line under the button everywhere else (phones, tablets, without JavaScript).
+download:
+  any: The latest release, for Windows and macOS, and an experimental Linux build from 0.2.0 on.
+  systems:
+    - id: windows
+      name: Windows
+      label: Download for Windows
+      pick: On the release page, pick `MPE-Roll-Setup-<version>.exe`, the installer.
+      files: "`MPE-Roll-Setup-<version>.exe`, the installer, or `MPE-Roll-<version>-Windows.zip`"
+    - id: macos
+      name: macOS
+      label: Download for macOS
+      pick: On the release page, pick `MPE-Roll-<version>-macOS.zip`.
+      files: "`MPE-Roll-<version>-macOS.zip`"
+    # in_latest: false while the latest release has no Linux build (0.1.0 has none): a Linux
+    # visitor then gets the plain Download button and the any line. GitHub Pages builds the site
+    # after a merge to main, so it changes before the Release workflow has published 0.2.0 with its
+    # Linux file: set it to true only once that release is up. The "from 0.2.0 on" here, in any and
+    # under At a glance can go then too.
+    - id: linux
+      name: Linux
+      label: Download for Linux
+      in_latest: false
+      pick: On the release page, pick `MPE-Roll-<version>-Linux.tar.gz`, an experimental build.
+      files: "`MPE-Roll-<version>-Linux.tar.gz`, experimental, from 0.2.0 on"
+
+why:
+  title: Why MPE Roll
+  cards:
+    - title: What FL's piano roll can't do
+      text: >-
+        FL Studio's own piano roll can't send per-note expression to plugins: a pitch glide,
+        pressure or timbre that belongs to one note, and not to the others sounding with it.
+    - title: The instrument FL sees
+      text: >-
+        Add MPE Roll to the Channel Rack and load your synth inside it (VST3, VST2 or CLAP). MPE
+        Roll plays it from its own piano roll, in time with FL, the way the synth understands: MPE
+        if it has MPE, note expressions for CLAP synths and VST3 synths that take them, and for a
+        synth without MPE, a copy of it for each note, or plain MIDI.
+    - title: A script for FL's own synths
+      text: >-
+        FLEX, Sytrus, Harmor and FL's other own synths can't receive MPE. For them, *Send to FL
+        piano roll* writes a script that rebuilds the clip in FL's piano roll with slide notes, fine
+        pitch and Mod X / Mod Y.
+
+demo:
+  title: MPE Roll at work
+  caption: >-
+    Three notes drawn as a chord, the top one glided up a whole tone, a swell of pressure painted
+    under them, then three of the ten skins. The film has no sound.
+
+features_title: What it does
+
+# Twelve panels, their pictures on alternate sides. list is shown beside the words when the panel
+# has no picture, and under them when it has one.
+panels:
+  - id: expression
+    title: Every expression, on every note
+    text: >-
+      Each note has its own strike and lift (its note-on and note-off velocity), glide, vibrato,
+      press (pressure), slide (timbre) and any other controller, drawn in the expression lane under
+      the notes. MPE Roll sends them the MPE way, each note on a channel of its own within the zone:
+      14-bit pitch bend with a range of up to 96 semitones, pressure as channel pressure, poly
+      aftertouch or a controller, and timbre as CC74 or any controller, 14-bit if you like.
+      Zone-wide lanes add pitch bend, pressure, timbre and any controller for all the notes at once,
+      the sustain and the other pedals among them.
+    picture: lanes
+
+  - id: lanes
+    title: Draw it under the notes
+    text: >-
+      Pick a lane from the lane menu and draw: *Draw* replaces the stretch you draw over, *Line*
+      draws a straight line and *Erase* removes points, on the selected notes or on every note under
+      the pen. The vibrato lane sets how deep each note's vibrato is, up to a semitone either way,
+      and ramping it up brings the vibrato in late; its speed, in Hz, is set for the whole clip.
+      MPE Roll plays the vibrato in the note's own pitch bend, and notes with vibrato show a wavy
+      line.
+    picture: vibrato
+
+  - id: glides
+    title: Glides that land in tune
+    text: >-
+      With the Glide tool (G), press on a note where the glide should start and drag to the pitch it
+      should reach. With *Snap glide* on, as it is to start with, the glide is a straight line that
+      lands on a whole semitone and starts and ends on the grid, and a label shows the interval and
+      the note it lands on. Hold Alt to draw freely, drag to the left of where you pressed to scoop
+      into the note, and right-drag to erase.
+    picture: glide
+
+  - id: tools
+    title: FL's tools, with FL's keys
+    text: >-
+      Draw (P), Paint (B), Delete (D), Slice (C), Select (E) and Glide (G) are on an icon toolbar,
+      and FL's editing keys work as they do in FL: Ctrl+B duplicates, Shift+I inverts the selection,
+      the arrow keys transpose and nudge. The Tools menu has twelve of FL's piano roll tools, with
+      FL's keys: quantize, chop, glue, arpeggiate, strum, flam, legato, articulate, limit, flip,
+      randomize and scale levels. A tool's dialog previews its result on the clip as you change it,
+      through your synth, and *Accept* keeps it as one undo step. Each note's glide and expression
+      go with it through every tool.
+    picture: tools
+
+  - id: synth
+    title: Your synth, inside
+    text: >-
+      MPE Roll hosts VST3, VST2 and CLAP instruments, and AU on macOS. Its scanner looks at each
+      plugin file in a separate process, so a plugin that crashes while it's looked at can't take FL
+      down, and it's skipped from then on. *Edit synth* opens the synth's own window. The synth's
+      parameters show up in FL as MPE Roll's own, *Synth 1* to *Synth 1024*, named after them, for
+      FL's automation. When a synth won't load, MPE Roll says why, and *Copy details* puts what a
+      bug report needs on the clipboard.
+    picture: fl_surge
+    caption: Surge XT, as CLAP, with its window open over MPE Roll's in FL Studio 26.1.7.
+
+  - id: three-ways
+    title: Three ways to reach a synth
+    text: >-
+      A synth with MPE gets MPE over MIDI, with the MPE Configuration Message and the bend ranges
+      sent for it. A CLAP synth is played with CLAP note expressions, with nothing to set up in the
+      synth. MPE Roll asks each VST3 synth which MIDI channels it takes pitch bend and pressure on,
+      and one that maps pitch bend on channel 1 only, but takes VST3 note expressions, is played
+      with those (tested with a test synth so far, not yet a commercial one). A synth without MPE
+      can be played with a copy of it for each note. The top of *MPE settings* says how the loaded
+      synth is played.
+    picture: settings
+
+  - id: copies
+    title: "MPE for any synth: one copy per note"
+    text: >-
+      For a synth without MPE, MPE Roll can load several copies of it, 8 to start with and up to
+      32, and play each note on a copy of its own, so every note keeps its own glide, vibrato,
+      pressure and timbre. Copy 1 is the synth you edit, and the others follow its sound. Quiet
+      copies sleep, the rest play on several CPU cores, keyswitches can go to every copy, and on
+      Windows a copy that crashes is switched off instead of taking FL with it.
+    picture: copies
+
+  # The numbers are the list's (docs/synths.json): tools/make_synth_list.py checks them, and says
+  # which to change when the list changes.
+  - id: known-synths
+    title: 673 synths and their MPE
+    text: >-
+      The [list of synths](MPE_SYNTHS.html) has 673 instruments from 181 makers, checked in October
+      2026 against the makers' manuals, support pages and release notes. MPE Roll itself knows 593
+      of them; most of the others are libraries that play inside another plugin, such as Kontakt,
+      which MPE Roll sees as that plugin. Load one of them with MPE, and *MPE settings* and the
+      status line say where its MPE switch is. Load one without, such as Analog Lab, and MPE Roll
+      offers *Plain MIDI*, where the newest note's glide, pressure and timbre drive the synth, or
+      *One copy per note*.
+    list:
+      - >-
+        **With MPE**: Serum 2, Pigments, Omnisphere 3, Vital, Diva, Phase Plant, Surge XT and more.
+      - "**Without**: Analog Lab, Massive X, Omnisphere 2, Zebra Legacy and more."
+      - 158 have MPE and 25 have it with limits; 41 don't, 441 never mention it and 8 are unclear.
+
+  - id: record
+    title: Record from your MPE controller
+    text: >-
+      Pick your controller under *MPE settings › Controller*: its preset sets the bend range and the
+      zones, and a *Setup* line says what to set on the controller itself. Route the controller to
+      MPE Roll through a MIDI port in FL, arm *Rec* and play: each take is overdubbed into the clip,
+      and one undo removes it. The presets follow each maker's documentation; none has been tried on
+      the hardware yet.
+    list:
+      - Generic MPE, for any other
+      - ROLI Seaboard and LUMI
+      - LinnStrument
+      - Haken Continuum and ContinuuMini, with MPE+
+      - Expressive E Osmose
+      - Ableton Push 3
+      - Keith McMillen K-Board Pro 4 and QuNexus
+      - Sensel Morph, Erae Touch and Joué Play
+      - Keyboards with poly aftertouch
+
+  - id: send-to-fl
+    title: "FL's own synths: Send to FL piano roll"
+    text: >-
+      FL's own synths can't receive MPE, so *Send to FL piano roll* saves a script into FL's
+      scripts folder. Run it from a native synth's piano roll (*Tools*, FL Studio 21.1 or newer) and
+      it rebuilds the clip there: each overlapping note in a colour of its own, glides as chains of
+      slide notes, a note's starting offset as fine pitch, and pressure and timbre as Mod X and Mod
+      Y. In FL Studio 26.1.7 the glides land in tune.
+    picture: fl_import
+    caption: The clip rebuilt with slide notes in FL Studio's piano roll, on Sytrus.
+
+  - id: files
+    title: In and out
+    text: >-
+      Import any MIDI file, MPE or not, or drop one on MPE Roll. Export an MPE MIDI file, or drag
+      the *File* button into FL to drop the clip there. *Export audio* plays the clip through a copy
+      of your synth, faster than real time and without touching the one playing, and writes a WAV
+      or an MP3 with the synth's release tail. The MPE stream also goes to MPE Roll's MIDI output.
+    list:
+      - >-
+        MIDI files in, MPE MIDI files out (FL's own MIDI import keeps the notes, not their
+        expression)
+      - 24-bit WAV, or 320 kbps MP3
+      - >-
+        16 clip slots, played in time with FL (*Follow FL*) or started by FL's notes (*Note
+        trigger*)
+
+  - id: skins
+    title: Ten skins, and colours of your own
+    text: >-
+      MPE Roll opens in its *FL Studio* skin, and *MPE settings › Look* has nine more: MPE Roll,
+      Midnight, Synthwave, Solarized, Paper, Forest, Ember, Ocean and High contrast. Every colour of
+      a skin has a swatch you can change, and a picture of your own can go behind the grid and the
+      expression lane.
+    picture: skins
+
+glance:
+  title: At a glance
+  columns:
+    - title: Formats and systems
+      items:
+        - "**Windows** 10 or 11, 64-bit: VST3, VST2 and a standalone app."
+        - >-
+          **macOS** 11 or newer, Apple silicon and Intel: VST3, AU and a standalone app. Nobody has
+          run the macOS build yet; reports are welcome.
+        - >-
+          **Linux**, experimental: VST3 and a standalone app, not yet run in a Linux host. FL Studio
+          has no Linux version.
+        - Your synth inside as VST3, VST2 or CLAP, and AU on macOS.
+    - title: Requirements
+      items:
+        - >-
+          FL Studio, any version that hosts VST3 plugins. Tested in 26.1.7 on Windows 11 (release
+          0.1.0).
+        - FL Studio 21.1 or newer to run *Send to FL piano roll*'s script.
+        - >-
+          Other hosts that load VST3 or AU instruments can load MPE Roll too, such as Ableton Live,
+          Bitwig Studio, Reaper, Studio One, Cubase and Logic Pro (AU). It hasn't been tried in any
+          of them.
+    - title: What's in each download
+      items:
+        - >-
+          `MPE-Roll-Setup-<version>.exe`: the Windows installer, with the VST3, the VST2 and the
+          standalone app. It looks for older copies of MPE Roll and offers to remove them.
+        - "`MPE-Roll-<version>-Windows.zip`: the same files, to copy by hand."
+        - >-
+          `MPE-Roll-<version>-macOS.zip`: `MPE Roll.vst3`, `MPE Roll.component` (the AU) and `MPE
+          Roll.app`.
+        - >-
+          `MPE-Roll-<version>-Linux.tar.gz`, experimental, from 0.2.0 on: the VST3, the standalone
+          app and the scanner.
+        - >-
+          `SHA256SUMS.txt`, from 0.2.0 on: the checksums, to [check a
+          download](UNSIGNED_BUILDS.html#verify-what-you-downloaded).
+  unsigned: >-
+    **These builds aren't code-signed.** Windows may say *Windows protected your PC* about the
+    installer (choose *More info*, then *Run anyway*), and on macOS the quarantine flag has to come
+    off the unzipped `MPE Roll` folder before a DAW loads the plugins. [Unsigned
+    builds](UNSIGNED_BUILDS.html) shows each step, and how to check a download.
+
+guides:
+  title: Guides
+  pages:
+    - title: Using MPE Roll in FL Studio
+      url: /FL_STUDIO.html
+      text: >-
+        installing it, loading your synth, routing, the bridge for FL's own synths, and what to do
+        when something doesn't work.
+    - title: Synths and their MPE
+      url: /MPE_SYNTHS.html
+      text: instruments by maker, whether each has MPE, and where to turn it on.
+    - title: Known issues
+      url: /KNOWN_ISSUES.html
+      text: >-
+        what doesn't work yet, or works differently from what you'd expect, what to do meanwhile,
+        and where each one stands.
+    - title: Unsigned builds
+      url: /UNSIGNED_BUILDS.html
+      text: >-
+        what Windows and macOS say about the downloads, how to get past it, and how to check a
+        download.
+    - title: Privacy
+      url: /PRIVACY.html
+      text: >-
+        what MPE Roll and this site store. MPE Roll sends nothing anywhere unless you turn on its
+        update check or ask it to check.
+
+community:
+  title: Community
+  text: >-
+    MPE Roll is made in the open, on GitHub. Questions, problems and ideas go in an issue: pick the
+    form that fits.
+  # The issue forms in .github/ISSUE_TEMPLATE, by file name.
+  forms:
+    - title: A synth won't load
+      template: synth-wont-load.yml
+    - title: No sound, or expression that doesn't reach the synth
+      template: no-sound-or-expression.yml
+    - title: Something else is wrong
+      template: bug.yml
+    - title: An idea
+      template: idea.yml
+  report: >-
+    In MPE Roll, *File › Report a bug…* opens the form with the build and your system filled in,
+    and puts the plugin log on the clipboard to paste into it.
+  synths: >-
+    Found a mistake in the [list of synths](MPE_SYNTHS.html), or an instrument that's missing?
+    Please open an issue.
+  testers: >-
+    Nobody has run the macOS build yet, nor the Linux build in a Linux host. If you do, please say
+    how it went, working or not.
+  # true once Discussions are switched on in the repository's settings: the page then links them.
+  discussions: false
+
+share:
+  title: Spread the word
+  text: >-
+    If MPE Roll is useful to you, telling people about it helps. The [share page](share.html) has
+    posts about it ready for X, Facebook and Instagram, each with this site's address.
+  button: Share MPE Roll
+
+support:
+  title: Support MPE Roll

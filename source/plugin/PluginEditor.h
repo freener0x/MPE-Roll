@@ -1,7 +1,11 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #pragma once
 
 #include "AudioExport.h"
 #include "PluginProcessor.h"
+#include "UpdateChecker.h"
 #include "ui/ExpressionLane.h"
 #include "ui/MpeLookAndFeel.h"
 #include "ui/NoteGrid.h"
@@ -35,6 +39,12 @@ public:
     bool isInterestedInFileDrag (const juce::StringArray& files) override;
     void filesDropped (const juce::StringArray& files, int x, int y) override;
 
+    /** The File menu and the Load synth menu as they'd be shown now. The harness reads them here: a
+        menu shown on screen closes itself at once where this process isn't the one in front, as on
+        a build machine. */
+    juce::PopupMenu makeMidiMenu() const;
+    juce::PopupMenu makeSynthMenu() const;
+
 private:
     class Splitter;
     class MidiDragListener;
@@ -44,6 +54,12 @@ private:
     juce::SharedResourcePointer<SkinManager> skins;     // before the look and feel, which takes up its colours
     MpeLookAndFeel lookAndFeel;
     ViewState view;
+
+    // Shared by every editor in the process, and gone with the last: an MPE settings panel left open
+    // borrows it rather than keeping it.
+    juce::SharedResourcePointer<UpdateChecker> updates;
+    int reportedCheck = 0;          // the last check whose "Checking..." the status line showed
+    int reportedAnswer = 0;         // ...and whose answer it showed: each is shown once
 
     Toolbar toolbar;
     TimeRuler ruler;
@@ -110,7 +126,24 @@ private:
     void playWithoutMpe (const juce::String& synthName, bool oneCopyPerNote);
     void showLoadFailure (const juce::String& error, const juce::PluginDescription* plugin);
 
+    /** Opens a new issue from the given form (BugReport) in the browser, filled in with the build,
+        the system and the synth, if given; puts the report on the clipboard for the user to paste
+        in, since an address can't carry the plugin log; and says so in the status line. */
+    void reportProblem (const juce::String& form, const juce::String& report, const juce::String& synth = {});
+
+    /** From the Load synth menu: the form for a synth that plays wrong or not at all when one is
+        loaded, else the one for a synth that won't load, with what MPE Roll knows of it. */
+    void reportSynthProblem();
+
     void showMidiMenu();
+
+    /** The update check's news: an answer the user asked for goes in the status line, whatever it
+        is; a newer release shows as the Update button however it was found, unless it's the one
+        the user chose to skip. */
+    void updateCheckChanged();
+    void refreshUpdateButton();
+    void openUpdatePage (const updates::Release&);
+
     void importMidi();
     void importMidiFile (const juce::File&);
     void exportMidi();

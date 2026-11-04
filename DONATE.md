@@ -50,7 +50,7 @@ Private by design: your donation stays private too.
 
 ---
 
-In the plugin, *File > Support MPE Roll* shows the same details, QR codes and copy buttons included, in a window of its own.
+In the plugin, *MPE settings › Support MPE Roll* shows the same details, QR codes and copy buttons included, in a window of its own.
 
 This page is also on MPE Roll's website: <https://freener0x.github.io/MPE-Roll/donate.html>.
 

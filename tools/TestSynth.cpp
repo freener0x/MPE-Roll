@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // A minimal MPE sine synth built on JUCE's MPESynthesiser. It's only used by the developer
 // harness, as an independent MPE implementation to check MPE Roll's output against.
 

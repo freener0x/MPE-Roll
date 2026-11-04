@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #include "MpeLookAndFeel.h"
 
 namespace mperoll
@@ -81,6 +84,23 @@ juce::Font MpeLookAndFeel::getComboBoxFont (juce::ComboBox&)
 juce::Font MpeLookAndFeel::getLabelFont (juce::Label& label)
 {
     return label.getFont();
+}
+
+void MpeLookAndFeel::drawPropertyComponentLabel (juce::Graphics& g, int, int height, juce::PropertyComponent& component)
+{
+    // As JUCE's own, but a long name stops short of the value instead of running under it (JUCE's
+    // leaves the indent out of the width), and a row made tall enough for two lines gets them rather
+    // than one line squeezed narrow. The indent is JUCE's, whose function for it is private.
+    const auto indent = juce::jmin (10, component.getWidth() / 10);
+    const auto value = getPropertyComponentContentPosition (component);
+    const auto fontHeight = (float) juce::jmin (height, 24) * 0.65f;
+    const auto twoLines = (float) value.getHeight() >= fontHeight * 2.4f;
+
+    g.setColour (component.findColour (juce::PropertyComponent::labelTextColourId)
+                     .withMultipliedAlpha (component.isEnabled() ? 1.0f : 0.6f));
+    g.setFont (fontHeight);
+    g.drawFittedText (component.getName(), indent, value.getY(), value.getX() - indent - 5, value.getHeight(),
+                      juce::Justification::centredLeft, 2, twoLines ? 1.0f : 0.0f);
 }
 
 } // namespace mperoll

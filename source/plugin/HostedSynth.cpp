@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #include "HostedSynth.h"
 #include "CopySafety.h"
 #include "CrashReport.h"
@@ -159,7 +162,9 @@ namespace
     {
         return file.getFileName() + " is one of FL Studio's own plugins. Those come in Image-Line's own format, "
                "which only FL Studio can load, so MPE Roll can't host it. To play it with what you write in MPE Roll, "
-               "use Send to FL piano roll instead, which turns the clip into notes for FL's piano roll.";
+               "click Send to FL piano roll (the FL button on the toolbar) instead: it saves a piano roll script into "
+               "FL's scripts folder (normally Documents\\Image-Line\\FL Studio\\Settings\\Piano roll scripts), and "
+               "running it from FL's piano roll menu > Tools rebuilds the clip in FL's own piano roll.";
     }
 
     /** The scan window's list. Files dropped on it are scanned the way Options > Scan does: on the

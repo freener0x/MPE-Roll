@@ -1,6 +1,9 @@
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 cmake_minimum_required(VERSION 3.22)
 
-project(MPE_ROLL VERSION 0.1.0 LANGUAGES C CXX)
+project(MPE_ROLL VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -101,6 +104,7 @@ configure_file(source/plugin/BuildInfo.h.in ${CMAKE_CURRENT_BINARY_DIR}/generate
 
 set(MPEROLL_PLUGIN_SOURCES
     source/plugin/AudioExport.cpp
+    source/plugin/BugReport.cpp
     source/plugin/BuildInfo.cpp
     source/plugin/PluginProcessor.cpp
     source/plugin/PluginEditor.cpp
@@ -114,6 +118,8 @@ set(MPEROLL_PLUGIN_SOURCES
     source/plugin/PluginScanner.cpp
     source/plugin/SynthParameters.cpp
     source/plugin/SynthProfiles.cpp
+    source/plugin/UpdateCheck.cpp
+    source/plugin/UpdateChecker.cpp
     source/plugin/Vst3NoteExpressions.cpp
     source/plugin/Vst3Support.cpp
     source/plugin/ui/MpeLookAndFeel.cpp
@@ -193,8 +199,29 @@ endif()
 # ---------------------------------------------------------------------------------------------
 # The plugin.
 if(MPEROLL_BUILD_PLUGIN)
+# Its icon (assets/icon, made by tools/make_icons.py). JUCE turns the two PNGs into the .ico inside
+# the Windows app and plugin binaries, the .icns in the macOS bundles, and Plugin.ico with a
+# desktop.ini in the Windows VST3 bundle, which gives its folder the icon in Explorer; nothing on
+# Linux. The small one serves the sizes up to 48 px on Windows and 64 px on macOS. macOS's pair has
+# the margin of macOS's icon grid around the tile (824 of 1024 px), as other Mac apps' icons have,
+# so the app isn't drawn larger than them in the Dock.
+if(APPLE)
+    set(MPEROLL_ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon-big-mac-1024.png")
+    set(MPEROLL_ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon-small-mac-64.png")
+else()
+    set(MPEROLL_ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon-big-1024.png")
+    set(MPEROLL_ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon-small-64.png")
+endif()
+
+# COMPANY_NAME is the maker the plugin gives hosts (the VST3's and the VST2's vendor, the start of
+# the AU's name) and the company in the Windows files' version information. Until 0.2.0 it was
+# "Glowing Pancake", the repository's old name. VST3 hosts that use the standard preset folders keep
+# a plugin's presets in a folder named after its maker, so a new name hides the ones saved before.
+# Never change the bundle ID or the two codes: the IDs hosts save in projects come from the codes
+# (the VST3's class ID and the AU's codes from both, the VST2's ID from PLUGIN_CODE), and macOS
+# knows the bundles by the bundle ID.
 juce_add_plugin(MpeRoll
-    COMPANY_NAME "Glowing Pancake"
+    COMPANY_NAME "MPE Roll"
     BUNDLE_ID com.glowingpancake.mperoll
     PLUGIN_MANUFACTURER_CODE Glpk
     PLUGIN_CODE Mpr1
@@ -211,7 +238,9 @@ juce_add_plugin(MpeRoll
     MICROPHONE_PERMISSION_ENABLED FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE   # enabled below, once the scanner is in place
     NEEDS_WEB_BROWSER FALSE
-    NEEDS_CURL FALSE)
+    NEEDS_CURL FALSE
+    ICON_BIG "${MPEROLL_ICON_BIG}"      # see above
+    ICON_SMALL "${MPEROLL_ICON_SMALL}")
 
 target_sources(MpeRoll PRIVATE ${MPEROLL_CORE_SOURCES} ${MPEROLL_PLUGIN_SOURCES})
 target_include_directories(MpeRoll PRIVATE source third_party/fst ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -239,12 +268,22 @@ endif()
 # Not on macOS, where adding a file would invalidate the signed bundles; there plugins are looked at
 # in process, as before.
 if(NOT APPLE)
-    juce_add_console_app(MpeRollScanner PRODUCT_NAME "MPE Roll Scanner")
+    # COMPANY_NAME goes in the .exe's version information on Windows, as the plugin's does (without
+    # it, JUCE puts in "yourcompany"). JUCE would make the bundle ID, which only macOS uses, from
+    # that name and warn about its space, so it's given too, in the form of the plugin's.
+    juce_add_console_app(MpeRollScanner
+        PRODUCT_NAME "MPE Roll Scanner"
+        COMPANY_NAME "MPE Roll"
+        BUNDLE_ID com.glowingpancake.mperollscanner)
     set_target_properties(MpeRollScanner PROPERTIES OUTPUT_NAME "MPE Roll Scanner")
     target_sources(MpeRollScanner PRIVATE source/scanner/ScannerMain.cpp source/plugin/LoadDiagnosis.cpp
         ${MPEROLL_CORE_SOURCES} ${MPEROLL_CLAP_SOURCES})
     target_include_directories(MpeRollScanner PRIVATE source third_party/fst)
-    target_compile_definitions(MpeRollScanner PRIVATE ${MPEROLL_COMMON_DEFINITIONS})
+    # JucePlugin_VersionString is the host version ClapPluginInstance.cpp gives a CLAP plugin. The
+    # plugin's targets get it from juce_add_plugin; the scanner gets it here, as the harness does
+    # below.
+    target_compile_definitions(MpeRollScanner PRIVATE ${MPEROLL_COMMON_DEFINITIONS}
+        JucePlugin_VersionString="${PROJECT_VERSION}")
     target_link_libraries(MpeRollScanner
         PRIVATE
             ${MPEROLL_CLAP_LIBRARY}
@@ -253,6 +292,13 @@ if(NOT APPLE)
         PUBLIC
             juce::juce_recommended_config_flags
             juce::juce_recommended_warning_flags)
+
+    # A console app gets version information from JUCE but no icon: a resource script of its own
+    # gives the scanner's .exe the same .ico the installer uses (assets/icon, made by
+    # tools/make_icons.py).
+    if(MSVC)
+        target_sources(MpeRollScanner PRIVATE assets/icon/MpeRollScanner.rc)
+    endif()
 
     foreach(format_target MpeRoll_VST3 MpeRoll_VST MpeRoll_Standalone)
         if(TARGET ${format_target})
@@ -288,8 +334,10 @@ if(MPEROLL_BUILD_TESTS)
         tests/NoteToolsTests.cpp
         tests/CopyRouterTests.cpp
         tests/CopyWorkersTests.cpp
+        tests/UpdateCheckTests.cpp
         source/plugin/CopySafety.cpp
-        source/plugin/CopyWorkers.cpp)
+        source/plugin/CopyWorkers.cpp
+        source/plugin/UpdateCheck.cpp)
 
     if(MPEROLL_HOST_CLAP)
         target_sources(MpeRollTests PRIVATE
@@ -340,7 +388,7 @@ if(MPEROLL_BUILD_DEV_TOOLS)
     endif()
 
     juce_add_plugin(MpeRollTestSynth
-        COMPANY_NAME "Glowing Pancake"
+        COMPANY_NAME "MPE Roll"
         PLUGIN_MANUFACTURER_CODE Glpk
         PLUGIN_CODE Mpt1
         FORMATS ${MPEROLL_TEST_SYNTH_FORMATS}
@@ -362,7 +410,7 @@ if(MPEROLL_BUILD_DEV_TOOLS)
     # on most synths. Programs change its waveform in state that isn't a parameter, and a Crash
     # parameter makes it crash on purpose, for the copies' crash protection.
     juce_add_plugin(MpeRollPlainTestSynth
-        COMPANY_NAME "Glowing Pancake"
+        COMPANY_NAME "MPE Roll"
         PLUGIN_MANUFACTURER_CODE Glpk
         PLUGIN_CODE Mpt2
         FORMATS ${MPEROLL_TEST_SYNTH_FORMATS}

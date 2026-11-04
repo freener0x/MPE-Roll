@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // A VST2 plugin that won't start the first time it's called in a process and starts the second time,
 // as a plugin waiting for something (a licence check, its maker's app) might: a user's Analog Lab did.
 // The harness checks that MPE Roll, once its scanner finds such a plugin starts on its own, loads it
@@ -43,7 +46,7 @@ namespace
 {
 
 constexpr const char* pluginName = "MPE Roll Flaky Test Synth";
-constexpr const char* vendorName = "Glowing Pancake";
+constexpr const char* vendorName = "MPE Roll";
 constexpr t_fstInt32 pluginId = 0x466c6b79;    // 'Flky'
 
 // The effect's flags, numbered as every VST2 plugin numbers them.
