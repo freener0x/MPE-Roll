@@ -24,6 +24,18 @@ and the release tags; a build between releases names itself by its number and co
 - An icon: a piano-roll note whose end glides up. It shows on the Windows app, plugin and scanner
   files, on the VST3 folder in Explorer, in the macOS bundles, in the installer and on the website,
   and the README opens with a banner.
+- *Report a bug…* in the File menu opens the issue form on GitHub in your browser with the build and
+  the system filled in, and puts the plugin log on the clipboard to paste into it. The box that says
+  a synth couldn't load has a *Report it* button that does the same with the *A synth won't load*
+  form, the synth filled in too, and the *Load synth* menu has *Report a problem with this synth…*
+  (*Report a synth that won't load…* while none is loaded). Your browser opens only when you click
+  one, and nothing is sent until you submit the form on GitHub.
+- *Follow FL only while FL holds a note* (*MPE settings › Playback*): in *Follow FL* mode the clip
+  sounds only while FL holds a note on MPE Roll's channel, at the song position, so FL's patterns
+  and playlist start and stop it, and its Channel Rack switch should too, if FL ends a switched-off
+  channel's notes (not confirmed yet). Notes that touch keep it playing without a break. Those
+  notes aren't played, but with *Rec* armed they're recorded and become notes of the clip, so
+  switch the option off to record.
 - A [Known issues](https://freener0x.github.io/MPE-Roll/KNOWN_ISSUES.html) page, a
   [Privacy](https://freener0x.github.io/MPE-Roll/PRIVACY.html) page and an
   [Unsigned builds](https://freener0x.github.io/MPE-Roll/UNSIGNED_BUILDS.html) page (what Windows
@@ -49,11 +61,39 @@ and the release tags; a build between releases names itself by its number and co
 - The README, the FL Studio guide and the synth list record what release 0.1.0 was tested with in FL
   Studio 26.1.7 on Windows 11 (Analog Lab as VST2 and VST3, Omnisphere 3, Surge XT as CLAP, the
   installer over an earlier build, *Send to FL piano roll*).
+- *Send to FL piano roll* saves the script straight into FL's scripts folder,
+  `<User data folder>\FL Studio\Settings\Piano roll scripts`, with no dialog, and makes the
+  `Piano roll scripts` folder when FL hasn't yet. On Windows it looks for the user data folder where
+  FL's installer records it; whether that follows a folder moved in FL's settings hasn't been tried,
+  so if the box names a folder outside the user data folder *Options › File settings* shows, move
+  the file into that one's `FL Studio\Settings\Piano roll scripts`. It asks where to save only when
+  FL's folder isn't on the computer, and then warns, with a *Show file* button, if the file lands
+  anywhere else. The box, the status line and the toolbar button's tooltip name the folder and
+  where FL runs the script: the piano roll menu › *Tools* › *MPE Roll Import*.
+- MPE Roll opens in the *FL Studio* skin. If you never changed MPE Roll's look (its skin, colours or
+  background picture), you'll see it after updating; *MPE settings › Look › Skin › MPE Roll* brings
+  the old look back. A look you chose stays as it is.
+- Donations are in *MPE settings* only: the File menu no longer has *Support MPE Roll (donate)*, and
+  the *Support MPE Roll* link at the foot of the settings opens the same window. Beside it, a quiet
+  *Share MPE Roll* link opens the website's share page, with posts ready for X, Instagram and
+  Facebook.
 
 ### Fixed
 
 - FL's undo history no longer fills with *Knob tweak (channelN pitch bend)* entries when a hosted
   synth's parameter follows the pitch bend, whatever the synth's format (VST2 or VST3).
+- *Send to FL piano roll* no longer asks where to save, starting at the Documents folder, when FL's
+  `Piano roll scripts` folder doesn't exist yet, and no longer reports success for a script saved
+  outside the scripts folder it found for FL.
+- *Follow FL*: an All Notes Off or All Sound Off from FL (CC 123, CC 120) while the song plays now
+  stops the clip, until the transport restarts or jumps (each loop of a pattern or song counts as
+  a jump) or FL sends a note. FL may send one when MPE Roll's channel is switched off in the
+  Channel Rack, which until now left the clip playing; the plugin log notes the first one, so it
+  shows whether yours does.
+- *Note trigger*: an All Notes Off or All Sound Off from FL now stops a clip a note started, as the
+  note's end does; until now the clip played on until that note's note-off.
+- In *MPE settings*, a long name no longer runs under its setting's value (*Note expressions (CLAP,
+  VST3)* was cut short).
 
 ## [0.1.0] - 2026-11-01
 

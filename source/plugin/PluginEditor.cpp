@@ -1,7 +1,8 @@
 #include "PluginEditor.h"
+#include "BugReport.h"
 #include "BuildInfo.h"
+#include "Links.h"
 #include "PluginLog.h"
-#include "ui/DonatePanel.h"
 #include "core/FlScriptExporter.h"
 #include "core/MidiFileIO.h"
 #include "ui/SettingsPanel.h"
@@ -17,6 +18,20 @@ namespace
     const juce::String dropDownArrow = juce::String::fromUTF8 (" \xe2\x96\xbe");
     const juce::String findingOutWhyStatus = "The synth didn't load: finding out why (if it opens a window of its own, "
                                              "answer it)...";
+
+    /** What the status line says once an issue form has been opened in the browser, or couldn't be,
+        with the plugin log (or the details of a failed load, which end with it) on the clipboard. */
+    juce::String describeReport (bool browserOpened, bool details)
+    {
+        const auto clipboard = details ? juce::String ("the details are on the clipboard: paste them into the form.")
+                                       : juce::String ("the plugin log is on the clipboard: paste it into the form.");
+
+        if (browserOpened)
+            return "The issue form is open in your browser with the build filled in; " + clipboard;
+
+        return "No web browser would open: the issue forms are at " + juce::String (links::issues) + "/new/choose, and "
+             + clipboard;
+    }
 }
 
 /** The handle between the grid and the expression lane. */
@@ -641,7 +656,7 @@ void MpeRollEditor::showSynthMenu()
                 currentId = shown[i].createIdentifierString();
     }
 
-    enum { scanId = -2, browseId = -3, unloadId = -4, windowBackId = -5, logId = -6 };
+    enum { scanId = -2, browseId = -3, unloadId = -4, windowBackId = -5, logId = -6, reportId = -7 };
 
     juce::PopupMenu menu;
 
@@ -663,6 +678,9 @@ void MpeRollEditor::showSynthMenu()
     menu.addSeparator();
     menu.addItem (logId, "Show the plugin log (what happened when synths loaded)");
 
+    // The form that fits: one for a synth that plays wrong or not at all, one for a synth that won't load.
+    menu.addItem (reportId, synth.isLoaded() ? "Report a problem with this synth..." : "Report a synth that won't load...");
+
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.synthButton),
                         [safe = juce::Component::SafePointer<MpeRollEditor> (this), types, shown] (int result)
     {
@@ -679,9 +697,23 @@ void MpeRollEditor::showSynthMenu()
             safe->rollProcessor.getSynth().bringEditorOnScreen (safe.getComponent());
         else if (result == logId)
             PluginLog::reveal();
+        else if (result == reportId)
+            safe->reportSynthProblem();
         else if (const auto index = juce::KnownPluginList::getIndexChosenByMenu (shown, result); index >= 0)
             safe->loadSynth (types[index]);
     });
+}
+
+void MpeRollEditor::reportSynthProblem()
+{
+    // The loaded synth with its details, or the one the project couldn't load with why.
+    auto& synth = rollProcessor.getSynth();
+
+    if (const auto* loaded = synth.getDescription())
+        reportProblem (BugReport::noSoundTemplate, PluginLog::report (loaded, {}), BugReport::synthLine (*loaded));
+    else
+        reportProblem (BugReport::synthWontLoadTemplate, PluginLog::report (nullptr, synth.getLoadProblem()),
+                       synth.getMissingSynthName());
 }
 
 void MpeRollEditor::loadSynth (const juce::PluginDescription& description)
@@ -867,28 +899,47 @@ void MpeRollEditor::playWithoutMpe (const juce::String& name, bool oneCopyPerNot
 
 void MpeRollEditor::showLoadFailure (const juce::String& error, const juce::PluginDescription* plugin)
 {
-    // With what to send along: the box can copy the details, and the plugin log has the rest.
+    // With what to send along: the box can copy the details, and the plugin log has the rest. Report it
+    // copies them too, and opens the "A synth won't load" form with the build and the synth filled in.
     const auto details = PluginLog::report (plugin, error);
+    const auto synthLine = plugin != nullptr ? BugReport::synthLine (*plugin) : juce::String();
     auto* alert = new juce::AlertWindow ("Couldn't load " + (plugin != nullptr ? plugin->name : juce::String ("the synth")),
                                          error + "\n\nCopy details puts what happened, and the end of MPE Roll's plugin log, "
-                                                 "on the clipboard, to paste into a message.",
+                                                 "on the clipboard, to paste into a message. Report it does the same and opens "
+                                                 "the \"A synth won't load\" form on GitHub in your browser, with the build and "
+                                                 "the synth filled in.",
                                          juce::MessageBoxIconType::WarningIcon, this);
     alert->addButton ("OK", 0, juce::KeyPress (juce::KeyPress::returnKey), juce::KeyPress (juce::KeyPress::escapeKey));
     alert->addButton ("Copy details", 1);
+    alert->addButton ("Report it", 2);
     alert->setAlwaysOnTop (true);
 
-    alert->enterModalState (true, juce::ModalCallbackFunction::create ([safe = juce::Component::SafePointer<MpeRollEditor> (this), details] (int result)
+    // Answered even when the editor has closed meanwhile: only the status line needs it.
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([safe = juce::Component::SafePointer<MpeRollEditor> (this),
+                                                                        details, synthLine] (int result)
     {
-        if (result != 1)
-            return;
+        if (result == 1)
+        {
+            juce::SystemClipboard::copyTextToClipboard (details);
 
-        juce::SystemClipboard::copyTextToClipboard (details);
+            if (safe != nullptr)
+                safe->setStatus ("The details are on the clipboard.");
+        }
+        else if (result == 2)
+        {
+            const auto opened = BugReport::open (BugReport::synthWontLoadTemplate, details, synthLine);
 
-        if (safe != nullptr)
-            safe->setStatus ("The details are on the clipboard.");
+            if (safe != nullptr)
+                safe->setStatus (describeReport (opened, true));
+        }
     }), true);
 
     alert->toFront (true);
+}
+
+void MpeRollEditor::reportProblem (const juce::String& form, const juce::String& report, const juce::String& synth)
+{
+    setStatus (describeReport (BugReport::open (form, report, synth), false));
 }
 
 void MpeRollEditor::showPluginScanner()
@@ -979,7 +1030,10 @@ void MpeRollEditor::showMidiMenu()
     menu.addSeparator();
     menu.addItem (3, "Tip: drag this button into FL to drop the clip as a MIDI file", false);
     menu.addSeparator();
-    menu.addItem (7, "Support MPE Roll (donate)");
+
+    // The issue form with the build filled in, so the line below needn't be copied by hand. (Donations
+    // are a link at the foot of MPE settings.)
+    menu.addItem (9, "Report a bug...");
     menu.addItem (8, getBuildName(), false);
 
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (toolbar.midiButton),
@@ -987,12 +1041,6 @@ void MpeRollEditor::showMidiMenu()
     {
         if (safe == nullptr)
             return;
-
-        if (result == 7)
-        {
-            DonatePanel::show (safe.getComponent());
-            return;
-        }
 
         if (result == 1)
             safe->importMidi();
@@ -1002,6 +1050,8 @@ void MpeRollEditor::showMidiMenu()
             safe->exportAudio (AudioExport::Format::wav);
         else if (result == 5)
             safe->exportAudio (AudioExport::Format::mp3);
+        else if (result == 9)
+            safe->reportProblem (BugReport::bugTemplate, PluginLog::report (nullptr, {}));
     });
 }
 
@@ -1184,7 +1234,10 @@ void MpeRollEditor::sendToFl()
     options.tempoBpm = rollProcessor.getTransport().bpm;
     auto result = std::make_shared<FlScriptExporter::Result> (FlScriptExporter::generate (clip, options));
 
-    auto write = [safe = juce::Component::SafePointer<MpeRollEditor> (this), result] (const juce::File& target)
+    // FL lists the scripts in one folder only, in its user data folder (which the user can move).
+    const auto flFolder = FlScriptExporter::defaultScriptFolder();
+
+    auto write = [safe = juce::Component::SafePointer<MpeRollEditor> (this), result, flFolder] (const juce::File& target)
     {
         if (safe == nullptr)
             return;
@@ -1196,34 +1249,80 @@ void MpeRollEditor::sendToFl()
             return;
         }
 
-        juce::String message;
-        message << "Saved \"" << target.getFileNameWithoutExtension() << "\" (" << (int) result->notes.size()
-                << " notes, " << result->numSlides << " slide notes) to\n" << target.getParentDirectory().getFullPathName()
-                << "\n\nIn FL Studio, open the piano roll of a channel with a native synth (FLEX, Sytrus, Harmor...), "
-                   "then pick \"" << target.getFileNameWithoutExtension() << "\" from the piano roll's Scripts menu"
-                << ". If it isn't listed yet, reopen the menu or restart FL once."
-                << "\n\nGlides become slide notes, so every overlapping note gets its own colour. "
-                   "Pressure and timbre become Mod X / Mod Y: map those in the synth's per-note modulation.";
+        const auto name = target.getFileNameWithoutExtension();
+        const auto run = "open the piano roll of a channel with a native synth (FLEX, Sytrus, Harmor...), open the piano roll "
+                         "menu (top left) > Tools, and run \"" + name + "\" from the scripts listed there (FL Studio 21.1 or newer)";
+        juce::String saved, more;
+        saved << "\"" << name << "\" (" << (int) result->notes.size() << " notes, " << result->numSlides << " slide notes)";
+        more << "\n\nGlides become slide notes, so every overlapping note gets its own colour. "
+                "Pressure and timbre become Mod X / Mod Y: map those in the synth's per-note modulation.";
 
         if (result->numColourConflicts > 0)
-            message << "\n\nNote: " << result->numColourConflicts << " notes overlap more than 16 others, so they "
-                    << "share a colour and their glides may bend each other.";
+            more << "\n\nNote: " << result->numColourConflicts << " notes overlap more than 16 others, so they "
+                 << "share a colour and their glides may bend each other.";
 
-        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Sent to FL piano roll", message);
-        safe->setStatus ("FL script written: " + target.getFileName());
+        if (FlScriptExporter::isInScriptFolder (target, flFolder))
+        {
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Sent to FL piano roll",
+                                                    "Saved " + saved + " into FL's scripts folder:\n"
+                                                        + target.getParentDirectory().getFullPathName() + "\n\nIn FL Studio: " + run
+                                                        + ". If it isn't listed yet, close and reopen the menu; the first time, "
+                                                          "restart FL. Ctrl+Alt+Y runs the last script again." + more);
+            safe->setStatus ("FL script written: " + target.getFileName() + ". In FL: piano roll menu > Tools > " + name);
+            return;
+        }
+
+        // Anywhere else FL doesn't see it, so this isn't a success: say where it went and where it
+        // belongs, with a way to the file to move it.
+        const auto sep = juce::File::getSeparatorString();
+        const auto inUserData = "FL Studio" + sep + "Settings" + sep + "Piano roll scripts";
+        const auto why = flFolder.getParentDirectory().isDirectory()
+                       ? juce::String ("but couldn't make that folder: make it yourself.")
+                       : "but FL's Settings folder isn't there. If you moved FL's user data folder (in FL: Options > File "
+                         "settings > User data folder), the scripts folder is " + inUserData + " inside it.";
+
+        const auto box = juce::MessageBoxOptions()
+                             .withIconType (juce::MessageBoxIconType::WarningIcon)
+                             .withTitle ("Saved outside FL's scripts folder")
+                             .withMessage ("Saved " + saved + " to\n" + target.getParentDirectory().getFullPathName()
+                                           + "\n\nFL Studio only lists scripts from its own folder, " + inUserData
+                                           + " in its user data folder. MPE Roll looked for it in\n" + flFolder.getFullPathName()
+                                           + "\n" + why + "\n\nMove the file there (Show file opens the folder it's in), or "
+                                             "click Send to FL piano roll again and save it there. Then, in FL Studio: " + run
+                                           + "." + more)
+                             .withButton ("Show file")
+                             .withButton ("OK");
+
+        juce::AlertWindow::showAsync (box, [target] (int button)
+        {
+            if (button == 1)
+                target.revealToUser();
+        });
+
+        safe->setStatus ("Saved outside FL's scripts folder: move " + target.getFileName() + " to " + flFolder.getFullPathName());
     };
 
-    const auto folder = FlScriptExporter::defaultScriptFolder();
-
-    if (folder.isDirectory())
+    // Straight into FL's folder when it's there, or when FL's Settings folder is and the scripts folder
+    // can be made in it (FL may not have made it yet).
+    if (flFolder.isDirectory() || (flFolder.getParentDirectory().isDirectory() && flFolder.createDirectory().wasOk()))
     {
-        write (folder.getChildFile (FlScriptExporter::defaultScriptFileName));
+        write (flFolder.getChildFile (FlScriptExporter::defaultScriptFileName));
         return;
     }
 
+    // FL's folder isn't on this computer (FL isn't installed, or its user data folder has moved where
+    // MPE Roll can't tell): ask, starting from the nearest folder of that path that is there, since
+    // Windows' dialog opens the Desktop for a folder that isn't.
+    auto start = flFolder;
+
+    while (! start.isDirectory() && start.getParentDirectory() != start)
+        start = start.getParentDirectory();
+
+    if (! start.isDirectory())
+        start = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory);
+
     chooser = std::make_unique<juce::FileChooser> ("Save FL Studio piano roll script",
-                                                   juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
-                                                       .getChildFile (FlScriptExporter::defaultScriptFileName),
+                                                   start.getChildFile (FlScriptExporter::defaultScriptFileName),
                                                    "*.pyscript");
     chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
                               | juce::FileBrowserComponent::warnAboutOverwriting,

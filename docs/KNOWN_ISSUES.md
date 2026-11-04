@@ -31,8 +31,14 @@ a build made since (see the README's
   seen in *Follow FL* mode, the default). FL's channel switch stops the notes FL sends a channel,
   and in *Follow FL* mode MPE Roll plays its clip from FL's transport, not from notes, so the clip
   plays on. *What to do:* mute MPE Roll's mixer track, or stop FL (turning the channel's volume
-  knob down silences it too). *Status:* a fix is being worked on for 0.2.0, so that the switch
-  stops MPE Roll's output.
+  knob down silences it too). *Status:* addressed on main for 0.2.0, waiting on a test in FL. An
+  All Notes Off or All Sound Off from FL now stops the clip until the transport restarts, the song
+  jumps or loops, or FL sends a note, and *MPE settings › Playback › Follow FL only while FL holds a
+  note* lets FL's notes, and so patterns and the playlist, decide when it sounds. Whether the
+  switch itself then stops it depends on FL sending All Notes Off, or ending the channel's notes,
+  when the channel is switched off, which hasn't been checked; the plugin log notes the first All
+  Notes Off FL sends. The FL Studio guide's section *Stopping MPE Roll with the Channel Rack
+  switch* has the details.
 - **Omnisphere 3 needs its MPE switch on.** Omnisphere 3's VST3 doesn't take VST3 note
   expressions, so with MPE off in its System page (*MPE settings › Synth is played with* then
   begins "VST3 notes on channel 1") no per-note expression comes out of it. *What to do:* turn MPE
@@ -64,8 +70,10 @@ a build made since (see the README's
   if need be (if you've moved FL's user data folder, the `FL Studio\Settings\Piano roll scripts`
   inside that one). FL then lists the script under the piano roll's *Tools* scripts and runs it,
   and the glides land in tune (checked in FL Studio 26.1.7). A script saved anywhere else isn't
-  listed by FL: move it there. *Status:* being worked on for 0.2.0, where MPE Roll finds FL's
-  folder, creates the scripts folder when needed and saves there itself.
+  listed by FL: move it there. *Status:* fixed in the next release, 0.2.0 (on main): MPE Roll
+  finds FL's folder, makes the scripts folder when needed and saves there itself, asks only when
+  FL's folder isn't on the computer, and warns, with a *Show file* button, when the file lands
+  anywhere else.
 - **VST3 note expressions are new.** They're tested automatically with a small test synth that maps
   pitch bend on channel 1 only (Linux and Windows), but with no commercial synth yet: Omnisphere 3
   doesn't take them (above), and Serum 2's guide says it does, with its own MPE switch off. *What

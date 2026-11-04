@@ -6,7 +6,7 @@ namespace mperoll
 {
 
 /** The colours everything is drawn with. The skin (see Skins.h) sets them, on the message thread;
-    these are the default skin's.
+    these are the MPE Roll skin's, until it does.
 */
 namespace Theme
 {
@@ -51,6 +51,9 @@ public:
     juce::Font getTextButtonFont (juce::TextButton&, int buttonHeight) override;
     juce::Font getComboBoxFont (juce::ComboBox&) override;
     juce::Font getLabelFont (juce::Label&) override;
+
+    /** A setting's name, kept to its own column, and on two lines in a row tall enough for them. */
+    void drawPropertyComponentLabel (juce::Graphics&, int width, int height, juce::PropertyComponent&) override;
 };
 
 } // namespace mperoll

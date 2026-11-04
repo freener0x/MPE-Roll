@@ -13,7 +13,7 @@ It writes, all of them committed so nobody needs this script to read them:
   .github/FUNDING.yml  the links behind the Sponsor button on the GitHub page
   source/plugin/ui/DonateData.h
                        the same details and QR codes for the plugin, which shows them in a window
-                       of its own (File > Support MPE Roll), so it needs no website at all
+                       of its own (MPE settings > Support MPE Roll), so it needs no website at all
 
 Only plain links and QR codes: no payment widget or third-party script is ever involved, and the
 website loads nothing from other sites, so the page is as private as the plugin. Empty values in
@@ -339,8 +339,8 @@ def render_markdown(links: list[dict], coins: list[dict], url: str) -> str:
             if coin["note"]:
                 out += [coin["note"], ""]
     out += ["---", ""]
-    out += [f"In the plugin, *File > Support MPE Roll* shows the same details, QR codes and copy buttons included, "
-            "in a window of its own.", ""]
+    out += [f"In the plugin, *MPE settings › Support MPE Roll* shows the same details, QR codes and copy buttons "
+            "included, in a window of its own.", ""]
     if url != DONATE_MD_URL:
         out += [f"This page is also on {PROJECT}'s website: <{url}>.", ""]
     out += ["The pages, the plugin's copy, the QR codes and `.github/FUNDING.yml` are made by "
@@ -391,7 +391,7 @@ def render_plugin_data(links: list[dict], coins: list[dict], svgs: dict[str, byt
         "#pragma once",
         "",
         "// Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file.",
-        "// The plugin's own copy of the donation details, shown by File > Support MPE Roll without the website.",
+        "// The plugin's own copy of the donation details, shown by MPE settings > Support MPE Roll without the website.",
         "",
         "#include <array>",
         "",

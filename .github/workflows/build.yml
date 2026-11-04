@@ -135,6 +135,13 @@ jobs:
           "$HARNESS" bendtweaks "$PLAIN_VST3_SYNTH"
           "$HARNESS" bendtweaks "$PLAIN_VST2_SYNTH"
 
+      # The harness hands the host's MIDI to MPE Roll's own processBlock: this checks the engine, not
+      # how a host's All Notes Off reaches MPE Roll's VST3 or VST2. The synth only plays along, and its
+      # format changes nothing here, so one run is enough.
+      - name: The host's All Notes Off and notes stop or gate the clip (Follow FL, Note trigger)
+        run: |
+          "$HARNESS" gatetest "$PLAIN_VST3_SYNTH"
+
       - name: Hosted VST3 synth that takes MPE only as VST3 note expressions
         run: |
           "$HARNESS" render "$NOTE_EXPRESSION_SYNTH" render-vst3-note-expressions.wav
@@ -371,6 +378,22 @@ jobs:
             "build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3"
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness bendtweaks \
             "build/MpeRollPlainTestSynth_artefacts/Release/VST/libMPE Roll Plain Test Synth.so"
+
+      # The harness hands the host's MIDI to MPE Roll's own processBlock: this checks the engine, not
+      # how a host's All Notes Off reaches MPE Roll's VST3 or VST2. The synth only plays along, and its
+      # format changes nothing here, so one run is enough.
+      - name: The host's All Notes Off and notes stop or gate the clip (Follow FL, Note trigger)
+        run: |
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness gatetest \
+            "build/MpeRollPlainTestSynth_artefacts/Release/VST3/MPE Roll Plain Test Synth.vst3"
+
+      # A VST3 gets a host's MIDI controllers only as changes of the parameters it maps them to
+      # (IMidiMapping), which is how JUCE's VST3 host sends them: MPE Roll's own VST3, loaded that
+      # way, must stop its clip for an All Notes Off. Whether FL sends controllers so isn't shown here.
+      - name: MPE Roll's VST3 stops for an All Notes Off sent through its controller mapping
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness vst3hostmidi
+          "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3"
 
       # A VST3 synth that maps pitch bend on MIDI channel 1 only (JUCE's VST3 host drops MPE's bends on
       # the other channels) but takes VST3 note expressions: its notes glide only if MPE Roll sends them.

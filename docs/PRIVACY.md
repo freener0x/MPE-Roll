@@ -10,11 +10,21 @@ where to look.
 MPE Roll makes no network requests. It is built without JUCE's networking and web-browser parts
 (`NEEDS_CURL FALSE` and `NEEDS_WEB_BROWSER FALSE` in `CMakeLists.txt`), and nothing in its source
 opens a connection: no update check, no telemetry, no crash reports sent anywhere, no analytics, no
-ads. The only web addresses it opens are the donation links behind the buttons in *File › Support
-MPE Roll* (and the link at the foot of *MPE settings*), which open the payment site in your browser
-when you click them (`source/plugin/ui/DonatePanel.cpp`); nothing from MPE Roll goes with them, and
-the Support window's QR codes are part of the plugin, not loaded from the web. The repository's
-address is in the plugin too (`source/plugin/Links.h`), but nothing opens it.
+ads. Its links open web pages in your browser only when you click them, and nothing from MPE Roll
+goes with them except what the address itself carries:
+
+- The donation buttons in the Support window (*MPE settings › Support MPE Roll*, at the foot of the
+  settings) open the payment site (`source/plugin/ui/DonatePanel.cpp`). The window's QR codes are
+  part of the plugin, not loaded from the web.
+- *Share MPE Roll*, beside it, opens the website's share page.
+- *Report a bug…* (File menu), *Report it* on the box for a synth that won't load, and *Report a
+  problem with this synth…* (*Load synth* menu) open the matching issue form on GitHub with the
+  build, your system (the OS, the host's file name and MPE Roll's format) and the synth's name
+  filled in from the address, and put the plugin log on your clipboard. Nothing is sent until you
+  submit the form on GitHub yourself, and the log reaches it only if you paste it
+  (`source/plugin/BugReport.cpp`).
+
+The addresses are in `source/plugin/Links.h`.
 
 ## What it writes on your computer
 
@@ -33,9 +43,12 @@ In `%APPDATA%\MPE Roll` on Windows and `~/Library/Application Support/MPE Roll` 
 
 Elsewhere:
 
-- *Send to FL piano roll* writes `MPE Roll Import.pyscript` into
-  `Documents\Image-Line\FL Studio\Settings\Piano roll scripts`, or where you choose in the save
-  dialog (`source/core/FlScriptExporter.cpp`). The script holds your clip's notes.
+- *Send to FL piano roll* writes `MPE Roll Import.pyscript` into FL's scripts folder,
+  `<User data folder>\FL Studio\Settings\Piano roll scripts` (normally under
+  `Documents\Image-Line`), making the `Piano roll scripts` folder if FL hasn't, or, when FL's folder
+  isn't on the computer, where you choose in the save dialog (`source/core/FlScriptExporter.cpp`).
+  On Windows it reads where FL keeps its user data from the registry, as MPE Roll's installer
+  does. The script holds your clip's notes.
 - Dragging the *File* button into FL writes the clip as a MIDI file in your temporary folder, under
   `MPE Roll` (`source/plugin/PluginEditor.cpp`). A scan keeps its working files in
   `MPE Roll scan …` folders there, deleted when it's done (`source/plugin/PluginScanner.cpp`).
@@ -47,7 +60,8 @@ None of these leave your computer unless you send them.
 
 ## "Copy details" and the plugin log
 
-When a synth won't load, MPE Roll's box has a *Copy details* button. It puts on the clipboard: the
+When a synth won't load, MPE Roll's box has a *Copy details* button, and the *Report…* entries put
+the same kind of report on the clipboard. It holds: the
 build name ("MPE Roll 0.1.0, release v0.1.0, …"), your operating system's name ("Windows 11",
 say), the name of the host program (`FL64.exe`, say), the plugin's name, format, version and file
 path, the error, and the last 60 lines of the plugin log, headed by the log's own path (`report` in

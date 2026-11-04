@@ -10,6 +10,13 @@
 //   MpeRollHarness uitest                               simulated mouse and keyboard editing
 //   MpeRollHarness params <synth.vst3>                  synth parameters exposed for host automation
 //   MpeRollHarness copies <plain synth>                 one copy per note, through a synth without MPE
+//   MpeRollHarness bendtweaks <plain synth>             a synth's parameter following the bend isn't an
+//                                                       edit to the host
+//   MpeRollHarness gatetest <plain synth>               the clip stopped by the host's All Notes Off
+//                                                       (Follow FL, Note trigger), and sounding only
+//                                                       while the host holds a note
+//   MpeRollHarness vst3hostmidi <MPE Roll.vst3>         MPE Roll's own VST3 stopped by an All Notes Off
+//                                                       sent the way a VST3 host sends controllers
 //   MpeRollHarness crashtest <report.txt> [overflow]    Windows: crashes on purpose (or overflows the stack)
 //                                                       to check the crash report
 //   MpeRollHarness scantest <scanner> <synth> <crashing.clap> <hanging.clap>
@@ -17,6 +24,8 @@
 //   MpeRollHarness loadfailtest <scanner> <synth.vst3> <VST2 synth>
 //                                                       a load that fails says why
 
+#include "core/FlScriptExporter.h"
+#include "plugin/BugReport.h"
 #include "plugin/BuildInfo.h"
 #include "plugin/CopySafety.h"
 #include "plugin/CrashReport.h"
@@ -2115,6 +2124,110 @@ juce::Label* findLabelSaying (juce::Component& parent, const juce::String& words
     return nullptr;
 }
 
+/** The first component under a component with the given name (a property's is what it's called). */
+juce::Component* findNamed (juce::Component& parent, const juce::String& name)
+{
+    for (auto* child : parent.getChildren())
+    {
+        if (child->getName() == name)
+            return child;
+
+        if (auto* found = findNamed (*child, name))
+            return found;
+    }
+
+    return nullptr;
+}
+
+/** The alert box on screen with this title, if there's one. */
+juce::AlertWindow* findAlert (const juce::String& title)
+{
+    auto& desktop = juce::Desktop::getInstance();
+
+    for (int i = 0; i < desktop.getNumComponents(); ++i)
+        if (auto* box = dynamic_cast<juce::AlertWindow*> (desktop.getComponent (i)); box != nullptr && box->getName() == title)
+            return box;
+
+    return nullptr;
+}
+
+/** The items of the popup menu on screen, top to bottom, as a screen reader reads them: each one's
+    text, and whether it can be chosen. */
+std::vector<std::pair<juce::String, bool>> menuOnScreen()
+{
+    std::vector<std::tuple<int, juce::String, bool>> found;
+    std::function<void (juce::Component&)> visit = [&] (juce::Component& c)
+    {
+        for (auto* child : c.getChildren())
+        {
+            if (auto* handler = child->getAccessibilityHandler(); handler != nullptr && handler->getTitle().isNotEmpty())
+                found.emplace_back (child->getScreenY(), handler->getTitle(), handler->getRole() == juce::AccessibilityRole::menuItem);
+
+            visit (*child);
+        }
+    };
+
+    auto& desktop = juce::Desktop::getInstance();
+
+    for (int i = 0; i < desktop.getNumComponents(); ++i)
+        if (auto* menu = desktop.getComponent (i); menu != nullptr && menu->getName() == "menu")
+            visit (*menu);
+
+    std::stable_sort (found.begin(), found.end(), [] (const auto& a, const auto& b) { return std::get<0> (a) < std::get<0> (b); });
+    std::vector<std::pair<juce::String, bool>> items;
+
+    for (const auto& [y, text, enabled] : found)
+        items.emplace_back (text, enabled);
+
+    return items;
+}
+
+juce::String describeMenu (const std::vector<std::pair<juce::String, bool>>& items)
+{
+    juce::StringArray texts;
+
+    for (const auto& [text, enabled] : items)
+        texts.add (text + (enabled ? "" : " (disabled)"));
+
+    return texts.joinIntoString (" | ");
+}
+
+/** The address Report a bug... opens: a new issue on the repository's tracker, from the form whose
+    inputs (ids build, system and synth in .github/ISSUE_TEMPLATE) the parameters fill. Built and read
+    only: nothing here opens a browser. */
+void bugReportChecks (Check& check)
+{
+    std::printf ("Report a bug: the issue form's address\n");
+    const juce::String build ("MPE Roll 0.2.0, build 7, abc1234, 2026-11-03"), system ("Windows 11, in FL64.exe 26.1.7.5291, VST3");
+    const auto url = BugReport::issueUrl (BugReport::bugTemplate, build, system);
+    check (url.getScheme() == "https" && url.getDomain() == "github.com" && url.getSubPath() == "freener0x/MPE-Roll/issues/new",
+           "is a new issue on the repository's tracker: " + url.toString (false));
+    check (url.getParameterNames() == juce::StringArray ("template", "build", "system")
+               && url.getParameterValues() == juce::StringArray ("bug.yml", build, system),
+           "from the bug form, with the build and the system filled in");
+    check (url.toString (true).contains ("?template=bug.yml&build=MPE%20Roll%200.2.0%2C%20build%207%2C%20abc1234%2C%202026-11-03&system="),
+           "escaped once, spaces and commas included: " + url.toString (true));
+    check (juce::URL (url.toString (true)).getParameterValues() == url.getParameterValues(), "and read back the same from the address");
+
+    const auto synthForm = BugReport::issueUrl (BugReport::synthWontLoadTemplate, getBuildName(), BugReport::systemLine(),
+                                                "Analog Lab V 5.10.1, VST2");
+    check (synthForm.getParameterNames() == juce::StringArray ("template", "build", "system", "synth")
+               && synthForm.getParameterValues()[0] == "synth-wont-load.yml" && synthForm.getParameterValues()[1] == getBuildName()
+               && synthForm.getParameterValues()[3] == "Analog Lab V 5.10.1, VST2",
+           "the form for a synth that won't load gets this build's name and the synth too");
+    check (juce::String (BugReport::noSoundTemplate) == "no-sound-or-expression.yml",
+           "and the one for a synth that plays wrong is no-sound-or-expression.yml");
+
+    juce::PluginDescription synth;
+    synth.name = "Analog Lab V";
+    synth.version = "5.10.1";
+    synth.pluginFormatName = "VST";
+    check (BugReport::synthLine (synth) == "Analog Lab V 5.10.1, VST2", "a synth is named with its version and format, VST2 for JUCE's VST: "
+                                                                           + BugReport::synthLine (synth));
+    check (BugReport::systemLine().startsWith (juce::SystemStats::getOperatingSystemName() + ", in "),
+           "and the system with the host: " + BugReport::systemLine());
+}
+
 /** The editor's UI: the glide tool dragged back from where it was pressed, the paintbrush pointer, and
     the settings call-out's Window line and lifetime. Has an editor of its own, so it can take the
     editor and the processor down with the settings open. */
@@ -2224,18 +2337,88 @@ void editorUiChecks (Check& check)
                 const auto brush = grid->getMouseCursor();
                 check (brush != juce::MouseCursor::NormalCursor, "the Paint tool has a pointer of its own");
 
-                skins->setPreset (1);
+                // A skin other than the one showing (a look never chosen, as here, is FL Studio's).
+                skins->setPreset (skins->getPreset() == 0 ? 1 : 0);
                 mm.runDispatchLoopUntil (50);
                 grid->mouseMove (hover);
                 check (grid->getMouseCursor() != brush, "which is drawn again in a new skin's colours");
                 grid->keyPressed (juce::KeyPress ('p'));
             }
 
-            std::printf ("The settings call-out\n");
             editor->addToDesktop (0);
             editor->setVisible (true);
             mm.runDispatchLoopUntil (200);
 
+            // Read as a screen reader reads them. Their Report items open a web browser, so they're
+            // only looked at here, never chosen.
+            std::printf ("The File and Load synth menus\n");
+            bar->midiButton.triggerClick();
+            mm.runDispatchLoopUntil (200);
+            auto items = menuOnScreen();
+            check (items.size() >= 2 && items.back().first == getBuildName() && ! items.back().second
+                       && items[items.size() - 2].first == "Report a bug..." && items[items.size() - 2].second,
+                   "the File menu ends with Report a bug..., then the build's name: " + describeMenu (items));
+            check (std::none_of (items.begin(), items.end(), [] (const auto& item) { return item.first.containsIgnoreCase ("donate"); }),
+                   "and has no donation item: that's at the foot of MPE settings");
+            juce::PopupMenu::dismissAllActiveMenus();
+            mm.runDispatchLoopUntil (100);
+
+            bar->synthButton.triggerClick();
+            mm.runDispatchLoopUntil (200);
+            items = menuOnScreen();
+            check (items.size() >= 2 && items.back().first == "Report a synth that won't load..."
+                       && items[items.size() - 2].first.startsWith ("Show the plugin log"),
+                   "with no synth loaded, the Load synth menu ends with Report a synth that won't load...: " + describeMenu (items));
+            juce::PopupMenu::dismissAllActiveMenus();
+            mm.runDispatchLoopUntil (100);
+
+           #if ! JUCE_WINDOWS
+            // Send to FL piano roll, with FL's Settings folder on the computer but no scripts folder in
+            // it yet: the script goes straight in, with no dialog. In a home folder of the test's own, where
+            // Documents (and FL's folder in it) is looked for; on Windows the system says where Documents
+            // is, and a missing folder would open the system's save dialog, so this runs elsewhere only.
+            std::printf ("Send to FL piano roll\n");
+            {
+                const juce::String realHome (std::getenv ("HOME"));
+                const auto home = juce::File::createTempFile ("home");
+                const auto scripts = home.getChildFile ("Documents").getChildFile ("Image-Line").getChildFile ("FL Studio")
+                                         .getChildFile ("Settings").getChildFile ("Piano roll scripts");
+                scripts.getParentDirectory().createDirectory();
+                setenv ("HOME", home.getFullPathName().toRawUTF8(), 1);
+                check (FlScriptExporter::defaultScriptFolder() == scripts,
+                       "FL's scripts folder is looked for in FL's user data folder: " + scripts.getFullPathName());
+
+                // The box saying where the script went has no callback, so with modal loops allowed, as
+                // here, it runs modally: it's read and closed from inside the loop it runs.
+                juce::String message;
+                juce::Timer::callAfterDelay (300, [&message]
+                {
+                    if (auto* box = findAlert ("Sent to FL piano roll"))
+                    {
+                        message = box->getDescription();
+                        box->exitModalState (0);
+                    }
+                });
+
+                bar->flButton.triggerClick();
+                mm.runDispatchLoopUntil (1000);
+
+                const auto written = scripts.getChildFile (FlScriptExporter::defaultScriptFileName);
+                check (written.existsAsFile() && written.loadFileAsString().startsWith ("# Generated by MPE Roll"),
+                       "the script is written there, the scripts folder made, with no dialog");
+                check (message.contains ("into FL's scripts folder:\n" + scripts.getFullPathName())
+                           && message.contains ("open the piano roll menu (top left) > Tools, and run \"MPE Roll Import\"")
+                           && message.contains ("FL Studio 21.1 or newer") && message.contains ("Ctrl+Alt+Y"),
+                       "and the box names the folder and where FL runs it");
+                check (bar->status.getText() == "FL script written: MPE Roll Import.pyscript. In FL: piano roll menu > Tools > MPE Roll Import",
+                       "as does the status line: " + bar->status.getText());
+
+                setenv ("HOME", realHome.toRawUTF8(), 1);
+                home.deleteRecursively();
+            }
+           #endif
+
+            std::printf ("The settings call-out\n");
             bar->settingsButton.triggerClick();
             mm.runDispatchLoopUntil (50);
             settingsBox = findChild<juce::CallOutBox> (*editor);
@@ -2262,11 +2445,74 @@ void editorUiChecks (Check& check)
                                + juce::String (sized.getWidth()) + ")");
                 }
 
-                // So a tester can tell which build their DAW loaded.
+                // Beside it, in the dim text colour so it asks for no attention, the website's share page.
+                // A web address, so it isn't clicked here.
+                juce::HyperlinkButton* share = nullptr;
+
+                if (panel != nullptr)
+                    for (auto* child : panel->getChildren())
+                        if (auto* other = dynamic_cast<juce::HyperlinkButton*> (child); other != nullptr && other != link)
+                            share = other;
+
+                check (share != nullptr && share->getButtonText() == "Share MPE Roll" && share->isShowing()
+                           && panel->getLocalBounds().contains (share->getBounds())
+                           && link != nullptr && share->getX() >= link->getRight(),
+                       "and right of it, a Share MPE Roll link");
+
+                if (share != nullptr)
+                {
+                    check (share->getURL().toString (true) == links::share && share->getURL().isWellFormed(),
+                           "which leads to the website's share page: " + share->getURL().toString (true));
+                    check (share->findColour (juce::HyperlinkButton::textColourId) == Theme::textDim
+                               && share->getTooltip() == "Opens the website's share page: ready-made posts for X, Instagram and Facebook",
+                           "in the dim text colour, its tooltip saying where it leads");
+
+                    juce::HyperlinkButton sized (share->getButtonText(), {});
+                    sized.setSize (100, share->getHeight());
+                    sized.changeWidthToFitText();
+                    check (share->getWidth() >= sized.getWidth(), "with room for all its words");
+                }
+
+                // So a tester can tell which build their DAW loaded: all of its name, which is no use cut
+                // short, beside the links or on a line of its own above them.
                 auto* build = panel != nullptr ? findLabelSaying (*panel, getBuildName()) : nullptr;
                 check (build != nullptr && build->isShowing() && panel->getLocalBounds().contains (build->getBounds())
-                           && ! build->getBounds().intersects (link != nullptr ? link->getBounds() : juce::Rectangle<int>()),
-                       "and beside it, which build this is: " + getBuildName());
+                           && ! build->getBounds().intersects (link != nullptr ? link->getBounds() : juce::Rectangle<int>())
+                           && ! build->getBounds().intersects (share != nullptr ? share->getBounds() : juce::Rectangle<int>()),
+                       "and beside them, which build this is: " + getBuildName());
+
+                if (build != nullptr)
+                {
+                    const auto needed = juce::GlyphArrangement::getStringWidth (build->getFont(), build->getText())
+                                      + (float) build->getBorderSize().getLeftAndRight();
+                    check ((float) build->getWidth() >= needed,
+                           "with room for all of it (" + juce::String (build->getWidth()) + " px for "
+                               + juce::String (juce::roundToInt (std::ceil (needed))) + ")");
+                }
+
+                // Follow FL gated by FL's notes, in Playback: its tooltip shows over the switch too, which
+                // takes up most of the row, and the switch sets it.
+                auto* gateRow = panel != nullptr ? findNamed (*panel, "Follow FL only while FL holds a note") : nullptr;
+                auto* gate = dynamic_cast<juce::BooleanPropertyComponent*> (gateRow);
+                auto* gateSwitch = gate != nullptr ? findChild<juce::ToggleButton> (*gate) : nullptr;
+                check (gateSwitch != nullptr, "Playback has Follow FL only while FL holds a note");
+
+                if (gateSwitch != nullptr)
+                {
+                    const auto tooltip = gate->getTooltip();
+                    check (tooltip.startsWith ("Put a note under MPE Roll's channel in FL's piano roll or playlist")
+                               && tooltip.endsWith ("Those notes only open the gate: they aren't played.")
+                               && gateSwitch->getTooltip() == tooltip,
+                           "with its tooltip over its name and its switch");
+
+                    const auto wasOn = document.getSettings().playback.gateByHostNotes;
+                    gateSwitch->triggerClick();
+                    mm.runDispatchLoopUntil (50);
+                    check (! wasOn && document.getSettings().playback.gateByHostNotes, "off at first, and the switch turns it on");
+                    gateSwitch->triggerClick();
+                    mm.runDispatchLoopUntil (50);
+                    check (! document.getSettings().playback.gateByHostNotes, "and off again");
+                }
 
                 // It opens the donation details in MPE Roll itself, not a web page that may not be there.
                 if (link != nullptr)
@@ -2826,6 +3072,7 @@ int uiTest()
 
         const auto& presets = presetSkins();
         check (presets.size() == 10, "there are ten skins");
+        check (presets[(size_t) skins->getPreset()].name == "FL Studio", "a look never chosen is the FL Studio skin");
 
         skins->setPreset (5);
         mm.runDispatchLoopUntil (50);
@@ -2866,6 +3113,12 @@ int uiTest()
         skins->flush();
         mm.runDispatchLoopUntil (50);
 
+        {
+            SkinManager kept;
+            kept.useSettingsFile (lookFile);
+            check (kept.getPreset() == 0 && presets[0].name == "MPE Roll", "and a skin chosen stays, MPE Roll's included");
+        }
+
         for (const auto& f : { lookFile, pictureFile, notAPicture })
             f.deleteFile();
     }
@@ -2873,6 +3126,7 @@ int uiTest()
     scannerUiTest (check);
     editorUiChecks (check);
     synthProfileChecks (check);
+    bugReportChecks (check);
 
     processor.editorBeingDeleted (editor.get());
     editor.reset();
@@ -4590,6 +4844,686 @@ int bendTweaksTest (const juce::File& synthFile)
     return check.failures == 0 ? 0 : 1;
 }
 
+/** The clip stopped by the host, through the plain test synth. All Notes Off (CC 123) or All Sound
+    Off (CC 120) from the host, which FL may send for a channel switched off in the Channel Rack,
+    silences Follow FL until the transport restarts or jumps (a loop included) or the host starts a
+    note, whatever clip slot is picked meanwhile, and the first is logged; one sent as the transport
+    starts or jumps is the host tidying up, which ends the notes but pauses nothing. In Note trigger
+    mode it stops the clip as the trigger note's note-off would. With the clip following the host's
+    notes (PlaybackSettings::gateByHostNotes) it sounds only while the host holds a note, at the
+    song position, without a break where two of them touch; the host's notes themselves aren't
+    played, but are recorded, and switching the gate on ends one being played through. Messages
+    come at samples inside blocks as well as at their starts. Everything is read from the stream
+    MPE Roll sends the synth, which its MIDI output carries. MPE Roll's processBlock is called
+    directly, so how a host's MIDI reaches its VST3 or VST2 isn't covered here (vst3hostmidi
+    covers the VST3's controller mapping).
+*/
+int gateTest (const juce::File& synthFile)
+{
+    Check check;
+    ignoreXErrors();
+
+    const auto settingsFile = juce::File::createTempFile ("settings");
+    const auto logFile = juce::File::createTempFile ("log");
+    PluginLog::setFileForTesting (logFile);
+
+    auto rig = std::make_unique<CopyRig>();
+    rig->synth().useSettingsFile (settingsFile);     // not the real MPE Roll settings
+    rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::singleChannel; });
+
+    auto finish = [&]
+    {
+        rig.reset();
+        PluginLog::setFileForTesting ({});
+        logFile.deleteFile();
+        settingsFile.deleteFile();
+    };
+
+    if (! loadSynth (rig->processor, synthFile))
+    {
+        finish();
+        return 1;
+    }
+
+    std::printf ("Hosting: %s\n", rig->synth().getName().toRawUTF8());
+
+    // C4 held for the whole clip, so something always sounds; G4 every half beat for the first two
+    // beats and E4 every half beat after them (four note-ons a second at 120 bpm), so note-ons keep
+    // coming while the clip plays and say where in the clip it is.
+    MpeClip clip;
+    clip.length = 16.0;
+    clip.addNote (note (60, 0.0, 16.0, 0.8f));
+
+    for (int i = 0; i < 32; ++i)
+        clip.addNote (note (i < 4 ? 67 : 64, i * 0.5, 0.4, 0.8f));
+
+    rig->processor.getDocument().replaceClip (0, clip, "Test");
+    CopyRig::pump (10);
+
+    auto setPlayback = [&] (const std::function<void (PlaybackSettings&)>& change)
+    {
+        auto s = rig->processor.getDocument().getSettings();
+        change (s.playback);
+        rig->processor.getDocument().setSettings (s);
+        CopyRig::pump (30);
+    };
+
+    auto setGate = [&] (bool on) { setPlayback ([on] (PlaybackSettings& p) { p.gateByHostNotes = on; }); };
+
+    // The host's notes, below the clip's, so they'd stand out if they were played.
+    constexpr int gateKey = 36, otherKey = 38;  // C2, D2
+
+    // What MPE Roll sent the synth: each message with the time its block started at, and its own
+    // sample, counted from the start of the play.
+    struct Sent { double time; int sample; juce::MidiMessage message; };
+
+    // A message from the host: in the first block starting at or after `time`, `offset` samples into
+    // that block (at its start unless given).
+    struct HostEvent { double time; juce::MidiMessage message; int offset = 0; };
+    using Input = std::function<void (double, juce::MidiBuffer&)>;
+
+    auto hostSends = [] (std::vector<HostEvent> events) -> Input
+    {
+        auto pending = std::make_shared<std::vector<HostEvent>> (std::move (events));
+
+        return [pending] (double time, juce::MidiBuffer& midi)
+        {
+            for (auto it = pending->begin(); it != pending->end();)
+            {
+                if (time < it->time)
+                {
+                    ++it;
+                    continue;
+                }
+
+                midi.addEvent (it->message, it->offset);
+                it = pending->erase (it);
+            }
+        };
+    };
+
+    // The sample, counted from the start of a play, that a host message at `time` and `offset` is at.
+    const auto sampleOf = [] (double time, int offset)
+    {
+        return (int) std::ceil (time * CopyRig::rate / CopyRig::block) * CopyRig::block + offset;
+    };
+
+    // Plays the transport from the clip's start for this long, the host's MIDI in each block being
+    // what `input` puts there, and returns everything MPE Roll sent the synth. From `jumpAt` seconds
+    // on, the song is `jumpBy` seconds further on: a second, as after a click on FL's timeline, or
+    // back to an earlier time, as when FL loops a pattern or the song.
+    auto play = [&] (double seconds, const Input& input, double jumpAt = -1.0, double jumpBy = 1.0)
+    {
+        std::vector<Sent> sent;
+        const auto total = (int) (seconds * CopyRig::rate);
+        rig->playHead.playing = true;
+
+        for (int pos = 0; pos < total; pos += CopyRig::block)
+        {
+            const auto time = pos / CopyRig::rate;
+            const auto songTime = jumpAt >= 0.0 && time >= jumpAt ? time + jumpBy : time;
+            const auto n = juce::jmin (CopyRig::block, total - pos);
+            juce::AudioBuffer<float> audio (2, n);
+            juce::MidiBuffer midi;
+
+            if (input)
+                input (time, midi);
+
+            rig->playHead.ppq = songTime * rig->playHead.bpm / 60.0;
+            rig->processor.processBlock (audio, midi);
+
+            for (const auto m : midi)
+                sent.push_back ({ time, pos + m.samplePosition, m.getMessage() });
+        }
+
+        rig->playHead.playing = false;
+        rig->idle (100);
+        return sent;
+    };
+
+    // The messages MPE Roll sent from `from` up to `to` seconds that are `which`.
+    auto count = [] (const std::vector<Sent>& sent, double from, double to,
+                     const std::function<bool (const juce::MidiMessage&)>& which)
+    {
+        int n = 0;
+
+        for (const auto& s : sent)
+            if (s.time >= from && s.time < to && which (s.message))
+                ++n;
+
+        return n;
+    };
+
+    // Note-ons of one key, or of the clip's (C4 and up).
+    auto noteOns = [&] (const std::vector<Sent>& sent, double from, double to, int key = -1)
+    {
+        return count (sent, from, to, [key] (const juce::MidiMessage& m)
+                      { return m.isNoteOn() && (key < 0 ? m.getNoteNumber() >= 60 : m.getNoteNumber() == key); });
+    };
+
+    // Note-offs of one key, or of any.
+    auto noteOffs = [&] (const std::vector<Sent>& sent, double from, double to, int key = -1)
+    {
+        return count (sent, from, to, [key] (const juce::MidiMessage& m)
+                      { return m.isNoteOff() && (key < 0 || m.getNoteNumber() == key); });
+    };
+
+    // The same by the messages' own samples, from `from` up to `to`, for what happens inside a block.
+    auto countAt = [] (const std::vector<Sent>& sent, int from, int to,
+                       const std::function<bool (const juce::MidiMessage&)>& which)
+    {
+        int n = 0;
+
+        for (const auto& s : sent)
+            if (s.sample >= from && s.sample < to && which (s.message))
+                ++n;
+
+        return n;
+    };
+
+    auto noteOnsAt = [&] (const std::vector<Sent>& sent, int from, int to, int key = -1)
+    {
+        return countAt (sent, from, to, [key] (const juce::MidiMessage& m)
+                        { return m.isNoteOn() && (key < 0 ? m.getNoteNumber() >= 60 : m.getNoteNumber() == key); });
+    };
+
+    auto noteOffsAt = [&] (const std::vector<Sent>& sent, int from, int to, int key = -1)
+    {
+        return countAt (sent, from, to, [key] (const juce::MidiMessage& m)
+                        { return m.isNoteOff() && (key < 0 || m.getNoteNumber() == key); });
+    };
+
+    // A message for time t comes at the start of the first block starting at or after t, and what
+    // MPE Roll sends is stamped with its block's start: so from t on is what came with the message
+    // and after it, and up to t what came before. The clip starts a note every 0.25 s.
+    const auto noteOn = [] (int key) { return juce::MidiMessage::noteOn (1, key, (juce::uint8) 100); };
+    const auto noteOff = [] (int key) { return juce::MidiMessage::noteOff (1, key); };
+
+    std::printf ("Follow FL plays the clip while the transport runs\n");
+    {
+        const auto sent = play (1.0, {});
+        std::printf ("  %d note-ons in a second\n", noteOns (sent, 0.0, 1.0));
+        check (noteOns (sent, 0.0, 1.0) >= 4, "the clip's notes reach the synth");
+    }
+
+    std::printf ("All Notes Off from the host silences the clip until the transport restarts\n");
+    {
+        const auto sent = play (2.0, hostSends ({ { 1.0, juce::MidiMessage::allNotesOff (1) } }));
+        std::printf ("  before it: %d note-ons; with it: %d note-offs (%d of the held C4); after it: %d note-ons\n",
+                     noteOns (sent, 0.0, 1.0), noteOffs (sent, 1.0, 1.02), noteOffs (sent, 1.0, 1.02, 60),
+                     noteOns (sent, 1.0, 2.0));
+        check (noteOns (sent, 0.0, 1.0) >= 4, "the clip played until then");
+        check (noteOffs (sent, 1.0, 1.02, 60) >= 1, "the synth was sent note-offs for what sounded");
+        check (noteOns (sent, 1.0, 2.0) == 0, "and no more notes for the rest of that play");
+
+        const auto again = play (1.0, {});
+        std::printf ("  stopped and started: %d note-ons in a second\n", noteOns (again, 0.0, 1.0));
+        check (noteOns (again, 0.0, 1.0) >= 4, "stopped and started, the clip plays again");
+
+        const auto log = PluginLog::tail (3);
+        std::printf ("  log: %s\n", log.trimEnd().replace ("\n", "\n       ").toRawUTF8());
+        check (log.contains ("The host sent All Notes Off (CC 123): playback paused until the transport restarts"),
+               "the plugin log says the host sent it");
+    }
+
+    std::printf ("All Sound Off too, but not as the transport starts; a jump or a note from the host ends the silence\n");
+    {
+        const auto sent = play (2.5, hostSends ({ { 0.0, juce::MidiMessage::allSoundOff (1) },
+                                                  { 0.5, juce::MidiMessage::allSoundOff (1) },
+                                                  { 1.5, juce::MidiMessage::allSoundOff (1) },
+                                                  { 2.0, noteOn (gateKey) },
+                                                  { 2.25, noteOff (gateKey) } }),
+                                1.0);
+        std::printf ("  note-ons: %d with the transport's start, %d after the next mid-play, %d after the jump,"
+                     " %d after the next, %d after the host's note (and %d of its key)\n",
+                     noteOns (sent, 0.0, 0.5), noteOns (sent, 0.5, 1.0), noteOns (sent, 1.0, 1.5),
+                     noteOns (sent, 1.5, 2.0), noteOns (sent, 2.0, 2.5), noteOns (sent, 2.0, 2.5, gateKey));
+        check (noteOns (sent, 0.0, 0.5) >= 2, "one sent as the transport starts leaves the clip playing");
+        check (noteOns (sent, 0.5, 1.0) == 0, "one mid-play silences it");
+        check (noteOns (sent, 1.0, 1.5) >= 1, "a jump of the song position plays it again");
+        check (noteOns (sent, 1.5, 2.0) == 0, "silenced again");
+        check (noteOns (sent, 2.0, 2.5) >= 1, "a note from the host plays it again");
+        check (noteOns (sent, 2.0, 2.5, gateKey) == 1, "and the note itself is played, the gate being off");
+    }
+
+    std::printf ("Switched on, the gate ends a note the host was playing through MPE Roll\n");
+    {
+        // With the transport stopped: the gate would take the note's note-off, so it's ended now.
+        int ons = 0, offs = 0;
+
+        auto block = [&] (const std::vector<juce::MidiMessage>& input)
+        {
+            juce::AudioBuffer<float> audio (2, CopyRig::block);
+            juce::MidiBuffer midi;
+
+            for (const auto& m : input)
+                midi.addEvent (m, 0);
+
+            rig->playHead.playing = false;
+            rig->processor.processBlock (audio, midi);
+
+            for (const auto m : midi)
+            {
+                ons += m.getMessage().isNoteOn() && m.getMessage().getNoteNumber() == gateKey ? 1 : 0;
+                offs += m.getMessage().isNoteOff() && m.getMessage().getNoteNumber() == gateKey ? 1 : 0;
+            }
+        };
+
+        block ({ noteOn (gateKey) });
+        setGate (true);
+        block ({});
+        std::printf ("  the host's note: %d note-on, then %d note-off as the gate was switched on\n", ons, offs);
+        check (ons == 1 && offs == 1, "it ends when the gate is switched on, instead of sounding on");
+
+        block ({ noteOff (gateKey) });
+        check (offs == 1, "and its own note-off, taken by the gate, adds nothing");
+    }
+
+    std::printf ("Following the host's notes: nothing sounds without one\n");
+    {
+        setGate (true);
+        const auto sent = play (2.0, {});
+        std::printf ("  %d note-ons in two seconds\n", noteOns (sent, 0.0, 2.0));
+        check (noteOns (sent, 0.0, 2.0) == 0, "no note reaches the synth in two seconds of transport");
+    }
+
+    std::printf ("A note from the host opens the gate, unplayed itself; its note-off shuts it\n");
+    {
+        // Held from beat 1 (0.5 s), in the clip's G4 half, to beat 3 (1.5 s); the clip plays E4 from beat 2.
+        const auto sent = play (2.5, hostSends ({ { 0.5, noteOn (gateKey) }, { 1.5, noteOff (gateKey) } }));
+        std::printf ("  before: %d note-ons; held: %d note-ons (C4 %d, then from beat 2 E4 %d and G4 %d), %d of"
+                     " the host's key; let go: %d note-offs, then %d note-ons\n",
+                     noteOns (sent, 0.0, 0.5), noteOns (sent, 0.5, 1.5), noteOns (sent, 0.5, 1.5, 60),
+                     noteOns (sent, 1.0, 1.5, 64), noteOns (sent, 1.0, 1.5, 67), noteOns (sent, 0.0, 2.5, gateKey),
+                     noteOffs (sent, 1.5, 1.52), noteOns (sent, 1.5, 2.5));
+        check (noteOns (sent, 0.0, 0.5) == 0, "nothing before the host's note");
+        check (noteOns (sent, 0.5, 1.5) >= 3, "the clip plays while it's held");
+        check (noteOns (sent, 0.5, 0.52, 60) == 1, "with what's already under the playhead (C4, held from the clip's start)");
+        check (noteOns (sent, 1.0, 1.5, 64) >= 1 && noteOns (sent, 1.0, 1.5, 67) == 0,
+               "at the song position, not from the clip's start");
+        check (noteOns (sent, 0.0, 2.5, gateKey) == 0, "the host's note itself doesn't reach the synth");
+        check (noteOffs (sent, 1.5, 1.52) >= 1, "its note-off stops what sounded");
+        check (noteOns (sent, 1.5, 2.5) == 0, "and nothing more plays");
+    }
+
+    std::printf ("All Notes Off while the host's note is held shuts the gate; the host's next note opens it\n");
+    {
+        // After the first All Notes Off the song position jumps, which ends the silence, so only the
+        // gate keeps the clip quiet. The note-off of the D2 the second one cleared then comes while
+        // C2 holds the gate open: no longer counted, it must not shut it.
+        const auto sent = play (3.0, hostSends ({ { 0.0, noteOn (gateKey) },
+                                                  { 0.5, juce::MidiMessage::allNotesOff (1) },
+                                                  { 1.0, noteOn (otherKey) },
+                                                  { 1.5, juce::MidiMessage::allNotesOff (1) },
+                                                  { 2.0, noteOn (gateKey) },
+                                                  { 2.25, noteOff (otherKey) },
+                                                  { 2.75, noteOff (gateKey) } }),
+                                0.75);
+        std::printf ("  note-ons: %d with C2 held; All Notes Off: %d note-offs, then %d (a jump among them); D2: %d;"
+                     " All Notes Off: %d; C2: %d; D2's note-off: then %d; C2's: then %d\n",
+                     noteOns (sent, 0.0, 0.5), noteOffs (sent, 0.5, 0.52), noteOns (sent, 0.5, 1.0),
+                     noteOns (sent, 1.0, 1.5), noteOns (sent, 1.5, 2.0), noteOns (sent, 2.0, 2.25),
+                     noteOns (sent, 2.25, 2.75), noteOns (sent, 2.75, 3.0));
+        check (noteOns (sent, 0.0, 0.5) >= 2, "the clip plays while the host's note is held");
+        check (noteOffs (sent, 0.5, 0.52) >= 1, "All Notes Off stops what sounded");
+        check (noteOns (sent, 0.5, 1.0) == 0, "and shuts the gate: silent, even after the song position jumps");
+        check (noteOns (sent, 1.0, 1.5) >= 1, "the host's next note opens it");
+        check (noteOns (sent, 1.5, 2.0) == 0, "All Notes Off again: silent");
+        check (noteOns (sent, 2.0, 2.25) >= 1, "the host's next note opens it again");
+        check (noteOns (sent, 2.25, 2.75) >= 1, "the note-off of a note All Notes Off cleared leaves it open");
+        check (noteOns (sent, 2.75, 3.0) == 0, "the held note's note-off shuts it");
+    }
+
+    std::printf ("Notes from the host that touch keep the gate open, whichever of the two comes first\n");
+    {
+        // C2 held from the start. Then, each pair at one sample inside its block: C2's note-off and C2
+        // again; C2's note-off and D2's note-on; C2's note-on and D2's note-off. Then C2's note-off
+        // shuts the gate. C4, held through the clip, mustn't start again where the notes touch.
+        const auto shut = sampleOf (2.0, 50);
+        const auto end = (int) (2.5 * CopyRig::rate);
+        const auto sent = play (2.5, hostSends ({ { 0.0, noteOn (gateKey) },
+                                                  { 0.5, noteOff (gateKey), 300 }, { 0.5, noteOn (gateKey), 300 },
+                                                  { 1.0, noteOff (gateKey), 200 }, { 1.0, noteOn (otherKey), 200 },
+                                                  { 1.5, noteOn (gateKey), 100 }, { 1.5, noteOff (otherKey), 100 },
+                                                  { 2.0, noteOff (gateKey), 50 } }));
+        const auto between = noteOnsAt (sent, sampleOf (0.5, 300), shut, 64) + noteOnsAt (sent, sampleOf (0.5, 300), shut, 67);
+        std::printf ("  C4: %d note-on(s), %d note-off(s) before the last note-off, %d at it; E4 and G4 in between:"
+                     " %d note-ons; after it: %d\n",
+                     noteOnsAt (sent, 0, end, 60), noteOffsAt (sent, 0, shut, 60), noteOffsAt (sent, shut, shut + 1, 60),
+                     between, noteOnsAt (sent, shut + 1, end));
+        check (noteOnsAt (sent, 0, end, 60) == 1 && noteOffsAt (sent, 0, shut, 60) == 0,
+               "C4 starts once and plays on where the host's notes touch, note-off first or note-on first");
+        check (between >= 5, "and the clip's other notes keep coming");
+        check (noteOffsAt (sent, shut, shut + 1, 60) == 1, "the last note-off shuts the gate, at its sample");
+        check (noteOnsAt (sent, shut + 1, end) == 0, "and nothing plays after it");
+        check (noteOnsAt (sent, 0, end, gateKey) + noteOnsAt (sent, 0, end, otherKey) == 0, "the host's notes aren't played");
+    }
+
+    std::printf ("All Notes Off in the block the transport starts or the song jumps in shuts the gate too\n");
+    {
+        // The host holds C2 and never sends its note-off, only All Notes Off: in the block the song
+        // jumps in, in the one the transport starts in, and later in a jump's block. It holds no note
+        // after it, so the gate shuts, though the clip isn't paused as it is for one mid-play.
+        const auto inJump = play (1.5, hostSends ({ { 0.0, noteOn (gateKey) }, { 0.5, juce::MidiMessage::allNotesOff (1) } }),
+                                  0.5);
+        const auto restarted = play (1.0, {});
+        play (0.5, hostSends ({ { 0.0, noteOn (gateKey) } }));     // stopped with C2 held
+        const auto atStart = play (1.0, hostSends ({ { 0.0, juce::MidiMessage::allNotesOff (1) } }));
+        const auto at = sampleOf (0.5, 200);
+        const auto later = play (1.0, hostSends ({ { 0.0, noteOn (gateKey) }, { 0.5, juce::MidiMessage::allNotesOff (1), 200 } }),
+                                 0.5);
+        std::printf ("  note-ons: %d with C2 held, %d after a jump with All Notes Off, %d on the next play, %d after one"
+                     " as the transport starts; one later in a jump's block: C4's note-off at it %d, then %d note-ons\n",
+                     noteOns (inJump, 0.0, 0.5), noteOns (inJump, 0.5, 1.5), noteOns (restarted, 0.0, 1.0),
+                     noteOns (atStart, 0.0, 1.0), noteOffsAt (later, at, at + 1, 60), noteOnsAt (later, at + 1, (int) CopyRig::rate));
+        check (noteOns (inJump, 0.0, 0.5) >= 2, "the clip plays while the host's note is held");
+        check (noteOns (inJump, 0.5, 1.5) == 0, "All Notes Off in the block the song jumps in shuts the gate");
+        check (noteOns (restarted, 0.0, 1.0) == 0, "which stays shut when the transport starts again");
+        check (noteOns (atStart, 0.0, 1.0) == 0, "All Notes Off as the transport starts shuts a gate left open");
+        check (noteOffsAt (later, at, at + 1, 60) == 1 && noteOnsAt (later, at + 1, (int) CopyRig::rate) == 0,
+               "one later in a jump's block ends the notes started at the jump, at its sample");
+    }
+
+    std::printf ("Picking another clip slot leaves the host's silence standing\n");
+    {
+        setGate (false);
+        auto& doc = rig->processor.getDocument();
+        doc.replaceClip (1, clip, "Test");
+        CopyRig::pump (10);
+
+        // All Notes Off mid-play; slot 2 picked at 1 s, while silent; a note from the host at 1.5 s;
+        // slot 1 picked again at 2 s, with All Notes Off in the same block.
+        const auto host = hostSends ({ { 0.5, juce::MidiMessage::allNotesOff (1), 128 },
+                                       { 1.5, noteOn (otherKey) }, { 1.75, noteOff (otherKey) },
+                                       { 2.0, juce::MidiMessage::allNotesOff (1) } });
+        const auto sent = play (2.5, [&doc, host] (double time, juce::MidiBuffer& midi)
+        {
+            doc.setEditSlot (time >= 1.0 && time < 2.0 ? 1 : 0);
+            host (time, midi);
+        });
+        std::printf ("  note-ons: %d before All Notes Off, %d after it with slot 2 picked, %d after the host's note,"
+                     " %d after slot 1 is picked with All Notes Off\n",
+                     noteOns (sent, 0.0, 0.5), noteOns (sent, 0.5, 1.5), noteOns (sent, 1.5, 2.0), noteOns (sent, 2.0, 2.5));
+        check (noteOns (sent, 0.0, 0.5) >= 2, "the clip plays until All Notes Off");
+        check (noteOns (sent, 0.5, 1.5) == 0, "picking another slot while it's silent doesn't play that one");
+        check (noteOns (sent, 1.5, 2.0) >= 1, "a note from the host does");
+        check (noteOns (sent, 2.0, 2.5) == 0, "All Notes Off in the block a slot is picked in silences it: that's no restart");
+        doc.setEditSlot (0);
+    }
+
+    std::printf ("A loop of the song or pattern ends the silence, as a jump does\n");
+    {
+        // The song goes back to its start at 0.75 s, as when FL loops a pattern.
+        const auto sent = play (1.5, hostSends ({ { 0.25, juce::MidiMessage::allNotesOff (1), 64 } }), 0.75, -0.75);
+        std::printf ("  note-ons: %d after All Notes Off, %d after the song starts over\n",
+                     noteOns (sent, 0.25, 0.75), noteOns (sent, 0.75, 1.5));
+        check (noteOns (sent, 0.25, 0.75) == 0, "All Notes Off silences the clip");
+        check (noteOns (sent, 0.75, 1.5) >= 2, "the song starting over plays it again");
+    }
+
+    std::printf ("All Notes Off inside a block: the clip plays up to its sample and stops there\n");
+    {
+        // E4 starts at beat 2, sample 48000 give or take one, 384 samples into its block; All Notes Off
+        // comes 400 samples into the same block.
+        const auto block = sampleOf (0.99, 0);
+        const auto at = sampleOf (0.99, 400);
+        const auto end = (int) (1.5 * CopyRig::rate);
+        const auto sent = play (1.5, hostSends ({ { 0.99, juce::MidiMessage::allNotesOff (1), 400 } }));
+        std::printf ("  E4's note-on near sample 48000: %d; at sample %d, All Notes Off's: note-offs of C4 %d and E4 %d;"
+                     " note-ons after it: %d\n",
+                     noteOnsAt (sent, 47999, 48002, 64), at, noteOffsAt (sent, at, at + 1, 60), noteOffsAt (sent, at, at + 1, 64),
+                     noteOnsAt (sent, at + 1, end));
+        check (noteOnsAt (sent, 47999, 48002, 64) == 1 && noteOnsAt (sent, block, at, 64) == 1,
+               "E4 starts at its own sample, before the message in its block");
+        check (noteOffsAt (sent, at, at + 1, 60) == 1 && noteOffsAt (sent, at, at + 1, 64) == 1,
+               "C4 and E4 end at the message's sample");
+        check (noteOnsAt (sent, at + 1, end) == 0, "and nothing plays after it");
+    }
+
+    std::printf ("MPE output, the clip on the zone's member channels: the gate and All Notes Off alike\n");
+    {
+        rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::mpe; });
+        setGate (true);
+        const auto at = sampleOf (1.0, 200);
+        const auto end = (int) (1.5 * CopyRig::rate);
+        const auto sent = play (1.5, hostSends ({ { 0.0, noteOn (gateKey) },
+                                                  { 0.5, noteOff (gateKey), 300 }, { 0.5, noteOn (otherKey), 300 },
+                                                  { 1.0, juce::MidiMessage::allNotesOff (1), 200 } }));
+        int channel = 0;
+
+        for (const auto& s : sent)
+            if (s.message.isNoteOn() && s.message.getNoteNumber() == 60)
+                channel = s.message.getChannel();
+
+        std::printf ("  C4 on channel %d: %d note-on(s), %d note-off(s) before All Notes Off, %d at it; note-ons after it: %d\n",
+                     channel, noteOnsAt (sent, 0, end, 60), noteOffsAt (sent, 0, at, 60), noteOffsAt (sent, at, at + 1, 60),
+                     noteOnsAt (sent, at + 1, end));
+        check (channel >= 2, "C4 is played on a member channel");
+        check (noteOnsAt (sent, 0, end, 60) == 1 && noteOffsAt (sent, 0, at, 60) == 0, "notes from the host that touch keep it playing");
+        check (noteOffsAt (sent, at, at + 1, 60) == 1 && noteOnsAt (sent, at + 1, end) == 0,
+               "All Notes Off ends it at its sample, and shuts the gate");
+        rig->setOutput ([] (OutputSettings& o) { o.mode = OutputSettings::Mode::singleChannel; });
+    }
+
+    std::printf ("Note trigger: All Sound Off or All Notes Off from the host stops a clip a note started\n");
+    {
+        setPlayback ([] (PlaybackSettings& p) { p.mode = PlaybackSettings::Mode::noteTrigger; p.triggerBaseKey = 0; });
+
+        // Key 0 starts slot 1's clip, and All Sound Off comes inside a block, with no note-off for the
+        // key. Then the key's note-off, late, which changes nothing; the key again, and its note-off.
+        const auto at = sampleOf (0.5, 100);
+        const auto stopped = play (1.0, hostSends ({ { 0.0, noteOn (0) }, { 0.5, juce::MidiMessage::allSoundOff (1), 100 } }));
+        const auto later = play (1.0, {});
+        const auto off = sampleOf (1.0, 50);
+        const auto again = play (1.5, hostSends ({ { 0.0, noteOff (0) }, { 0.25, noteOn (0) }, { 1.0, noteOff (0), 50 } }));
+        std::printf ("  note-ons: %d before All Sound Off; at its sample C4's note-off %d, then %d note-ons, and %d on the"
+                     " next play; the key again: %d, then at its note-off C4's %d, and %d note-ons after\n",
+                     noteOns (stopped, 0.0, 0.5), noteOffsAt (stopped, at, at + 1, 60), noteOnsAt (stopped, at + 1, (int) CopyRig::rate),
+                     noteOns (later, 0.0, 1.0), noteOns (again, 0.25, 1.0), noteOffsAt (again, off, off + 1, 60),
+                     noteOnsAt (again, off + 1, (int) (1.5 * CopyRig::rate)));
+        check (noteOns (stopped, 0.0, 0.5) >= 2, "key 0 starts slot 1's clip");
+        check (noteOffsAt (stopped, at, at + 1, 60) == 1 && noteOnsAt (stopped, at + 1, (int) CopyRig::rate) == 0,
+               "All Sound Off stops it at its sample, as the key's note-off would");
+        check (noteOns (later, 0.0, 1.0) == 0, "and it stays stopped while the transport plays");
+        check (noteOns (again, 0.25, 1.0) >= 2, "the key starts it again");
+        check (noteOffsAt (again, off, off + 1, 60) == 1 && noteOnsAt (again, off + 1, (int) (1.5 * CopyRig::rate)) == 0,
+               "and its note-off stops it");
+        setPlayback ([] (PlaybackSettings& p) { p.mode = PlaybackSettings::Mode::followHost; });
+    }
+
+    std::printf ("The host's notes are recorded when Rec is armed\n");
+    {
+        rig->processor.setRecordArmed (true);
+        play (1.0, hostSends ({ { 0.25, noteOn (gateKey) }, { 0.75, noteOff (gateKey) } }));
+        rig->processor.setRecordArmed (false);
+        CopyRig::pump (250);
+
+        bool recorded = false;
+
+        for (const auto& n : rig->processor.getDocument().getClip (0).notes)
+            recorded = recorded || n.key == gateKey;
+
+        check (recorded, "the host's note is in the clip");
+    }
+
+    int logged = 0;
+
+    for (const auto& line : juce::StringArray::fromLines (PluginLog::tail (200)))
+        logged += line.contains ("The host sent") ? 1 : 0;
+
+    check (logged == 1, "the plugin log has the first of the host's silences only");
+
+    std::printf ("Note trigger, in a load of its own: the plugin log notes the first clip All Notes Off stopped\n");
+    {
+        CopyRig other;      // no synth: only the log is read
+        other.synth().useSettingsFile (settingsFile);
+        auto& doc = other.processor.getDocument();
+        auto s = doc.getSettings();
+        s.playback.mode = PlaybackSettings::Mode::noteTrigger;
+        doc.setSettings (s);
+        doc.replaceClip (0, clip, "Test");
+        CopyRig::pump (30);
+
+        for (int i = 0; i < 40; ++i)
+        {
+            juce::AudioBuffer<float> audio (2, CopyRig::block);
+            juce::MidiBuffer midi;
+
+            if (i == 0)
+                midi.addEvent (noteOn (0), 0);
+            else if (i == 20)
+                midi.addEvent (juce::MidiMessage::allNotesOff (1), 0);
+
+            other.processor.processBlock (audio, midi);
+        }
+
+        CopyRig::pump (200);        // the processor's timer writes the line
+        const auto log = PluginLog::tail (10);
+        check (log.contains ("The host sent All Notes Off (CC 123): the clip playing in Note trigger mode stopped"),
+               "the plugin log says the host sent it, and that it stopped the clip");
+    }
+
+    finish();
+    std::printf ("%s\n", check.failures == 0 ? "PASS" : "FAIL");
+    return check.failures == 0 ? 0 : 1;
+}
+
+/** MPE Roll's own VST3, loaded as a host loads it, playing a clip in Follow FL mode. A VST3 gets
+    the host's MIDI controllers only as changes of the parameters it maps them to (its IMidiMapping:
+    JUCE's wrapper gives every controller a hidden parameter and turns its changes back into MIDI),
+    and JUCE's host sends them that way. All Notes Off sent so must stop the clip until the
+    transport restarts, as gatetest checks inside the engine. Whether FL sends controllers to a VST3
+    like this isn't covered: only that MPE Roll's VST3 acts on one that comes so. */
+int vst3HostMidiTest (const juce::File& pluginFile)
+{
+    Check check;
+    ignoreXErrors();
+
+    juce::VST3PluginFormat format;
+    juce::OwnedArray<juce::PluginDescription> found;
+    format.findAllTypesForFile (found, pluginFile.getFullPathName());
+
+    if (found.isEmpty())
+    {
+        std::printf ("No VST3 in %s\n", pluginFile.getFullPathName().toRawUTF8());
+        return 1;
+    }
+
+    juce::String error;
+    auto plugin = format.createInstanceFromDescription (*found[0], CopyRig::rate, CopyRig::block, error);
+
+    if (plugin == nullptr)
+    {
+        std::printf ("Couldn't load %s: %s\n", pluginFile.getFullPathName().toRawUTF8(), error.toRawUTF8());
+        return 1;
+    }
+
+    std::printf ("Loaded %s %s (VST3)\n", found[0]->name.toRawUTF8(), found[0]->version.toRawUTF8());
+
+    // C4 held through the clip and E4 every half beat, given to the VST3 as a project saved by MPE
+    // Roll's code here, in the form JUCE's host keeps a VST3's state in: the component's state,
+    // base64, in a VST3PluginState element.
+    {
+        const auto settingsFile = juce::File::createTempFile ("settings");
+        auto maker = std::make_unique<MpeRollProcessor>();
+        maker->getSynth().useSettingsFile (settingsFile);
+
+        MpeClip clip;
+        clip.length = 16.0;
+        clip.addNote (note (60, 0.0, 16.0, 0.8f));
+
+        for (int i = 0; i < 32; ++i)
+            clip.addNote (note (64, i * 0.5, 0.4, 0.8f));
+
+        maker->getDocument().replaceClip (0, clip, "Test");
+        juce::MemoryBlock state;
+        maker->getStateInformation (state);
+        maker.reset();
+        settingsFile.deleteFile();
+
+        juce::XmlElement hostState ("VST3PluginState");
+        hostState.createNewChildElement ("IComponent")->addTextElement (state.toBase64Encoding());
+        juce::MemoryBlock saved;
+        juce::AudioProcessor::copyXmlToBinary (hostState, saved);
+        plugin->setStateInformation (saved.getData(), (int) saved.getSize());
+    }
+
+    FakePlayHead playHead;
+    plugin->setPlayHead (&playHead);
+    plugin->prepareToPlay (CopyRig::rate, CopyRig::block);
+    CopyRig::pump (200);
+
+    // Plays the transport from the clip's start for this long, the host sending All Notes Off on
+    // channel 1 in the first block at or after `allNotesOffAt` seconds, and returns the VST3's MIDI
+    // output (the notes MPE Roll plays its synth), each with its block's time.
+    auto play = [&] (double seconds, double allNotesOffAt)
+    {
+        std::vector<std::pair<double, juce::MidiMessage>> out;
+        const auto total = (int) (seconds * CopyRig::rate);
+        bool sent = false;
+        playHead.playing = true;
+
+        for (int pos = 0; pos < total; pos += CopyRig::block)
+        {
+            const auto time = pos / CopyRig::rate;
+            juce::AudioBuffer<float> audio (2, CopyRig::block);
+            juce::MidiBuffer midi;
+
+            if (! sent && allNotesOffAt >= 0.0 && time >= allNotesOffAt)
+            {
+                midi.addEvent (juce::MidiMessage::allNotesOff (1), 0);
+                sent = true;
+            }
+
+            playHead.ppq = time * playHead.bpm / 60.0;
+            plugin->processBlock (audio, midi);
+
+            for (const auto m : midi)
+                out.emplace_back (time, m.getMessage());
+        }
+
+        playHead.playing = false;
+
+        for (int i = 0; i < 10; ++i)
+        {
+            juce::AudioBuffer<float> audio (2, CopyRig::block);
+            juce::MidiBuffer midi;
+            plugin->processBlock (audio, midi);
+        }
+
+        CopyRig::pump (50);
+        return out;
+    };
+
+    auto noteOns = [] (const std::vector<std::pair<double, juce::MidiMessage>>& out, double from, double to)
+    {
+        int n = 0;
+
+        for (const auto& [time, m] : out)
+            if (time >= from && time < to && m.isNoteOn() && m.getNoteNumber() >= 60)
+                ++n;
+
+        return n;
+    };
+
+    const auto stopped = play (2.0, 1.0);
+    const auto restarted = play (2.0, -1.0);
+    std::printf ("  note-ons: %d before All Notes Off, %d after it; played again: %d in the first second, %d in the next\n",
+                 noteOns (stopped, 0.0, 1.0), noteOns (stopped, 1.0, 2.0), noteOns (restarted, 0.0, 1.0),
+                 noteOns (restarted, 1.0, 2.0));
+    check (noteOns (stopped, 0.0, 1.0) >= 4, "the VST3 plays its clip with the transport, its notes in its MIDI output");
+    check (noteOns (stopped, 1.0, 2.0) == 0, "All Notes Off from the host, through the VST3's controller mapping, stops it");
+    check (noteOns (restarted, 0.0, 1.0) >= 4 && noteOns (restarted, 1.0, 2.0) >= 4,
+           "the transport restarted, it plays again, and on through the second second without one");
+
+    plugin->releaseResources();
+    plugin.reset();
+    CopyRig::pump (100);
+
+    std::printf ("%s\n", check.failures == 0 ? "PASS" : "FAIL");
+    return check.failures == 0 ? 0 : 1;
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -4656,6 +5590,12 @@ int main (int argc, char** argv)
     if (args.size() >= 2 && args[0] == "bendtweaks")
         return bendTweaksTest (cwd.getChildFile (args[1]));
 
+    if (args.size() >= 2 && args[0] == "gatetest")
+        return gateTest (cwd.getChildFile (args[1]));
+
+    if (args.size() >= 2 && args[0] == "vst3hostmidi")
+        return vst3HostMidiTest (cwd.getChildFile (args[1]));
+
     if (args.size() >= 2 && args[0] == "crashtest")
         return crashTest (cwd.getChildFile (args[1]), args.size() >= 3 && args[2] == "overflow");
 
@@ -4680,6 +5620,8 @@ int main (int argc, char** argv)
                  "  MpeRollHarness vst3dialect <MPE Roll Note Expression Test Synth.vst3> <MPE Roll Test Synth.vst3>\n"
                  "  MpeRollHarness copies <MPE Roll Plain Test Synth>\n"
                  "  MpeRollHarness bendtweaks <MPE Roll Plain Test Synth>\n"
+                 "  MpeRollHarness gatetest <MPE Roll Plain Test Synth>\n"
+                 "  MpeRollHarness vst3hostmidi <MPE Roll.vst3>\n"
                  "  MpeRollHarness crashtest <report.txt> [overflow]\n"
                  "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n"
                  "  MpeRollHarness loadfailtest <MPE Roll Scanner> <synth.vst3> <VST2 synth>\n");

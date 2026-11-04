@@ -1,7 +1,7 @@
 #pragma once
 
 // Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file.
-// The plugin's own copy of the donation details, shown by File > Support MPE Roll without the website.
+// The plugin's own copy of the donation details, shown by MPE settings > Support MPE Roll without the website.
 
 #include <array>
 

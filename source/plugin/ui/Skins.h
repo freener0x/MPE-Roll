@@ -28,7 +28,8 @@ struct Skin
     SkinColours colours;
 };
 
-/** The skins MPE Roll comes with. The first is the default. */
+/** The skins MPE Roll comes with. The one named "FL Studio" is the default: the look of a user who
+    never picked one (SkinManager::load). */
 const std::vector<Skin>& presetSkins();
 
 /** What each colour is called in the settings. */

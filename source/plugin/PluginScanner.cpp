@@ -222,8 +222,10 @@ juce::String describeFlStudioNativeFiles (const juce::StringArray& files)
                                            : "These files are FL Studio's own plugins: ")
          + files.joinIntoString (", ") + ".\n\n"
            "Those come in Image-Line's own format, which only FL Studio can load, so MPE Roll can't host them "
-           "and has left them out of the scan. To play them with what you write in MPE Roll, use "
-           "File > Send to FL piano roll, which rebuilds the clip in FL's own piano roll.";
+           "and has left them out of the scan. To play them with what you write in MPE Roll, click Send to FL piano "
+           "roll (the FL button on MPE Roll's toolbar): it saves a piano roll script into FL's scripts folder "
+           "(normally Documents\\Image-Line\\FL Studio\\Settings\\Piano roll scripts), and running it from FL's "
+           "piano roll menu > Tools rebuilds the clip in FL's own piano roll.";
 }
 
 namespace

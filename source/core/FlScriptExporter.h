@@ -69,8 +69,28 @@ struct Result
 
 Result generate (const MpeClip& clip, const Options& options);
 
-/** Where FL Studio looks for piano roll scripts: Documents/Image-Line/FL Studio/Settings/Piano roll scripts. */
+/** The folder FL Studio keeps its user data in: Documents/Image-Line unless the user moved it
+    (Options > File settings > User data folder puts "FL Studio" inside it). On Windows it's read from
+    the registry value Software\Image-Line\Shared\Paths > "Shared data", the user's, then the
+    machine's: Image-Line doesn't document it, but MPE Roll's installer and other tools read FL's
+    folder from it the same way. Whether FL rewrites it when the folder is moved hasn't been
+    checked. Elsewhere, and when it's unset, Documents/Image-Line. */
+juce::File flUserDataFolder();
+
+/** Where FL lists the user's piano roll scripts, inside such a folder:
+    FL Studio/Settings/Piano roll scripts. Pure: nothing is read or made. */
+juce::File scriptFolderIn (const juce::File& userDataFolder);
+
+/** Where FL Studio looks for the user's piano roll scripts on this computer:
+    <User data folder>/FL Studio/Settings/Piano roll scripts, normally
+    Documents/Image-Line/FL Studio/Settings/Piano roll scripts. */
 juce::File defaultScriptFolder();
+
+/** Whether FL lists a script saved as this file: it's in the given scripts folder, or in a folder
+    inside it (FL shows those as categories), or in a folder laid out as FL's,
+    .../FL Studio/Settings/Piano roll scripts, such as a user data folder that has moved where this
+    computer's settings don't say. Pure: nothing is read or made. */
+bool isInScriptFolder (const juce::File& script, const juce::File& scriptFolder);
 
 inline constexpr const char* defaultScriptFileName = "MPE Roll Import.pyscript";
 

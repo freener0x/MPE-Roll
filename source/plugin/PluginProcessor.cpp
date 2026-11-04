@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "CrashReport.h"
+#include "PluginLog.h"
 
 #include <cmath>
 #include <cstring>
@@ -176,6 +177,17 @@ void MpeRollProcessor::timerCallback()
 
     drainRecording();
     synthParameters.flushDiagnostics();
+
+    // The first All Notes Off or All Sound Off this load that stopped the clip, seen on the audio
+    // thread: the log then tells whether FL sends one for a channel switched off.
+    if (const auto logged = hostSilenceToLog.exchange (0); logged != 0)
+    {
+        const auto controller = logged > 0 ? logged : -logged;
+        PluginLog::add (juce::String ("The host sent ")
+                        + (controller == 120 ? "All Sound Off (CC 120)" : "All Notes Off (CC 123)")
+                        + (logged > 0 ? ": playback paused until the transport restarts"
+                                      : ": the clip playing in Note trigger mode stopped"));
+    }
 }
 
 //==============================================================================
@@ -199,6 +211,11 @@ void MpeRollProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     playingSlot = -1;
     triggeredSlot = -1;
     triggerKey = -1;
+    hostSilenced = false;
+    followRestarted = false;
+    gateHeld.fill (0);
+    gateHeldCount = 0;
+    gateClosesAt = -1;
     auditionHeld.fill (false);
 
     updateLatency();
@@ -263,6 +280,7 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     {
         const auto ppq = position.hasValue() ? position->getPpqPosition() : juce::Optional<double>();
         const bool playing = position.hasValue() && position->getIsPlaying() && ppq.hasValue();
+        followRestarted = false;
 
         if (playing)
         {
@@ -272,6 +290,15 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
             if (! followPlaying || snapshot.editSlot != playingSlot || jumped)
             {
                 player.stop (encoder, synthMidi, 0);
+
+                // The host's All Notes Off holds until the transport restarts or jumps (a loop of
+                // the pattern or song is a jump too). Another clip slot picked in MPE Roll leaves
+                // it standing: the host hasn't said to play again.
+                if (! followPlaying || jumped)
+                {
+                    hostSilenced = false;
+                    followRestarted = true;
+                }
 
                 if (! followPlaying)
                     configurationRequested = true;
@@ -290,6 +317,7 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
             player.stop (encoder, synthMidi, 0);
             encoder.resetZoneControllers (synthMidi, 0);
             playingSlot = -1;
+            hostSilenced = false;
         }
 
         followPlaying = playing;
@@ -331,7 +359,8 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
 
     handleAudition();
 
-    // Interleave incoming MIDI with playback so everything reaches the encoder in time order.
+    // Interleave incoming MIDI with playback so everything reaches the encoder in time order. The
+    // gate shuts only once every message at the sample of the note-off that shut it has been seen.
     int cursor = 0;
 
     for (const auto metadata : midiMessages)
@@ -340,6 +369,7 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
 
         if (pos > cursor)
         {
+            settleGate();
             renderPlayback (snapshot, cursor, pos, bps, blockStartBeat);
             cursor = pos;
         }
@@ -347,6 +377,7 @@ void MpeRollProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
         handleInput (metadata.getMessage(), pos, snapshot, bps, blockStartBeat);
     }
 
+    settleGate();
     renderPlayback (snapshot, cursor, numSamples, bps, blockStartBeat);
 
     // Report the transport to the UI.
@@ -476,6 +507,25 @@ void MpeRollProcessor::applySettings (const EngineSnapshot& snapshot, int)
         lastPlaybackMode = s.playback.mode;
     }
 
+    // The host's notes gate the clip in Follow FL mode only. Switched on, the gate is shut until the
+    // host's next note, and the notes played through until now end here, since the gate would take
+    // their note-offs. Switched off, the clip plays on from where the song is.
+    const bool gated = s.playback.mode == PlaybackSettings::Mode::followHost && s.playback.gateByHostNotes;
+
+    if (gated != gateActive)
+    {
+        gateHeld.fill (0);
+        gateHeldCount = 0;
+        gateActive = gated;
+
+        if (gated)
+        {
+            liveRouter.samplePos = 0;
+            liveDecoder.stopAllNotes (liveRouter);
+            closeGate (0);
+        }
+    }
+
     player.setControlInterval ((int) std::lround (s.playback.controlIntervalMs * currentSampleRate / 1000.0));
     player.setChaseNotes (s.playback.chaseNotes);
     player.setSampleRate (currentSampleRate);
@@ -510,6 +560,7 @@ void MpeRollProcessor::handleInput (const juce::MidiMessage& message, int sample
                                     double bps, double blockStartBeat)
 {
     const auto& playback = snapshot.settings.playback;
+    const bool follow = playback.mode == PlaybackSettings::Mode::followHost;
 
     if (playback.mode == PlaybackSettings::Mode::noteTrigger && (message.isNoteOn() || message.isNoteOff()))
     {
@@ -527,9 +578,17 @@ void MpeRollProcessor::handleInput (const juce::MidiMessage& message, int sample
         }
     }
 
+    // The host's All Notes Off or All Sound Off (FL may end the notes of a channel switched off that
+    // way) stops the clip too: in Follow FL until the transport restarts or jumps, or the host starts
+    // a note; in Note trigger mode as the trigger note's note-off would. The CC still goes on to the
+    // synth below, as it always did.
+    if (message.isAllNotesOff() || message.isAllSoundOff())
+        stopForHost (message.getControllerNumber(), samplePos, follow);
+    else if (follow && message.isNoteOn())
+        hostSilenced = false;
+
     if (recordArmed.load() && clockRunning() && message.getRawDataSize() <= 3 && ! message.isMetaEvent())
     {
-        const bool follow = playback.mode == PlaybackSettings::Mode::followHost;
         const auto slot = follow ? playingSlot : triggeredSlot;
 
         if (juce::isPositiveAndBelow (slot, numClipSlots))
@@ -546,6 +605,14 @@ void MpeRollProcessor::handleInput (const juce::MidiMessage& message, int sample
         }
     }
 
+    // With the gate on, the host's notes say when the clip sounds and aren't played themselves
+    // (recorded, though, above).
+    if (gateActive && (message.isNoteOn() || message.isNoteOff()))
+    {
+        updateGate (message, samplePos);
+        return;
+    }
+
     if (playback.passThroughInput)
     {
         liveRouter.samplePos = samplePos;
@@ -560,7 +627,8 @@ void MpeRollProcessor::renderPlayback (const EngineSnapshot& snapshot, int from,
 
     if (snapshot.settings.playback.mode == PlaybackSettings::Mode::followHost)
     {
-        if (! followPlaying || ! juce::isPositiveAndBelow (playingSlot, numClipSlots))
+        if (! followPlaying || ! juce::isPositiveAndBelow (playingSlot, numClipSlots)
+            || hostSilenced || (gateActive && gateHeldCount == 0))
             return;
 
         const auto& clip = *snapshot.clips[(size_t) playingSlot];
@@ -615,6 +683,90 @@ void MpeRollProcessor::stopTrigger (int samplePos)
     encoder.resetZoneControllers (synthMidi, samplePos);
     triggeredSlot = -1;
     triggerKey = -1;
+}
+
+void MpeRollProcessor::stopForHost (int controller, int samplePos, bool follow)
+{
+    // What the host asks of a synth, done for the clip as well: every note off and the controllers
+    // at rest. The host holds no note after it, so the gate shuts too, and a clip a note started
+    // stops as at that note's note-off.
+    const bool triggered = triggeredSlot >= 0;
+
+    if (follow)
+        player.stop (encoder, synthMidi, samplePos);
+    else
+        stopTrigger (samplePos);
+
+    encoder.stopAllNotes (synthMidi, samplePos);
+    encoder.resetControllers (synthMidi, samplePos);
+    gateHeld.fill (0);
+    gateHeldCount = 0;
+    gateClosesAt = -1;
+
+    if (follow)
+    {
+        // With the transport stopped there's nothing to pause, and one in the block the transport
+        // starts or jumps in is the host tidying up, so the clip isn't paused for it.
+        if (! followPlaying || followRestarted)
+            return;
+
+        hostSilenced = true;
+    }
+    else if (! triggered)
+    {
+        return;
+    }
+
+    // The first that stopped the clip this load; the message thread writes the line.
+    if (! hostSilenceSeen)
+    {
+        hostSilenceSeen = true;
+        hostSilenceToLog.store (follow ? controller : -controller, std::memory_order_relaxed);
+    }
+}
+
+void MpeRollProcessor::updateGate (const juce::MidiMessage& message, int samplePos)
+{
+    // A note-off for a key that isn't held (its note-on came before the gate was switched on, or
+    // before an All Notes Off) is left out.
+    auto& held = gateHeld[(size_t) (message.getNoteNumber() & 0x7f)];
+
+    if (message.isNoteOn())
+    {
+        if (held < 255)
+        {
+            ++held;
+            ++gateHeldCount;
+        }
+    }
+    else if (held > 0)
+    {
+        --held;
+
+        // Shut once the rest of this sample's messages are in (settleGate): when two of the host's
+        // notes touch, the next one's note-on can come after this note-off at the same sample, and
+        // the clip would otherwise stop there and start again.
+        if (--gateHeldCount == 0)
+            gateClosesAt = samplePos;
+    }
+}
+
+void MpeRollProcessor::settleGate()
+{
+    // Every message at that sample is in: unless one of them started a note again, the gate shuts.
+    if (gateClosesAt >= 0 && gateHeldCount == 0)
+        closeGate (gateClosesAt);
+
+    gateClosesAt = -1;
+}
+
+void MpeRollProcessor::closeGate (int samplePos)
+{
+    // As when the transport stops: a held pedal or bend of the clip's would otherwise keep its notes
+    // ringing, or the next ones out of tune.
+    player.stop (encoder, synthMidi, samplePos);
+    encoder.stopAllNotes (synthMidi, samplePos);
+    encoder.resetZoneControllers (synthMidi, samplePos);
 }
 
 void MpeRollProcessor::pushRecordEvent (const RecordEvent& e)

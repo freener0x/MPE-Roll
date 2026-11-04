@@ -179,9 +179,14 @@ public:
             s.input.mode = InputSettings::Mode::singleChannel;
             s.playback.mode = PlaybackSettings::Mode::noteTrigger;
             s.playback.triggerBaseKey = 24;
+            s.playback.gateByHostNotes = true;
 
             const auto xml = s.toXml();
             expect (EngineSettings::fromXml (xml.get()) == s);
+
+            // A project saved before the gate existed opens with it off.
+            xml->getChildByName ("Playback")->removeAttribute ("gateByHostNotes");
+            expect (! EngineSettings::fromXml (xml.get()).playback.gateByHostNotes);
         }
 
         beginTest ("Zone layouts follow the MPE specification");

@@ -101,6 +101,7 @@ configure_file(source/plugin/BuildInfo.h.in ${CMAKE_CURRENT_BINARY_DIR}/generate
 
 set(MPEROLL_PLUGIN_SOURCES
     source/plugin/AudioExport.cpp
+    source/plugin/BugReport.cpp
     source/plugin/BuildInfo.cpp
     source/plugin/PluginProcessor.cpp
     source/plugin/PluginEditor.cpp

@@ -58,6 +58,18 @@ public:
     void setState (bool state) override     { setter (state); }
     bool getState() const override          { return getter(); }
 
+    // Over the switch as well as the name: a tooltip is the one of the component right under the
+    // mouse, and the switch (private to JUCE's class, so found among the children) takes up most of
+    // the row.
+    void setTooltip (const juce::String& newTooltip) override
+    {
+        BooleanPropertyComponent::setTooltip (newTooltip);
+
+        for (auto* child : getChildren())
+            if (auto* toggle = dynamic_cast<juce::Button*> (child))
+                toggle->setTooltip (newTooltip);
+    }
+
 private:
     std::function<bool()> getter;
     std::function<void (bool)> setter;

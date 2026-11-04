@@ -170,6 +170,28 @@ private:
     bool recordingTake = false;
     double recordElapsed = 0.0;
 
+    // Follow FL: the host sent All Notes Off or All Sound Off while the clip played (FL may, for a
+    // channel switched off in the Channel Rack), so nothing is rendered until the transport stops,
+    // restarts or jumps (a loop of the pattern or song included), or the host starts a note; another
+    // clip slot picked meanwhile stays silent too. One arriving in the block the transport starts or
+    // jumps in is the host tidying up: it ends the notes but doesn't pause the clip. The first that
+    // stops the clip each load, in either playback mode, is logged by the message thread.
+    bool hostSilenced = false;
+    bool followRestarted = false;               // the transport started or jumped in this block
+    bool hostSilenceSeen = false;
+    std::atomic<int> hostSilenceToLog { 0 };    // the controller still to be logged (120 or 123, negated
+                                                // for Note trigger mode), 0 for none
+
+    // Follow FL with PlaybackSettings::gateByHostNotes: the host's notes held right now, counted per
+    // key over every channel, so a note-off for a key that isn't held can't take the count below
+    // zero. The clip sounds only while one is held; the notes themselves aren't played. When the
+    // last one ends, the gate shuts at that sample once every message there has been read, since the
+    // next of two touching notes may start there (gateClosesAt, -1 for none).
+    std::array<uint8_t, 128> gateHeld {};
+    int gateHeldCount = 0;
+    int gateClosesAt = -1;
+    bool gateActive = false;                    // as last applied: Follow FL, with the gate switched on
+
     // UI -> audio
     juce::AbstractFifo auditionFifo { 256 };
     std::array<AuditionEvent, 256> auditionEvents;
@@ -216,6 +238,10 @@ private:
     bool clockRunning() const noexcept;
     void startTrigger (int slot, int key, int samplePos);
     void stopTrigger (int samplePos);
+    void stopForHost (int controller, int samplePos, bool follow);
+    void updateGate (const juce::MidiMessage&, int samplePos);
+    void settleGate();
+    void closeGate (int samplePos);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MpeRollProcessor)
 };

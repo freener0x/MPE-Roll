@@ -128,10 +128,12 @@ Toolbar::Toolbar()
     toolsButton.setTooltip ("Tools, as in FL's piano roll: quantize, chop, glue, arpeggiate, strum, flam, legato, "
                             "articulate, limit, flip, randomize and scale levels, each with FL's key");
     midiButton.setOpensMenu (true);
-    midiButton.setTooltip ("File: import or export MPE MIDI files, export the clip as audio (WAV or MP3), "
-                           "open the donation page, or drag this button into FL to drop the clip as a MIDI file");
-    flButton.setTooltip ("Send to FL piano roll: writes a piano roll script that rebuilds this clip in FL's own "
-                         "piano roll (slide notes, fine pitch, Mod X/Y) for FL's native synths");
+    midiButton.setTooltip ("File: import or export MPE MIDI files, export the clip as audio (WAV or MP3), report a bug, "
+                           "or drag this button into FL to drop the clip as a MIDI file");
+    flButton.setTooltip ("Send to FL piano roll: saves a script into FL's piano roll scripts folder (normally "
+                         "Documents\\Image-Line\\FL Studio\\Settings\\Piano roll scripts) that rebuilds this clip in FL's own "
+                         "piano roll, with slide notes, fine pitch and Mod X/Y, for FL's native synths. In FL: piano roll "
+                         "menu > Tools > MPE Roll Import");
 
     status.setColour (juce::Label::textColourId, Theme::textDim);
     status.setFont (juce::FontOptions (12.5f));

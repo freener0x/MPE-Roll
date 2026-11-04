@@ -110,6 +110,15 @@ private:
     void playWithoutMpe (const juce::String& synthName, bool oneCopyPerNote);
     void showLoadFailure (const juce::String& error, const juce::PluginDescription* plugin);
 
+    /** Opens a new issue from the given form (BugReport) in the browser, filled in with the build,
+        the system and the synth, if given; puts the report on the clipboard for the user to paste
+        in, since an address can't carry the plugin log; and says so in the status line. */
+    void reportProblem (const juce::String& form, const juce::String& report, const juce::String& synth = {});
+
+    /** From the Load synth menu: the form for a synth that plays wrong or not at all when one is
+        loaded, else the one for a synth that won't load, with what MPE Roll knows of it. */
+    void reportSynthProblem();
+
     void showMidiMenu();
     void importMidi();
     void importMidiFile (const juce::File&);

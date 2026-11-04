@@ -111,7 +111,8 @@ and a plain-MIDI mode for synths that don't do MPE.
   transpose (↑/↓ a semitone, Ctrl an octave), nudge (←/→).
 - 16 clip slots. Each plays in sync with FL (**Follow FL**) or is launched by notes from FL's piano
   roll (**Note trigger**: C0 plays slot 1, C#0 slot 2...).
-- **Ten skins**, any colour of them changeable, and a background picture of your own behind the grid.
+- **Ten skins**, FL Studio's look by default, any colour of them changeable, and a background
+  picture of your own behind the grid.
 
 **Your synth, any format**
 - Hosts VST3, VST2 and CLAP instruments (plus AU on macOS), with a plugin scanner and a crash-safe
@@ -267,10 +268,10 @@ The short version is below. [docs/FL_STUDIO.md](docs/FL_STUDIO.md) has the full 
 same number. Pick your controller under *MPE settings › Controller*, arm *Rec* in MPE Roll and play
 FL.
 
-**FL's native synths:** click *Send to FL piano roll*. MPE Roll writes `MPE Roll Import.pyscript`
-into FL's scripts folder, `Documents\Image-Line\FL Studio\Settings\Piano roll scripts`, or asks
-where to save when it doesn't find that folder (pick it). In the piano roll of a native synth's
-channel, run it from the piano roll menu › *Tools*, where FL lists its scripts:
+**FL's native synths:** click *Send to FL piano roll*. MPE Roll saves `MPE Roll Import.pyscript`
+into FL's scripts folder, `<User data folder>\FL Studio\Settings\Piano roll scripts` (normally under
+`Documents\Image-Line`). In the piano roll of a native synth's channel, run it from the piano roll
+menu › *Tools* (FL Studio 21.1 or newer):
 
 - Each overlapping note gets its own colour, because slide notes only bend notes of the same colour.
 - Glides become chains of slide notes, and a note's starting offset becomes fine pitch.
@@ -282,7 +283,9 @@ channel, run it from the piano roll menu › *Tools*, where FL lists its scripts
 ## Known limitations
 
 [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md), the website's Known issues page, has these too, with
-what to do about each one meanwhile and where it stands.
+what to do about each one meanwhile and where it stands. To report something, *File › Report a bug…*
+in MPE Roll opens the issue form on GitHub with the build filled in, and puts the plugin log on the
+clipboard to paste into it. Nothing is sent until you submit the form on GitHub.
 
 - **Tested in FL Studio on Windows 11** (26.1.7, release 0.1.0). MPE Roll loads in the Channel Rack
   and plays Arturia Analog Lab, as VST2 and as VST3 (zone-wide lanes; per-note lanes with *Plain
@@ -290,8 +293,8 @@ what to do about each one meanwhile and where it stands.
   MPE is on in Omnisphere's System page) and Surge XT as CLAP (with CLAP note expressions, nothing
   set up in the synth). *Send to FL piano roll* asked where to save, because 0.1.0 writes the script
   into FL's folder by itself only when `Documents\Image-Line\FL Studio\Settings\Piano roll scripts`
-  already exists where Windows keeps Documents (a fix for 0.2.0, finding FL's folder and saving
-  there itself, is under way); saved there, the script is listed under the piano roll menu's
+  already exists where Windows keeps Documents (builds since then find FL's folder and save there
+  themselves); saved there, the script is listed under the piano roll menu's
   *Tools* and runs, and the glides land in tune, so the fine-pitch unit the script uses (tenths of a
   semitone) is confirmed. The release installer upgraded an earlier build. The standalone app loads
   synths, clicks land where they're aimed after the window is reopened, and a scan that meets FL's
@@ -304,10 +307,6 @@ what to do about each one meanwhile and where it stands.
   The sound isn't affected, but your own edits get buried among those entries. Fixed on main since
   3 November 2026; the next release, 0.2.0, won't have it. The FL Studio guide's troubleshooting
   table has the details.
-- **Switching MPE Roll's channel off in the Channel Rack doesn't stop its sound** (0.1.0, seen in
-  *Follow FL* mode, the default): FL's switch stops the notes it sends a channel, and MPE Roll plays
-  its clip from FL's transport, not from notes. Mute MPE Roll's mixer track instead, or stop FL. A
-  fix is under way for 0.2.0.
 - **Nobody has run the macOS build yet**, nor the experimental Linux build in a Linux host. CI
   builds both and runs the tests on macOS and Linux with every code change, but no person has
   opened the macOS bundles on a Mac. Testers wanted: please say how it went, working or not, in an
@@ -339,6 +338,16 @@ what to do about each one meanwhile and where it stands.
 - The controller presets are based on each maker's documentation, not tested on the hardware.
 - FL shows synth parameter slots by number until a synth is loaded. If FL keeps old names after you
   change synths, reopen the project.
+- **The Channel Rack switch in *Follow FL* mode.** MPE Roll then plays the clip from FL's song
+  position, not from FL's notes, so in 0.1.0 switching its channel off in the Channel Rack doesn't
+  stop it; muting its mixer track does. From 0.2.0 the clip stops when FL sends All Notes Off or
+  All Sound Off while the song plays, until the transport restarts, the song jumps or loops, or FL
+  sends a note, and *MPE settings › Playback › Follow FL only while FL holds a note* lets FL's
+  notes, and so patterns and the playlist, decide when the clip sounds. Whether the switch then
+  stops it depends on FL ending a switched-off channel's notes, with All Notes Off or note-offs,
+  which isn't confirmed yet; the plugin log says when FL sends All Notes Off (details in the
+  [FL Studio guide](docs/FL_STUDIO.md#stopping-mpe-roll-with-the-channel-rack-switch)). The same
+  goes for *Note trigger* mode, where FL's notes start and stop the clips.
 - If FL also sends your controller to the *selected* Channel Rack channel, notes can play twice.
   Keep another channel selected while recording.
 - FL's native synths only get what FL's piano roll can express: one colour per overlapping note, at
@@ -391,9 +400,11 @@ all of them.
 MPE Roll is free and open source, with no ads and no tracking ([docs/PRIVACY.md](docs/PRIVACY.md)
 says what it keeps on your computer). If it helps you, a donation keeps it going: see
 [DONATE.md](DONATE.md) (Cash App, or Bitcoin, Ethereum, Solana and Monero by QR code). Inside the
-plugin, *File > Support MPE Roll* (or the link at the foot of *MPE settings*) opens the same details
-in a window of its own, QR codes and Copy buttons included, with nothing to load from the web. The
-page is also on MPE Roll's website, <https://freener0x.github.io/MPE-Roll/donate.html>.
+plugin, *MPE settings › Support MPE Roll* (the link at the foot of the settings) opens the same
+details in a window of its own, QR codes and Copy buttons included, with nothing to load from the
+web. The page is also on MPE Roll's website, <https://freener0x.github.io/MPE-Roll/donate.html>.
+Beside the link, *Share MPE Roll* opens the website's share page, with posts ready for X, Instagram
+and Facebook.
 
 The website (<https://freener0x.github.io/MPE-Roll/>) is the `docs/` folder, which GitHub Pages
 builds with Jekyll in GitHub's Cayman theme (*Settings › Pages › Build and deployment*: *Deploy from a
