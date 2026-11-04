@@ -108,6 +108,9 @@ and the release tags; a build between releases names itself by its number and co
   the *Support MPE Roll* link at the foot of the settings opens the same window. Beside it, a quiet
   *Share MPE Roll* link opens the website's share page, with posts ready for X, Instagram and
   Facebook.
+- The files of the plugin's code, tests, tools, build, installer and CI workflows start with an
+  SPDX header: licence AGPL-3.0-only, copyright 2026 The MPE Roll contributors. CI checks them
+  (`tools/check_spdx.py`).
 
 ### Fixed
 

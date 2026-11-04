@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #include "MpeSettings.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>

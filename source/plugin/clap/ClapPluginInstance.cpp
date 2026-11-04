@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Hosting a CLAP plugin as a juce::AudioPluginInstance.
 //
 // Threads, as CLAP defines them: the "main thread" is JUCE's message thread and the "audio

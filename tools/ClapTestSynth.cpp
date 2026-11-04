@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // A minimal CLAP sine synth, written directly against the CLAP API. It's only used by the
 // developer harness to check MPE Roll's CLAP hosting.
 //

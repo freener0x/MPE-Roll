@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """A stand-in for FL Studio's piano roll scripting module, for running generated scripts in tests.
 
 It mirrors the documented API (flpianoroll.Note, flpianoroll.score, flpianoroll.ScriptDialog) and

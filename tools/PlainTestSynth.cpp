@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // A plain MIDI test synth, with no MPE: every note on a MIDI channel shares that channel's pitch
 // bend, as on most synths. It's only used by the developer harness, to show that playing one copy
 // of a synth per note still gives each note a glide of its own.

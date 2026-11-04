@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Checks MPE Roll's website as Jekyll built it (the _site folder): that it loads nothing from other
 sites, and that nothing in it points at a file or a place on a page that isn't there.
 

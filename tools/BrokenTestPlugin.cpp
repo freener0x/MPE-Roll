@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // A CLAP plugin file that crashes (or, built with MPEROLL_TEST_PLUGIN_HANGS, hangs) as soon as a host
 // starts loading it. The harness checks that MPE Roll looks at such files in its scanner process and
 // survives them.

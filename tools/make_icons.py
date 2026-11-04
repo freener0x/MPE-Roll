@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Makes MPE Roll's icon files from the hand-written SVGs in assets/icon.
 
 The artwork:

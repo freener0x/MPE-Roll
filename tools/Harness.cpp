@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Developer harness for MPE Roll (built with -DMPEROLL_BUILD_DEV_TOOLS=ON).
 //
 //   MpeRollHarness snapshot <out.png> [width height]   renders the editor with a demo clip

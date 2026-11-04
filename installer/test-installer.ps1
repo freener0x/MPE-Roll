@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Installs, upgrades and uninstalls MPE Roll with its installer, silently, and checks where every
 # file goes and that older copies are found and removed. Only for the Windows CI job's throwaway
 # runner: it installs into Program Files, deletes copies of MPE Roll it plants there, and points FL

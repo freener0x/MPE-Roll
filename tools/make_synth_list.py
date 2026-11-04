@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Makes MPE Roll's list of instruments and their MPE from docs/synths.json.
 
 It writes, both committed so nobody needs this script to read or build them:
@@ -75,6 +78,9 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "docs" / "synths.json"
 PAGE_OUT = ROOT / "docs" / "MPE_SYNTHS.md"
 PLUGIN_OUT = ROOT / "source" / "plugin" / "KnownSynths.h"
+# The plugin's copy starts with MPE Roll's SPDX header (tools/check_spdx.py checks every file in source/).
+PLUGIN_SPDX = ["// SPDX-FileCopyrightText: 2026 The MPE Roll contributors",
+               "// SPDX-License-Identifier: AGPL-3.0-only"]
 FRONT_PAGE = ROOT / "docs" / "_data" / "features.yml"
 FRONT_PAGE_PANEL = "known-synths"
 FL_GUIDE = "FL_STUDIO.md"
@@ -345,6 +351,8 @@ def render_plugin(checked: str, synths: list[dict]) -> str:
     entries.sort(key=lambda e: e["order"])
 
     out = [
+        *PLUGIN_SPDX,
+        "",
         "#pragma once",
         "",
         "// Made by tools/make_synth_list.py from docs/synths.json. Change those, not this file.",

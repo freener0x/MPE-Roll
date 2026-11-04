@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Draws the website's pictures of the editor with the developer harness (MpeRollHarness shoot,
 # tools/Harness.cpp), in the FL Studio skin at twice the size (for screens with twice the pixels),
 # into docs/images. docs/_data/screenshots.yml says which page picture is which file, and its size.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Maps the VST2 SDK include path that JUCE's VST2 hosting expects onto FST's clean-room headers.
 #pragma once
 

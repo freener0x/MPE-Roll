@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #pragma once
 
 /** The web addresses MPE Roll reports. (The donation details are in the plugin itself, in

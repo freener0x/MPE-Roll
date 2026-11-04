@@ -417,8 +417,11 @@ tools/            Developer harness and tiny MPE test synths: VST3 and VST2 (JUC
                   make_synth_list.py writes docs/MPE_SYNTHS.md and source/plugin/KnownSynths.h, the
                   synths MPE Roll knows the MPE of, from docs/synths.json (CI checks they match).
                   shoot_images.sh and make_demo.sh draw the website's pictures and its demo film
-                  with the harness, and check_site.py checks the built website.
-third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later).
+                  with the harness, and check_site.py checks the built website. check_spdx.py
+                  checks that the files of the plugin's code, tests, tools, build, installer and
+                  CI workflows start with MPE Roll's SPDX header (see License; CI runs it).
+third_party/fst/  Clean-room VST2 headers (GPL-3.0-or-later), and two include shims of MPE Roll's
+                  that point JUCE's VST2 hosting at them (pluginterfaces/vst2.x/).
 third_party/lame/ The build configuration for the LAME MP3 encoder (LAME itself is downloaded).
 cmake/            Fixes and additions applied to the downloaded JUCE: an empty VST3 MIDI mapping, the
                   hosted VST3's edit controller, and VST3 note events handed over in the MIDI buffer.
@@ -461,8 +464,18 @@ a 404 there.
 
 ## License
 
-AGPL-3.0, the open-source licence JUCE is available under. See [LICENSE](LICENSE). It includes the
-FST headers (GPL-3.0-or-later, see [third_party/fst](third_party/fst/README.md)) and builds against the
-CLAP headers (MIT). MP3 export uses [LAME](https://lame.sourceforge.io) 3.100 (LGPL-2.0-or-later),
-built from its unchanged source as a static library; MPE Roll's own source being available is what
-lets anyone rebuild it with another version of LAME.
+Copyright 2026 The MPE Roll contributors. MPE Roll's own files are licensed under the
+AGPL-3.0-only, the open-source licence JUCE is available under: see [LICENSE](LICENSE). The files of
+the plugin's code, its tests, tools, build, installer and CI workflows say so in their first
+comment, an SPDX header (`SPDX-FileCopyrightText: 2026 The MPE Roll contributors` and
+`SPDX-License-Identifier: AGPL-3.0-only`). They are the files in `source/`, `tests/`, `tools/`,
+`installer/`, `cmake/` and `third_party/lame/`, the two include shims in
+`third_party/fst/pluginterfaces/vst2.x/`, `CMakeLists.txt`, the scanner's resource script and the
+workflows. CI checks them with `tools/check_spdx.py`, whose `--fix` adds a missing header.
+
+`third_party/fst/` holds the FST headers, which keep FST's licence (GPL-3.0-or-later, see
+[third_party/fst](third_party/fst/README.md)); the two shims beside them, and the LAME build
+configuration in `third_party/lame/`, were written for MPE Roll. MPE Roll builds against the CLAP
+headers (MIT). MP3 export uses [LAME](https://lame.sourceforge.io) 3.100 (LGPL-2.0-or-later), built
+from its unchanged source as a static library; MPE Roll's own source being available is what lets
+anyone rebuild it with another version of LAME.

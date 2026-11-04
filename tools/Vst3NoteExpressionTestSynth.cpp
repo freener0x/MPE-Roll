@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // A minimal polyphonic VST3 sine synth, written directly against the VST3 SDK's interfaces
 // (pluginterfaces only: no JUCE, no public.sdk classes). It's only used by the developer harness to
 // check how MPE Roll plays VST3 synths that aren't built with JUCE.

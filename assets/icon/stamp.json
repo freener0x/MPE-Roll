@@ -10,7 +10,7 @@
     "assets/icon/wizard-large.svg": "d266dbe9ce20822296d6136a099a9fc165a01ee5165e12c966c8218a9212294a",
     "assets/icon/wizard-small.svg": "4e6632a3a5aaf2c1a303e5f0f2eea5ff54349ecc1569f6aaacc74b02fab4c203",
     "assets/icon/apple-touch-icon.svg": "53f2950f8d3f1e5a4cd606af9ade403aa9e26609532631a478945dc8ce1085a5",
-    "tools/make_icons.py": "f4abe0bbdf90f643b8fbe13906067a3f937e64f545616641debf16d48451552f"
+    "tools/make_icons.py": "6a90b251c296fcebdb4c7fa5159dcd45d52e41b61c0c540fdacc9eb826d99de8"
   },
   "outputs": {
     "assets/icon/png/icon-16.png": {

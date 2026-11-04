@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """A stand-in for GitHub's answers about MPE Roll's latest release, for the update check's test
 (MpeRollHarness updatetest). Standard library only.
 

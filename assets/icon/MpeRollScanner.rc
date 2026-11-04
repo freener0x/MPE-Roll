@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // The scanner's icon. CMakeLists.txt adds this file to MpeRollScanner when building with MSVC, since
 // juce_add_console_app gives it version information but no icon. The .ico is the one the installer
 // uses too, made by tools/make_icons.py; the resource compiler finds it next to this file. IDI_ICON1 is

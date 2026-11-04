@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 /* LAME build configuration for MPE Roll (the library only: no frontend, no decoder, no assembly).
    LAME's own configure script writes this file on Unix and configMS.h is its Windows version; this
    one works for every compiler MPE Roll is built with. */

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // MPE Roll Scanner: started by MPE Roll to look inside one plugin file, so that a plugin which crashes
 // or hangs while being loaded takes down only this process, not MPE Roll and the DAW around it.
 // See PluginScanner.h for how the two talk.

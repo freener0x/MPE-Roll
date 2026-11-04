@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // MPE Roll VST3 events: begin
 //==============================================================================
 /*  Added by MPE Roll's cmake/PatchJuce.cmake (AGPLv3, like the rest of MPE Roll).

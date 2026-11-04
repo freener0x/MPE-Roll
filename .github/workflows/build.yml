@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 name: Build
 
 on:
@@ -62,6 +65,13 @@ jobs:
       # says whether what's committed was made from the SVGs that are committed.
       - name: The icon images match assets/icon
         run: python3 tools/make_icons.py --check
+
+      # The files of the plugin's code, tests, tools, build, installer and CI workflows start with
+      # MPE Roll's SPDX header (the licence, AGPL-3.0-only, and the copyright); README's License
+      # section lists them. Other files, Markdown, JSON and images aside, mustn't have it.
+      # tools/check_spdx.py --fix adds a missing header.
+      - name: The code, build, installer and CI files start with their SPDX header
+        run: python3 tools/check_spdx.py
 
   windows:
     name: Windows (VST3, Standalone)

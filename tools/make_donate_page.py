@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 """Makes MPE Roll's donation page from docs/donate.json, and the website pages that go with it.
 
 It writes, all of them committed so nobody needs this script to read them:
@@ -58,6 +61,9 @@ PROJECT_DATA_OUT = ROOT / "docs" / "_data" / "project.yml"
 MD_OUT = ROOT / "DONATE.md"
 FUNDING_OUT = ROOT / ".github" / "FUNDING.yml"
 PLUGIN_DATA_OUT = ROOT / "source" / "plugin" / "ui" / "DonateData.h"
+# The plugin's copy starts with MPE Roll's SPDX header (tools/check_spdx.py checks every file in source/).
+PLUGIN_SPDX = ["// SPDX-FileCopyrightText: 2026 The MPE Roll contributors",
+               "// SPDX-License-Identifier: AGPL-3.0-only"]
 DONATE_MD_URL = f"{REPO_URL}/blob/main/DONATE.md"
 RELEASE_URL = f"{REPO_URL}/releases/latest"
 DOWNLOAD_URL = f"{REPO_URL}#downloading-a-build"
@@ -529,6 +535,8 @@ def cpp_string(text: str) -> str:
 
 def render_plugin_data(links: list[dict], coins: list[dict], svgs: dict[str, bytes]) -> str:
     out = [
+        *PLUGIN_SPDX,
+        "",
         "#pragma once",
         "",
         "// Made by tools/make_donate_page.py from docs/donate.json. Change those, not this file.",

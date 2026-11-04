@@ -1,3 +1,6 @@
+; SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+; SPDX-License-Identifier: AGPL-3.0-only
+
 ; MPE Roll's Windows installer, built with Inno Setup 6 by the Windows CI job (see
 ; .github/workflows/build.yml). To build it by hand from a CI download or a dist folder:
 ;   iscc /DDistDir=C:\path\to\dist /DBuildNumber=0 installer\MpeRoll.iss

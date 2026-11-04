@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #include "core/ExpressionCurve.h"
 #include "core/MpeClip.h"
 #include "core/MpeSettings.h"

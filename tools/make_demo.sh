@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Makes the website's demo film from frames the developer harness draws: three notes drawn, a glide
 # dragged up from one, pressure painted under them in the lane, the skins gone through, and the clip
 # cleared again so it loops (MpeRollHarness demo, tools/Harness.cpp).

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 The MPE Roll contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+
 cmake_minimum_required(VERSION 3.22)
 
 project(MPE_ROLL VERSION 0.1.0 LANGUAGES C CXX)
