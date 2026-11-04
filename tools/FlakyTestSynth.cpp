@@ -46,7 +46,7 @@ namespace
 {
 
 constexpr const char* pluginName = "MPE Roll Flaky Test Synth";
-constexpr const char* vendorName = "Glowing Pancake";
+constexpr const char* vendorName = "MPE Roll";
 constexpr t_fstInt32 pluginId = 0x466c6b79;    // 'Flky'
 
 // The effect's flags, numbered as every VST2 plugin numbers them.

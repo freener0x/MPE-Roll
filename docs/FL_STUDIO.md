@@ -33,7 +33,14 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    if you do, please report how it went.
 3. In FL Studio: *Options › Manage plugins › Find installed plugins*. The bottom of MPE Roll's File
    menu names the build that's loaded, e.g. "MPE Roll 0.1.0, release v0.1.0, fd8e433, 2026-11-01"
-   (a build between releases says "build 63" and its commit instead of the release).
+   (a build between releases says "build 63" and its commit instead of the release). From 0.2.0,
+   MPE Roll gives its maker as *MPE Roll*, where earlier builds gave *Glowing Pancake* (the
+   repository's old name). If FL still shows the old name after you update, tick *Verify plugins*
+   and *Rescan previously verified plugins* there, as FL's manual advises after an update, and click
+   *Find installed plugins* again. If it still does, FL has found an older copy: see
+   *After an update, new features are missing* under Troubleshooting. MPE Roll's plugin IDs, which
+   hosts save in projects, don't depend on the name, and neither does its settings folder
+   (`%APPDATA%\MPE Roll` on Windows).
 4. Add **MPE Roll** to the Channel Rack like any other instrument.
 5. In MPE Roll's wrapper settings (the gear icon in the plugin window's title bar), leave *Send pitch
    bend range* off so FL doesn't send its own bend range on top of MPE Roll's. If you use FL's *Smart

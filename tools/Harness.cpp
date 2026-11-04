@@ -2613,7 +2613,7 @@ void synthProfileChecks (Check& check)
            "Omnisphere 2 without MPE, and 3 with it on its System page");
 
     check (find ("Vital", "Vital Audio").has_value() && find ("Surge XT", "Surge Synth Team")->mpe == Mpe::followsSetup
-               && ! find ("MPE Roll Test Synth", "Glowing Pancake").has_value(),
+               && ! find ("MPE Roll Test Synth", "MPE Roll").has_value(),
            "Vital and Surge XT, and nothing for a synth it doesn't know");
 
     // What the list says for any instrument of a maker goes by the instrument's own name; and a maker
@@ -3732,7 +3732,7 @@ int loadFailTest (const juce::File& scanner, const juce::File& vst3Synth, const 
         juce::PluginDescription d;
         d.pluginFormatName = "VST";
         d.name = "MPE Roll Flaky Test Synth";
-        d.manufacturerName = "Glowing Pancake";
+        d.manufacturerName = "MPE Roll";
         d.fileOrIdentifier = flakySynth.getFullPathName();
         d.uniqueId = d.deprecatedUid = 0x466c6b79;    // 'Flky'
         d.numOutputChannels = 2;

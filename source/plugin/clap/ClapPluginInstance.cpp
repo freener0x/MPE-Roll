@@ -1952,7 +1952,7 @@ ClapHostContext::ClapHostContext()
     host.clap_version = CLAP_VERSION;
     host.host_data = this;
     host.name = "MPE Roll";
-    host.vendor = "Glowing Pancake";
+    host.vendor = "MPE Roll";
     host.url = mperoll::links::repository;
     host.version = JucePlugin_VersionString;
     host.get_extension = hostcallbacks::getExtension;

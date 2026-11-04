@@ -79,7 +79,7 @@ using FUnknownPrivate::iidEqual;
 constexpr TUID synthClassId = INLINE_UID (0x4D50454E, 0x4F544558, 0x50544553, 0x54535931);
 
 constexpr const char* synthName = "MPE Roll Note Expression Test Synth";
-constexpr const char* vendorName = "Glowing Pancake";
+constexpr const char* vendorName = "MPE Roll";
 
 constexpr Vst::ParamID pitchBendId = 1;
 constexpr Vst::NoteExpressionTypeID pressureTypeId = Vst::kCustomStart;     // 100000

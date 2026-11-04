@@ -111,6 +111,15 @@ and the release tags; a build between releases names itself by its number and co
 - The files of the plugin's code, tests, tools, build, installer and CI workflows start with an
   SPDX header: licence AGPL-3.0-only, copyright 2026 The MPE Roll contributors. CI checks them
   (`tools/check_spdx.py`).
+- The maker name is *MPE Roll*, where it was *Glowing Pancake* (the repository's old name): hosts
+  show it as the plugin's maker (the vendor of the VST3 and the VST2, the maker in the AU's name),
+  and Windows' *Installed apps* as the publisher. The plugin's IDs, which hosts save in projects,
+  and its settings folder stay as they were. VST3 hosts that use the standard preset folders keep
+  each plugin's presets in a folder named after its maker, so the ones saved before are in
+  `Documents\VST3 Presets\Glowing Pancake\MPE Roll` on Windows and
+  `~/Library/Audio/Presets/Glowing Pancake/MPE Roll` on macOS: rename that *Glowing Pancake* folder
+  to *MPE Roll* to see them again. If FL Studio still shows the old name, scan again with
+  *Verify plugins* and *Rescan previously verified plugins* ticked (*Options › Manage plugins*).
 
 ### Fixed
 

@@ -213,8 +213,15 @@ else()
     set(MPEROLL_ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon/icon-small-64.png")
 endif()
 
+# COMPANY_NAME is the maker the plugin gives hosts (the VST3's and the VST2's vendor, the start of
+# the AU's name) and the company in the Windows files' version information. Until 0.2.0 it was
+# "Glowing Pancake", the repository's old name. VST3 hosts that use the standard preset folders keep
+# a plugin's presets in a folder named after its maker, so a new name hides the ones saved before.
+# Never change the bundle ID or the two codes: the IDs hosts save in projects come from the codes
+# (the VST3's class ID and the AU's codes from both, the VST2's ID from PLUGIN_CODE), and macOS
+# knows the bundles by the bundle ID.
 juce_add_plugin(MpeRoll
-    COMPANY_NAME "Glowing Pancake"
+    COMPANY_NAME "MPE Roll"
     BUNDLE_ID com.glowingpancake.mperoll
     PLUGIN_MANUFACTURER_CODE Glpk
     PLUGIN_CODE Mpr1
@@ -261,7 +268,13 @@ endif()
 # Not on macOS, where adding a file would invalidate the signed bundles; there plugins are looked at
 # in process, as before.
 if(NOT APPLE)
-    juce_add_console_app(MpeRollScanner PRODUCT_NAME "MPE Roll Scanner")
+    # COMPANY_NAME goes in the .exe's version information on Windows, as the plugin's does (without
+    # it, JUCE puts in "yourcompany"). JUCE would make the bundle ID, which only macOS uses, from
+    # that name and warn about its space, so it's given too, in the form of the plugin's.
+    juce_add_console_app(MpeRollScanner
+        PRODUCT_NAME "MPE Roll Scanner"
+        COMPANY_NAME "MPE Roll"
+        BUNDLE_ID com.glowingpancake.mperollscanner)
     set_target_properties(MpeRollScanner PROPERTIES OUTPUT_NAME "MPE Roll Scanner")
     target_sources(MpeRollScanner PRIVATE source/scanner/ScannerMain.cpp source/plugin/LoadDiagnosis.cpp
         ${MPEROLL_CORE_SOURCES} ${MPEROLL_CLAP_SOURCES})
@@ -371,7 +384,7 @@ if(MPEROLL_BUILD_DEV_TOOLS)
     endif()
 
     juce_add_plugin(MpeRollTestSynth
-        COMPANY_NAME "Glowing Pancake"
+        COMPANY_NAME "MPE Roll"
         PLUGIN_MANUFACTURER_CODE Glpk
         PLUGIN_CODE Mpt1
         FORMATS ${MPEROLL_TEST_SYNTH_FORMATS}
@@ -393,7 +406,7 @@ if(MPEROLL_BUILD_DEV_TOOLS)
     # on most synths. Programs change its waveform in state that isn't a parameter, and a Crash
     # parameter makes it crash on purpose, for the copies' crash protection.
     juce_add_plugin(MpeRollPlainTestSynth
-        COMPANY_NAME "Glowing Pancake"
+        COMPANY_NAME "MPE Roll"
         PLUGIN_MANUFACTURER_CODE Glpk
         PLUGIN_CODE Mpt2
         FORMATS ${MPEROLL_TEST_SYNTH_FORMATS}

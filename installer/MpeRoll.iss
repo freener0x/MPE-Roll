@@ -41,7 +41,8 @@ AppId={{74C456C0-14CD-4836-A865-C9B0FF60BB0B}
 AppName=MPE Roll
 AppVersion={#AppVersion}
 AppVerName=MPE Roll {#AppVersion} ({#BuildName})
-AppPublisher=Glowing Pancake
+; The publisher in Windows' Installed apps: the plugin's maker name, COMPANY_NAME in CMakeLists.txt.
+AppPublisher=MPE Roll
 AppPublisherURL=https://freener0x.github.io/MPE-Roll/
 VersionInfoVersion={#AppVersion}.{#BuildNumber}
 VersionInfoDescription=MPE Roll installer
