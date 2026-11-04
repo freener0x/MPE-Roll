@@ -15,7 +15,8 @@ hero:
     your synth inside it, and every note gets its own pitch glide, vibrato, pressure and timbre,
     which FL Studio's own piano roll can't send to plugins.
   tested: >-
-    Tested in FL Studio 26.1.7 on Windows 11 with Analog Lab, Omnisphere 3 and Surge XT (CLAP).
+    Release 0.1.0 was tested in FL Studio 26.1.7 on Windows 11 with Analog Lab, Omnisphere 3 and
+    Surge XT (CLAP).
   unsigned: >-
     The downloads aren't code-signed: [Unsigned builds](UNSIGNED_BUILDS.html) says what Windows and
     macOS show about them, and how to get past it.
@@ -40,8 +41,10 @@ download:
       pick: On the release page, pick `MPE-Roll-<version>-macOS.zip`.
       files: "`MPE-Roll-<version>-macOS.zip`"
     # in_latest: false while the latest release has no Linux build (0.1.0 has none): a Linux
-    # visitor then gets the plain Download button and the any line. Set it to true once 0.2.0 is
-    # out; the "from 0.2.0 on" here, in any and under At a glance can go then too.
+    # visitor then gets the plain Download button and the any line. GitHub Pages builds the site
+    # after a merge to main, so it changes before the Release workflow has published 0.2.0 with its
+    # Linux file: set it to true only once that release is up. The "from 0.2.0 on" here, in any and
+    # under At a glance can go then too.
     - id: linux
       name: Linux
       label: Download for Linux
@@ -246,7 +249,9 @@ glance:
         - Your synth inside as VST3, VST2 or CLAP, and AU on macOS.
     - title: Requirements
       items:
-        - FL Studio, any version that hosts VST3 plugins. Tested in 26.1.7 on Windows 11.
+        - >-
+          FL Studio, any version that hosts VST3 plugins. Tested in 26.1.7 on Windows 11 (release
+          0.1.0).
         - FL Studio 21.1 or newer to run *Send to FL piano roll*'s script.
         - >-
           Other hosts that load VST3 or AU instruments can load MPE Roll too, such as Ableton Live,

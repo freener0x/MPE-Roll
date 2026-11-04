@@ -1,7 +1,7 @@
 # Unsigned builds: what Windows and macOS will say
 
 MPE Roll's downloads aren't code-signed, so Windows and macOS warn before they run them. This page
-says what each system shows for release 0.1.0 and the builds since, what to do about it, why the
+says what each system shows for release 0.1.0 and later, what to do about it, why the
 warnings appear, how to check that a download is the one GitHub Actions made, and what signing
 would take later. The short form is in the [FL Studio guide](FL_STUDIO.md)'s install step.
 

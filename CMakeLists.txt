@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.22)
 
-project(MPE_ROLL VERSION 0.1.0 LANGUAGES C CXX)
+project(MPE_ROLL VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -279,7 +279,11 @@ if(NOT APPLE)
     target_sources(MpeRollScanner PRIVATE source/scanner/ScannerMain.cpp source/plugin/LoadDiagnosis.cpp
         ${MPEROLL_CORE_SOURCES} ${MPEROLL_CLAP_SOURCES})
     target_include_directories(MpeRollScanner PRIVATE source third_party/fst)
-    target_compile_definitions(MpeRollScanner PRIVATE ${MPEROLL_COMMON_DEFINITIONS})
+    # JucePlugin_VersionString is the host version ClapPluginInstance.cpp gives a CLAP plugin. The
+    # plugin's targets get it from juce_add_plugin; the scanner gets it here, as the harness does
+    # below.
+    target_compile_definitions(MpeRollScanner PRIVATE ${MPEROLL_COMMON_DEFINITIONS}
+        JucePlugin_VersionString="${PROJECT_VERSION}")
     target_link_libraries(MpeRollScanner
         PRIVATE
             ${MPEROLL_CLAP_LIBRARY}

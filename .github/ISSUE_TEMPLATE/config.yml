@@ -5,7 +5,7 @@ contact_links:
     about: The usual problems and what to do about them, worth a look before opening an issue.
   - name: Known issues
     url: https://freener0x.github.io/MPE-Roll/KNOWN_ISSUES.html
-    about: What's known not to work yet in the current release, what to do meanwhile, and what the next release fixes.
+    about: What's known not to work yet in the current release, what to do meanwhile, and where each one stands.
   - name: Which synths have MPE, and where their switch is
     url: https://freener0x.github.io/MPE-Roll/MPE_SYNTHS.html
     about: Hundreds of instruments, checked against their makers' documentation. Corrections are welcome as issues.

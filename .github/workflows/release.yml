@@ -9,8 +9,8 @@ name: Release
 # version (the run stops if there is none) and from the pull requests merged since the last release.
 # The version in CMakeLists.txt has to match the tag, so a build names itself after the release it
 # came from (File menu, MPE settings): "MPE Roll 0.1.0, release v0.1.0, f2ea3c4, 2026-10-28". A tag
-# with a suffix (v0.2.0-beta1) is marked a pre-release, and its build runs as 0.2.0-beta1 (read from
-# that name), so its update check offers 0.2.0 once it's out. The version is three numbers and the
+# with a suffix (v0.3.0-beta1) is marked a pre-release, and its build runs as 0.3.0-beta1 (read from
+# that name), so its update check offers 0.3.0 once it's out. The version is three numbers and the
 # suffix is Semantic Versioning's, which is how the update check reads tags. The code itself is
 # tested by the Build workflow on every change; here the unit tests, the installer's own test and
 # Apple's AU validation run again on what's shipped.
@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
     inputs:
       suffix:
-        description: "Pre-release suffix, beta1 say, for a tag like v0.2.0-beta1; empty for a release"
+        description: "Pre-release suffix, beta1 say, for a tag like v0.3.0-beta1; empty for a release"
         type: string
         required: false
         default: ''
@@ -109,7 +109,7 @@ jobs:
           # source/plugin/BuildInfo.cpp), so its update check tells testers when the release is out.
           semver='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$'
           if ! [[ "$tag" =~ $semver ]]; then
-            echo "The tag $tag isn't v<version>, or v<version>-<suffix> with a suffix of letters and digits, single dots between (v0.2.0-beta1, v1.0.0-rc.1)."
+            echo "The tag $tag isn't v<version>, or v<version>-<suffix> with a suffix of letters and digits, single dots between (v0.3.0-beta1, v1.0.0-rc.1)."
             exit 1
           fi
           case "$tag" in

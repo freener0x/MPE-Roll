@@ -1,10 +1,9 @@
 # Privacy
 
-What MPE Roll does with your data, as of release 0.1.0 and the builds since (4 November 2026): it
-sends nothing anywhere unless you turn on its update check or ask it to check (the builds since
-0.1.0 only; 0.1.0 has no update check), writes a few files on your computer, and its website is
-served by GitHub Pages. Each statement below was checked against the source code; the file names in
-brackets say where to look.
+What MPE Roll does with your data, as of release 0.2.0 (4 November 2026): it sends nothing anywhere
+unless you turn on its update check or ask it to check (release 0.1.0 has no update check), writes a
+few files on your computer, and its website is served by GitHub Pages. Each statement below was
+checked against the source code; the file names in brackets say where to look.
 
 ## What MPE Roll sends
 
@@ -55,7 +54,7 @@ In detail (`source/plugin/UpdateCheck.cpp` and `source/plugin/UpdateChecker.cpp`
   one address, or an answer that isn't a release), one more GET, of
   `https://github.com/freener0x/MPE-Roll/releases/latest`, whose redirect names the latest release;
   the redirect isn't followed. MPE Roll sets `User-Agent: MPE Roll/<version>` on both (a
-  pre-release gives its whole version, `MPE Roll/0.2.0-beta1`), and on the first also
+  pre-release gives its whole version, `MPE Roll/0.3.0-beta1`), and on the first also
   `Accept: application/vnd.github+json` and `X-GitHub-Api-Version: 2022-11-28`, which GitHub's API
   documentation recommends. Nothing else of MPE Roll's goes with them: no account, no ID, nothing
   from your projects. The system's networking adds its standard headers, as it does for any
@@ -74,9 +73,9 @@ In detail (`source/plugin/UpdateCheck.cpp` and `source/plugin/UpdateChecker.cpp`
   and looks at it again every second while one of its windows is open, so they all go by the same
   settings, including those already running, and show the same a moment later: the switch, *Last
   check*, the *Update* button and the File menu.
-- **What you see.** A newer release, say 0.2.0, shows as an *Update to 0.2.0* button beside the
-  status line, and in the File menu as *Get MPE Roll 0.2.0 (release page)…* and *Skip version
-  0.2.0*, until you install it or skip it, whether the daily check is on or not. The button and
+- **What you see.** A newer release, say 0.3.0, shows as an *Update to 0.3.0* button beside the
+  status line, and in the File menu as *Get MPE Roll 0.3.0 (release page)…* and *Skip version
+  0.3.0*, until you install it or skip it, whether the daily check is on or not. The button and
   *Get* open the release's page on GitHub in your browser; MPE Roll downloads and installs nothing.
   Pre-releases are never offered, and a build newer than the latest release (one made between
   releases) is told of nothing. A version you skipped is no news until a newer one is out: a check

@@ -1,7 +1,7 @@
 # Known issues
 <!-- Mirrors the README's "Known limitations" list: when one changes, change the other too. -->
 
-What's known not to work yet, or to work differently from what you'd expect, in release 0.1.0 and
+What's known not to work yet, or to work differently from what you'd expect, in release 0.2.0 and
 the builds made since. For each: what you'll see, what to do meanwhile, and where it stands.
 Problems with a particular setup (a synth that won't load, no sound, glides that are too big) are in
 the [FL Studio guide's troubleshooting table](FL_STUDIO.md#troubleshooting). Anything not here:
@@ -9,29 +9,21 @@ please [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose);
 form each for a synth that won't load, for sound or expression that doesn't arrive, for other bugs,
 and for ideas, and asks for the build line from the bottom of MPE Roll's File menu.
 
-The next release is 0.2.0. "Fixed in the next release" means the fix is on the main branch now, so
-a build made since (see the README's
-[Downloading a build](https://github.com/freener0x/MPE-Roll#downloading-a-build)) has it already.
+The issues that 0.2.0 fixed are listed at the end of this page.
 
 - **Tested in FL Studio on Windows 11 only.** Release 0.1.0 was tested in FL Studio 26.1.7 on
   Windows 11: the installer (over an earlier build too), Analog Lab as VST2 and as VST3 (zone-wide
   lanes work; per-note lanes need *Plain MIDI* or *One copy per note*, since Analog Lab has no
-  MPE), Omnisphere 3 over MPE, Surge XT as CLAP, and *Send to FL piano roll*. Nothing has been tried
-  in another host, and MIDI port routing and recording, and slide notes carrying Mod X / Mod Y ramps
-  in FL, follow Image-Line's documentation and user reports. *What to do:* try it, and report what
-  you find, good or bad. *Status:* more reports wanted.
-- **With Analog Lab, FL's undo history fills with *Knob tweak (channel1 pitch bend)* and the like
-  while notes glide** (release 0.1.0). Analog Lab gives each MIDI channel's pitch bend a parameter
-  of its own, which follows every bend MPE Roll sends, and 0.1.0 passes those moves on to FL as
-  edits. The sound isn't affected, but your own edits get buried among those entries. *What to do:*
-  use a build made since 3 November 2026, which keeps those moves from FL whatever the synth's
-  format (the troubleshooting table's row on it says how to see whether any still get through), or
-  wait for 0.2.0. *Status:* fixed in the next release, 0.2.0 (on main since 3 November 2026).
+  MPE), Omnisphere 3 over MPE, Surge XT as CLAP, and *Send to FL piano roll*. Release 0.2.0 hasn't
+  been run in FL yet. Nothing has been tried in another host, and MIDI port routing and recording,
+  and slide notes carrying Mod X / Mod Y ramps in FL, follow Image-Line's documentation and user
+  reports. *What to do:* try it, and report what you find, good or bad. *Status:* more reports
+  wanted.
 - **Switching MPE Roll's channel off in the Channel Rack doesn't stop its sound** (release 0.1.0,
   seen in *Follow FL* mode, the default). FL's channel switch stops the notes FL sends a channel,
   and in *Follow FL* mode MPE Roll plays its clip from FL's transport, not from notes, so the clip
   plays on. *What to do:* mute MPE Roll's mixer track, or stop FL (turning the channel's volume
-  knob down silences it too). *Status:* addressed on main for 0.2.0, waiting on a test in FL. An
+  knob down silences it too). *Status:* addressed in 0.2.0, waiting on a test in FL. An
   All Notes Off or All Sound Off from FL now stops the clip until the transport restarts, the song
   jumps or loops, or FL sends a note, and *MPE settings › Playback › Follow FL only while FL holds a
   note* lets FL's notes, and so patterns and the playlist, decide when it sounds. Whether the
@@ -62,18 +54,6 @@ a build made since (see the README's
   Linux, but FL Studio has no Linux version and no Linux host has run the build. *What to do:* if
   you try it in a Linux host (Bitwig, Reaper, Ardour...), please report what happened, whether it
   worked or not. *Status:* testers wanted.
-- **Send to FL piano roll asks where to save** (release 0.1.0). MPE Roll writes
-  `MPE Roll Import.pyscript` straight into `Documents\Image-Line\FL Studio\Settings\Piano roll
-  scripts` only when that folder exists already; otherwise a save dialog opens at Documents, and
-  the box afterwards reads as if all were well wherever you saved. *What to do:* save it into
-  `C:\Users\<you>\Documents\Image-Line\FL Studio\Settings\Piano roll scripts`, creating the folder
-  if need be (if you've moved FL's user data folder, the `FL Studio\Settings\Piano roll scripts`
-  inside that one). FL then lists the script under the piano roll's *Tools* scripts and runs it,
-  and the glides land in tune (checked in FL Studio 26.1.7). A script saved anywhere else isn't
-  listed by FL: move it there. *Status:* fixed in the next release, 0.2.0 (on main): MPE Roll
-  finds FL's folder, makes the scripts folder when needed and saves there itself, asks only when
-  FL's folder isn't on the computer, and warns, with a *Show file* button, when the file lands
-  anywhere else.
 - **VST3 note expressions are new.** They're tested automatically with a small test synth that maps
   pitch bend on channel 1 only (Linux and Windows), but with no commercial synth yet: Omnisphere 3
   doesn't take them (above), and Serum 2's guide says it does, with its own MPE switch off. *What
@@ -88,7 +68,7 @@ a build made since (see the README's
   (licence checks, memory). *What to do:* set the synth's bend range (in copy 1's window) and *Zone
   bend range* in *MPE settings* to the same value; the status line says so when a glide goes past
   it. *Status:* by design (the ranges); reports on other synths wanted.
-- **The update check is new** (in the builds since 0.1.0, off unless you turn it on under
+- **The update check is new** (in 0.2.0 and later, off unless you turn it on under
   *MPE settings › Updates*). It's tested automatically against a stand-in for GitHub's answers, in
   the Linux and Windows builds' checks, but hasn't yet asked GitHub itself from Windows or macOS,
   nor gone through a proxy; the experimental Linux build can't ask GitHub at all (no HTTPS there),
@@ -123,3 +103,26 @@ a build made since (see the README's
   colour per overlapping note, at most 16 at a time, and pressure and timbre arrive as Mod X / Mod Y
   for you to map in the synth. FL's synths can't be hosted inside MPE Roll (a scan says so when it
   meets them). *Status:* by design, FL's.
+
+## Fixed in 0.2.0
+
+Both were seen in release 0.1.0 in FL Studio 26.1.7. Their fixes are checked by MPE Roll's own
+tests, but nobody has tried them in FL yet: if you still see either in 0.2.0, please
+[open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose).
+
+- **With Analog Lab, FL's undo history fills with *Knob tweak (channel1 pitch bend)* and the like
+  while notes glide** (release 0.1.0). Analog Lab gives each MIDI channel's pitch bend a parameter
+  of its own, which follows every bend MPE Roll sends, and 0.1.0 passes those moves on to FL as
+  edits. The sound isn't affected, but your own edits get buried among those entries. 0.2.0 should
+  keep those moves from FL when the synth is a VST2 or a VST3, the two formats the tests use; the
+  [troubleshooting table](FL_STUDIO.md#troubleshooting)'s row on it says how to see whether any
+  still get through.
+- **Send to FL piano roll asks where to save** (release 0.1.0). It writes `MPE Roll Import.pyscript`
+  straight into `Documents\Image-Line\FL Studio\Settings\Piano roll scripts` only when that folder
+  exists already; otherwise a save dialog opens at Documents, and the box afterwards reads as if all
+  were well wherever you saved. 0.2.0 saves it into FL's scripts folder itself, making that folder
+  when needed, asks where to save only when FL's folder isn't on the computer, and warns, with a
+  *Show file* button, when the file lands anywhere else. On Windows it looks for the user data
+  folder where FL's installer records it; whether that follows a folder moved in FL's settings
+  hasn't been tried, so if the box names a folder outside the user data folder *Options › File
+  settings* shows, move the file into that one's `FL Studio\Settings\Piano roll scripts`.

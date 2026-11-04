@@ -30,8 +30,10 @@
  #include <poll.h>
 #endif
 
+// The host version a CLAP plugin is given. Every target that builds this file passes it from
+// CMakeLists.txt (the plugin's through juce_add_plugin), so this is only a guard.
 #ifndef JucePlugin_VersionString
- #define JucePlugin_VersionString "0.1.0"
+ #define JucePlugin_VersionString "0.2.0"
 #endif
 
 namespace mperoll

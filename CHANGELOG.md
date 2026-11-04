@@ -7,7 +7,7 @@ to the version and the day, add its link at the bottom, and open an empty [Unrel
 the release workflow refuses to release a version that has no "## [<version>]" section here, and
 pastes that section into the release notes, above the list of pull requests GitHub generates
 (grouped by label as .github/release.yml says). A pre-release needs the section too, under the
-version without its suffix ("## [0.2.0]" for v0.2.0-beta1). Links point at the website rather than
+version without its suffix ("## [0.3.0]" for v0.3.0-beta1). Links point at the website rather than
 at files in the repository, so they still work from a release page.
 -->
 
@@ -19,17 +19,19 @@ and the release tags; a build between releases names itself by its number and co
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-04
+
 ### Added
 
 - An update check, off until you turn it on. *MPE settings › Updates › Check for updates when MPE
   Roll opens (once a day)* asks GitHub for the latest release at most once a day, as MPE Roll opens;
   *File › Check for updates now…* (or *Check now* in the same section) asks once, whether the daily
-  check is on or not. A newer release shows as an *Update to 0.2.0* button (with the version found)
-  beside the status line, and in the File menu as *Get MPE Roll 0.2.0 (release page)…* and *Skip
-  version 0.2.0*, until you install or skip it. The button and *Get* open the release's page in
+  check is on or not. A newer release shows as an *Update to 0.3.0* button (with the version found)
+  beside the status line, and in the File menu as *Get MPE Roll 0.3.0 (release page)…* and *Skip
+  version 0.3.0*, until you install or skip it. The button and *Get* open the release's page in
   your browser: MPE Roll downloads and installs nothing. Pre-releases are never offered, a skipped
   version stays quiet until a newer one is out, and a check that gets no answer says nothing unless
-  you asked. A pre-release build checks as its whole version (0.2.0-beta1), so it's told when its
+  you asked. A pre-release build checks as its whole version (0.3.0-beta1), so it's told when its
   release is out. A check sends GitHub one request (on Windows a second, to the release page, if
   the first fails) with MPE Roll's name and version, and nothing about you beyond what every web
   request carries; the
@@ -69,9 +71,9 @@ and the release tags; a build between releases names itself by its number and co
   release as `MPE-Roll-<version>-Linux.tar.gz`, and to every build between releases. No Linux host
   has run it yet.
 - Apple's AU validator (`auval`) checks the macOS AU on every build and before a release.
-- This changelog, a security policy (`SECURITY.md`), release notes that start with this changelog's
-  section for the version and group the pull requests by label (`.github/release.yml`), and
-  Dependabot for the GitHub Actions the workflows use.
+- A changelog (`CHANGELOG.md`), a security policy (`SECURITY.md`), release notes that start with the
+  changelog's section for the version and group the pull requests by label (`.github/release.yml`),
+  and Dependabot for the GitHub Actions the workflows use.
 
 ### Changed
 
@@ -123,8 +125,9 @@ and the release tags; a build between releases names itself by its number and co
 
 ### Fixed
 
-- FL's undo history no longer fills with *Knob tweak (channelN pitch bend)* entries when a hosted
-  synth's parameter follows the pitch bend, whatever the synth's format (VST2 or VST3).
+- FL's undo history should no longer fill with *Knob tweak (channelN pitch bend)* entries when a
+  hosted VST2 or VST3 synth's parameter follows the pitch bend (checked in MPE Roll's own tests, not
+  yet in FL).
 - *Send to FL piano roll* no longer asks where to save, starting at the Documents folder, when FL's
   `Piano roll scripts` folder doesn't exist yet, and no longer reports success for a script saved
   outside the scripts folder it found for FL.
@@ -177,5 +180,6 @@ hasn't been run by a person yet. Its known issues are on the
   details* button for loads that fail; crash reports from the standalone app; a Support window; the
   website with the FL Studio guide; a release workflow and issue templates.
 
-[Unreleased]: https://github.com/freener0x/MPE-Roll/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/freener0x/MPE-Roll/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/freener0x/MPE-Roll/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/freener0x/MPE-Roll/releases/tag/v0.1.0

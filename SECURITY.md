@@ -8,7 +8,7 @@ fixes; a security fix comes as a new release, not as a patch to an old one. Buil
 
 | Version | Supported |
 | --- | --- |
-| The latest release (0.1.0 as this is written) | Yes |
+| The latest release (0.2.0 as this is written) | Yes |
 | Builds between releases, from the Actions tab | Yes, as what the next release will be |
 | Anything older | No: update |
 
@@ -39,7 +39,7 @@ an answer. You'll be credited in the fix's notes if you want to be.
   a script that does anything but rebuild the clip), and the settings and project state it reads
   back. A crafted MIDI file that crashes MPE Roll, or a clip that makes the script do something
   else, is a report we want.
-- **Network: the update check only.** Release 0.1.0 makes no network requests. The builds since
+- **Network: the update check only.** Release 0.1.0 makes no network requests. 0.2.0 and later
   have an update check, off until the user turns it on or asks: an HTTPS request to GitHub for the
   latest release (the [Privacy page](https://freener0x.github.io/MPE-Roll/PRIVACY.html) says
   exactly what it sends). What MPE Roll reads from the answer, the release's tag from GitHub's JSON

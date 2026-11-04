@@ -147,15 +147,15 @@ experimental Linux build (`MPE-Roll-<version>-Linux.tar.gz`) and `SHA256SUMS.txt
 the files ([how to check a download](docs/UNSIGNED_BUILDS.md#verify-what-you-downloaded)).
 
 To make a release (maintainers): set the version in `CMakeLists.txt` (`project(MPE_ROLL VERSION
-…)`, three numbers such as `0.2.0`), rename the *[Unreleased]* section of `CHANGELOG.md` to that
+…)`, three numbers such as `0.3.0`), rename the *[Unreleased]* section of `CHANGELOG.md` to that
 version and the day, merge, then either tag that commit `v<version>` and push the tag, or open the
 *Release* workflow under *Actions* and *Run workflow* on `main`, which tags main's commit for you.
 The workflow checks the tag against the version and that `CHANGELOG.md` has a section for it,
 builds everything, runs the unit tests, the installer's test and Apple's AU validator, and
-publishes the release with that section in its notes. A tag with a suffix (`v0.2.0-beta1`, or a
+publishes the release with that section in its notes. A tag with a suffix (`v0.3.0-beta1`, or a
 suffix typed into *Run workflow*) is marked a pre-release; it needs the section for its version too
-(`## [0.2.0]` for `v0.2.0-beta1`). The suffix is letters and digits with dots between (`beta1`,
-`rc.1`), and the build runs as `0.2.0-beta1`, so its update check offers 0.2.0 once that's out.
+(`## [0.3.0]` for `v0.3.0-beta1`). The suffix is letters and digits with dots between (`beta1`,
+`rc.1`), and the build runs as `0.3.0-beta1`, so its update check offers 0.3.0 once that's out.
 The update check reads versions only in these shapes, so the workflow refuses others.
 
 **Builds between releases.** Every code change is built by GitHub Actions (a change to the
@@ -235,12 +235,11 @@ the last check and how it went, the version it found and any version you chose t
 settings file of its own (`%APPDATA%\MPE Roll\Update check.settings` on Windows), which every MPE
 Roll you run goes by: turned off in one, the check is off in those already open too, and a check
 waiting for GitHub's answer is called off. Turned on, it checks at most once a day, as MPE Roll
-opens; a newer release shows as an *Update to
-0.2.0* button (with the version found) beside the status line until you install or skip it, and
-the button opens the release's page in your browser. MPE Roll downloads and installs nothing
-itself, never offers a pre-release, and *File › Skip version 0.2.0* keeps it quiet until a newer
-one is out. A check that gets no answer says nothing unless you asked for it. The builds since
-0.1.0 have it, release 0.1.0 doesn't.
+opens; a newer release shows as an *Update to 0.3.0* button (with the version found) beside the
+status line until you install or skip it, and the button opens the release's page in your browser.
+MPE Roll downloads and installs nothing itself, never offers a pre-release, and
+*File › Skip version 0.3.0* keeps it quiet until a newer one is out. A check that gets no answer
+says nothing unless you asked for it. 0.2.0 and later have it, release 0.1.0 doesn't.
 [docs/PRIVACY.md](docs/PRIVACY.md#the-update-check-off-by-default) has the details.
 
 ## Building
@@ -308,9 +307,10 @@ menu › *Tools* (FL Studio 21.1 or newer):
 ## Known limitations
 
 [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md), the website's Known issues page, has these too, with
-what to do about each one meanwhile and where it stands. To report something, *File › Report a bug…*
-in MPE Roll opens the issue form on GitHub with the build filled in, and puts the plugin log on the
-clipboard to paste into it. Nothing is sent until you submit the form on GitHub.
+what to do about each one meanwhile and where it stands, and lists the issues 0.2.0 fixed. To report
+something, *File › Report a bug…* in MPE Roll opens the issue form on GitHub with the build filled
+in, and puts the plugin log on the clipboard to paste into it. Nothing is sent until you submit the
+form on GitHub.
 
 - **Tested in FL Studio on Windows 11** (26.1.7, release 0.1.0). MPE Roll loads in the Channel Rack
   and plays Arturia Analog Lab, as VST2 and as VST3 (zone-wide lanes; per-note lanes with *Plain
@@ -318,20 +318,15 @@ clipboard to paste into it. Nothing is sent until you submit the form on GitHub.
   MPE is on in Omnisphere's System page) and Surge XT as CLAP (with CLAP note expressions, nothing
   set up in the synth). *Send to FL piano roll* asked where to save, because 0.1.0 writes the script
   into FL's folder by itself only when `Documents\Image-Line\FL Studio\Settings\Piano roll scripts`
-  already exists where Windows keeps Documents (builds since then find FL's folder and save there
-  themselves); saved there, the script is listed under the piano roll menu's
-  *Tools* and runs, and the glides land in tune, so the fine-pitch unit the script uses (tenths of a
-  semitone) is confirmed. The release installer upgraded an earlier build. The standalone app loads
-  synths, clicks land where they're aimed after the window is reopened, and a scan that meets FL's
-  own plugins says they can't be hosted. The rest of what's said here about FL (MIDI port routing
-  and recording, slide notes carrying Mod X/Y ramps) follows Image-Line's documentation and forum
-  reports, not tests in FL. Please open an issue with what you find.
-- **With Analog Lab, release 0.1.0 fills FL's undo history with *Knob tweak (channel1 pitch bend)*
-  and the like while notes glide.** Analog Lab gives each MIDI channel's pitch bend a parameter of
-  its own, which follows every bend MPE Roll sends, and 0.1.0 passes those moves on to FL as edits.
-  The sound isn't affected, but your own edits get buried among those entries. Fixed on main since
-  3 November 2026; the next release, 0.2.0, won't have it. The FL Studio guide's troubleshooting
-  table has the details.
+  already exists where Windows keeps Documents (0.2.0 and later look for FL's folder and save there
+  themselves); saved there, the script is listed under the piano roll menu's *Tools* and runs, and
+  the glides land in tune, so the fine-pitch unit the script uses (tenths of a semitone) is
+  confirmed. The release installer upgraded an earlier build. The standalone app loads synths,
+  clicks land where they're aimed after the window is reopened, and a scan that meets FL's own
+  plugins says they can't be hosted. The rest of what's said here about FL (MIDI port routing and
+  recording, slide notes carrying Mod X/Y ramps) follows Image-Line's documentation and forum
+  reports, not tests in FL. Release 0.2.0 hasn't been run in FL yet. Please open an issue with what
+  you find.
 - **Nobody has run the macOS build yet**, nor the experimental Linux build in a Linux host. CI
   builds both and runs the tests on macOS and Linux with every code change, but no person has
   opened the macOS bundles on a Mac. Testers wanted: please say how it went, working or not, in an
@@ -350,7 +345,7 @@ clipboard to paste into it. Nothing is sent until you submit the form on GitHub.
   tab, for instruments that have one) and *Zone bend range* set to match, which the status line now
   says when a glide goes past it. Nexus is untried. A synth may mind having many copies of itself
   (licence checks, memory); please report what you find.
-- **The update check is new** (in the builds since 0.1.0, off unless you turn it on). It's tested
+- **The update check is new** (in 0.2.0 and later, off unless you turn it on). It's tested
   automatically against a stand-in for GitHub's answers, in the Linux and Windows builds' checks,
   but hasn't yet asked GitHub itself from Windows or macOS, nor gone through a proxy; the
   experimental Linux build can't ask GitHub at all (no HTTPS there), and says so. On a Mac it asks

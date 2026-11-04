@@ -6,8 +6,8 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
 > These steps follow Image-Line's documentation and user reports. Release 0.1.0 has been tested in
 > FL Studio 26.1.7 on Windows 11: the installer (over an earlier build too), Analog Lab as VST2 and
 > as VST3, Omnisphere 3 over MPE and Surge XT as CLAP (section 7), and *Send to FL piano roll*
-> (section 5). The rest rests on the documentation and reports, not on tests in FL. If something
-> here doesn't match what you see, please open an issue.
+> (section 5). Release 0.2.0 hasn't been run in FL yet. The rest rests on the documentation and
+> reports, not on tests in FL. If something here doesn't match what you see, please open an issue.
 
 ## 1. Install
 
@@ -56,10 +56,10 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    check and how it went, the version it found and any version you chose to skip, in a settings
    file of its own, which the VST2 and the VST3 both go by, even when both are open in one project.
    Turned on, it checks at most once a day, as MPE Roll's window opens. A newer release shows as an
-   *Update to 0.2.0* button (with the version found) beside the status line until you install or
+   *Update to 0.3.0* button (with the version found) beside the status line until you install or
    skip it, and the button opens the release's page: download the installer there and run it as in
-   step 2. *File › Skip version 0.2.0* keeps it quiet until a newer one is out. The builds since
-   0.1.0 have it; [Privacy](PRIVACY.md#the-update-check-off-by-default) has the details.
+   step 2. *File › Skip version 0.3.0* keeps it quiet until a newer one is out. 0.2.0 and later
+   have it; [Privacy](PRIVACY.md#the-update-check-off-by-default) has the details.
 
 ## 2. Load a synth
 
@@ -631,8 +631,9 @@ Roll's *Per-note bend range*, or change MPE Roll's to match.
 - In release 0.1.0, FL's undo history fills with *Knob tweak (channel1 pitch bend)* and the like
   while notes glide: Analog Lab gives each MIDI channel's pitch bend a parameter of its own, which
   follows MPE Roll's bends, and 0.1.0 passes those moves on to FL as edits. The sound isn't
-  affected, but your own edits get buried among those entries. Fixed on main since 3 November 2026;
-  the next release, 0.2.0, won't have it (Troubleshooting has the details).
+  affected, but your own edits get buried among those entries. 0.2.0 should keep those moves from
+  FL, as a VST2 and as a VST3: MPE Roll's own tests check that with test synths of both formats,
+  but nobody has tried it in FL yet (Troubleshooting has the details).
 - Set *Zone bend range* to the preset's pitch-bend range (often 2). The newest note's glide bends the
   whole channel and stops at the edge of that range. Analog Lab's *Settings* tab shows the range for
   instruments that have one (Augmented VOICES, say): raise it there, and *Zone bend range* with it.
@@ -681,7 +682,7 @@ Your browser opens only when you click it, and nothing is sent until you submit 
 | A VST3 synth played with VST3 note expressions doesn't glide | Its own MPE switch may be on (Serum 2 takes note expressions with it off). Or turn off *Note expressions (CLAP, VST3)* to send MPE over MIDI, and please send the plugin log. |
 | A CLAP synth's window is empty or opens separately | Some CLAP synths can't be embedded in MPE Roll's window and open their own; MPE Roll says so (*Surge XT opened its window separately.*) and shows a *Show Surge XT* button that brings the window up again. Surge XT's CLAP does this in FL Studio 26.1.7 on Windows 11, and plays fine. Please report synths whose window doesn't appear at all. |
 | An automation clip moves the wrong knob | The clip belongs to an MPE Roll slot, and slots are reassigned when you load a different synth. Re-link it with *Last tweaked*. |
-| FL's undo history fills with *Knob tweak (channel1 pitch bend)* and the like while notes glide | Some synths give each MIDI channel's pitch bend (or wheel, or aftertouch) a parameter of its own, which moves with every bend MPE Roll sends: Analog Lab's and Kontakt's are named "channel1 pitch bend" to "channel16 pitch bend". Release 0.1.0 still passes Analog Lab's on to FL as edits (seen in FL Studio 26.1.7 on Windows 11); the sound isn't affected, and the next release, 0.2.0, has the fix. The builds after 0.1.0 keep such moves from FL: a parameter named after a channel's or controller's bend or wheel, one the synth's VST3 MIDI mapping moves, and anything the synth reports while it plays a block with bends in it, is the synth following its notes, not an edit. If entries still appear in one of those builds, *Load synth… › Show the plugin log*: a line "…parameter changes reported by the synth passed on to the host as edits" names the parameters that got through; please send it with the synth's name and format (VST2 or VST3). |
+| FL's undo history fills with *Knob tweak (channel1 pitch bend)* and the like while notes glide | Some synths give each MIDI channel's pitch bend (or wheel, or aftertouch) a parameter of its own, which moves with every bend MPE Roll sends: Analog Lab's and Kontakt's are named "channel1 pitch bend" to "channel16 pitch bend". Release 0.1.0 passes Analog Lab's on to FL as edits (seen in FL Studio 26.1.7 on Windows 11); the sound isn't affected. From 0.2.0 on, MPE Roll doesn't pass such moves on to FL: a parameter named after a channel's or controller's bend or wheel, one the synth's VST3 MIDI mapping moves, and anything the synth reports while it plays a block with bends in it, is the synth following its notes, not an edit. MPE Roll's own tests check this with VST2 and VST3 test synths; it hasn't been tried in FL yet. If entries still appear in 0.2.0 or a later build, *Load synth… › Show the plugin log*: a line "…parameter changes reported by the synth passed on to the host as edits" names the parameters that got through; please send it with the synth's name and format (VST2 or VST3). |
 | Vibrato barely moves, or only on the newest note | Vibrato rides on the note's pitch bend, so it needs what glides need: MPE on in the synth with the bend ranges matching, or *Plain MIDI* with *Zone bend range* set to the synth's, where only the newest note's is heard. A synth without MPE can also take the zone-wide *Vibrato* lane. |
 | Harmor, Sytrus or another FL synth can't be scanned or loaded | FL's own synths come in Image-Line's format, which only FL can load, so a scan leaves `Harmor_x64.dll` and the like out and names them in a box when it's done, and *Load plugin file…* says what they are. Use *Send to FL piano roll* (section 5). Image-Line's separate VST versions, if you own one, load as ordinary VST2 synths with *Plain MIDI*. |
 | *MPE Roll Import* isn't in FL's piano roll *Tools* menu | FL lists scripts from one folder only, `<User data folder>\FL Studio\Settings\Piano roll scripts`, and only files ending in `.pyscript`. In FL, *Options › File settings › User data folder* shows where the user data folder is on this computer (if Windows keeps Documents in OneDrive, FL's is often still `C:\Users\<you>\Documents\Image-Line`). The box after *Send to FL piano roll* and the status line say where the file went; if that's anywhere else, the box says so, and its *Show file* button opens the folder so you can move the file. After adding a script, close and reopen the menu; the first time, restart FL. Piano roll scripts need FL Studio 21.1 or newer. |
