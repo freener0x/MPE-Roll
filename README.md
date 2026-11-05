@@ -314,8 +314,8 @@ something, *File › Report a bug…* in MPE Roll opens the issue form on GitHub
 in, and puts the plugin log on the clipboard to paste into it. Nothing is sent until you submit the
 form on GitHub.
 
-- **Tested in FL Studio on Windows 11** (26.1.7, release 0.1.0). MPE Roll loads in the Channel Rack
-  and plays Arturia Analog Lab, as VST2 and as VST3 (zone-wide lanes; per-note lanes with *Plain
+- **Tested in FL Studio on Windows 11** (26.1.7, releases 0.1.0 and 0.2.0). MPE Roll loads in the
+  Channel Rack and plays Arturia Analog Lab, as VST2 and as VST3 (zone-wide lanes; per-note lanes with *Plain
   MIDI*), Spectrasonics Omnisphere 3 over MPE (per-note glides, pressure and timbre included, once
   MPE is on in Omnisphere's System page) and Surge XT as CLAP (with CLAP note expressions, nothing
   set up in the synth). *Send to FL piano roll* asked where to save, because 0.1.0 writes the script
@@ -354,8 +354,8 @@ form on GitHub.
 - **The update check is new** (in 0.2.0 and later, off unless you turn it on). It's tested
   automatically against a stand-in for GitHub's answers, in the Linux and Windows builds' checks,
   and has asked GitHub itself from Windows 11 (in FL Studio 26.1.7, with 0.2.0), but not yet from
-  macOS, nor through a proxy; the
-  experimental Linux build can't ask GitHub at all (no HTTPS there), and says so. On a Mac it asks
+  macOS, nor through a proxy; the experimental Linux build can't ask GitHub at all (no HTTPS
+  there), and says so. On a Mac it asks
   GitHub's API alone (Privacy says why), so a network that has used up the API's 60 requests an
   hour can't check there until the hour is out: *File › Check for updates now…* then says GitHub's
   limit of requests from your network is used up. If it says it couldn't check for any other
@@ -376,21 +376,22 @@ form on GitHub.
   change synths, reopen the project.
 - **The Channel Rack switch stops MPE Roll only while FL's notes say when it plays.** In plain
   *Follow FL* mode MPE Roll plays the clip from FL's song position, not from FL's notes, and FL
-  Studio 26.1.7 sends MPE Roll nothing when its channel is switched off (no All Notes Off), so the
-  clip plays on. Turn on *MPE settings › Playback › Follow FL only while FL holds a note* and give
-  MPE Roll's channel a note in FL's piano roll for as long as the clip should sound: the switch then
-  stops it, and patterns and the playlist decide when it plays (checked with 0.2.0 in FL 26.1.7).
-  Muting MPE Roll's mixer track silences it in either case. In *Note trigger* mode, where FL's notes
-  start and stop the clips, the switch should work the same way, but that hasn't been tried
-  (details in the
+  Studio 26.1.7 sends no All Notes Off when MPE Roll's channel is switched off (the plugin log shows
+  none), so the clip plays on. Turn on *MPE settings › Playback › Follow FL only while FL holds a
+  note* and give MPE Roll's channel a note in FL's piano roll for as long as the clip should sound:
+  the switch then stops it (checked with 0.2.0 in FL 26.1.7), and patterns and the playlist decide
+  when it plays. Muting MPE Roll's mixer track silences it in either case. In *Note trigger* mode,
+  where FL's notes start and stop the clips, the switch should work the same way, but that hasn't
+  been tried (details in the
   [FL Studio guide](docs/FL_STUDIO.md#stopping-mpe-roll-with-the-channel-rack-switch)).
 - **FL's plugin list can keep the old maker name.** From 0.2.0 MPE Roll gives its maker as *MPE
-  Roll*, where 0.1.0 gave *Glowing Pancake*, and CI checks what its VST3 and VST2 tell a host. Yet
-  after the installer upgraded 0.1.0, FL Studio 26.1.7's *Manage plugins* list went on naming
-  *Glowing Pancake* as the VST3's vendor, even once FL's entry for it in the plugin database had
-  been deleted and the plugins scanned again with *Verify plugins*. Only the name shown is wrong:
-  MPE Roll loads and plays. Where FL keeps the old name isn't known yet; FL's *Manage plugins*
-  window lets you change the vendor it shows.
+  Roll*, where 0.1.0 gave *Glowing Pancake*, and CI checks what its VST3 and VST2 give a host
+  (listed, loaded, and in the VST3's `moduleinfo.json`). Yet after the installer upgraded 0.1.0,
+  FL Studio 26.1.7's *Manage plugins* list went on naming *Glowing Pancake* as the VST3's vendor
+  (and no vendor for the VST2), even once FL's entry for it in the plugin database had been deleted
+  and the plugins scanned again with *Verify plugins*. Only the name shown is wrong: MPE Roll loads
+  and plays. Where FL keeps the old name isn't known yet. Image-Line's manual says the vendor shown
+  can be changed in *Manage plugins*.
 - If FL also sends your controller to the *selected* Channel Rack channel, notes can play twice.
   Keep another channel selected while recording.
 - FL's native synths only get what FL's piano roll can express: one colour per overlapping note, at

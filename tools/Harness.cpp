@@ -5533,11 +5533,11 @@ int vst3HostMidiTest (const juce::File& pluginFile)
 }
 
 //==============================================================================
-/** The maker name MPE Roll's own plugin files give a host: the VST3's factory and classes (as a host
-    reads them by loading the module) and its moduleinfo.json (which a host can read without loading
-    it), and the VST2's vendor string. All must say COMPANY_NAME from CMakeLists.txt, "MPE Roll":
-    a host showing another name is reading it from somewhere else (a copy of its own, or an older
-    file). */
+/** The maker name MPE Roll's own plugin files give a host: as listed (for a VST3, JUCE's host lists it
+    from its moduleinfo.json without loading it), as the loaded plugin gives it (the VST3's factory,
+    the VST2's vendor string), and every vendor in the VST3's moduleinfo.json. All must say
+    COMPANY_NAME from CMakeLists.txt, "MPE Roll": a host showing another name is reading it from
+    somewhere else (a copy of its own, or an older file). */
 int makerNameTest (const juce::StringArray& paths)
 {
     Check check;
@@ -5565,21 +5565,35 @@ int makerNameTest (const juce::StringArray& paths)
 
         for (auto* d : found)
         {
-            std::printf ("    %s %s, maker \"%s\"\n", d->pluginFormatName.toRawUTF8(), d->name.toRawUTF8(),
+            // Listed: for a VST3 with a moduleinfo.json, JUCE takes this from the file alone.
+            std::printf ("    listed: %s %s, maker \"%s\"\n", d->pluginFormatName.toRawUTF8(), d->name.toRawUTF8(),
                          d->manufacturerName.toRawUTF8());
-            check (d->manufacturerName == maker, d->pluginFormatName + " " + d->name + " gives its maker as " + maker);
+            check (d->manufacturerName == maker, d->pluginFormatName + " " + d->name + " is listed with " + maker + " as its maker");
+
+            // Loaded: the description a running plugin gives, from its own factory (VST3) or vendor
+            // string (VST2), as a host that verifies plugins by loading them reads it.
+            juce::String error;
+            auto plugin = formats.createPluginInstance (*d, 44100.0, 512, error);
+            check (plugin != nullptr, "it loads" + (error.isEmpty() ? juce::String() : ": " + error));
+
+            if (plugin != nullptr)
+            {
+                const auto loaded = plugin->getPluginDescription().manufacturerName;
+                std::printf ("    loaded: maker \"%s\"\n", loaded.toRawUTF8());
+                check (loaded == maker, "loaded, it gives its maker as " + maker);
+                plugin.reset();
+            }
         }
 
         if (! isVst3)
             continue;
 
+        // JUCE writes it into every VST3 it builds (VST3_AUTO_MANIFEST), and hosts read it.
         const auto info = file.getChildFile ("Contents/Resources/moduleinfo.json");
+        check (info.existsAsFile(), "it has Contents/Resources/moduleinfo.json");
 
         if (! info.existsAsFile())
-        {
-            std::printf ("    no Contents/Resources/moduleinfo.json\n");
             continue;
-        }
 
         const auto json = juce::JSON::parse (info);
         const auto factoryVendor = json["Factory Info"]["Vendor"].toString();

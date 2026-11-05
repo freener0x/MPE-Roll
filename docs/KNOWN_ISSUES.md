@@ -19,12 +19,12 @@ The issues that 0.2.0 fixed are listed at the end of this page.
   FL's scripts folder by itself, the update check, *Report a bug…*, Analog Lab (VST2 and VST3) with
   FL's undo history, and the Channel Rack switch (below). Nothing has been tried in another host,
   and MIDI port routing and recording, and slide notes carrying Mod X / Mod Y ramps in FL, follow
-  Image-Line's documentation and user reports. *What to do:* try it, and report what you find, good or bad. *Status:* more reports
-  wanted.
+  Image-Line's documentation and user reports. *What to do:* try it, and report what you find,
+  good or bad. *Status:* more reports wanted.
 - **Switching MPE Roll's channel off in the Channel Rack doesn't stop its sound in plain *Follow
   FL* mode** (the default). In that mode MPE Roll plays its clip from FL's transport, not from
-  notes, and FL Studio 26.1.7 sends a channel switched off nothing at all (no All Notes Off: checked
-  with 0.2.0), so MPE Roll can't tell and the clip plays on. *What to do:* turn on *MPE settings ›
+  notes, and FL Studio 26.1.7 sends no All Notes Off when the channel is switched off (the plugin
+  log shows none, with 0.2.0), so the clip plays on. *What to do:* turn on *MPE settings ›
   Playback › Follow FL only while FL holds a note* and give MPE Roll's channel a note in FL's piano
   roll for as long as the clip should sound; the switch then stops it (checked with 0.2.0 in FL
   26.1.7), and patterns and the playlist decide when it plays. Or mute MPE Roll's mixer track,
@@ -33,12 +33,13 @@ The issues that 0.2.0 fixed are listed at the end of this page.
   Studio guide's section *Stopping MPE Roll with the Channel Rack switch* has the details.
 - **FL's plugin list can keep the old maker name** (seen after the 0.2.0 installer upgraded 0.1.0).
   From 0.2.0 MPE Roll gives its maker as *MPE Roll*, where 0.1.0 gave *Glowing Pancake*, and CI
-  checks what its VST3 and VST2 tell a host. Yet FL Studio 26.1.7's *Options › Manage plugins* list
-  went on naming *Glowing Pancake* as the VST3's vendor, even after FL's entry for it in its plugin
-  database (`Documents\Image-Line\FL Studio\Presets\Plugin database\Installed\Generators\VST3`) was
-  deleted and the plugins scanned again with *Verify plugins*. MPE Roll loads and plays as it
-  should; only the name shown is old. *What to do:* FL's *Manage plugins* window lets you change
-  the vendor it shows. If yours names *Glowing Pancake* too, please say what
+  checks what its VST3 and VST2 give a host (listed, loaded, and in the VST3's `moduleinfo.json`).
+  Yet FL Studio 26.1.7's *Options › Manage plugins* list went on naming *Glowing Pancake* as the
+  VST3's vendor (and no vendor for the VST2), even after FL's entry for it in its plugin database
+  (`Documents\Image-Line\FL Studio\Presets\Plugin database\Installed\Generators\VST3`) was deleted
+  and the plugins scanned again with *Verify plugins*. MPE Roll loads and plays as it should; only
+  the name shown is old. *What to do:* Image-Line's manual says the vendor shown can be changed in
+  *Manage plugins*. If yours names *Glowing Pancake* too, please say what
   `C:\Program Files\Common Files\VST3\MPE Roll.vst3\Contents\Resources\moduleinfo.json` gives as
   its `"Vendor"` (open it in Notepad), in an issue. *Status:* looking into where FL keeps the old
   name.
@@ -91,7 +92,7 @@ The issues that 0.2.0 fixed are listed at the end of this page.
   any other reason while your browser reaches github.com, please report it with the *Last check*
   line from *MPE settings › Updates*. The
   [latest release](https://github.com/freener0x/MPE-Roll/releases/latest) is always on GitHub.
-  *Status:* works on Windows; waiting on a test on macOS.
+  *Status:* worked on Windows 11 (in FL Studio 26.1.7); waiting on a test on macOS.
 - **CLAP and VST2 hosting are new.** Both are tested automatically with small test synths on Linux
   and compiled for Windows and macOS; the real synths tried are Surge XT's CLAP and Analog Lab's
   VST2, in FL Studio 26.1.7 on Windows 11. VST2 hosting uses FST, a clean-room reimplementation of
