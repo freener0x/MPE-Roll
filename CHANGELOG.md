@@ -19,6 +19,18 @@ and the release tags; a build between releases names itself by its number and co
 
 ## [Unreleased]
 
+### Changed
+
+- The README, the FL Studio guide and
+  [Known issues](https://freener0x.github.io/MPE-Roll/KNOWN_ISSUES.html) record what release 0.2.0
+  was tested with in FL Studio 26.1.7 on Windows 11, as a VST3: the installer over 0.1.0, *Send to
+  FL piano roll* saving into FL's scripts folder, the update check, *Report a bug…*, and Analog Lab
+  (VST2 and VST3) no longer filling FL's undo history. They also say what that test found: FL sends
+  a channel switched off in the Channel Rack nothing, so the switch stops MPE Roll only with *Follow
+  FL only while FL holds a note* on and a note on its channel; and FL's plugin list can go on
+  naming *Glowing Pancake* as MPE Roll's maker after an upgrade from 0.1.0, though MPE Roll gives
+  *MPE Roll*.
+
 ## [0.2.0] - 2026-11-04
 
 ### Added

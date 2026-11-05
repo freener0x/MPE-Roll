@@ -16,7 +16,7 @@ hero:
     which FL Studio's own piano roll can't send to plugins.
   tested: >-
     Release 0.1.0 was tested in FL Studio 26.1.7 on Windows 11 with Analog Lab, Omnisphere 3 and
-    Surge XT (CLAP).
+    Surge XT (CLAP), and release 0.2.0 in the same FL with Analog Lab.
   unsigned: >-
     The downloads aren't code-signed: [Unsigned builds](UNSIGNED_BUILDS.html) says what Windows and
     macOS show about them, and how to get past it.
