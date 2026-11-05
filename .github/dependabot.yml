@@ -2,10 +2,14 @@
 # it opens a pull request when one has a new version, checking weekly. The workflows name the
 # actions by major version (checkout@v7), so a pull request comes only for a new major version.
 # JUCE, CLAP and LAME are pinned through CMake's FetchContent in CMakeLists.txt, which Dependabot
-# doesn't cover: those are updated by hand.
+# doesn't cover: those are updated by hand. Its pull requests get the "ci" label (in place of
+# Dependabot's own "dependencies" and "github_actions"), so the release notes list them under
+# "Build and CI" (.github/release.yml).
 version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    labels:
+      - "ci"

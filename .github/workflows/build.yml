@@ -166,6 +166,14 @@ jobs:
           "$HARNESS" render "$NOTE_EXPRESSION_SYNTH" render-vst3-note-expressions.wav
           "$HARNESS" vst3dialect "$NOTE_EXPRESSION_SYNTH" "$VST3_SYNTH"
 
+      # The maker name MPE Roll's own plugins give a host: as listed (a VST3 from its moduleinfo.json
+      # alone), as loaded (the VST3's factory, the VST2's vendor string), and every vendor in the
+      # VST3's moduleinfo.json. COMPANY_NAME in CMakeLists.txt, "MPE Roll".
+      - name: MPE Roll's VST3 and VST2 give their maker as MPE Roll
+        run: >
+          "$HARNESS" makername "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3"
+          "build/MpeRoll_artefacts/Release/VST/MPE Roll.dll"
+
       - name: Export the clip as WAV and MP3 (VST3 synth)
         run: '"$HARNESS" export "$VST3_SYNTH" exported'
 
@@ -412,6 +420,11 @@ jobs:
       - name: MPE Roll's VST3 stops for an All Notes Off sent through its controller mapping
         run: >
           xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness vst3hostmidi
+          "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3"
+
+      - name: MPE Roll's VST3 gives its maker as MPE Roll
+        run: >
+          xvfb-run -a build/MpeRollHarness_artefacts/Release/MpeRollHarness makername
           "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3"
 
       # A VST3 synth that maps pitch bend on MIDI channel 1 only (JUCE's VST3 host drops MPE's bends on

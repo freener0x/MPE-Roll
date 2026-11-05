@@ -30,6 +30,8 @@
 //                                                       while the host holds a note
 //   MpeRollHarness vst3hostmidi <MPE Roll.vst3>         MPE Roll's own VST3 stopped by an All Notes Off
 //                                                       sent the way a VST3 host sends controllers
+//   MpeRollHarness makername <MPE Roll.vst3> [<MPE Roll.dll>]
+//                                                       the maker name MPE Roll's plugin files give a host
 //   MpeRollHarness crashtest <report.txt> [overflow]    Windows: crashes on purpose (or overflows the stack)
 //                                                       to check the crash report
 //   MpeRollHarness scantest <scanner> <synth> <crashing.clap> <hanging.clap>
@@ -5531,6 +5533,93 @@ int vst3HostMidiTest (const juce::File& pluginFile)
 }
 
 //==============================================================================
+/** The maker name MPE Roll's own plugin files give a host: as listed (for a VST3, JUCE's host lists it
+    from its moduleinfo.json without loading it), as the loaded plugin gives it (the VST3's factory,
+    the VST2's vendor string), and every vendor in the VST3's moduleinfo.json. All must say
+    COMPANY_NAME from CMakeLists.txt, "MPE Roll": a host showing another name is reading it from
+    somewhere else (a copy of its own, or an older file). */
+int makerNameTest (const juce::StringArray& paths)
+{
+    Check check;
+    ignoreXErrors();
+    const juce::String maker ("MPE Roll");
+
+    juce::AudioPluginFormatManager formats;
+    formats.addFormat (std::make_unique<juce::VST3PluginFormat>());
+   #if JUCE_PLUGINHOST_VST
+    formats.addFormat (std::make_unique<juce::VSTPluginFormat>());
+   #endif
+
+    for (const auto& path : paths)
+    {
+        const auto file = juce::File::getCurrentWorkingDirectory().getChildFile (path);
+        std::printf ("%s\n", file.getFullPathName().toRawUTF8());
+        const auto isVst3 = file.hasFileExtension ("vst3");
+        juce::OwnedArray<juce::PluginDescription> found;
+
+        for (auto* format : formats.getFormats())
+            if ((format->getName() == "VST3") == isVst3)
+                format->findAllTypesForFile (found, file.getFullPathName());
+
+        check (! found.isEmpty(), "a host finds a plugin in it");
+
+        for (auto* d : found)
+        {
+            // Listed: for a VST3 with a moduleinfo.json, JUCE takes this from the file alone.
+            std::printf ("    listed: %s %s, maker \"%s\"\n", d->pluginFormatName.toRawUTF8(), d->name.toRawUTF8(),
+                         d->manufacturerName.toRawUTF8());
+            check (d->manufacturerName == maker, d->pluginFormatName + " " + d->name + " is listed with " + maker + " as its maker");
+
+            // Loaded: the description a running plugin gives, from its own factory (VST3) or vendor
+            // string (VST2), as a host that verifies plugins by loading them reads it.
+            juce::String error;
+            auto plugin = formats.createPluginInstance (*d, 44100.0, 512, error);
+            check (plugin != nullptr, "it loads" + (error.isEmpty() ? juce::String() : ": " + error));
+
+            if (plugin != nullptr)
+            {
+                const auto loaded = plugin->getPluginDescription().manufacturerName;
+                std::printf ("    loaded: maker \"%s\"\n", loaded.toRawUTF8());
+                check (loaded == maker, "loaded, it gives its maker as " + maker);
+                plugin.reset();
+            }
+        }
+
+        if (! isVst3)
+            continue;
+
+        // JUCE writes it into every VST3 it builds (VST3_AUTO_MANIFEST), and hosts read it.
+        const auto info = file.getChildFile ("Contents/Resources/moduleinfo.json");
+        check (info.existsAsFile(), "it has Contents/Resources/moduleinfo.json");
+
+        if (! info.existsAsFile())
+            continue;
+
+        const auto json = juce::JSON::parse (info);
+        const auto factoryVendor = json["Factory Info"]["Vendor"].toString();
+        std::printf ("    moduleinfo.json: factory vendor \"%s\"\n", factoryVendor.toRawUTF8());
+        check (factoryVendor == maker, "its moduleinfo.json names " + maker + " as the factory's vendor");
+
+        int classes = 0, named = 0;
+
+        if (const auto* list = json["Classes"].getArray())
+        {
+            for (const auto& c : *list)
+            {
+                ++classes;
+                named += c["Vendor"].toString() == maker ? 1 : 0;
+                std::printf ("    moduleinfo.json: class \"%s\", vendor \"%s\"\n", c["Name"].toString().toRawUTF8(),
+                             c["Vendor"].toString().toRawUTF8());
+            }
+        }
+
+        check (classes > 0 && named == classes, "and as every class's vendor");
+    }
+
+    std::printf ("%s\n", check.failures == 0 ? "PASS" : "FAIL");
+    return check.failures == 0 ? 0 : 1;
+}
+
 /** The update check, against tools/fake_releases_server.py standing in for GitHub over plain HTTP
     on this computer (the Linux build has no TLS, and this never asks GitHub itself): nothing is sent
     while it's off, which it is until turned on, or once turned off; turned on, it asks once a day,
@@ -7561,6 +7650,9 @@ int main (int argc, char** argv)
     if (args.size() >= 2 && args[0] == "vst3hostmidi")
         return vst3HostMidiTest (cwd.getChildFile (args[1]));
 
+    if (args.size() >= 2 && args[0] == "makername")
+        return makerNameTest (juce::StringArray (args.begin() + 1, args.size() - 1));
+
     if (args.size() >= 2 && args[0] == "crashtest")
         return crashTest (cwd.getChildFile (args[1]), args.size() >= 3 && args[2] == "overflow");
 
@@ -7593,6 +7685,7 @@ int main (int argc, char** argv)
                  "  MpeRollHarness bendtweaks <MPE Roll Plain Test Synth>\n"
                  "  MpeRollHarness gatetest <MPE Roll Plain Test Synth>\n"
                  "  MpeRollHarness vst3hostmidi <MPE Roll.vst3>\n"
+                 "  MpeRollHarness makername <MPE Roll.vst3> [<MPE Roll.dll>]\n"
                  "  MpeRollHarness crashtest <report.txt> [overflow]\n"
                  "  MpeRollHarness scantest <MPE Roll Scanner> <synth> <crashing.clap> <hanging.clap>\n"
                  "  MpeRollHarness loadfailtest <MPE Roll Scanner> <synth.vst3> <VST2 synth>\n"

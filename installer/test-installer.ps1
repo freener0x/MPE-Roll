@@ -146,6 +146,13 @@ Expect (Same (Join-Path $app 'MPE Roll Scanner.exe') (Join-Path $Dist 'MPE Roll 
 Expect (Same (Join-Path $app 'LICENSE.txt') (Join-Path $PSScriptRoot '..\LICENSE')) 'the licence goes with it'
 Expect (Test-Path $shortcut) 'the Start menu has the app'
 Expect ((Get-ItemProperty $uninstallKey).Publisher -eq 'MPE Roll') 'Installed apps names MPE Roll as the publisher'
+# The company in each file's version information (Properties > Details), which JUCE takes from
+# COMPANY_NAME in CMakeLists.txt, as it does the maker name the plugins give hosts.
+foreach ($file in @((Join-Path $vst3 'Contents\x86_64-win\MPE Roll.vst3'), (Join-Path $vst2A 'MPE Roll.dll'),
+                    (Join-Path $app 'MPE Roll.exe'), (Join-Path $app 'MPE Roll Scanner.exe'))) {
+    $company = (Get-Item -LiteralPath $file).VersionInfo.CompanyName
+    Expect ($company -eq 'MPE Roll') "$(Split-Path -Leaf $file) gives its company as MPE Roll (it says '$company')"
+}
 Expect (-not (Test-Path -LiteralPath $oldVst2)) 'an older VST2 copy is removed'
 Expect (-not (Test-Path -LiteralPath $oldScanner)) 'the scanner beside it is removed with it'
 Expect (-not (Test-Path -LiteralPath $oldVst3)) 'an older VST3 copy in a subfolder is removed'
