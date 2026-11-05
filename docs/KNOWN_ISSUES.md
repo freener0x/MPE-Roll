@@ -37,11 +37,13 @@ The issues that 0.2.0 fixed are listed at the end of this page.
   Yet FL Studio 26.1.7's *Options › Manage plugins* list went on naming *Glowing Pancake* as the
   VST3's vendor (and no vendor for the VST2), even after FL's entry for it in its plugin database
   (`Documents\Image-Line\FL Studio\Presets\Plugin database\Installed\Generators\VST3`) was deleted
-  and the plugins scanned again with *Verify plugins*. The installed VST3's own
-  `Contents\Resources\moduleinfo.json` names *MPE Roll* as its vendor on that PC too, so FL keeps
-  the old name in data of its own. MPE Roll loads and plays as it should; only the name shown is
-  old. *What to do:* Image-Line's manual says the vendor shown can be changed in *Manage plugins*.
-  *Status:* FL's; where it keeps the old name isn't known yet.
+  and the plugins scanned again with *Verify plugins*, while the installed VST3's own
+  `Contents\Resources\moduleinfo.json` named *MPE Roll*. FL's plugin wrapper had kept an empty
+  registry entry under the old name. MPE Roll loads and plays as it should; only the name shown is
+  old. *What to do:* close FL, back up and remove that registry entry, and scan again with *Verify
+  plugins* and *Rescan previously verified plugins* ticked; the FL Studio guide's
+  [Removing the old maker name from FL](FL_STUDIO.md#removing-the-old-maker-name-from-fl) has the
+  commands. *Status:* those steps made the list name *MPE Roll* in FL Studio 26.1.7.
 - **Omnisphere 3 needs its MPE switch on.** Omnisphere 3's VST3 doesn't take VST3 note
   expressions, so with MPE off in its System page (*MPE settings › Synth is played with* then
   begins "VST3 notes on channel 1") no per-note expression comes out of it. *What to do:* turn MPE

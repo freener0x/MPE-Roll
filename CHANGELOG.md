@@ -29,7 +29,9 @@ and the release tags; a build between releases names itself by its number and co
   no All Notes Off when MPE Roll's channel is switched off in the Channel Rack, so in *Follow FL*
   mode the switch stops MPE Roll only with *Follow FL only while FL holds a note* on and a note on
   its channel; and FL's plugin list can go on naming *Glowing Pancake* as MPE Roll's maker after an
-  upgrade from 0.1.0, though MPE Roll gives *MPE Roll*.
+  upgrade from 0.1.0, though MPE Roll gives *MPE Roll*, because FL's plugin wrapper keeps an empty
+  registry entry under the old name. The FL Studio guide says how to remove it
+  ([Removing the old maker name from FL](https://freener0x.github.io/MPE-Roll/FL_STUDIO.html#removing-the-old-maker-name-from-fl)).
 
 ## [0.2.0] - 2026-11-04
 
