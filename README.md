@@ -389,8 +389,9 @@ form on GitHub.
   (listed, loaded, and in the VST3's `moduleinfo.json`). Yet after the installer upgraded 0.1.0,
   FL Studio 26.1.7's *Manage plugins* list went on naming *Glowing Pancake* as the VST3's vendor
   (and no vendor for the VST2), even once FL's entry for it in the plugin database had been deleted
-  and the plugins scanned again with *Verify plugins*. Only the name shown is wrong: MPE Roll loads
-  and plays. Where FL keeps the old name isn't known yet. Image-Line's manual says the vendor shown
+  and the plugins scanned again with *Verify plugins*. The installed VST3's own `moduleinfo.json`
+  names *MPE Roll* there too, so FL keeps the old name in data of its own; where isn't known yet.
+  Only the name shown is wrong: MPE Roll loads and plays. Image-Line's manual says the vendor shown
   can be changed in *Manage plugins*.
 - If FL also sends your controller to the *selected* Channel Rack channel, notes can play twice.
   Keep another channel selected while recording.
