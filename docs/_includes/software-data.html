@@ -1,0 +1,54 @@
+{%- comment -%}
+  MPE Roll described to search engines as a program: schema.org's SoftwareApplication, as JSON-LD.
+  It is data in the page, not a script that runs, and loads nothing. The front page has it and no
+  other page does (_layouts/home.html includes it):
+
+    {% include software-data.html %}
+
+  Every value comes from the site's data: the name from _config.yml, the description from the
+  page's own (index.html), the link card's picture from _config.yml and the editor's picture from
+  _data/screenshots.yml (the hero's), the category, the systems, the price and the manual from
+  _data/software.yml, and the download, the licence, the changelog and the repository from
+  _data/project.yml (left out while the repository is private). The site's own addresses are
+  written in full (absolute_url), as a search engine needs them. jsonify quotes each value, so a
+  quotation mark in one can't break the block; tools/check_site.py fails CI if the block isn't
+  JSON, or if an address in it points at a page or picture the site doesn't have.
+{%- endcomment -%}
+{%- assign software = site.data.software -%}
+{%- assign project = site.data.project -%}
+{%- assign software_help = site.data.features.guides.pages | where: "url", software.help | first -%}
+{%- assign software_shot = site.data.screenshots[site.data.features.hero.picture] -%}
+{%- include image-path.html file=software_shot.file -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": {{ site.title | jsonify }},
+  "description": {{ page.description | default: site.description | jsonify }},
+  "url": {{ "/" | absolute_url | jsonify }},
+  "image": {{ page.image.path | absolute_url | jsonify }},
+  {%- if image_path != "" %}
+  "screenshot": {{ image_path | absolute_url | jsonify }},
+  {%- endif %}
+  "applicationCategory": {{ software.category | jsonify }},
+  "applicationSubCategory": {{ software.sub_category | jsonify }},
+  "operatingSystem": {{ software.operating_system | jsonify }},
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": {{ software.price | jsonify }},
+    "priceCurrency": {{ software.currency | jsonify }}
+  },
+  {%- if project.repo_public %}
+  "downloadUrl": {{ project.download_url | jsonify }},
+  "license": {{ project.license_url | jsonify }},
+  "releaseNotes": {{ project.changelog_url | jsonify }},
+  "sameAs": {{ project.repo_url | jsonify }},
+  {%- endif %}
+  "softwareHelp": {
+    "@type": "CreativeWork",
+    "name": {{ software_help.title | default: site.title | jsonify }},
+    "url": {{ software.help | absolute_url | jsonify }}
+  }
+}
+</script>

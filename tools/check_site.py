@@ -3,11 +3,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 """Checks MPE Roll's website as Jekyll built it (the _site folder): that it loads nothing from other
-sites, and that nothing in it points at a file or a place on a page that isn't there.
+sites, that nothing in it points at a file or a place on a page that isn't there, and that what it
+tells search engines holds.
 
     python3 tools/check_site.py <built site> [--baseurl /MPE-Roll]
 
-It reads every .html and .css file in the folder, and fails, with a line for each, on:
+It reads every .html and .css file in the folder, and sitemap.xml, and fails, with a line for each,
+on:
 
   - anything a page loads from another site: a picture, a clip and its poster, a script, a frame, a
     stylesheet, an icon or a font (src, srcset, poster, an <object>'s data, a <link> that loads, a
@@ -18,6 +20,12 @@ It reads every .html and .css file in the folder, and fails, with a line for eac
     from the site's root, or the site's own address), at a file the site doesn't have, at a
     #fragment no element of that page has as its id, or at a path from the root outside the
     folder the site is served from (its baseurl), which on GitHub Pages is another site's.
+  - a block of data for search engines (<script type="application/ld+json">: data in the page,
+    which loads nothing) that isn't JSON, or that names an address in the site that isn't there.
+  - an address in sitemap.xml that isn't a file of the site: one it doesn't have, or another
+    site's.
+  - two pages with the same description (<meta name="description">). A page without one of its own
+    gets the site's tagline; docs/_config.yml has each guide's.
 
 GitHub Pages serves the site from https://freener0x.github.io/MPE-Roll/, so its pages' paths from
 the root start with /MPE-Roll when Jekyll knew that (GitHub's build does; one at the root has no
@@ -30,6 +38,8 @@ Needs only Python 3. CI runs it on the site it builds (.github/workflows/build.y
 from __future__ import annotations
 
 import argparse
+import html
+import json
 import posixpath
 import re
 import sys
@@ -67,6 +77,13 @@ CARD_METAS = {"og:image", "og:image:url", "og:image:secure_url", "twitter:image"
 CSS_URL = re.compile(r"""url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))\s*\)""", re.IGNORECASE)
 CSS_IMPORT = re.compile(r"""@import\s+(?:"([^"]*)"|'([^']*)')""", re.IGNORECASE)
 
+# In a block of data for search engines, a string that is an address: a whole one, or a path from
+# the root (what Jekyll writes for a site whose url it doesn't know).
+DATA_ADDRESS = re.compile(r"(?:https?://|/)\S+")
+DATA_TYPE = "application/ld+json"
+
+SITEMAP_LOC = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>")
+
 # Fragments every page has: the top of the page.
 ALWAYS_THERE = {"", "top"}
 
@@ -85,6 +102,8 @@ class Page:
     refs: list[Ref] = field(default_factory=list)
     canonical: str | None = None
     stylesheets: list[str] = field(default_factory=list)
+    description: str | None = None                              # its <meta name="description">
+    data: list[tuple[int, str]] = field(default_factory=list)   # its JSON-LD blocks: line, text
 
 
 @dataclass
@@ -103,6 +122,17 @@ def css_urls(text: str) -> list[str]:
     return urls
 
 
+def data_addresses(value: object) -> list[str]:
+    """The addresses a block of JSON-LD names, wherever they are in it."""
+    if isinstance(value, dict):
+        return [address for inner in value.values() for address in data_addresses(inner)]
+    if isinstance(value, list):
+        return [address for inner in value for address in data_addresses(inner)]
+    if isinstance(value, str) and DATA_ADDRESS.fullmatch(value):
+        return [value]
+    return []
+
+
 def srcset_urls(value: str) -> list[str]:
     """The addresses in a srcset: comma-separated, each one followed by its size or density."""
     return [candidate.split()[0] for candidate in value.split(",") if candidate.strip()]
@@ -116,6 +146,9 @@ class PageReader(HTMLParser):
         self.page = Page()
         self.style_line = 0
         self.in_style = False
+        self.data_line = 0
+        self.in_data = False
+        self.data_text: list[str] = []
 
     def add(self, what: str, url: str, loads: bool) -> None:
         self.page.refs.append(Ref(self.getpos()[0], what, url, loads))
@@ -152,6 +185,13 @@ class PageReader(HTMLParser):
             name = a.get(attr, "").lower()
             if name in CARD_METAS and a.get("content"):
                 self.add(f'<meta {attr}="{name}">', a["content"], False)
+            if a.get("name", "").lower() == "description" and self.page.description is None:
+                self.page.description = " ".join(a.get("content", "").split())
+
+        if tag == "script" and a.get("type", "").strip().lower() == DATA_TYPE:
+            self.in_data = True
+            self.data_line = self.getpos()[0]
+            self.data_text = []
 
         if "style" in a:
             for url in css_urls(a["style"]):
@@ -163,8 +203,13 @@ class PageReader(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "style":
             self.in_style = False
+        if tag == "script" and self.in_data:
+            self.in_data = False
+            self.page.data.append((self.data_line, "".join(self.data_text)))
 
     def handle_data(self, data: str) -> None:
+        if self.in_data:
+            self.data_text.append(data)
         if self.in_style:
             for url in css_urls(data):
                 self.page.refs.append(Ref(self.style_line, "<style>", url, True))
@@ -175,6 +220,17 @@ def read_page(path: Path) -> Page:
     reader.feed(path.read_text(encoding="utf-8", errors="replace"))
     reader.close()
     return reader.page
+
+
+def read_sitemap(path: Path) -> list[Ref]:
+    """The addresses sitemap.xml lists, if the site has one."""
+    if not path.is_file():
+        return []
+    refs = []
+    for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        refs += [Ref(number, "<loc>", html.unescape(m.group(1)), False)
+                 for m in SITEMAP_LOC.finditer(line)]
+    return refs
 
 
 def read_css(path: Path) -> list[Ref]:
@@ -189,13 +245,13 @@ class Site:
         self.root = root
         self.pages = {p.relative_to(root).as_posix(): read_page(p) for p in sorted(root.rglob("*.html"))}
         self.css = {p.relative_to(root).as_posix(): read_css(p) for p in sorted(root.rglob("*.css"))}
+        self.sitemap = read_sitemap(root / "sitemap.xml")
         if "index.html" not in self.pages:
             sys.exit(f"tools/check_site.py: {root} has no index.html: is it a site Jekyll built?")
         self.host: str | None = None     # the site's own host name, when the front page says it
+        self.baseurl, self.found_by = self.find_baseurl()
         if baseurl is not None:
             self.baseurl, self.found_by = baseurl.rstrip("/"), "--baseurl"
-        else:
-            self.baseurl, self.found_by = self.find_baseurl()
 
     def find_baseurl(self) -> tuple[str, str]:
         """Where the site is served from, as the front page says."""
@@ -256,26 +312,64 @@ class Site:
             path += ".html"     # GitHub Pages serves page.html as page too
         return Target("here", path, fragment)
 
+    def wrong(self, source: str, url: str, loads: bool, listed: bool = False) -> str | None:
+        """What's wrong with url, found in the site's file source: loaded as the page loads, or
+        listed (in sitemap.xml) as one of the site's own. None when nothing is."""
+        t = self.target(source, url)
+        if t.kind == "elsewhere" and loads:
+            return "loaded from another site"
+        if t.kind == "wrong":
+            return t.why
+        if t.kind != "here":
+            return "isn't an address of this site" if listed else None
+        if not self.is_file(t.path):
+            return f"the site has no {t.path}"
+        if (t.fragment is not None and t.fragment not in ALWAYS_THERE and t.path in self.pages
+                and t.fragment not in self.pages[t.path].ids):
+            return f"{t.path} has no element with the id {t.fragment!r}"
+        return None
+
     def problems(self) -> tuple[list[str], int]:
         found = []
         count = 0
+
+        def check(source: str, ref: Ref, listed: bool = False) -> None:
+            nonlocal count
+            count += 1
+            why = self.wrong(source, ref.url, ref.loads, listed)
+            if why:
+                found.append(f"{source}:{ref.line}: {ref.what} {ref.url}: {why}")
+
         everything = [(source, page.refs) for source, page in self.pages.items()] + list(self.css.items())
         for source, refs in everything:
             for ref in refs:
-                count += 1
-                where = f"{source}:{ref.line}: {ref.what} {ref.url}"
-                t = self.target(source, ref.url)
-                if t.kind == "elsewhere" and ref.loads:
-                    found.append(f"{where}: loaded from another site")
-                elif t.kind == "wrong":
-                    found.append(f"{where}: {t.why}")
-                elif t.kind != "here":
+                check(source, ref)
+
+        # The data for search engines: JSON, and its addresses in the site lead somewhere.
+        for source, page in self.pages.items():
+            for line, text in page.data:
+                what = f'<script type="{DATA_TYPE}">'
+                try:
+                    data = json.loads(text)
+                except ValueError as error:
+                    found.append(f"{source}:{line}: {what}: isn't JSON ({error})")
                     continue
-                elif not self.is_file(t.path):
-                    found.append(f"{where}: the site has no {t.path}")
-                elif (t.fragment is not None and t.fragment not in ALWAYS_THERE and t.path in self.pages
-                      and t.fragment not in self.pages[t.path].ids):
-                    found.append(f"{where}: {t.path} has no element with the id {t.fragment!r}")
+                for address in data_addresses(data):
+                    check(source, Ref(line, what, address, False))
+
+        # sitemap.xml lists the site's own files, and only those.
+        for ref in self.sitemap:
+            check("sitemap.xml", ref, listed=True)
+
+        # A description is one page's: the same on two means one of them has only the tagline.
+        by_description: dict[str, list[str]] = {}
+        for source, page in self.pages.items():
+            if page.description:
+                by_description.setdefault(page.description, []).append(source)
+        for description, sources in by_description.items():
+            if len(sources) > 1:
+                found.append(f"{', '.join(sources)}: the same description ({description!r}): give each "
+                             "page its own (docs/_config.yml has the guides')")
         return found, count
 
 
@@ -291,12 +385,16 @@ def main() -> None:
     site = Site(args.site, args.baseurl)
     problems, count = site.problems()
     print(f"{args.site}: {len(site.pages)} pages and {len(site.css)} stylesheets, served from "
-          f"{site.baseurl or '/'} ({site.found_by}); {count} links and loads checked")
+          f"{site.baseurl or '/'} ({site.found_by}); {count} links and loads checked, "
+          f"{len(site.sitemap)} of them sitemap.xml's")
     for problem in problems:
         print(problem)
     if problems:
         sys.exit(f"tools/check_site.py: {len(problems)} problem(s)")
     print("Nothing is loaded from another site, and every link into the site leads somewhere.")
+    listed = ("sitemap.xml lists only the site's own files" if site.sitemap
+              else "there's no sitemap.xml to check")
+    print(f"The data for search engines is JSON, {listed}, and no two pages share a description.")
 
 
 if __name__ == "__main__":

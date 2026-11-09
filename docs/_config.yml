@@ -1,13 +1,14 @@
 # MPE Roll's website: GitHub Pages builds it with Jekyll from this folder (Settings > Pages: the
 # main branch, folder /docs), in GitHub's Cayman theme. tools/make_donate_page.py writes index.html,
-# donate.html, share.html and _data/project.yml; FL_STUDIO.md, MPE_SYNTHS.md, KNOWN_ISSUES.md,
-# UNSIGNED_BUILDS.md and PRIVACY.md become pages as they are. The front page is laid out by
-# _layouts/home.html from the words in _data/features.yml and the pictures _data/screenshots.yml
-# lists (tools/shoot_images.sh and tools/make_demo.sh make them).
+# donate.html, share.html and _data/project.yml; MPE_IN_FL_STUDIO.md, FL_STUDIO.md, MPE_SYNTHS.md,
+# KNOWN_ISSUES.md, UNSIGNED_BUILDS.md and PRIVACY.md become pages as they are. The front page is
+# laid out by _layouts/home.html from the words in _data/features.yml and the pictures
+# _data/screenshots.yml lists (tools/shoot_images.sh and tools/make_demo.sh make them).
 # _layouts/default.html and _sass/jekyll-theme-cayman.scss are Cayman's own (CC0), changed so the
 # site loads nothing from other sites (Cayman takes its font from Google Fonts) and links its pages.
 # CI builds the site and runs tools/check_site.py on it: nothing may be loaded from another site,
-# and no link into the site may lead nowhere.
+# no link into the site may lead nowhere, sitemap.xml may list only pages that are there, and no
+# two pages may share a description.
 
 title: MPE Roll
 # The tagline under the name in every page's header, and the description of a page without its own;
@@ -16,16 +17,39 @@ title: MPE Roll
 description: The MPE piano roll for FL Studio
 lang: en
 theme: jekyll-theme-cayman
+
+# No url and no baseurl here, on purpose. GitHub Pages' build takes them from the repository
+# (jekyll-github-metadata: https://freener0x.github.io and /MPE-Roll), and so does CI's Website
+# job, which builds the same way. Every page's canonical link and link card, sitemap.xml and the
+# front page's software data take the site's address from them. Written here, they would be wrong
+# in a fork's own Pages site, and would have to be changed by hand if the site moved. A plain
+# `jekyll build` on a computer knows neither: it leaves out the canonical links and writes the
+# other addresses from the root, without the host, which is fine for looking at the pages.
+
 plugins:
   - jekyll-seo-tag
-  # Writes sitemap.xml (on GitHub Pages' list of plugins), for Google Search Console and Bing.
+  # Writes sitemap.xml, the list of the site's pages for search engines (on GitHub Pages' list of
+  # plugins), and a robots.txt that names it. The sitemap's address, to give to Google Search
+  # Console or Bing Webmaster Tools: https://freener0x.github.io/MPE-Roll/sitemap.xml
   - jekyll-sitemap
 
-# For jekyll-seo-tag: the search engines' site-verification tags, each <meta> tag's content value
-# (not a secret: it's in every page). Google Search Console, a "URL prefix" property for
-# https://freener0x.github.io/MPE-Roll/, verified by HTML tag:
+# Google Search Console's proof that the site is yours (optional; the site works without it, and
+# sends Google nothing either way). The site goes in there as a "URL prefix" property for
+# https://freener0x.github.io/MPE-Roll/, verified by HTML tag.
+#   1. Search Console gives a tag of this shape for the property:
+#        <meta name="google-site-verification" content="AbC123_example-value" />
+#      Copy only the value between the quotes after content= (AbC123_example-value there): not the
+#      quotes, not the rest of the tag.
+#   2. Below, take the "# " off the two lines that start "# webmaster_verifications:" and
+#      "#   google:", so that the first starts at the left edge and the second keeps two spaces
+#      before google. Put the value between the double quotes, in place of PASTE_THE_VALUE_HERE.
+#   3. Commit that to main. Once GitHub Pages has rebuilt the site, every page carries the tag in
+#      its <head> (jekyll-seo-tag writes it): look for google-site-verification in the front
+#      page's source. Then have Search Console verify, and keep the two lines afterwards.
+# The value isn't a secret: it's in every page. Bing Webmaster Tools' value goes the same way, on a
+# line of its own under google, as `  bing: "..."` (its tag is <meta name="msvalidate.01" ...>).
 # webmaster_verifications:
-#   google: <the content="..." value Search Console gives>
+#   google: "PASTE_THE_VALUE_HERE"
 
 # For jekyll-seo-tag: the site's logo, and the link card (og:image, Twitter's card) every page gets.
 # Both are made by tools/make_icons.py; the repository's own social preview is the same social.png,
@@ -40,6 +64,58 @@ defaults:
         width: 1280
         height: 640
         alt: "MPE Roll"
+
+  # Each guide's description, for search engines and for the card a link to the page gets (the
+  # <meta name="description"> and og:description that jekyll-seo-tag writes): what the page answers,
+  # in a sentence or two, under about 160 characters. They are here, and not at the top of each .md
+  # file, so that the guides stay plain Markdown on GitHub, and MPE_SYNTHS.md stays as
+  # tools/make_synth_list.py writes it. A guide's title is its first heading. A new guide needs an
+  # entry here: without one its description is the tagline above, the same as another page's, which
+  # tools/check_site.py reports. index.html, donate.html and share.html carry their own
+  # (tools/make_donate_page.py).
+  - scope:
+      path: "MPE_IN_FL_STUDIO.md"
+    values:
+      description: >-
+        FL Studio's piano roll can't give one note of a chord its own glide, pressure or timbre on
+        a VST, VST3 or CLAP synth. How MPE Roll adds MPE to FL Studio.
+  - scope:
+      path: "FL_STUDIO.md"
+    values:
+      description: >-
+        Using MPE Roll in FL Studio, step by step: install it, load your synth inside it, draw each
+        note's glide, pressure and timbre, and record an MPE controller.
+  - scope:
+      path: "MPE_SYNTHS.md"
+    values:
+      description: >-
+        Which software instruments have MPE and where to turn it on, maker by maker, checked against
+        the makers' manuals, and how to play each one from MPE Roll.
+  - scope:
+      path: "KNOWN_ISSUES.md"
+    values:
+      description: >-
+        What doesn't work yet in MPE Roll, or works differently from what you'd expect: what you'll
+        see, what to do meanwhile, and where each issue stands.
+  - scope:
+      path: "UNSIGNED_BUILDS.md"
+    values:
+      description: >-
+        MPE Roll's downloads aren't code-signed. What Windows and macOS say about them, how to get
+        past the warnings, and how to check a download against its checksum.
+  - scope:
+      path: "PRIVACY.md"
+    values:
+      description: >-
+        What MPE Roll does with your data: it sends nothing anywhere unless you turn on its update
+        check or ask it to check, and writes a few files on your computer.
+
+  # share.html stays out of sitemap.xml: its ready-made posts are for people who already use MPE
+  # Roll and repeat the front page's words, so it isn't a page to offer to someone searching.
+  - scope:
+      path: "share.html"
+    values:
+      sitemap: false
 
 # The guides are published as pages only, not also as the .md files they're made from.
 optional_front_matter:

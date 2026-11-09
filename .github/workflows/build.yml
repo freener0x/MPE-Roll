@@ -510,8 +510,9 @@ jobs:
 
       - name: Its pages are there, and load nothing from other sites
         run: |
-          ls _site/index.html _site/donate.html _site/share.html _site/FL_STUDIO.html _site/MPE_SYNTHS.html \
-            _site/UNSIGNED_BUILDS.html _site/KNOWN_ISSUES.html _site/PRIVACY.html _site/assets/css/style.css
+          ls _site/index.html _site/donate.html _site/share.html _site/MPE_IN_FL_STUDIO.html \
+            _site/FL_STUDIO.html _site/MPE_SYNTHS.html _site/UNSIGNED_BUILDS.html _site/KNOWN_ISSUES.html \
+            _site/PRIVACY.html _site/assets/css/style.css _site/sitemap.xml
           if grep -rlE 'fonts\.(googleapis|gstatic)\.com' _site; then
             echo "These load fonts from Google"
             exit 1
@@ -519,5 +520,8 @@ jobs:
 
       # Every picture, clip, script, stylesheet and icon the pages load is the site's own, and every
       # link into the site (pages, pictures, #places on a page) leads to something that's there.
+      # What the site tells search engines holds too: the front page's software data and every
+      # page's own are JSON that names nothing missing, sitemap.xml lists only pages that are
+      # there, at the site's address, and no two pages have the same description.
       - name: Nothing loaded from elsewhere, no link into the site leading nowhere
         run: python3 tools/check_site.py _site

@@ -1,0 +1,20 @@
+# What the front page tells search engines about MPE Roll as a program, in schema.org's words
+# (SoftwareApplication). _includes/software-data.html writes it into the front page as JSON-LD:
+# data in the page itself, which loads nothing. The name, the description, the pictures and the
+# links into the repository come from _config.yml, index.html, _data/screenshots.yml and
+# _data/project.yml; the rest is here, edited by hand. Say only what's true of the latest release,
+# and no rating or review: MPE Roll has none to quote.
+
+# schema.org's applicationCategory and applicationSubCategory.
+category: MultimediaApplication
+sub_category: Instrument plugin
+
+# The systems the latest release has files for, as At a glance in _data/features.yml gives them.
+operating_system: Windows 10 or 11 (64-bit), macOS 11 or newer, Linux (experimental build)
+
+# Free. schema.org wants a currency beside a price, even a price of 0.
+price: "0"
+currency: USD
+
+# The page that is MPE Roll's manual; its name is taken from guides in _data/features.yml.
+help: /FL_STUDIO.html

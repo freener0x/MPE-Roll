@@ -11,7 +11,7 @@ main_class: home
   inline through _includes/inline.html, the Download box through _includes/download-box.html.
   default.html puts Cayman's header above (the logo, the name, the tagline and the site's pages)
   and the footer below; with main_class: home the sections run the window's full width, in bands
-  (style.scss).
+  (style.scss). _includes/software-data.html, at the foot, describes MPE Roll to search engines.
 {%- endcomment -%}
 {%- assign words = site.data.features -%}
 {%- assign project = site.data.project -%}
@@ -166,6 +166,8 @@ main_class: home
     </section>
   </div>
 </div>
+
+{% include software-data.html %}
 
 <script>
 // The Download buttons name the visitor's system and say which file to pick on the release page,
