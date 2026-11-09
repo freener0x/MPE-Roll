@@ -8,7 +8,8 @@
 An MPE piano roll for FL Studio. MPE Roll is an instrument plugin (VST3, plus AU on macOS and a
 standalone app) with its own piano roll. You load your synth *inside* it (VST3, VST2 or CLAP), so
 every note gets its own pitch glide, pressure, timbre and controllers. FL Studio's own piano roll
-can't send per-note expression to plugins.
+can't send those to a third-party synth (VST, VST3 or CLAP): its slide notes, per-note pitch and
+Mod X / Mod Y work with FL's own synths only.
 
 For FL's native synths (FLEX, Sytrus, Harmor, 3xOsc...), which can't receive MPE at all, MPE Roll
 writes a piano roll script. The script rebuilds the clip in FL's own piano roll using slide notes,
@@ -400,6 +401,15 @@ form on GitHub.
 - FL's native synths only get what FL's piano roll can express: one colour per overlapping note, at
   most 16 at a time.
 
+## How MPE Roll is made
+
+MPE Roll is designed and tested in FL Studio by its maintainer, and written with an AI coding
+assistant (Claude, which is why most commits name it as their author). Every change is built and
+checked on Windows, macOS and Linux by an automated test suite: unit tests of the MPE engine, an
+end-to-end harness that plays clips through VST3, VST2 and CLAP test synths, and an install,
+upgrade and uninstall test of the Windows installer. Releases 0.1.0 and 0.2.0 were also tested by
+hand in FL Studio 26.1.7 on Windows 11 (see [Known limitations](#known-limitations)).
+
 ## How it's built
 
 ```
@@ -476,6 +486,9 @@ should the repository ever be made private, set `"repoPublic": false` in `docs/d
 a 404 there.
 
 ## License
+
+MPE Roll is an independent project, not made by or affiliated with Image-Line. FL Studio is
+Image-Line's trademark, and the other product names here belong to their owners.
 
 Copyright 2026 The MPE Roll contributors. MPE Roll's own files are licensed under the
 AGPL-3.0-only, the open-source licence JUCE is available under: see [LICENSE](LICENSE). The files of

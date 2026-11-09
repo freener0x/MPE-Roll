@@ -18,6 +18,14 @@ lang: en
 theme: jekyll-theme-cayman
 plugins:
   - jekyll-seo-tag
+  # Writes sitemap.xml (on GitHub Pages' list of plugins), for Google Search Console and Bing.
+  - jekyll-sitemap
+
+# For jekyll-seo-tag: the search engines' site-verification tags, each <meta> tag's content value
+# (not a secret: it's in every page). Google Search Console, a "URL prefix" property for
+# https://freener0x.github.io/MPE-Roll/, verified by HTML tag:
+# webmaster_verifications:
+#   google: <the content="..." value Search Console gives>
 
 # For jekyll-seo-tag: the site's logo, and the link card (og:image, Twitter's card) every page gets.
 # Both are made by tools/make_icons.py; the repository's own social preview is the same social.png,

@@ -1,6 +1,8 @@
 # Using MPE Roll in FL Studio
 
-FL Studio's piano roll can't send per-note expression to plugins. MPE Roll gets around that by being
+FL Studio's piano roll can't send one note's own pitch glide, pressure or timbre to a third-party
+synth (VST, VST3 or CLAP): its slide notes, per-note pitch and Mod X / Mod Y work with FL's own
+synths only. MPE Roll gets around that by being
 the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted inside it.
 
 > These steps follow Image-Line's documentation and user reports. Release 0.1.0 has been tested in

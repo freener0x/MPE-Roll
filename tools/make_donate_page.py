@@ -90,7 +90,7 @@ SHARE_SHORT = (f"{PROJECT}: a free, open-source MPE piano roll plugin for FL Stu
                "#MPE #FLStudio #VST3 #CLAP #OpenSource")
 SHARE_MEDIUM = (f"{PROJECT} is a free, open-source plugin for FL Studio with its own MPE piano roll. Load your "
                 "synth inside it (VST3, VST2 or CLAP) and every note gets its own pitch glide, pressure, timbre "
-                "and controllers, which FL's piano roll can't send to plugins. For FL's own synths it writes a "
+                "and controllers, which FL's piano roll can't send to third-party synths. For FL's own synths it writes a "
                 "piano roll script that rebuilds the clip with slide notes. Windows and macOS. No ads, no "
                 "tracking.\n\n#MPE #FLStudio #VST3 #CLAP #MIDI #MusicProduction #OpenSource #MPERoll")
 X_LIMIT = 280            # characters in a post on X

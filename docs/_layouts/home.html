@@ -29,6 +29,7 @@ main_class: home
     {%- endif %}
     <div class="hero-notes">
       <p class="tested">{{ words.hero.tested | smartify }}</p>
+      <p class="made">{% include inline.html text=words.hero.made %}{% if project.repo_public %} <a href="{{ project.repo_url }}#how-mpe-roll-is-made">How it’s made</a>.{% endif %}</p>
       <p class="unsigned">{% include inline.html text=words.hero.unsigned %}</p>
     </div>
   </div>
