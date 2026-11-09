@@ -28,14 +28,17 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    unless a project of yours still needs one. To install by hand instead, copy the whole
    `MPE Roll.vst3` folder to `C:\Program Files\Common Files\VST3` (macOS:
    `/Library/Audio/Plug-Ins/VST3`, once the download mark is off the unzipped `MPE Roll` folder:
-   `xattr -dr com.apple.quarantine ~/Downloads/"MPE Roll"`). On Windows you can use `MPE Roll.dll`,
-   the VST2 version, instead: put it in one of the plugin folders listed under *Options › Manage
-   plugins*, with `MPE Roll Scanner.exe` beside it (see step 2 below). When you update, close FL
-   Studio first (Windows can't replace a plugin file that FL has loaded). With the installer, run
-   the newer one over the old (0.1.0's, and 0.2.0's over 0.1.0, were checked this way on Windows
-   11); by hand, replace every
-   copy you installed before, the `.dll` too if you used it. No one has run the macOS bundles yet;
-   if you do, please report how it went.
+   `xattr -dr com.apple.quarantine ~/Downloads/"MPE Roll"`; or let the
+   [install script](UNSIGNED_BUILDS.md#macos-the-install-script) download a release and put it in
+   your own `~/Library/Audio/Plug-Ins/VST3`, with one line in Terminal:
+   `curl -fsSL https://freener0x.github.io/MPE-Roll/install-macos.sh | bash`. Whether FL Studio on
+   a Mac finds plugins in that folder by itself hasn't been checked). On Windows you can use
+   `MPE Roll.dll`, the VST2 version, instead: put it in one of the plugin folders listed under
+   *Options › Manage plugins*, with `MPE Roll Scanner.exe` beside it (see step 2 below). When you
+   update, close FL Studio first (Windows can't replace a plugin file that FL has loaded). With the
+   installer, run the newer one over the old (0.1.0's, and 0.2.0's over 0.1.0, were checked this way
+   on Windows 11); by hand, replace every copy you installed before, the `.dll` too if you used it.
+   No one has run the macOS bundles yet; if you do, please report how it went.
 3. In FL Studio: *Options › Manage plugins › Find installed plugins*. The bottom of MPE Roll's File
    menu names the build that's loaded, e.g. "MPE Roll 0.1.0, release v0.1.0, fd8e433, 2026-11-01"
    (a build between releases says "build 63" and its commit instead of the release). From 0.2.0,

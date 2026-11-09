@@ -310,6 +310,111 @@ jobs:
           ditto -x -k MPE-Roll-bundles.zip unzipped
           test -x "unzipped/MPE Roll/MPE Roll.app/Contents/MacOS/MPE Roll"
 
+      # docs/UNSIGNED_BUILDS.md tells Mac users that a file fetched with curl, unlike a browser's
+      # download, gets no quarantine mark (com.apple.quarantine), which is why the install script
+      # below leaves nothing for them to unblock. Checked here on the file that script fetches
+      # first, a release's SHA256SUMS.txt; the second half shows that this runner can set and see
+      # the mark at all, so that finding none means something.
+      - name: A file fetched with curl carries no quarantine mark
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --output fetched.txt \
+            https://github.com/freener0x/MPE-Roll/releases/latest/download/SHA256SUMS.txt
+          cat fetched.txt
+          marks=$(xattr fetched.txt)
+          echo "Its extended attributes: ${marks:-none}"
+          case "$marks" in
+            *com.apple.quarantine*)
+              echo "curl's download carries the quarantine mark; docs/UNSIGNED_BUILDS.md says it doesn't."
+              exit 1 ;;
+          esac
+          xattr -w com.apple.quarantine "0081;$(printf '%x' "$(date +%s)");Safari;" fetched.txt || true
+          case "$(xattr fetched.txt)" in
+            *com.apple.quarantine*)
+              echo "The mark can be set and seen on this runner." ;;
+            *)
+              echo "The quarantine mark couldn't be set on this runner, so finding none shows nothing."
+              exit 1 ;;
+          esac
+
+      # docs/install-macos.sh, the one-line install the website offers Mac users, run by the bash
+      # macOS ships (/bin/bash, 3.2) the three ways people will run it: fed to bash for the latest
+      # release, as "curl ... | bash" does, which downloads that release and checks its checksum;
+      # on the zip packaged above, with a SHA256SUMS.txt for it; and on that zip marked as a
+      # browser's download would be. After each, the three bundles must be in the user's own
+      # Library folders, whole (their signatures verify), able to run and free of the quarantine
+      # mark; after the second they must be this build's files exactly. This runner is the only
+      # Mac the script has run on.
+      - name: The install script puts the bundles into the user's Library, unmarked
+        run: |
+          vst3="$HOME/Library/Audio/Plug-Ins/VST3/MPE Roll.vst3"
+          au="$HOME/Library/Audio/Plug-Ins/Components/MPE Roll.component"
+          app="$HOME/Applications/MPE Roll.app"
+          rm -rf "$vst3" "$au" "$app"
+          installed() {
+            for bundle in "$vst3" "$au" "$app"; do
+              if [ ! -d "$bundle" ]; then
+                echo "$bundle isn't there."
+                exit 1
+              fi
+              marked=$(xattr -r "$bundle" | grep -c com.apple.quarantine || true)
+              if [ "$marked" != 0 ]; then
+                echo "$marked files in $bundle carry the quarantine mark."
+                exit 1
+              fi
+              codesign --verify --deep --strict "$bundle"
+            done
+            test -x "$app/Contents/MacOS/MPE Roll"
+            version=$(defaults read "$app/Contents/Info" CFBundleShortVersionString)
+            echo "In place, whole and unmarked: MPE Roll $version"
+          }
+          # Runs the script with macOS's own bash, keeping what it prints in install.log.
+          run_script() {
+            status=0
+            /bin/bash docs/install-macos.sh "$@" > install.log || status=$?
+            cat install.log
+            if [ "$status" != 0 ]; then exit "$status"; fi
+          }
+
+          echo "::group::The latest release, with the script fed to bash"
+          /bin/bash -s < docs/install-macos.sh
+          installed
+          echo "::endgroup::"
+
+          echo "::group::This build's zip, with its checksum"
+          shasum -a 256 MPE-Roll-bundles.zip > SHA256SUMS.txt
+          run_script --zip MPE-Roll-bundles.zip --sums SHA256SUMS.txt
+          installed
+          grep -q "A copy that was already there was replaced." install.log
+          diff -r "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" "$vst3"
+          diff -r "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" "$au"
+          diff -r "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app" "$app"
+          echo "::endgroup::"
+
+          echo "::group::This build's zip, marked as a browser's download"
+          cp MPE-Roll-bundles.zip browser-download.zip
+          xattr -w com.apple.quarantine "0081;$(printf '%x' "$(date +%s)");Safari;" browser-download.zip
+          run_script --zip browser-download.zip
+          installed
+          if grep -q "mark was taken off these copies" install.log; then
+            echo "ditto passed the zip's mark on to what it unpacked, and the script took it off."
+          else
+            echo "ditto didn't pass the zip's mark on to what it unpacked."
+          fi
+          echo "::endgroup::"
+
+      # Apple's AU validator again, this time on the component where the install script left it:
+      # this build's, after a trip through the zip. Then the three bundles are removed, with the
+      # command the script prints for undoing an install.
+      - name: AU validation (auval) of the installed copy
+        run: |
+          killall -9 AudioComponentRegistrar 2> /dev/null || true
+          status=0
+          perl -e 'alarm shift; exec @ARGV' 180 auval -v aumu Mpr1 Glpk || status=$?
+          rm -rf "$HOME/Library/Audio/Plug-Ins/VST3/MPE Roll.vst3" \
+            "$HOME/Library/Audio/Plug-Ins/Components/MPE Roll.component" "$HOME/Applications/MPE Roll.app"
+          if [ "$status" = 142 ]; then echo "auval didn't finish within 180 s."; fi
+          exit "$status"
+
       - uses: actions/upload-artifact@v7
         with:
           name: MPE-Roll-macOS-build-${{ github.run_number }}

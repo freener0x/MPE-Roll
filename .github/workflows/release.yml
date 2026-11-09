@@ -19,6 +19,25 @@ name: Release
 # the version from CMakeLists.txt (plus the suffix given, for a pre-release) and releases that. A tag
 # of that name already on another commit stops the run if a release was made from it (the version
 # has to change), and is moved to main's commit if none was (a run that failed before releasing).
+#
+# Before the release is published, GitHub signs a record (an artifact attestation) that the files
+# were built by this workflow from the tagged commit, which `gh attestation verify` checks a
+# download against (docs/UNSIGNED_BUILDS.md). That needs nothing set up.
+#
+# Once a release (not a pre-release) is out, the Announce job tells people, where the repository is
+# set up for it; neither is needed for a release, and one that isn't set up is skipped:
+#   - Discord: if the repository has a secret named DISCORD_RELEASE_WEBHOOK (Settings > Secrets and
+#     variables > Actions > New repository secret) holding the webhook address of a Discord
+#     channel (https://discord.com/api/webhooks/ and so on; Discord's help article "Intro to
+#     Webhooks" says how to make one), the release's name, its link and its first changes are
+#     posted to that channel. Anyone who has the address can post there, which is why it's a
+#     secret.
+#   - GitHub Discussions: if Discussions are on for the repository (Settings > General > Features)
+#     and have an Announcements category (they start with one), a discussion "MPE Roll <version>"
+#     is opened there with the CHANGELOG's section. It needs no secret: the run's own token is
+#     used.
+# An announcement that fails doesn't undo or fail the release: the run stays green, and its summary
+# page says what went wrong.
 on:
   push:
     tags: ['v*']
@@ -322,6 +341,14 @@ jobs:
     name: GitHub release
     needs: [version, windows, macos, linux]
     runs-on: ubuntu-24.04
+    # contents: to publish the release. id-token and attestations: for the Attest step, which asks
+    # GitHub for this run's identity token to sign with, and stores the attestation.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    outputs:
+      announce: ${{ steps.release.outputs.announce }}
     env:
       TAG: ${{ needs.version.outputs.tag }}
       VERSION: ${{ needs.version.outputs.version }}
@@ -351,6 +378,26 @@ jobs:
           (cd files && sha256sum "${downloads[@]}" > SHA256SUMS.txt)
           cat files/SHA256SUMS.txt
 
+      # A signed record that these five files were built by this workflow, from this commit, on
+      # GitHub's runners: an artifact attestation (SLSA build provenance), signed through Sigstore
+      # with this run's own identity and kept by GitHub with the repository, where
+      # `gh attestation verify <file> --repo <owner>/<repo>` checks a download against it
+      # (docs/UNSIGNED_BUILDS.md says how). It names the files by their SHA-256, so it covers the
+      # bytes hashed above and nothing else. It comes before the release: if this step fails,
+      # nothing is published, and the run can be started again. It isn't code signing; Windows and
+      # macOS warn about the downloads as before. actions/attest is the action that
+      # actions/attest-build-provenance has wrapped since its version 4, whose README sends new
+      # workflows here; with files as subjects it needs the two permissions above.
+      - name: Attest that this workflow built the downloads
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            files/MPE-Roll-Setup-${{ env.VERSION }}.exe
+            files/MPE-Roll-${{ env.VERSION }}-Windows.zip
+            files/MPE-Roll-${{ env.VERSION }}-macOS.zip
+            files/MPE-Roll-${{ env.VERSION }}-Linux.tar.gz
+            files/SHA256SUMS.txt
+
       # What's attached and how to use it; the CHANGELOG's section for the version (its heading up
       # to the next one, or to the link lines at the end, and its own link line so the heading links
       # as it does in the file); GitHub's notes, the pull requests since the last release grouped by
@@ -364,9 +411,11 @@ jobs:
             echo
             echo "- **MPE-Roll-Setup-$VERSION.exe**: the Windows installer (VST3, VST2 and the standalone app). It isn't signed, so if Windows says it protected your PC, choose *More info*, then *Run anyway*; or, before running it, right-click it, choose *Properties* and tick *Unblock*. [What Windows shows, and why]($site/UNSIGNED_BUILDS.html)."
             echo "- **MPE-Roll-$VERSION-Windows.zip**: the same files, to copy into the plugin folders by hand."
-            echo "- **MPE-Roll-$VERSION-macOS.zip**: the macOS VST3, AU and standalone app, for Apple silicon and Intel. They aren't notarized, so remove the quarantine flag from the extracted \`MPE Roll\` folder before a DAW will load them: \`xattr -dr com.apple.quarantine ~/Downloads/\"MPE Roll\"\` (covers the .vst3, .component and .app). [What macOS shows, and why]($site/UNSIGNED_BUILDS.html). Nobody has run this build yet; testers wanted: please say how it went, working or not, in an [issue]($repo/issues/new/choose)."
+            echo "- **MPE-Roll-$VERSION-macOS.zip**: the macOS VST3, AU and standalone app, for Apple silicon and Intel. They aren't notarized, so remove the quarantine flag from the extracted \`MPE Roll\` folder before a DAW will load them: \`xattr -dr com.apple.quarantine ~/Downloads/\"MPE Roll\"\` (covers the .vst3, .component and .app). [What macOS shows, and why]($site/UNSIGNED_BUILDS.html). Or let the [install script]($site/install-macos.sh) do it, in Terminal: \`curl -fsSL $site/install-macos.sh | bash -s -- ${TAG#v}\` downloads this zip, checks it against SHA256SUMS.txt and puts the three bundles into your own Library folders, with no password ([what it does]($site/UNSIGNED_BUILDS.html#macos-the-install-script)). Nobody has run this build yet; testers wanted: please say how it went, working or not, in an [issue]($repo/issues/new/choose)."
             echo "- **MPE-Roll-$VERSION-Linux.tar.gz**, experimental: the Linux VST3 (copy \`MPE Roll.vst3\` to \`~/.vst3\`) and the standalone app, with the scanner. Untested in any Linux host, and FL Studio has no Linux version: it's for Bitwig, Reaper or Ardour users who'd try it. Built on Ubuntu 24.04; it needs the libraries the README lists for [building on Linux]($repo#building)."
             echo "- **SHA256SUMS.txt**: the SHA-256 checksums of the files above, also at the end of these notes. [How to check a download]($site/UNSIGNED_BUILDS.html#verify-what-you-downloaded)."
+            echo
+            echo "GitHub keeps a signed record (an artifact attestation) that these five files were built by this repository's Release workflow from the tagged commit. With the [GitHub CLI](https://cli.github.com), \`gh attestation verify <file> --repo $GITHUB_REPOSITORY\` checks a download against it; [what that shows, and what it doesn't]($site/UNSIGNED_BUILDS.html#verify-what-you-downloaded). It isn't code signing: Windows and macOS warn about the downloads as before."
             echo
             echo "Setting up in FL Studio: the [FL Studio guide]($site/FL_STUDIO.html). Which synths have MPE, and where their switch is: [the list]($site/MPE_SYNTHS.html). What's known not to work yet: [Known issues]($site/KNOWN_ISSUES.html)."
             echo
@@ -393,12 +442,16 @@ jobs:
       # them, then publishes it, so a run that failed while attaching leaves a draft behind: the
       # next run finds it, replaces its files and notes, and publishes it.
       - name: Release
+        id: release
         run: |
           mapfile -t assets < <(awk '{ print "files/" $2 }' files/SHA256SUMS.txt)
           assets+=(files/SHA256SUMS.txt)
           flags=()
           if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
-          if gh release view "$TAG" > /dev/null 2>&1; then
+          # What is there for this tag already: nothing, a draft (a run that stopped while
+          # attaching: nobody has seen it), or a published release, which this run replaces.
+          before=$(gh release view "$TAG" --json isDraft --jq .isDraft 2> /dev/null || echo none)
+          if [ "$before" != none ]; then
             gh release upload "$TAG" "${assets[@]}" --clobber
             gh release edit "$TAG" --draft=false --notes-file notes.md "${flags[@]}"
           else
@@ -410,3 +463,296 @@ jobs:
             echo "The release is still a draft."
             exit 1
           fi
+          # For the Announce job: a release that was already out has been announced, or the
+          # maintainer has seen that it wasn't, so replacing its files says nothing again.
+          case "$before" in
+            none) was="no release"; announce=true ;;
+            true) was="a draft that was never published"; announce=true ;;
+            *) was="a published release"; announce=false ;;
+          esac
+          echo "announce=$announce" >> "$GITHUB_OUTPUT"
+          echo "Before this run there was $was for $TAG. Announce it: $announce."
+
+  # Tells people that a release is out, once it is; the top of this file says what a maintainer can
+  # set up for it, all of it optional. A pre-release isn't announced, nor is a release that was
+  # already out when this run replaced its files. Nothing here fails the run: the release is
+  # published by now, so a step that can't announce says so on the run's summary page, in a line
+  # of the summary and an error annotation, and ends well. To try a failed announcement again,
+  # re-run this job alone (the re-run button beside its name on the run's page): the builds and
+  # the release stay as they are, and a discussion that was opened isn't opened twice, but a
+  # Discord post that went through is posted again.
+  announce:
+    name: Announce the release (Discord, Discussions)
+    needs: [version, release]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      discussions: write
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
+      VERSION: ${{ needs.version.outputs.version }}
+      PRERELEASE: ${{ needs.version.outputs.prerelease }}
+      NEW_RELEASE: ${{ needs.release.outputs.announce }}
+      SITE: https://freener0x.github.io/MPE-Roll
+    steps:
+      - uses: actions/checkout@v7
+
+      # Whether there is anything to announce, and the words for it: section.md, the CHANGELOG's
+      # section for the version as the release notes have it; discord-changes.txt, the start of
+      # each of its first changes, with the wrapped lines joined (Discord breaks a line where the
+      # text does), as many as fit in 1400 characters of the 2000 a Discord message can have; and
+      # discussion.md, the discussion's text.
+      - name: What to announce
+        id: what
+        run: |
+          finish() {
+            code=$?
+            if [ "$code" != 0 ]; then
+              echo "::error title=MPE Roll $VERSION wasn't announced::The step that prepares the announcements stopped (exit code $code); its log says where. The release itself is out."
+              echo "- **Not announced**: the step that prepares the announcements stopped (exit code $code); its log says where. The release itself is out." >> "$GITHUB_STEP_SUMMARY"
+            fi
+            exit 0
+          }
+          trap finish EXIT
+          release="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          {
+            echo "## Announcing MPE Roll $VERSION"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$PRERELEASE" = true ]; then
+            echo "$TAG is a pre-release, and pre-releases aren't announced."
+            echo "- Nothing: $TAG is a pre-release, and pre-releases aren't announced." >> "$GITHUB_STEP_SUMMARY"
+            echo "announce=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$NEW_RELEASE" != true ]; then
+            echo "The release $TAG was out before this run, which replaced its files: it isn't announced again."
+            echo "- Nothing: the release $TAG was out before this run, which replaced its files, so it isn't announced again." >> "$GITHUB_STEP_SUMMARY"
+            echo "announce=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          awk -v v="$VERSION" '
+            /^## / { p = index($0, "## [" v "]") == 1 }
+            /^\[[^]]*\]: / { p = 0 }
+            p
+            index($0, "[" v "]: ") == 1 { print ""; print }
+          ' CHANGELOG.md > section.md
+
+          # One line for each change and each paragraph, a bold line for each heading (Added,
+          # Changed, Fixed), without the section's own heading and its link line.
+          awk '
+            function flush() { if (cur != "") print cur; cur = "" }
+            NR == 1 && /^## / { next }
+            /^\[[^]]*\]: / { next }
+            /^[[:space:]]*$/ { flush(); next }
+            /^#+ / { flush(); sub(/^#+ /, ""); print "**" $0 "**"; next }
+            /^[[:space:]]*[-*] / { flush(); cur = $0; next }
+            { line = $0; sub(/^[[:space:]]+/, "", line); cur = (cur == "" ? line : cur " " line) }
+            END { flush() }
+          ' section.md > changes.txt
+          # The first 220 characters of each change, cut at a word, with no half of a link or of
+          # an *emphasis* left at the end; as many lines as fit; no heading left with nothing
+          # under it.
+          awk -v limit=1400 -v longest=220 '
+            function heading(s) { return s ~ /^\*\*.*\*\*$/ }
+            function start(s,    at) {
+              if (length(s) <= longest) return s
+              s = substr(s, 1, longest)
+              sub(/ [^ ]*$/, "", s)
+              at = 0
+              while (match(substr(s, at + 1), /\[/)) at += RSTART
+              if (at > 0 && substr(s, at) !~ /^\[[^]]*\]\([^)]*\)/) s = substr(s, 1, at - 1)
+              if (gsub(/\*/, "*", s) % 2) sub(/\*[^*]*$/, "", s)
+              sub(/[ ,;:(]+$/, "", s)
+              return s " …"
+            }
+            {
+              line = heading($0) ? $0 : start($0)
+              if (used + length(line) + 1 > limit) {
+                more = 1
+                exit
+              }
+              out[++count] = line
+              used += length(line) + 1
+            }
+            END {
+              while (count > 0 && heading(out[count])) count--
+              for (i = 1; i <= count; i++) {
+                if (i > 1 && heading(out[i])) print ""
+                print out[i]
+              }
+              if (more) print "… and more: the release page has every change."
+            }
+          ' changes.txt > discord-changes.txt
+
+          {
+            echo "MPE Roll $VERSION is out. The downloads, and how to install them, are on its [release page]($release)."
+            echo
+            if [ "$(wc -c < section.md)" -le 60000 ]; then
+              cat section.md
+            else
+              head -c 60000 section.md | sed '$d'
+              echo
+              echo "… the rest is on the [release page]($release)."
+            fi
+            echo
+            echo "Setting up in FL Studio: the [FL Studio guide]($SITE/FL_STUDIO.html). Which synths have MPE, and where their switch is: [the list]($SITE/MPE_SYNTHS.html). MPE Roll's website: $SITE/"
+            echo
+            echo "Questions and reports are welcome below, or as an [issue]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/issues/new/choose)."
+          } > discussion.md
+          echo "For Discord:"
+          cat discord-changes.txt
+          echo "announce=true" >> "$GITHUB_OUTPUT"
+
+      # Posts the release's name, its link, the first changes and the website's address to the
+      # Discord channel whose webhook address is in the secret DISCORD_RELEASE_WEBHOOK; without the
+      # secret it does nothing. The address is a password to post in that channel, so it is never
+      # printed: what curl says about a failure goes to the log with any address taken out. Nothing
+      # in the message can ping anyone (allowed_mentions), and its links show no previews (flags 4).
+      - name: Post to Discord
+        if: steps.what.outputs.announce == 'true'
+        env:
+          DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          failed() {
+            echo "::error title=The Discord post for MPE Roll $VERSION failed::$1 The release itself is out."
+            echo "- **Discord: failed.** $1 The release itself is out; to try again, re-run this job, or post the news by hand." >> "$GITHUB_STEP_SUMMARY"
+          }
+          finish() {
+            code=$?
+            if [ "$code" != 0 ]; then failed "The step stopped (exit code $code); its log says where."; fi
+            exit 0
+          }
+          trap finish EXIT
+          if [ -z "$DISCORD_RELEASE_WEBHOOK" ]; then
+            echo "There is no DISCORD_RELEASE_WEBHOOK secret, so nothing is posted to Discord."
+            echo "- Discord: not set up (there is no \`DISCORD_RELEASE_WEBHOOK\` secret), so nothing was posted." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          shape='^https://([a-z0-9-]+\.)?(discord|discordapp)\.com/api/[^[:space:]]+$'
+          if ! [[ "$DISCORD_RELEASE_WEBHOOK" =~ $shape ]]; then
+            failed "The DISCORD_RELEASE_WEBHOOK secret isn't a Discord webhook address (https://discord.com/api/webhooks/ and so on), so nothing was sent."
+            exit 0
+          fi
+          release="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          jq -n --arg title "MPE Roll $VERSION is out" --arg release "$release" \
+            --arg site "MPE Roll's website: $SITE/" --rawfile changes discord-changes.txt '
+            [("**" + $title + "**\n" + $release), ($changes | rtrimstr("\n")), $site]
+            | map(select(length > 0)) | join("\n\n") as $content
+            | { content: (if ($content | length) > 2000 then $content[0:1999] + "…" else $content end),
+                allowed_mentions: { parse: [] },
+                flags: 4 }' > discord.json
+          # wait=true has Discord answer with the message it saved, or with an error if it didn't.
+          case "$DISCORD_RELEASE_WEBHOOK" in
+            *\?*) address="$DISCORD_RELEASE_WEBHOOK&wait=true" ;;
+            *) address="$DISCORD_RELEASE_WEBHOOK?wait=true" ;;
+          esac
+          status=0
+          code=$(curl --silent --show-error --max-time 60 --output discord-answer.json --write-out '%{http_code}' \
+            --header 'Content-Type: application/json' --data-binary @discord.json "$address" 2> curl-says.txt) || status=$?
+          if [ "$status" != 0 ]; then
+            why=$(sed -E 's#https?://[^[:space:]]*#(an address)#g' curl-says.txt | tr '\r\n' '  ' \
+              | sed -E 's/[[:space:]]+$//' | head -c 300)
+            failed "Discord couldn't be reached (curl's exit code $status: $why)."
+          elif [ "$code" = 200 ] || [ "$code" = 204 ]; then
+            echo "Posted to Discord (HTTP $code)."
+            echo "- Discord: posted to the channel of the \`DISCORD_RELEASE_WEBHOOK\` secret." >> "$GITHUB_STEP_SUMMARY"
+          else
+            why=$(jq -r '.message? // empty' discord-answer.json 2> /dev/null | tr -d '\r\n' | head -c 200 || true)
+            failed "Discord answered HTTP $code${why:+ ($why)}. Is the DISCORD_RELEASE_WEBHOOK secret the webhook's whole address, and is the webhook still there?"
+          fi
+
+      # Opens a discussion "MPE Roll <version>" in the repository's Announcements category, with
+      # the CHANGELOG's section, unless Discussions are off or have no such category (a notice says
+      # so) or the discussion is there already (a job run again). GitHub lets only maintainers
+      # post in an announcement category; if it refuses this run's token, that shows as a failure
+      # with GitHub's own words.
+      - name: Open a discussion in Announcements
+        if: steps.what.outputs.announce == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          failed() {
+            echo "::error title=The discussion for MPE Roll $VERSION wasn't opened::$1 The release itself is out."
+            echo "- **GitHub Discussions: failed.** $1 The release itself is out; to try again, re-run this job, or open the discussion by hand." >> "$GITHUB_STEP_SUMMARY"
+          }
+          skipped() {
+            echo "::notice title=No discussion for MPE Roll $VERSION::$1"
+            echo "- GitHub Discussions: $1" >> "$GITHUB_STEP_SUMMARY"
+          }
+          finish() {
+            code=$?
+            if [ "$code" != 0 ]; then failed "The step stopped (exit code $code); its log says where."; fi
+            exit 0
+          }
+          trap finish EXIT
+          # ask <what is asked> <fields and query for gh api graphql>: puts GitHub's answer in
+          # answer.json, or says what GitHub said instead (and $hint, if set) and ends the step.
+          hint=
+          ask() {
+            what=$1
+            shift
+            if ! gh api graphql "$@" > answer.json 2> gh-says.txt; then
+              said=$(tr '\r\n' '  ' < gh-says.txt | sed -E 's/[[:space:]]+$//' | head -c 300)
+              failed "GitHub refused $what: $said.$hint"
+              exit 0
+            fi
+          }
+          owner=${GITHUB_REPOSITORY%%/*}
+          name=${GITHUB_REPOSITORY#*/}
+          title="MPE Roll $VERSION"
+
+          ask "to say whether Discussions are on" -f owner="$owner" -f name="$name" -f query='
+            query($owner: String!, $name: String!) {
+              repository(owner: $owner, name: $name) { id hasDiscussionsEnabled }
+            }'
+          repository=$(jq -r '.data.repository.id' answer.json)
+          if [ "$(jq -r '.data.repository.hasDiscussionsEnabled' answer.json)" != true ]; then
+            skipped "Discussions aren't on for this repository (Settings, General, Features), so none was opened."
+            exit 0
+          fi
+
+          ask "to list the discussion categories" -f owner="$owner" -f name="$name" -f query='
+            query($owner: String!, $name: String!) {
+              repository(owner: $owner, name: $name) {
+                discussionCategories(first: 100) { nodes { id name slug } }
+              }
+            }'
+          category=$(jq -r '[.data.repository.discussionCategories.nodes[]
+            | select(.slug == "announcements" or (.name | ascii_downcase) == "announcements")][0].id // empty' answer.json)
+          if [ -z "$category" ]; then
+            skipped "The repository's Discussions have no Announcements category, so none was opened."
+            exit 0
+          fi
+
+          ask "to list the announcements" -f owner="$owner" -f name="$name" -f category="$category" -f query='
+            query($owner: String!, $name: String!, $category: ID!) {
+              repository(owner: $owner, name: $name) {
+                discussions(first: 50, categoryId: $category, orderBy: { field: CREATED_AT, direction: DESC }) {
+                  nodes { title url }
+                }
+              }
+            }'
+          there=$(jq -r --arg title "$title" '[.data.repository.discussions.nodes[] | select(.title == $title)][0].url // empty' answer.json)
+          if [ -n "$there" ]; then
+            echo "The discussion is there already: $there"
+            echo "- GitHub Discussions: [$title]($there) was there already, so none was opened." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          hint=" (GitHub lets only people with maintain or admin permission open a discussion in an announcement category; this run's token may not count as one.)"
+          ask "to open the discussion" -f repository="$repository" -f category="$category" -f title="$title" \
+            -F body=@discussion.md -f query='
+            mutation($repository: ID!, $category: ID!, $title: String!, $body: String!) {
+              createDiscussion(input: { repositoryId: $repository, categoryId: $category, title: $title, body: $body }) {
+                discussion { url }
+              }
+            }'
+          url=$(jq -r '.data.createDiscussion.discussion.url // empty' answer.json)
+          if [ -z "$url" ]; then
+            failed "GitHub took the request to open the discussion but gave no address for it."
+            exit 0
+          fi
+          echo "Opened $url"
+          echo "- GitHub Discussions: opened [$title]($url) in Announcements." >> "$GITHUB_STEP_SUMMARY"

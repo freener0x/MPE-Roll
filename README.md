@@ -147,9 +147,12 @@ Windows installer (`MPE-Roll-Setup-<version>.exe`), the Windows files (`MPE-Roll
 and the macOS bundles (`MPE-Roll-<version>-macOS.zip`) attached, with notes on what changed since the
 one before ([CHANGELOG.md](CHANGELOG.md) keeps them all). From 0.2.0 on, a release also carries an
 experimental Linux build (`MPE-Roll-<version>-Linux.tar.gz`) and `SHA256SUMS.txt`, the checksums of
-the files ([how to check a download](docs/UNSIGNED_BUILDS.md#verify-what-you-downloaded)).
+the files ([how to check a download](docs/UNSIGNED_BUILDS.md#verify-what-you-downloaded)). For the
+releases after 0.2.0, GitHub also keeps a signed record that the files were built by this
+repository's release workflow (an artifact attestation), which `gh attestation verify` checks a
+download against; the same page says how.
 
-To make a release (maintainers): set the version in `CMakeLists.txt` (`project(MPE_ROLL VERSION
+**Releasing (maintainers).** Set the version in `CMakeLists.txt` (`project(MPE_ROLL VERSION
 …)`, three numbers such as `0.3.0`), rename the *[Unreleased]* section of `CHANGELOG.md` to that
 version and the day, merge, then either tag that commit `v<version>` and push the tag, or open the
 *Release* workflow under *Actions* and *Run workflow* on `main`, which tags main's commit for you.
@@ -160,6 +163,32 @@ suffix typed into *Run workflow*) is marked a pre-release; it needs the section 
 (`## [0.3.0]` for `v0.3.0-beta1`). The suffix is letters and digits with dots between (`beta1`,
 `rc.1`), and the build runs as `0.3.0-beta1`, so its update check offers 0.3.0 once that's out.
 The update check reads versions only in these shapes, so the workflow refuses others.
+
+Before it publishes, the workflow has GitHub sign the artifact attestation for the files; that
+needs nothing set up. After a release that isn't a pre-release, its *Announce* job tells people,
+where the repository is set up for it. Both of these are optional, and a release goes out the same
+without them:
+
+- **Discord.** Add a repository secret named `DISCORD_RELEASE_WEBHOOK` (*Settings › Secrets and
+  variables › Actions › New repository secret*) holding the webhook address of the Discord
+  channel to post in (it starts `https://discord.com/api/webhooks/`; Discord's help article
+  *Intro to Webhooks* says how to make one). The job then posts the release's name, its link, the
+  start of its first changes from `CHANGELOG.md` and the website's address there. Without the
+  secret it posts nothing. Anyone who has the address can post in that channel, so keep it
+  nowhere but in the secret.
+- **GitHub Discussions.** Turn Discussions on (*Settings › General › Features*) and keep their
+  *Announcements* category: the job opens a discussion "MPE Roll \<version\>" there with the
+  version's `CHANGELOG.md` section. Without Discussions or that category it opens none and says
+  so. It needs no secret. This hasn't run yet: GitHub lets only maintainers post in
+  *Announcements*, and the first release will show whether it accepts the workflow's own token.
+
+An announcement that fails doesn't fail the release: the run stays green, and its summary page says
+what went wrong. To try again, re-run the *Announce* job alone from the run's page; a discussion
+isn't opened twice, but a Discord post that went through is posted again. A run that replaces the
+files of a release already out doesn't announce it again. The workflow uses no other secret: the
+rest is done with the token GitHub gives each run. No release has been made since the attestation
+and the announcements were added: their steps were tried with stand-ins for GitHub and Discord,
+and the first release will show how they do for real.
 
 **Builds between releases.** Every code change is built by GitHub Actions (a change to the
 documentation alone builds nothing).
@@ -211,6 +240,23 @@ build yet: CI builds it on every code change, but no person has opened it on a M
 wanted: please say how it went, working or not, in an
 [issue](https://github.com/freener0x/MPE-Roll/issues).
 
+Or let a script do it. In Terminal,
+
+```
+curl -fsSL https://freener0x.github.io/MPE-Roll/install-macos.sh | bash
+```
+
+downloads the latest release's zip (0.2.0 or later), checks it against the release's
+`SHA256SUMS.txt`, and copies the three bundles into your own Library folders
+(`~/Library/Audio/Plug-Ins/VST3`, `~/Library/Audio/Plug-Ins/Components` and `~/Applications`),
+with no password and nothing else changed; it prints what it did and the command that undoes it.
+A file fetched this way gets no quarantine flag, so there is none to remove (every build of the
+code checks that on GitHub's macOS runner, and runs the script there). The script is
+[docs/install-macos.sh](docs/install-macos.sh); to read it before running it, to install another
+release or to install from a zip you already have, see
+[the install script](docs/UNSIGNED_BUILDS.md#macos-the-install-script). That runner is the only
+Mac it has run on: no person has run it on a Mac of their own yet.
+
 **The Linux build** (experimental): `MPE-Roll-<version>-Linux.tar.gz` from 0.2.0 on, or
 **MPE-Roll-Linux-build-N** between releases (a zip with `MPE-Roll-Linux.tar.gz` inside). Unpacked
 with `tar -xzf`, it's a folder `MPE Roll` with `MPE Roll.vst3` (copy it to `~/.vst3`), the
@@ -222,7 +268,8 @@ GitHub: JUCE's networking on Linux has no HTTPS, so it says so when asked and se
 These builds aren't code signed. Windows may show a SmartScreen warning for the installer and the
 standalone app, and on macOS you need to remove the quarantine flag from the unzipped `MPE Roll`
 folder before a DAW will load the bundles (`xattr -dr com.apple.quarantine ~/Downloads/"MPE Roll"`
-for the folder unzipped in Downloads; it covers all three).
+for the folder unzipped in Downloads; it covers all three), unless the install script above put
+them in place.
 [docs/UNSIGNED_BUILDS.md](docs/UNSIGNED_BUILDS.md) says what each system shows, how to get past
 it, and how to check a download.
 

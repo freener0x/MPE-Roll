@@ -3,7 +3,8 @@
 MPE Roll's downloads aren't code-signed, so Windows and macOS warn before they run them. This page
 says what each system shows for release 0.1.0 and later, what to do about it, why the
 warnings appear, how to check that a download is the one GitHub Actions made, and what signing
-would take later. The short form is in the [FL Studio guide](FL_STUDIO.md)'s install step.
+would take later, and it describes the script that installs the macOS build with one line in
+Terminal. The short form is in the [FL Studio guide](FL_STUDIO.md)'s install step.
 
 Where a sentence rests on other people's reports and on documentation rather than on a check of
 this build, it says "reported"; the last section lists those points.
@@ -43,13 +44,74 @@ this build, it says "reported"; the last section lists those points.
 3. If you skipped step 1, the standalone `MPE Roll.exe` shows *Windows protected your PC* the first
    time you start it: *More info*, then *Run anyway*, or *Properties* and *Unblock* as above.
 
+## macOS: the install script
+
+One line in Terminal installs the latest release (0.2.0 or later) for you, with no password:
+
+```
+curl -fsSL https://freener0x.github.io/MPE-Roll/install-macos.sh | bash
+```
+
+[install-macos.sh](install-macos.sh) downloads the release's `MPE-Roll-<version>-macOS.zip` and
+its `SHA256SUMS.txt` from GitHub, stops if the zip's checksum isn't the one listed, unpacks the zip
+with `ditto`, and copies the three bundles into your own Library folders, in place of copies
+already there:
+
+- `MPE Roll.vst3` into `~/Library/Audio/Plug-Ins/VST3`
+- `MPE Roll.component` (the Audio Unit) into `~/Library/Audio/Plug-Ins/Components`
+- `MPE Roll.app` into `~/Applications`
+
+It uses no `sudo`, makes those folders if they're missing, and changes nothing else; what it
+downloads goes into a temporary folder that it removes. At the end it prints where the bundles
+went and the command that undoes the install, which removes the three of them:
+
+```
+rm -rf ~/Library/Audio/Plug-Ins/VST3/"MPE Roll.vst3" \
+    ~/Library/Audio/Plug-Ins/Components/"MPE Roll.component" ~/Applications/"MPE Roll.app"
+```
+
+Then rescan plug-ins in your DAW (step 4 below). There is no download mark to remove first:
+macOS's quarantine mark is put on a file by the program that downloads it, which browsers do and
+`curl` doesn't. In case a zip you hand the script has the mark all the same (see `--zip` below),
+it takes the mark off the three copies it installed, and says so.
+
+To read the script before it runs, download it, look at it, then run it:
+
+```
+curl -fsSLO https://freener0x.github.io/MPE-Roll/install-macos.sh
+less install-macos.sh
+bash install-macos.sh
+```
+
+Other things it can do:
+
+- Another release: `bash install-macos.sh 0.2.0`, or with the one-line form
+  `curl -fsSL https://freener0x.github.io/MPE-Roll/install-macos.sh | bash -s -- 0.2.0`. Release
+  0.1.0 has no `SHA256SUMS.txt`, so the script can't install it.
+- A zip you already have, downloading nothing: `bash install-macos.sh --zip <file>`, with a
+  release's `MPE-Roll-<version>-macOS.zip` or a build between releases (`MPE-Roll-bundles.zip`, or
+  the zip from the Actions tab that holds it). Add `--sums SHA256SUMS.txt` to have it checked
+  against that list.
+
+What was checked, and where: GitHub Actions runs the script on its macOS runner in every build of
+the code, with the bash that macOS ships, for the latest release (download and checksum included),
+for the
+build's own zip, and for that zip carrying the quarantine mark. Each time it then checks that the
+three bundles are in place, complete and without the mark, and Apple's AU validator (`auval`) is
+run on the installed Audio Unit. The same build checks that a file fetched with `curl` carries no
+quarantine mark. That runner is the only Mac the script has run on: no person has run it on a Mac
+of their own, and nobody has yet loaded the installed plug-in in a DAW, so whether macOS then
+shows a dialog isn't known. If you try it, please
+[open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose) and say what happened.
+
 ## macOS 15 and 26: the zip
 
-Nobody has run the macOS build yet: GitHub Actions builds `MPE Roll.vst3`, `MPE Roll.component`
-and `MPE Roll.app` on every code change, but no person has opened them on a Mac, so the dialogs
-below are what macOS is reported to show for unsigned software, not what was seen with this build.
-If you try it, please [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose) with
-what happened, the exact dialog text included, whether it worked or not.
+To install by hand instead. Nobody has run the macOS build yet: GitHub Actions builds
+`MPE Roll.vst3`, `MPE Roll.component` and `MPE Roll.app` on every code change, but no person has
+opened them on a Mac, so the dialogs below are what macOS is reported to show for unsigned
+software, not what was seen with this build. If you try it, please
+[open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose) with what happened, the
+exact dialog text included, whether it worked or not.
 
 1. Double-click `MPE-Roll-<version>-macOS.zip` in Finder, or run
    `ditto -x -k MPE-Roll-<version>-macOS.zip .` in Terminal; other unzip tools can drop the app's
@@ -124,6 +186,29 @@ If the checksum differs, the file was changed or damaged on the way: delete it a
 again. A matching checksum says the file is the one the release carries; it isn't a signature, since
 GitHub serves both the file and the checksum.
 
+Releases after 0.2.0 also get an *artifact attestation*: when the release workflow has built the
+files, GitHub signs a record of where each one came from (this repository, its Release workflow,
+the commit), naming the file by its SHA-256, and keeps it with the repository. Releases 0.1.0 and
+0.2.0 were made before the workflow did this and have none, and no release has been made with it
+yet, so the steps below haven't been tried on a real download. To check a file against its
+attestation you need the [GitHub CLI](https://cli.github.com) (`gh`), signed in to a GitHub
+account (`gh auth login`), on any system:
+
+```
+gh attestation verify MPE-Roll-<version>-macOS.zip --repo freener0x/MPE-Roll
+```
+
+It works for each of a release's files, `SHA256SUMS.txt` included. `gh` works out the file's
+SHA-256, asks GitHub for this repository's attestations of it and checks their signatures.
+*Verification succeeded!*, with the repository and the workflow that built the file listed under
+it, means your file is byte for byte one that MPE Roll's Release workflow built on GitHub's
+runners. *No attestations found* means it isn't one of those files (or it's from 0.1.0 or 0.2.0).
+To have `gh` also insist on the workflow, add
+`--signer-workflow freener0x/MPE-Roll/.github/workflows/release.yml`.
+
+An attestation says where a file was built, not that the code in it is safe, and it isn't code
+signing: Windows and macOS don't look at it, and warn about the downloads as before.
+
 ## Signing later: the options
 
 | Option | Cost | Covers | Notes |
@@ -147,5 +232,7 @@ Three things on this page come from other people's reports and from documentatio
 of this build: the exact dialog macOS shows for these bundles (they have no Developer ID signature,
 so macOS could also say the file "is damaged"; the `xattr` command clears either), that *Open
 Anyway* doesn't work for plug-in bundles, and that File Explorer passes the download mark on to the
-files it extracts. If you can confirm or correct any of them, please
+files it extracts. Two more were checked on GitHub's macOS runner and nowhere else: that a file
+fetched with `curl` carries no quarantine mark, and that the install script leaves the three
+bundles in place without it. If you can confirm or correct any of them, please
 [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose).
