@@ -36,9 +36,9 @@ and the release tags; a build between releases names itself by its number and co
   takes the flag off its copies if they have one.
   [Unsigned builds](https://freener0x.github.io/MPE-Roll/UNSIGNED_BUILDS.html#macos-the-install-script)
   says what it does step by step, how to read it before running it, and how to install from a zip
-  you already have. It hasn't run on a Mac yet: GitHub's macOS runner is set up to run it whenever
-  the code changes, which hadn't had its first run when this was written, and nobody has run it,
-  or the macOS build, on a Mac of their own.
+  you already have. GitHub's macOS runner runs it whenever the code changes, and in the first such
+  run it installed that build and release 0.2.0, with nothing left quarantined. That runner is the
+  only Mac it has run on: nobody has run it, or the macOS build, on a Mac of their own.
 - From the next release on, the release workflow signs a record (an artifact attestation, signed
   through Sigstore and kept by GitHub) that each download was built by it, and
   `gh attestation verify <file> --repo freener0x/MPE-Roll` (GitHub's command-line tool, 2.49.0 or

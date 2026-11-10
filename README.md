@@ -255,10 +255,11 @@ A file fetched this way should get no quarantine flag, and the script takes the 
 copies if they have one, so there should be none for you to remove. The script is
 [docs/install-macos.sh](docs/install-macos.sh); to read it before running it, to install another
 release or to install from a zip you already have, see
-[the install script](docs/UNSIGNED_BUILDS.md#macos-the-install-script). It hasn't run on a Mac
-yet: GitHub's macOS runner is set up to run it, and to look for the flag on a file fetched this
-way, whenever the code changes, and that hadn't had its first run when this was written. No person
-has run it on a Mac of their own.
+[the install script](docs/UNSIGNED_BUILDS.md#macos-the-install-script). GitHub's macOS runner
+runs it, and looks for the flag on a file fetched this way, whenever the code changes; in the first
+such run (10 November 2026) the file carried no flag and the script installed both that build and
+release 0.2.0. That runner is the only Mac it has run on: no person has run it on a Mac of their
+own.
 
 **The Linux build** (experimental): `MPE-Roll-<version>-Linux.tar.gz` from 0.2.0 on, or
 **MPE-Roll-Linux-build-N** between releases (a zip with `MPE-Roll-Linux.tar.gz` inside). Unpacked

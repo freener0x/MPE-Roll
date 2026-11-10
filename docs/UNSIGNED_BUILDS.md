@@ -97,20 +97,22 @@ Other things it can do:
   the zip from the Actions tab that holds it). Add `--sums SHA256SUMS.txt` to have it checked
   against that list.
 
-What has been checked, and where: so far the script has run on Linux only, with stand-ins for the
-macOS commands it uses (`ditto`, `xattr`). There it downloaded release 0.2.0, matched its
-checksum and put the three bundles in place. It hasn't run on a Mac. GitHub Actions is set up to
-run it on its macOS runner whenever the code changes, with the bash that macOS ships: on that
-build's own zip, on the same zip carrying the quarantine mark, and, fed to bash as the one line
-above does it, for the latest release, download and checksum included. Each time it then checks
-that the three bundles are in place, complete and without the mark, and Apple's AU validator
-(`auval`) is run on the installed Audio Unit. The same job looks for the quarantine mark on a file
-fetched with `curl`. A failure fails that build's macOS job, except in the run for the latest
-release, which only warns: a release that's already out can't be mended by a later change. Those
-steps hadn't had their first run when this was written; the macOS job of the latest
-[Build run](https://github.com/freener0x/MPE-Roll/actions/workflows/build.yml) shows how they
-went. No person has run the script on a Mac of their own, and nobody has yet loaded the installed
-plug-in in a DAW, so whether macOS then shows a dialog isn't known. If you try it, please
+What has been checked, and where: the script has run on GitHub's macOS runner and on no other
+Mac. GitHub Actions runs it there whenever the code changes, with the bash that macOS ships: on
+that build's own zip, on the same zip carrying the quarantine mark, and, fed to bash as the one
+line above does it, for the latest release, download and checksum included. Each time it then
+checks that the three bundles are in place, complete (their signatures verify) and without the
+mark, and Apple's AU validator (`auval`) is run on the installed Audio Unit. The same job looks
+for the quarantine mark on a file fetched with `curl`. A failure fails that build's macOS job,
+except in the run for the latest release, which only warns: a release that's already out can't be
+mended by a later change. In their first run, on 10 November 2026, all of those steps passed: the
+file `curl` fetched carried no mark, the build's bundles were installed from both zips and
+validated, and the one line installed release 0.2.0 after matching its checksum. The macOS job of
+the latest [Build run](https://github.com/freener0x/MPE-Roll/actions/workflows/build.yml) shows
+how they go now. Before that the script had run on Linux only, with stand-ins for the macOS
+commands it uses (`ditto`, `xattr`). No person has run the script on a Mac of their own, and
+nobody has yet loaded the installed plug-in in a DAW, so whether macOS then shows a dialog isn't
+known. If you try it, please
 [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose) and say what happened.
 
 ## macOS 15 and 26: the zip
@@ -243,8 +245,8 @@ Three things on this page come from other people's reports and from documentatio
 of this build: the exact dialog macOS shows for these bundles (they have no Developer ID signature,
 so macOS could also say the file "is damaged"; the `xattr` command clears either), that *Open
 Anyway* doesn't work for plug-in bundles, and that File Explorer passes the download mark on to the
-files it extracts. Two more are for GitHub's macOS runner to check whenever the code changes, and
-hadn't been checked there or on any other Mac when this was written: that a file fetched with
-`curl` carries no quarantine mark, and that the install script leaves the three bundles in place
-without it. If you can confirm or correct any of them, please
+files it extracts. Two more have been checked on GitHub's macOS runner (first on 10 November 2026,
+and again whenever the code changes) and on no other Mac: that a file fetched with `curl` carries
+no quarantine mark, and that the install script leaves the three bundles in place without it. If
+you can confirm or correct any of them, please
 [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose).
