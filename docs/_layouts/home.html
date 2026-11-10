@@ -164,6 +164,12 @@ main_class: home
       <h2 id="support">{{ words.support.title | smartify }}</h2>
       {{ content }}
     </section>
+    {%- if words.more %}
+    <section class="more" aria-labelledby="more">
+      <h2 id="more">{{ words.more.title | smartify }}</h2>
+      {{ words.more.text | markdownify }}
+    </section>
+    {%- endif %}
   </div>
 </div>
 

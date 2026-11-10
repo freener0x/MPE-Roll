@@ -50,6 +50,11 @@ and the release tags; a build between releases names itself by its number and co
   ([How MPE Roll is made](https://github.com/freener0x/MPE-Roll#how-mpe-roll-is-made)): it is
   designed and tested in FL Studio by its maintainer and written with an AI coding assistant, and
   the section says what the automated tests cover. The website's front page links to it.
+- The website's front page and the README have a section *More from the maker*, with a plain link
+  to [stonedmango.com](https://stonedmango.com), the maintainer's free, open-source key and mode
+  finder that runs in the browser. The site still loads nothing from other sites, and the
+  [Privacy](https://freener0x.github.io/MPE-Roll/PRIVACY.html#the-website) page lists the link
+  among those that lead elsewhere.
 
 ### Changed
 
