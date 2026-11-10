@@ -522,6 +522,8 @@ jobs:
       # link into the site (pages, pictures, #places on a page) leads to something that's there.
       # What the site tells search engines holds too: the front page's software data and every
       # page's own are JSON that names nothing missing, sitemap.xml lists only pages that are
-      # there, at the site's address, and no two pages have the same description.
+      # there, at the site's address, and every page has a description of its own: not the site's
+      # tagline, which a new guide gets until docs/_config.yml has one for it, and not another
+      # page's.
       - name: Nothing loaded from elsewhere, no link into the site leading nowhere
         run: python3 tools/check_site.py _site

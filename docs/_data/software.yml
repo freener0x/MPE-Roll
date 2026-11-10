@@ -3,7 +3,8 @@
 # data in the page itself, which loads nothing. The name, the description, the pictures and the
 # links into the repository come from _config.yml, index.html, _data/screenshots.yml and
 # _data/project.yml; the rest is here, edited by hand. Say only what's true of the latest release,
-# and no rating or review: MPE Roll has none to quote.
+# and no rating or review: MPE Roll has none to quote. If Google Search Console reports the block
+# as a "Software app" item that lacks one, that is no reason to add one (see _config.yml).
 
 # schema.org's applicationCategory and applicationSubCategory.
 category: MultimediaApplication

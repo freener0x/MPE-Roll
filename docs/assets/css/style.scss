@@ -73,12 +73,24 @@ $button-green: $section-headings-color;
     margin-left: auto;
   }
 
+  // The narrowest of those windows (a small tablet held upright) are a little too narrow for four
+  // buttons between the header's side margins, and the row would break three, three and one. There
+  // the buttons take some of the margin, which leaves 1.5rem of it on each side.
+  @media screen and (min-width: #{$medium-breakpoint}) and (max-width: 46em) {
+    max-width: none;
+    margin-right: -2.5rem;
+    margin-left: -2.5rem;
+  }
+
   // Two buttons to a row on a phone, so the header doesn't push the page a screen down; an odd
   // last one takes the whole row.
   @include small {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.6rem;
+    max-width: none;
+    margin-right: 0;
+    margin-left: 0;
 
     .btn {
       display: flex;

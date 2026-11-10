@@ -13,10 +13,13 @@ that gap: FL loads MPE Roll, MPE Roll loads your synth, and you draw or record e
 expression in MPE Roll's own piano roll.
 
 > The answer above was checked by MPE Roll's maintainer in FL Studio 26.1.7 on Windows 11. No other
-> version of FL has been tried.
+> version of FL has been tried. Not recorded with that check: which synth it was made with, and how
+> the options in FL's wrapper for that synth (the gear icon in the plugin window's title bar) were
+> set. So this page can't say whether one of those options changes any of it.
 > [What has been tested, and what hasn't](#what-has-been-tested-and-what-hasnt) says which of the
 > rest of this page was tried and which follows documentation. MPE Roll is an independent project,
-> not made by or affiliated with Image-Line. If a newer FL Studio changes any of this, please
+> not made by or affiliated with Image-Line. If a newer FL Studio changes any of this, or you know
+> a setting in FL that does, please
 > [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose) so this page can say so.
 
 ## What is MPE, and what does a synth need for it?
@@ -48,14 +51,15 @@ note expressions, a VST3 synth through VST3 note expressions. MPE Roll uses thos
 | One note's own pressure and timbre | Mod X / Mod Y, which you map in the synth | No |
 | MPE | No: FL's own synths can't receive it | Not from FL's piano roll |
 
-A slide note bends only the notes of its own colour, and FL has 16 colours, so a chord whose notes
-each go their own way needs a colour for each note.
+The right-hand column is what the check at the top of this page found, with the limits given
+there. A slide note bends only the notes of its own colour, and FL has 16 colours, so a chord whose
+notes each go their own way needs a colour for each note.
 
 ## Can FL Studio load MPE synths?
 
 Yes. FL Studio loads third-party synths as VST and VST3 plugins, and it can load CLAP plugins
-itself. Loading isn't what's missing: nothing in FL's piano roll writes one note's own glide,
-pressure or timbre to such a synth, whether the synth has MPE or not.
+itself. Loading isn't what's missing. What's missing is in the piano roll: by the check at the top
+of this page, it can't write one note's own glide, pressure or timbre for such a synth.
 
 ## How does MPE Roll add MPE to FL Studio?
 
@@ -123,14 +127,16 @@ been tried on the hardware. If you record with a controller, please report how i
 
 ## What has been tested, and what hasn't?
 
-Tried by hand in FL Studio 26.1.7, by the maintainer on Windows 11 unless it says otherwise:
+Tried by hand in FL Studio 26.1.7; by the maintainer, on Windows 11, unless it says otherwise:
 
-- FL's own piano roll with third-party synths: the answer at the top of this page.
+- FL's own piano roll with third-party synths: the answer at the top of this page. Which synth,
+  and how FL's wrapper for it was set, isn't recorded.
 - Omnisphere 3 with its MPE on, played from MPE Roll over MPE: per-note glides, pressure and timbre.
 - Surge XT's CLAP, played with CLAP note expressions, with nothing set up in it.
 - One copy per note with Analog Lab (VST3), FabFilter Twin 3, Serum 1, Kontakt 8 and Arcade: each
-  note's own glides, by a user's report. In all five the glides stopped at 2 semitones, the synth's
-  own pitch-bend range, until that's raised in the synth and *Zone bend range* set to match.
+  note's own glides, by a user's report in FL Studio 26.1.7. In all five the glides stopped at 2
+  semitones, the synth's own pitch-bend range, until that's raised in the synth and *Zone bend
+  range* set to match.
 - *Send to FL piano roll*: the glides landed in tune.
 
 Checked automatically on every change: unit tests of the MPE engine, and a test harness that plays
@@ -145,6 +151,11 @@ Not tested:
   hardware.
 - VST3 note expressions with a commercial synth.
 - Any host other than FL Studio.
+- FL's piano roll with each option of FL's wrapper for a third-party synth switched on in turn.
+  The check at the top doesn't record how they were set, so an option there that changes the
+  answer isn't ruled out.
+- Polyphonic aftertouch: one key's own pressure in ordinary MIDI, which isn't MPE. Whether FL's
+  piano roll can send it to a third-party synth isn't something this page has checked.
 - A controller played live into a synth loaded in FL itself, without MPE Roll. This page is about
   notes written in a piano roll, and says nothing about that.
 

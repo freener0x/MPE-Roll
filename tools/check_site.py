@@ -24,8 +24,10 @@ on:
     which loads nothing) that isn't JSON, or that names an address in the site that isn't there.
   - an address in sitemap.xml that isn't a file of the site: one it doesn't have, or another
     site's.
-  - two pages with the same description (<meta name="description">). A page without one of its own
-    gets the site's tagline; docs/_config.yml has each guide's.
+  - a page of the site (one with the site's header) whose description (<meta name="description">) is
+    missing, or is only the site's tagline, the words under the name in that header: what a page
+    without a description of its own gets. docs/_config.yml has each guide's.
+  - two pages with the same description.
 
 GitHub Pages serves the site from https://freener0x.github.io/MPE-Roll/, so its pages' paths from
 the root start with /MPE-Roll when Jekyll knew that (GitHub's build does; one at the root has no
@@ -84,6 +86,14 @@ DATA_TYPE = "application/ld+json"
 
 SITEMAP_LOC = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>")
 
+# The element of the site's header that holds the tagline (docs/_layouts/default.html): a page that
+# has it is one of the site's own, laid out like the rest.
+TAGLINE_CLASS = "project-tagline"
+
+# What to do about a page whose description isn't its own.
+OWN_DESCRIPTION = ("give the page its own, in a sentence or two (a guide's goes under defaults in "
+                   "docs/_config.yml, another page's in its front matter)")
+
 # Fragments every page has: the top of the page.
 ALWAYS_THERE = {"", "top"}
 
@@ -103,6 +113,7 @@ class Page:
     canonical: str | None = None
     stylesheets: list[str] = field(default_factory=list)
     description: str | None = None                              # its <meta name="description">
+    tagline: str | None = None                                  # the tagline in its header
     data: list[tuple[int, str]] = field(default_factory=list)   # its JSON-LD blocks: line, text
 
 
@@ -149,6 +160,8 @@ class PageReader(HTMLParser):
         self.data_line = 0
         self.in_data = False
         self.data_text: list[str] = []
+        self.tagline_tag: str | None = None     # the element holding the tagline, while inside it
+        self.tagline_text: list[str] = []
 
     def add(self, what: str, url: str, loads: bool) -> None:
         self.page.refs.append(Ref(self.getpos()[0], what, url, loads))
@@ -193,6 +206,11 @@ class PageReader(HTMLParser):
             self.data_line = self.getpos()[0]
             self.data_text = []
 
+        if (TAGLINE_CLASS in a.get("class", "").split() and self.page.tagline is None
+                and self.tagline_tag is None):
+            self.tagline_tag = tag
+            self.tagline_text = []
+
         if "style" in a:
             for url in css_urls(a["style"]):
                 self.add(f"<{tag} style>", url, True)
@@ -206,10 +224,15 @@ class PageReader(HTMLParser):
         if tag == "script" and self.in_data:
             self.in_data = False
             self.page.data.append((self.data_line, "".join(self.data_text)))
+        if tag == self.tagline_tag:
+            self.tagline_tag = None
+            self.page.tagline = " ".join("".join(self.tagline_text).split())
 
     def handle_data(self, data: str) -> None:
         if self.in_data:
             self.data_text.append(data)
+        if self.tagline_tag:
+            self.tagline_text.append(data)
         if self.in_style:
             for url in css_urls(data):
                 self.page.refs.append(Ref(self.style_line, "<style>", url, True))
@@ -361,15 +384,24 @@ class Site:
         for ref in self.sitemap:
             check("sitemap.xml", ref, listed=True)
 
-        # A description is one page's: the same on two means one of them has only the tagline.
+        # A description is one page's own. A page left without one gets the site's tagline from
+        # jekyll-seo-tag, the words its header already shows, which tells a search engine nothing
+        # about that page. A file without the site's header isn't one of its pages, and is let be.
         by_description: dict[str, list[str]] = {}
         for source, page in self.pages.items():
-            if page.description:
+            if page.tagline is None:
+                continue
+            if not page.description:
+                found.append(f'{source}: no description (<meta name="description">): {OWN_DESCRIPTION}')
+            elif page.description == page.tagline:
+                found.append(f"{source}: its description is only the site's tagline "
+                             f"({page.description!r}): {OWN_DESCRIPTION}")
+            else:
                 by_description.setdefault(page.description, []).append(source)
         for description, sources in by_description.items():
             if len(sources) > 1:
-                found.append(f"{', '.join(sources)}: the same description ({description!r}): give each "
-                             "page its own (docs/_config.yml has the guides')")
+                found.append(f"{', '.join(sources)}: the same description ({description!r}): "
+                             f"{OWN_DESCRIPTION}")
         return found, count
 
 
@@ -394,7 +426,9 @@ def main() -> None:
     print("Nothing is loaded from another site, and every link into the site leads somewhere.")
     listed = ("sitemap.xml lists only the site's own files" if site.sitemap
               else "there's no sitemap.xml to check")
-    print(f"The data for search engines is JSON, {listed}, and no two pages share a description.")
+    described = sum(1 for page in site.pages.values() if page.tagline is not None)
+    print(f"The data for search engines is JSON, {listed}, and each of the {described} pages with the "
+          "site's header has a description of its own.")
 
 
 if __name__ == "__main__":
