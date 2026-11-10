@@ -35,12 +35,13 @@
 # Releases 0.2.0 and later can be installed this way (0.1.0 has no SHA256SUMS.txt). MPE Roll needs
 # macOS 11 or newer.
 #
-# Checked on GitHub's macOS runner only, where every build of MPE Roll runs it
-# (.github/workflows/build.yml). Nobody has run MPE Roll's macOS build on a Mac of their own yet:
-# if you do, please say how it went at https://github.com/freener0x/MPE-Roll/issues/new/choose
+# MPE Roll's Build workflow (.github/workflows/build.yml) runs it on GitHub's macOS runner whenever
+# the code changes, and that runner is the only Mac it runs on. Nobody has run it, or MPE Roll's
+# macOS build, on a Mac of their own yet: if you do, please say how it went at
+# https://github.com/freener0x/MPE-Roll/issues/new/choose
 #
-# It runs in the bash that macOS ships (3.2). MPEROLL_INSTALL_TEST=1 lets it run on a system that
-# isn't macOS, for testing the script itself with stand-ins for ditto and xattr.
+# It is written for the bash that macOS ships (3.2). MPEROLL_INSTALL_TEST=1 lets it run on a system
+# that isn't macOS, for testing the script itself with stand-ins for ditto and xattr.
 #
 # Part of MPE Roll, https://github.com/freener0x/MPE-Roll, free software under the GNU Affero
 # General Public License, version 3 (the LICENSE file there).
@@ -113,13 +114,15 @@ cleanup() {
 }
 
 # fetch <url> <file> [bar]: downloads over HTTPS only; with "bar", shows progress on a terminal.
+# It gives up on a server that doesn't answer within 20 seconds, and on a download that passes
+# nothing for a minute; a slow download is left to finish.
 fetch() {
   if [ "${3:-}" = bar ] && [ -t 2 ]; then
-    curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 --progress-bar \
-      --output "$2" "$1"
+    curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 --connect-timeout 20 \
+      --speed-limit 1 --speed-time 60 --progress-bar --output "$2" "$1"
   else
-    curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 --silent --show-error \
-      --output "$2" "$1"
+    curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 --connect-timeout 20 \
+      --speed-limit 1 --speed-time 60 --silent --show-error --output "$2" "$1"
   fi
 }
 

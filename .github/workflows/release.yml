@@ -20,9 +20,10 @@ name: Release
 # of that name already on another commit stops the run if a release was made from it (the version
 # has to change), and is moved to main's commit if none was (a run that failed before releasing).
 #
-# Before the release is published, GitHub signs a record (an artifact attestation) that the files
-# were built by this workflow from the tagged commit, which `gh attestation verify` checks a
-# download against (docs/UNSIGNED_BUILDS.md). That needs nothing set up.
+# Before the release is published, the workflow signs a record (an artifact attestation) that the
+# files were built by it from the tagged commit: through Sigstore, with the identity GitHub gives
+# the run, and GitHub keeps the record with the repository, where `gh attestation verify` checks a
+# download against it (docs/UNSIGNED_BUILDS.md). That needs nothing set up.
 #
 # Once a release (not a pre-release) is out, the Announce job tells people, where the repository is
 # set up for it; neither is needed for a release, and one that isn't set up is skipped:
@@ -36,8 +37,8 @@ name: Release
 #     and have an Announcements category (they start with one), a discussion "MPE Roll <version>"
 #     is opened there with the CHANGELOG's section. It needs no secret: the run's own token is
 #     used.
-# An announcement that fails doesn't undo or fail the release: the run stays green, and its summary
-# page says what went wrong.
+# An announcement that fails doesn't undo or fail the release: the run stays green (the Announce job
+# is allowed to fail), and its summary page says what went wrong.
 on:
   push:
     tags: ['v*']
@@ -477,14 +478,19 @@ jobs:
   # set up for it, all of it optional. A pre-release isn't announced, nor is a release that was
   # already out when this run replaced its files. Nothing here fails the run: the release is
   # published by now, so a step that can't announce says so on the run's summary page, in a line
-  # of the summary and an error annotation, and ends well. To try a failed announcement again,
-  # re-run this job alone (the re-run button beside its name on the run's page): the builds and
-  # the release stay as they are, and a discussion that was opened isn't opened twice, but a
-  # Discord post that went through is posted again.
+  # of the summary and an error annotation, and ends well; and should the job fail all the same
+  # (its checkout, say), continue-on-error keeps the run green, with the job marked as failed on
+  # the run's page. Discord gets one minute to answer and GitHub two for each question, and the
+  # job ten minutes in all. To try a failed announcement again, re-run this job alone (the re-run
+  # button beside its name on the run's page): the builds and the release stay as they are, and a
+  # discussion that was opened isn't opened twice, but a Discord post that went through is posted
+  # again.
   announce:
     name: Announce the release (Discord, Discussions)
     needs: [version, release]
     runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 10
     permissions:
       contents: read
       discussions: write
@@ -551,9 +557,9 @@ jobs:
             { line = $0; sub(/^[[:space:]]+/, "", line); cur = (cur == "" ? line : cur " " line) }
             END { flush() }
           ' section.md > changes.txt
-          # The first 220 characters of each change, cut at a word, with no half of a link or of
-          # an *emphasis* left at the end; as many lines as fit; no heading left with nothing
-          # under it.
+          # The first 220 characters of each change, cut at a word, with no half of a link, of a
+          # `code` span or of an *emphasis* left at the end; as many lines as fit; no heading left
+          # with nothing under it.
           awk -v limit=1400 -v longest=220 '
             function heading(s) { return s ~ /^\*\*.*\*\*$/ }
             function start(s,    at) {
@@ -563,6 +569,7 @@ jobs:
               at = 0
               while (match(substr(s, at + 1), /\[/)) at += RSTART
               if (at > 0 && substr(s, at) !~ /^\[[^]]*\]\([^)]*\)/) s = substr(s, 1, at - 1)
+              if (gsub(/`/, "`", s) % 2) sub(/`[^`]*$/, "", s)
               if (gsub(/\*/, "*", s) % 2) sub(/\*[^*]*$/, "", s)
               sub(/[ ,;:(]+$/, "", s)
               return s " …"
@@ -693,7 +700,12 @@ jobs:
           ask() {
             what=$1
             shift
-            if ! gh api graphql "$@" > answer.json 2> gh-says.txt; then
+            status=0
+            timeout 120 gh api graphql "$@" > answer.json 2> gh-says.txt || status=$?
+            if [ "$status" = 124 ]; then
+              failed "GitHub didn't answer within two minutes when asked $what."
+              exit 0
+            elif [ "$status" != 0 ]; then
               said=$(tr '\r\n' '  ' < gh-says.txt | sed -E 's/[[:space:]]+$//' | head -c 300)
               failed "GitHub refused $what: $said.$hint"
               exit 0
@@ -756,3 +768,13 @@ jobs:
           fi
           echo "Opened $url"
           echo "- GitHub Discussions: opened [$title]($url) in Announcements." >> "$GITHUB_STEP_SUMMARY"
+
+      # Reached only when a step above failed outright, the checkout say: the three before this one
+      # catch their own failures and end well.
+      - name: Say so if the job stopped before it was through
+        if: failure()
+        run: |
+          said="A step of the Announce job failed before the announcements were done; the job's log"
+          said="$said says which. The release itself is out. To try again, re-run this job."
+          echo "::error title=MPE Roll $VERSION may not have been announced::$said"
+          echo "- **The Announce job stopped early.** $said" >> "$GITHUB_STEP_SUMMARY"

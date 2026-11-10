@@ -70,10 +70,10 @@ rm -rf ~/Library/Audio/Plug-Ins/VST3/"MPE Roll.vst3" \
     ~/Library/Audio/Plug-Ins/Components/"MPE Roll.component" ~/Applications/"MPE Roll.app"
 ```
 
-Then rescan plug-ins in your DAW (step 4 below). There is no download mark to remove first:
-macOS's quarantine mark is put on a file by the program that downloads it, which browsers do and
-`curl` doesn't. In case a zip you hand the script has the mark all the same (see `--zip` below),
-it takes the mark off the three copies it installed, and says so.
+Then rescan plug-ins in your DAW (step 4 below). There should be no download mark to remove
+first: macOS's quarantine mark is put on a file by the program that downloads it, which browsers
+do and `curl` is reported not to. The script doesn't count on that: it looks for the mark on the
+three copies it installed, takes it off if it's there, and says so.
 
 To read the script before it runs, download it, look at it, then run it:
 
@@ -82,6 +82,10 @@ curl -fsSLO https://freener0x.github.io/MPE-Roll/install-macos.sh
 less install-macos.sh
 bash install-macos.sh
 ```
+
+It can also be read in a browser, in the
+[repository on GitHub](https://github.com/freener0x/MPE-Roll/blob/main/docs/install-macos.sh);
+the website serves that same file.
 
 Other things it can do:
 
@@ -93,23 +97,28 @@ Other things it can do:
   the zip from the Actions tab that holds it). Add `--sums SHA256SUMS.txt` to have it checked
   against that list.
 
-What was checked, and where: GitHub Actions runs the script on its macOS runner in every build of
-the code, with the bash that macOS ships, for the latest release (download and checksum included),
-for the
-build's own zip, and for that zip carrying the quarantine mark. Each time it then checks that the
-three bundles are in place, complete and without the mark, and Apple's AU validator (`auval`) is
-run on the installed Audio Unit. The same build checks that a file fetched with `curl` carries no
-quarantine mark. That runner is the only Mac the script has run on: no person has run it on a Mac
-of their own, and nobody has yet loaded the installed plug-in in a DAW, so whether macOS then
-shows a dialog isn't known. If you try it, please
+What has been checked, and where: so far the script has run on Linux only, with stand-ins for the
+macOS commands it uses (`ditto`, `xattr`). There it downloaded release 0.2.0, matched its
+checksum and put the three bundles in place. It hasn't run on a Mac. GitHub Actions is set up to
+run it on its macOS runner whenever the code changes, with the bash that macOS ships: on that
+build's own zip, on the same zip carrying the quarantine mark, and, fed to bash as the one line
+above does it, for the latest release, download and checksum included. Each time it then checks
+that the three bundles are in place, complete and without the mark, and Apple's AU validator
+(`auval`) is run on the installed Audio Unit. The same job looks for the quarantine mark on a file
+fetched with `curl`. A failure fails that build's macOS job, except in the run for the latest
+release, which only warns: a release that's already out can't be mended by a later change. Those
+steps hadn't had their first run when this was written; the macOS job of the latest
+[Build run](https://github.com/freener0x/MPE-Roll/actions/workflows/build.yml) shows how they
+went. No person has run the script on a Mac of their own, and nobody has yet loaded the installed
+plug-in in a DAW, so whether macOS then shows a dialog isn't known. If you try it, please
 [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose) and say what happened.
 
 ## macOS 15 and 26: the zip
 
-To install by hand instead. Nobody has run the macOS build yet: GitHub Actions builds
-`MPE Roll.vst3`, `MPE Roll.component` and `MPE Roll.app` on every code change, but no person has
-opened them on a Mac, so the dialogs below are what macOS is reported to show for unsigned
-software, not what was seen with this build. If you try it, please
+To install by hand instead of with the script, follow the steps below. Nobody has run the macOS
+build yet: GitHub Actions builds `MPE Roll.vst3`, `MPE Roll.component` and `MPE Roll.app` on every
+code change, but no person has opened them on a Mac, so the dialogs below are what macOS is
+reported to show for unsigned software, not what was seen with this build. If you try it, please
 [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose) with what happened, the
 exact dialog text included, whether it worked or not.
 
@@ -187,11 +196,13 @@ again. A matching checksum says the file is the one the release carries; it isn'
 GitHub serves both the file and the checksum.
 
 Releases after 0.2.0 also get an *artifact attestation*: when the release workflow has built the
-files, GitHub signs a record of where each one came from (this repository, its Release workflow,
-the commit), naming the file by its SHA-256, and keeps it with the repository. Releases 0.1.0 and
-0.2.0 were made before the workflow did this and have none, and no release has been made with it
-yet, so the steps below haven't been tried on a real download. To check a file against its
-attestation you need the [GitHub CLI](https://cli.github.com) (`gh`), signed in to a GitHub
+files, it signs a record of where each one came from (this repository, its Release workflow, the
+commit), naming the file by its SHA-256. It signs through Sigstore, the public signing service
+GitHub's attestations use for a public repository, with the identity GitHub gives that run of the
+workflow, and GitHub keeps the record with the repository. Releases 0.1.0 and 0.2.0 were made
+before the workflow did this and have none, and no release has been made with it yet, so the steps
+below haven't been tried on a real download. To check a file against its attestation you need the
+[GitHub CLI](https://cli.github.com) (`gh`), version 2.49.0 or newer, signed in to a GitHub
 account (`gh auth login`), on any system:
 
 ```
@@ -232,7 +243,8 @@ Three things on this page come from other people's reports and from documentatio
 of this build: the exact dialog macOS shows for these bundles (they have no Developer ID signature,
 so macOS could also say the file "is damaged"; the `xattr` command clears either), that *Open
 Anyway* doesn't work for plug-in bundles, and that File Explorer passes the download mark on to the
-files it extracts. Two more were checked on GitHub's macOS runner and nowhere else: that a file
-fetched with `curl` carries no quarantine mark, and that the install script leaves the three
-bundles in place without it. If you can confirm or correct any of them, please
+files it extracts. Two more are for GitHub's macOS runner to check whenever the code changes, and
+hadn't been checked there or on any other Mac when this was written: that a file fetched with
+`curl` carries no quarantine mark, and that the install script leaves the three bundles in place
+without it. If you can confirm or correct any of them, please
 [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose).

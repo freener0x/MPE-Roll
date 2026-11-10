@@ -149,8 +149,8 @@ one before ([CHANGELOG.md](CHANGELOG.md) keeps them all). From 0.2.0 on, a relea
 experimental Linux build (`MPE-Roll-<version>-Linux.tar.gz`) and `SHA256SUMS.txt`, the checksums of
 the files ([how to check a download](docs/UNSIGNED_BUILDS.md#verify-what-you-downloaded)). For the
 releases after 0.2.0, GitHub also keeps a signed record that the files were built by this
-repository's release workflow (an artifact attestation), which `gh attestation verify` checks a
-download against; the same page says how.
+repository's release workflow (an artifact attestation, signed by the workflow through Sigstore),
+which `gh attestation verify` checks a download against; the same page says how.
 
 **Releasing (maintainers).** Set the version in `CMakeLists.txt` (`project(MPE_ROLL VERSION
 …)`, three numbers such as `0.3.0`), rename the *[Unreleased]* section of `CHANGELOG.md` to that
@@ -164,10 +164,10 @@ suffix typed into *Run workflow*) is marked a pre-release; it needs the section 
 `rc.1`), and the build runs as `0.3.0-beta1`, so its update check offers 0.3.0 once that's out.
 The update check reads versions only in these shapes, so the workflow refuses others.
 
-Before it publishes, the workflow has GitHub sign the artifact attestation for the files; that
-needs nothing set up. After a release that isn't a pre-release, its *Announce* job tells people,
-where the repository is set up for it. Both of these are optional, and a release goes out the same
-without them:
+Before it publishes, the workflow signs the artifact attestation for the files (through Sigstore,
+with the identity GitHub gives the run) and GitHub stores it; that needs nothing set up. After a
+release that isn't a pre-release, its *Announce* job tells people, where the repository is set up
+for it. Both of these are optional, and a release goes out the same without them:
 
 - **Discord.** Add a repository secret named `DISCORD_RELEASE_WEBHOOK` (*Settings › Secrets and
   variables › Actions › New repository secret*) holding the webhook address of the Discord
@@ -182,13 +182,14 @@ without them:
   so. It needs no secret. This hasn't run yet: GitHub lets only maintainers post in
   *Announcements*, and the first release will show whether it accepts the workflow's own token.
 
-An announcement that fails doesn't fail the release: the run stays green, and its summary page says
-what went wrong. To try again, re-run the *Announce* job alone from the run's page; a discussion
-isn't opened twice, but a Discord post that went through is posted again. A run that replaces the
-files of a release already out doesn't announce it again. The workflow uses no other secret: the
-rest is done with the token GitHub gives each run. No release has been made since the attestation
-and the announcements were added: their steps were tried with stand-ins for GitHub and Discord,
-and the first release will show how they do for real.
+An announcement that fails doesn't fail the release: the run stays green (the *Announce* job is
+allowed to fail, and shows as failed on the run's page if it does), and the run's summary page
+says what went wrong. To try again, re-run the *Announce* job alone from the run's page; a
+discussion isn't opened twice, but a Discord post that went through is posted again. A run that
+replaces the files of a release already out doesn't announce it again. The workflow uses no other
+secret: the rest is done with the token GitHub gives each run. No release has been made since the
+attestation and the announcements were added: their steps were tried with stand-ins for GitHub and
+Discord, and the first release will show how they do for real.
 
 **Builds between releases.** Every code change is built by GitHub Actions (a change to the
 documentation alone builds nothing).
@@ -250,12 +251,14 @@ downloads the latest release's zip (0.2.0 or later), checks it against the relea
 `SHA256SUMS.txt`, and copies the three bundles into your own Library folders
 (`~/Library/Audio/Plug-Ins/VST3`, `~/Library/Audio/Plug-Ins/Components` and `~/Applications`),
 with no password and nothing else changed; it prints what it did and the command that undoes it.
-A file fetched this way gets no quarantine flag, so there is none to remove (every build of the
-code checks that on GitHub's macOS runner, and runs the script there). The script is
+A file fetched this way should get no quarantine flag, and the script takes the flag off its
+copies if they have one, so there should be none for you to remove. The script is
 [docs/install-macos.sh](docs/install-macos.sh); to read it before running it, to install another
 release or to install from a zip you already have, see
-[the install script](docs/UNSIGNED_BUILDS.md#macos-the-install-script). That runner is the only
-Mac it has run on: no person has run it on a Mac of their own yet.
+[the install script](docs/UNSIGNED_BUILDS.md#macos-the-install-script). It hasn't run on a Mac
+yet: GitHub's macOS runner is set up to run it, and to look for the flag on a file fetched this
+way, whenever the code changes, and that hadn't had its first run when this was written. No person
+has run it on a Mac of their own.
 
 **The Linux build** (experimental): `MPE-Roll-<version>-Linux.tar.gz` from 0.2.0 on, or
 **MPE-Roll-Linux-build-N** between releases (a zip with `MPE-Roll-Linux.tar.gz` inside). Unpacked
