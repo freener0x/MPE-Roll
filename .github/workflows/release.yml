@@ -418,7 +418,7 @@ jobs:
             echo
             echo "GitHub keeps a signed record (an artifact attestation) that these five files were built by this repository's Release workflow from the tagged commit. With the [GitHub CLI](https://cli.github.com), \`gh attestation verify <file> --repo $GITHUB_REPOSITORY\` checks a download against it; [what that shows, and what it doesn't]($site/UNSIGNED_BUILDS.html#verify-what-you-downloaded). It isn't code signing: Windows and macOS warn about the downloads as before."
             echo
-            echo "Setting up in FL Studio: the [FL Studio guide]($site/FL_STUDIO.html). Which synths have MPE, and where their switch is: [the list]($site/MPE_SYNTHS.html). What's known not to work yet: [Known issues]($site/KNOWN_ISSUES.html)."
+            echo "Does FL Studio support MPE? [The short answer]($site/MPE_IN_FL_STUDIO.html). Setting up in FL Studio: the [FL Studio guide]($site/FL_STUDIO.html). Which synths have MPE, and where their switch is: [the list]($site/MPE_SYNTHS.html). What's known not to work yet: [Known issues]($site/KNOWN_ISSUES.html)."
             echo
             awk -v v="$VERSION" '
               /^## / { p = index($0, "## [" v "]") == 1 }

@@ -19,8 +19,62 @@ and the release tags; a build between releases names itself by its number and co
 
 ## [Unreleased]
 
+### Added
+
+- A page that answers
+  [Does FL Studio support MPE?](https://freener0x.github.io/MPE-Roll/MPE_IN_FL_STUDIO.html): what FL
+  Studio's own piano roll does for one note and what it doesn't (checked in FL Studio 26.1.7 on
+  Windows 11; the page says what that check doesn't record), what an MPE synth needs, how MPE Roll
+  gets MPE into FL, what to do with a synth without MPE or with FL's own synths, recording from a
+  controller, and what has and hasn't been tested. The website's header and front page link to it.
+- A script that installs the macOS build with one line in Terminal:
+  `curl -fsSL https://freener0x.github.io/MPE-Roll/install-macos.sh | bash`. It downloads the
+  latest release's macOS zip (0.2.0 or later; a version can be given), checks it against the
+  release's `SHA256SUMS.txt`, and copies the VST3, the Audio Unit and the standalone app into your
+  own Library folders, with no password and nothing else changed, then prints what it did and the
+  command that undoes it. A file fetched this way should get no quarantine flag, and the script
+  takes the flag off its copies if they have one.
+  [Unsigned builds](https://freener0x.github.io/MPE-Roll/UNSIGNED_BUILDS.html#macos-the-install-script)
+  says what it does step by step, how to read it before running it, and how to install from a zip
+  you already have. It hasn't run on a Mac yet: GitHub's macOS runner is set up to run it whenever
+  the code changes, which hadn't had its first run when this was written, and nobody has run it,
+  or the macOS build, on a Mac of their own.
+- From the next release on, the release workflow signs a record (an artifact attestation, signed
+  through Sigstore and kept by GitHub) that each download was built by it, and
+  `gh attestation verify <file> --repo freener0x/MPE-Roll` (GitHub's command-line tool, 2.49.0 or
+  newer, signed in) checks a download against it:
+  [how, and what it shows](https://freener0x.github.io/MPE-Roll/UNSIGNED_BUILDS.html#verify-what-you-downloaded).
+  It isn't code signing, so Windows and macOS warn about the downloads as before. Releases 0.1.0
+  and 0.2.0 have no attestation, and the check hasn't been tried on a real download yet.
+- The README says how MPE Roll is made
+  ([How MPE Roll is made](https://github.com/freener0x/MPE-Roll#how-mpe-roll-is-made)): it is
+  designed and tested in FL Studio by its maintainer and written with an AI coding assistant, and
+  the section says what the automated tests cover. The website's front page links to it.
+
 ### Changed
 
+- The README, the website and the share page's posts say more exactly what FL Studio lacks: FL's
+  own piano roll can't give one note of a chord its own glide, pressure or timbre on a third-party
+  synth (VST, VST3 or CLAP), and its slide notes, per-note pitch and Mod X / Mod Y work with FL's
+  own synths only. They used to say only that FL's piano roll can't do MPE.
+- The README and every page of the website say that MPE Roll is an independent project, not made
+  by or affiliated with Image-Line, and that FL Studio is Image-Line's trademark.
+- The website tells search engines more about itself: it has a `sitemap.xml`, each guide has a
+  description of its own (five had only the site's tagline), the front page describes MPE Roll as a
+  piece of software (free, its systems, where to download it, its licence), and the page of
+  ready-made posts is left out of the sitemap. The front page's description is shorter (157
+  characters, was 194). CI fails if a page is left with only the tagline as its description, or
+  with one longer than 160 characters. The site still loads nothing from other sites.
+- The website's header keeps its seven buttons in two even rows on a laptop and a tablet, and on a
+  phone the last one takes the full width.
+- A release that isn't a pre-release can be announced by the release workflow itself: in a Discord
+  channel, and as a discussion in the repository's Announcements category, where the maintainer
+  has set those up (the README's *Downloading a build* says how). An announcement that fails
+  doesn't hold the release back.
+- The release notes give the one-line macOS install and the attestation check beside the
+  checksums, and link the "Does FL Studio support MPE?" page.
+- The [Privacy](https://freener0x.github.io/MPE-Roll/PRIVACY.html#the-website) page says what the
+  macOS install script contacts when someone runs it: GitHub, for the release's checksums and zip.
 - The README, the FL Studio guide and
   [Known issues](https://freener0x.github.io/MPE-Roll/KNOWN_ISSUES.html) record what release 0.2.0
   was tested with in FL Studio 26.1.7 on Windows 11, as a VST3: the installer over 0.1.0, *Send to

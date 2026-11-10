@@ -48,7 +48,9 @@ jobs:
           if [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             changed=$(git diff --name-only "$BEFORE" "$AFTER")
             printf 'Changed since %s:\n%s\n' "$BEFORE" "$changed"
-            if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qvE '(^|/)[^/]*\.md$|^docs/|^LICENSE'; then
+            # docs/install-macos.sh lives with the website but is code: the macOS job tests it.
+            if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qvE '(^|/)[^/]*\.md$|^docs/|^LICENSE' \
+              && ! printf '%s\n' "$changed" | grep -qxF docs/install-macos.sh; then
               code=false
             fi
           fi
@@ -679,6 +681,13 @@ jobs:
             echo "These load fonts from Google"
             exit 1
           fi
+
+      # The install script that the pages tell Mac users to feed to bash: it is bash that parses, and
+      # the site serves the file in docs/ byte for byte. The macOS job is what runs it.
+      - name: The macOS install script is served as it is in docs/
+        run: |
+          bash -n docs/install-macos.sh
+          cmp docs/install-macos.sh _site/install-macos.sh
 
       # Every picture, clip, script, stylesheet and icon the pages load is the site's own, and every
       # link into the site (pages, pictures, #places on a page) leads to something that's there.

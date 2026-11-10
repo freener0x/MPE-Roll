@@ -325,7 +325,9 @@ Options: `-DMPEROLL_HOST_VST2=OFF` and `-DMPEROLL_HOST_CLAP=OFF` leave out VST2 
 
 ## Using it in FL Studio
 
-The short version is below. [docs/FL_STUDIO.md](docs/FL_STUDIO.md) has the full walkthrough.
+The short version is below. [docs/FL_STUDIO.md](docs/FL_STUDIO.md) has the full walkthrough, and
+[docs/MPE_IN_FL_STUDIO.md](docs/MPE_IN_FL_STUDIO.md) answers "Does FL Studio support MPE?": what
+FL's own piano roll does for one note, what it doesn't, and what was and wasn't checked.
 
 1. **Add it:** *Options › Manage plugins › Find installed plugins*, then add **MPE Roll** to the
    Channel Rack like any instrument.
@@ -527,10 +529,14 @@ branch*, `main`, `/docs`). The front page is laid out by `docs/_layouts/home.htm
 the harness (`MpeRollHarness shoot` and `demo`), and the two from FL Studio are screenshots taken in
 FL Studio 26.1.7 on Windows 11. `tools/make_donate_page.py` makes the Support page, the share page
 (`docs/share.html`, posts ready for X, Instagram and Facebook) and the front page's front matter
-and donation paragraph; the FL Studio guide, the list of synths and the Known issues, Unsigned
-builds and Privacy pages become pages as they are. `docs/_config.yml` says how it's put together.
+and donation paragraph; the "Does FL Studio support MPE?" page, the FL Studio guide, the list of
+synths and the Known issues, Unsigned builds and Privacy pages become pages as they are, and
+`docs/install-macos.sh` is served as the file it is. `docs/_config.yml` says how it's put together,
+gives each guide its description for search engines, and holds the steps for Google Search Console.
 CI builds the site and runs `tools/check_site.py` on it: nothing may be loaded from another site,
-and no link into the site may lead nowhere. Its pages link to the repository and its licence;
+no link into the site may lead nowhere, `sitemap.xml` may list only pages that are there, the front
+page's software data must parse and name addresses that exist, and every page must have a
+description of its own, of 160 characters at most. Its pages link to the repository and its licence;
 should the repository ever be made private, set `"repoPublic": false` in `docs/donate.json` and run
 `tools/make_donate_page.py`, and the website then links to nothing in it, since visitors would get
 a 404 there.
