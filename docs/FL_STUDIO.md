@@ -1,6 +1,8 @@
 # Using MPE Roll in FL Studio
 
-FL Studio's piano roll can't send per-note expression to plugins. MPE Roll gets around that by being
+FL Studio's piano roll can't send one note's own pitch glide, pressure or timbre to a third-party
+synth (VST, VST3 or CLAP): its slide notes, per-note pitch and Mod X / Mod Y work with FL's own
+synths only. MPE Roll gets around that by being
 the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted inside it.
 
 > These steps follow Image-Line's documentation and user reports. Release 0.1.0 has been tested in
@@ -26,24 +28,26 @@ the instrument FL sees: it holds its own MPE piano roll and plays a synth hosted
    unless a project of yours still needs one. To install by hand instead, copy the whole
    `MPE Roll.vst3` folder to `C:\Program Files\Common Files\VST3` (macOS:
    `/Library/Audio/Plug-Ins/VST3`, once the download mark is off the unzipped `MPE Roll` folder:
-   `xattr -dr com.apple.quarantine ~/Downloads/"MPE Roll"`). On Windows you can use `MPE Roll.dll`,
-   the VST2 version, instead: put it in one of the plugin folders listed under *Options › Manage
-   plugins*, with `MPE Roll Scanner.exe` beside it (see step 2 below). When you update, close FL
-   Studio first (Windows can't replace a plugin file that FL has loaded). With the installer, run
-   the newer one over the old (0.1.0's, and 0.2.0's over 0.1.0, were checked this way on Windows
-   11); by hand, replace every
-   copy you installed before, the `.dll` too if you used it. No one has run the macOS bundles yet;
-   if you do, please report how it went.
+   `xattr -dr com.apple.quarantine ~/Downloads/"MPE Roll"`; or let the
+   [install script](UNSIGNED_BUILDS.md#macos-the-install-script) download a release and put it in
+   your own `~/Library/Audio/Plug-Ins/VST3`, with one line in Terminal:
+   `curl -fsSL https://freener0x.github.io/MPE-Roll/install-macos.sh | bash`. Whether FL Studio on
+   a Mac finds plugins in that folder by itself hasn't been checked). On Windows you can use
+   `MPE Roll.dll`, the VST2 version, instead: put it in one of the plugin folders listed under
+   *Options › Manage plugins*, with `MPE Roll Scanner.exe` beside it (see step 2 below). When you
+   update, close FL Studio first (Windows can't replace a plugin file that FL has loaded). With the
+   installer, run the newer one over the old (0.1.0's, and 0.2.0's over 0.1.0, were checked this way
+   on Windows 11); by hand, replace every copy you installed before, the `.dll` too if you used it.
+   No one has run the macOS bundles yet; if you do, please report how it went.
 3. In FL Studio: *Options › Manage plugins › Find installed plugins*. The bottom of MPE Roll's File
    menu names the build that's loaded, e.g. "MPE Roll 0.1.0, release v0.1.0, fd8e433, 2026-11-01"
    (a build between releases says "build 63" and its commit instead of the release). From 0.2.0,
    MPE Roll gives its maker as *MPE Roll*, where earlier builds gave *Glowing Pancake* (the
    repository's old name). If FL still shows the old name after you update, tick *Verify plugins*
    and *Rescan previously verified plugins* there, as FL's manual advises after an update, and click
-   *Find installed plugins* again. In FL Studio 26.1.7, after the installer upgraded 0.1.0, the list
-   went on naming *Glowing Pancake* as the VST3's vendor even after FL's entry for it in the plugin
-   database was deleted and the plugins scanned again with *Verify plugins*. MPE Roll loads and
-   plays as it should: see *FL's plugin list names Glowing Pancake as MPE Roll's maker* under
+   *Find installed plugins* again. If the list still names *Glowing Pancake*, FL's plugin wrapper is
+   keeping the old name in the registry: see
+   [Removing the old maker name from FL](#removing-the-old-maker-name-from-fl) under
    Troubleshooting. If new features are missing too, FL has found an older copy: see *After an
    update, new features are missing* under Troubleshooting. MPE Roll's plugin IDs, which
    hosts save in projects, don't depend on the name, and neither does its settings folder
@@ -668,7 +672,7 @@ Your browser opens only when you click it, and nothing is sent until you submit 
 | --- | --- |
 | FL doesn't list MPE Roll | Check where the files went: the whole `MPE Roll.vst3` folder in `C:\Program Files\Common Files\VST3`, or `MPE Roll.dll` in one of the plugin folders listed under *Options › Manage plugins* (the installer puts the VST2 where you told it to). Then click *Find installed plugins*. |
 | After an update, new features (or the toolbar's icons) are missing | FL is loading an older MPE Roll. The bottom of the File menu (and of *MPE settings*) names the build that's loaded, e.g. "release v0.1.0" or "build 63": compare it with the download's name (`MPE-Roll-0.1.0-Windows.zip`, `MPE-Roll-Windows-build-63`). Close FL and run the installer, which finds the older copies FL's plugin database lists (outside FL's own folder) and any in the usual plugin folders. Without the installer, or for a copy it didn't find, look in every folder listed under *Options › Manage plugins* for `MPE Roll.vst3`, `MPE Roll.dll` and `MPE Roll Scanner.exe`, and replace or delete the old ones. A project or channel made with the `.dll` keeps loading the `.dll`, even with a newer `.vst3` installed. Then *Find installed plugins*. |
-| FL's plugin list names *Glowing Pancake* as MPE Roll's maker | 0.1.0 gave that name (the repository's old one); 0.2.0 and later give *MPE Roll*, which CI checks in the VST3 and the VST2 (as listed, as loaded, and in the VST3's `moduleinfo.json`). In FL Studio 26.1.7, after the installer upgraded 0.1.0, *Options › Manage plugins* went on naming *Glowing Pancake* as the VST3's vendor (and no vendor for the VST2), even after a scan with *Verify plugins* ticked and with FL's entry for it (`Documents\Image-Line\FL Studio\Presets\Plugin database\Installed\Generators\VST3\MPE Roll.nfo` and `.fst`) deleted first. Only the name shown is old: MPE Roll loads and plays. Image-Line's manual says the vendor shown can be changed in *Manage plugins*. The installed VST3's own `C:\Program Files\Common Files\VST3\MPE Roll.vst3\Contents\Resources\moduleinfo.json` names *MPE Roll* as its vendor on that PC too, so FL keeps the old name in data of its own; where isn't known yet. |
+| FL's plugin list names *Glowing Pancake* as MPE Roll's maker | 0.1.0 gave that name (the repository's old one); 0.2.0 and later give *MPE Roll*, which CI checks in the VST3 and the VST2 (as listed, as loaded, and in the VST3's `moduleinfo.json`). In FL Studio 26.1.7, after the installer upgraded 0.1.0, *Options › Manage plugins* went on naming *Glowing Pancake* as the VST3's vendor (and no vendor for the VST2), even after a scan with *Verify plugins* ticked and with FL's entry for it (`Documents\Image-Line\FL Studio\Presets\Plugin database\Installed\Generators\VST3\MPE Roll.nfo` and `.fst`) deleted first, while the installed VST3's own `moduleinfo.json` named *MPE Roll*. FL's plugin wrapper had kept an empty registry entry under the old name; removing it and scanning again made the list name *MPE Roll*: see [Removing the old maker name from FL](#removing-the-old-maker-name-from-fl) below. Only the name shown is affected: MPE Roll loads and plays either way. |
 | *Couldn't check for updates: …* in the status line | You asked (*File › Check for updates now…*, or *Check now* in *MPE settings › Updates*) and no release came back: you're offline, a firewall or proxy blocks api.github.com and github.com, or GitHub is limiting requests from your network (60 an hour from one address; on Windows MPE Roll then asks the release page instead, which isn't limited that way, and on a Mac the check has to wait for the next hour, and the status line says *GitHub's limit of … requests an hour from your network is used up*). The daily check says nothing when this happens; *MPE settings › Updates › Last check* shows how the last one went. The releases are at github.com/freener0x/MPE-Roll/releases. |
 | Scanning for plugins crashes FL | MPE Roll Scanner isn't installed, so plugins were looked at inside FL. It's inside the `.vst3` folder; with the `.dll`, put `MPE Roll Scanner.exe` next to it. |
 | "… crashed while MPE Roll was checking it" | That plugin crashes when it's loaded outside its usual host, so MPE Roll won't load it (FL would go down with it). Try updating the plugin, and please report which one it is. |
@@ -704,3 +708,37 @@ Your browser opens only when you click it, and nothing is sent until you submit 
 | One copy per note: CPU is high | Each copy runs a whole synth. Fewer copies, fewer unison voices, effects moved from the synth to FL's mixer, and *Sleep while quiet* on all help. Keep FL's *Multithreaded generator processing* and MPE Roll's *Use several CPU cores* on. |
 | One copy per note: a keyswitch, or Arcade's modifiers, act on one note only | Those keys must reach every copy: set *Keys to every copy* (*Keyswitches*, *Output Arcade Samplers*, or the keys typed in). |
 | One copy per note: some of Arcade's loops play on every copy at once, or some modifiers and pitch keys change one loop only | The *Output Arcade Samplers* keys are an octave off for your Arcade: choose the other one (*…, an octave lower* or back), and check as in section 2's table. With an Arcade Instrument, choose *None*. |
+
+### Removing the old maker name from FL
+
+After the installer upgraded 0.1.0, FL Studio 26.1.7's *Options › Manage plugins* went on naming
+*Glowing Pancake* (the maker 0.1.0 gave) as MPE Roll's VST3 vendor, even after a scan with *Verify
+plugins*. FL's plugin wrapper had kept an empty registry entry under that name,
+`HKEY_CURRENT_USER\Software\Image-Line\Shared\Plugins\Fruity Wrapper\Plugins\Glowing Pancake`.
+These steps removed it, and the list then named *MPE Roll* (FL Studio 26.1.7, Windows 11):
+
+1. Close FL Studio.
+2. In PowerShell, check that the entry is empty. Both numbers should be 0; if nothing prints, there
+   is no such entry and nothing to do. If either number isn't 0, stop and
+   [open an issue](https://github.com/freener0x/MPE-Roll/issues/new/choose) with what it printed.
+
+   ```powershell
+   $p = "HKCU:\Software\Image-Line\Shared\Plugins\Fruity Wrapper\Plugins"
+   $k = Get-ChildItem $p | Where-Object { $_.PSChildName -like 'Glowing*' }
+   $k.SubKeyCount; $k.ValueCount
+   ```
+
+3. In the same window, back the entry up to your Desktop and remove it. Double-clicking the `.reg`
+   file puts it back.
+
+   ```powershell
+   reg export $k.Name "$env:USERPROFILE\Desktop\fl-glowing-pancake-backup.reg"
+   Remove-Item -LiteralPath $k.PSPath
+   ```
+
+4. Open FL, go to *Options › Manage plugins*, tick *Verify plugins* and *Rescan previously verified
+   plugins*, and click *Find installed plugins*.
+
+Leave the other entries there as they are: `VST\MPE Roll`, for one, holds MPE Roll's wrapper
+settings (*Send pitch bend range* and the like). Only the name shown was affected: MPE Roll loads
+and plays either way.

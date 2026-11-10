@@ -1,4 +1,6 @@
 # The site's own pages, as the header lists them (between Download and View on GitHub).
+- title: MPE in FL Studio
+  url: /MPE_IN_FL_STUDIO.html
 - title: FL Studio guide
   url: /FL_STUDIO.html
 - title: Synths and their MPE

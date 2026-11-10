@@ -76,10 +76,10 @@ LEAD = (f"{PROJECT} is free and open source, with no ads and no tracking. "
 COMING_SOON = "Donation links are coming soon."
 
 # The front page's description, for search engines and the card a link to the site gets (its
-# og:description); the page's own words are in docs/_data/features.yml.
-INDEX_DESCRIPTION = (f"{PROJECT} is a free, open-source instrument plugin for FL Studio with its own MPE piano "
-                     "roll. Load your synth inside it, and every note gets its own pitch glide, pressure, timbre "
-                     "and controllers.")
+# og:description); the page's own words are in docs/_data/features.yml. Keep it to 160 characters,
+# as every page's is: tools/check_site.py fails CI on a longer one.
+INDEX_DESCRIPTION = (f"{PROJECT} is a free, open-source MPE piano roll plugin for FL Studio. Load your synth "
+                     "inside it, and every note gets its own pitch glide, pressure and timbre.")
 
 # The share page. Every post links to the website's front page. The texts are the ones the maintainer
 # approved; plain ASCII, so they read the same everywhere they're pasted.
@@ -90,7 +90,7 @@ SHARE_SHORT = (f"{PROJECT}: a free, open-source MPE piano roll plugin for FL Stu
                "#MPE #FLStudio #VST3 #CLAP #OpenSource")
 SHARE_MEDIUM = (f"{PROJECT} is a free, open-source plugin for FL Studio with its own MPE piano roll. Load your "
                 "synth inside it (VST3, VST2 or CLAP) and every note gets its own pitch glide, pressure, timbre "
-                "and controllers, which FL's piano roll can't send to plugins. For FL's own synths it writes a "
+                "and controllers, which FL's piano roll can't send to third-party synths. For FL's own synths it writes a "
                 "piano roll script that rebuilds the clip with slide notes. Windows and macOS. No ads, no "
                 "tracking.\n\n#MPE #FLStudio #VST3 #CLAP #MIDI #MusicProduction #OpenSource #MPERoll")
 X_LIMIT = 280            # characters in a post on X

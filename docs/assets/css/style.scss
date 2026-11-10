@@ -54,11 +54,43 @@ $button-green: $section-headings-color;
     border-color: rgba(255, 255, 255, 0.45);
   }
 
-  // Two buttons to a row on a phone, so the header doesn't push the page a screen down.
+  // Seven buttons don't fit one row at a laptop's width, and left alone the row breaks before the
+  // last, which then sits on its own. Kept this narrow, it breaks after the fourth: four and
+  // three. A window wide enough for all seven has them in one row.
+  @include large {
+    max-width: 46rem;
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  @media screen and (min-width: 96em) {
+    max-width: none;
+  }
+
+  @include medium {
+    max-width: 41rem;
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  // The narrowest of those windows (a small tablet held upright) are a little too narrow for four
+  // buttons between the header's side margins, and the row would break three, three and one. There
+  // the buttons take some of the margin, which leaves 1.5rem of it on each side.
+  @media screen and (min-width: #{$medium-breakpoint}) and (max-width: 46em) {
+    max-width: none;
+    margin-right: -2.5rem;
+    margin-left: -2.5rem;
+  }
+
+  // Two buttons to a row on a phone, so the header doesn't push the page a screen down; an odd
+  // last one takes the whole row.
   @include small {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.6rem;
+    max-width: none;
+    margin-right: 0;
+    margin-left: 0;
 
     .btn {
       display: flex;
@@ -66,6 +98,10 @@ $button-green: $section-headings-color;
       justify-content: center;
       padding: 0.6rem 0.5rem;
       text-align: center;
+    }
+
+    .btn:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
     }
   }
 }
@@ -406,6 +442,10 @@ $home-wide: "screen and (min-width: 52em)";
   .tested {
     margin-bottom: 0.4rem;
     font-weight: bold;
+  }
+
+  .made {
+    margin-bottom: 0.4rem;
   }
 
   p:last-child {

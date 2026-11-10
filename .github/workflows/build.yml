@@ -48,7 +48,9 @@ jobs:
           if [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             changed=$(git diff --name-only "$BEFORE" "$AFTER")
             printf 'Changed since %s:\n%s\n' "$BEFORE" "$changed"
-            if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qvE '(^|/)[^/]*\.md$|^docs/|^LICENSE'; then
+            # docs/install-macos.sh lives with the website but is code: the macOS job tests it.
+            if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qvE '(^|/)[^/]*\.md$|^docs/|^LICENSE' \
+              && ! printf '%s\n' "$changed" | grep -qxF docs/install-macos.sh; then
               code=false
             fi
           fi
@@ -316,6 +318,168 @@ jobs:
           path: MPE-Roll-bundles.zip
           compression-level: 0
 
+      # The steps from here on check docs/install-macos.sh, the one-line install the website offers
+      # Mac users, and what docs/UNSIGNED_BUILDS.md says about it. They come after the upload, so
+      # the build's download is there whatever they find.
+      #
+      # That page leans on a file fetched with curl, unlike a browser's download, getting no
+      # quarantine mark (com.apple.quarantine). Looked for here on the file the script fetches
+      # first, a release's SHA256SUMS.txt; the second half shows that this runner can set and see
+      # the mark at all, so that finding none means something. A mark on curl's download fails the
+      # job, because the page then has to change. A download that doesn't arrive only warns that
+      # nothing was checked: no change to the code can mend that.
+      - name: A file fetched with curl carries no quarantine mark
+        timeout-minutes: 5
+        run: |
+          url=https://github.com/freener0x/MPE-Roll/releases/latest/download/SHA256SUMS.txt
+          if ! curl --fail --location --silent --show-error --retry 3 --connect-timeout 20 \
+            --max-time 120 --output fetched.txt "$url"; then
+            title="curl and the quarantine mark weren't checked"
+            echo "::warning title=$title::$url couldn't be fetched, so this run shows nothing."
+            exit 0
+          fi
+          cat fetched.txt
+          marks=$(xattr fetched.txt)
+          echo "Its extended attributes: ${marks:-none}"
+          case "$marks" in
+            *com.apple.quarantine*)
+              echo "curl's download carries the quarantine mark. docs/UNSIGNED_BUILDS.md says it"
+              echo "shouldn't: that page, the README and the changelog have to say what was found."
+              exit 1 ;;
+          esac
+          mark="0081;$(printf '%x' "$(date +%s)");Safari;"
+          xattr -w com.apple.quarantine "$mark" fetched.txt || true
+          case "$(xattr fetched.txt)" in
+            *com.apple.quarantine*)
+              echo "The mark can be set and seen on this runner." ;;
+            *)
+              echo "The quarantine mark couldn't be set on this runner: finding none shows nothing."
+              exit 1 ;;
+          esac
+
+      # docs/install-macos.sh run by the bash macOS ships (/bin/bash, 3.2) on the zip packaged
+      # above: first with a SHA256SUMS.txt for it, into folders that hold no copy yet, then on that
+      # zip marked as a browser's download would be, over the copy just installed. After each, the
+      # three bundles must be in the user's own Library folders, whole (their signatures verify),
+      # able to run and free of the quarantine mark; after the first they must be this build's
+      # files exactly. installed.sh, written here, holds the three places and that check, and the
+      # last step uses it too. No person has run the script on a Mac of their own: this runner is
+      # the only Mac it runs on.
+      - name: The install script puts this build's bundles into the user's Library, unmarked
+        timeout-minutes: 10
+        run: |
+          cat > installed.sh <<'EOF'
+          vst3="$HOME/Library/Audio/Plug-Ins/VST3/MPE Roll.vst3"
+          au="$HOME/Library/Audio/Plug-Ins/Components/MPE Roll.component"
+          app="$HOME/Applications/MPE Roll.app"
+          # Ends the step unless the three bundles are in place, whole, unmarked and able to run.
+          installed() {
+            for bundle in "$vst3" "$au" "$app"; do
+              if [ ! -d "$bundle" ]; then
+                echo "$bundle isn't there."
+                exit 1
+              fi
+              marked=$(xattr -r "$bundle" | grep -c com.apple.quarantine || true)
+              if [ "$marked" != 0 ]; then
+                echo "$marked files in $bundle carry the quarantine mark."
+                exit 1
+              fi
+              codesign --verify --deep --strict "$bundle" || exit 1
+            done
+            if [ ! -x "$app/Contents/MacOS/MPE Roll" ]; then
+              echo "The app's program has lost its permission to run."
+              exit 1
+            fi
+            version=$(defaults read "$app/Contents/Info" CFBundleShortVersionString)
+            echo "In place, whole and unmarked: MPE Roll $version"
+          }
+          EOF
+          . ./installed.sh
+          rm -rf "$vst3" "$au" "$app"
+          # Runs the script with macOS's own bash, keeping what it prints in install.log.
+          run_script() {
+            status=0
+            /bin/bash docs/install-macos.sh "$@" > install.log || status=$?
+            cat install.log
+            if [ "$status" != 0 ]; then exit "$status"; fi
+          }
+          replaced="A copy that was already there was replaced."
+
+          echo "::group::This build's zip, with its checksum"
+          shasum -a 256 MPE-Roll-bundles.zip > SHA256SUMS.txt
+          run_script --zip MPE-Roll-bundles.zip --sums SHA256SUMS.txt
+          installed
+          if grep -q "$replaced" install.log; then
+            echo "The script says it replaced a copy, and there was none."
+            exit 1
+          fi
+          diff -r "build/MpeRoll_artefacts/Release/VST3/MPE Roll.vst3" "$vst3"
+          diff -r "build/MpeRoll_artefacts/Release/AU/MPE Roll.component" "$au"
+          diff -r "build/MpeRoll_artefacts/Release/Standalone/MPE Roll.app" "$app"
+          echo "::endgroup::"
+
+          echo "::group::This build's zip, marked as a browser's download, over that install"
+          cp MPE-Roll-bundles.zip browser-download.zip
+          mark="0081;$(printf '%x' "$(date +%s)");Safari;"
+          xattr -w com.apple.quarantine "$mark" browser-download.zip
+          run_script --zip browser-download.zip
+          installed
+          if ! grep -q "$replaced" install.log; then
+            echo "The script doesn't say that it replaced the copy that was there."
+            exit 1
+          fi
+          if grep -q "mark was taken off these copies" install.log; then
+            echo "ditto passed the zip's mark on to what it unpacked, and the script took it off."
+          else
+            echo "ditto didn't pass the zip's mark on to what it unpacked."
+          fi
+          echo "::endgroup::"
+
+      # Apple's AU validator again, this time on the component where the install script left it:
+      # this build's, after a trip through the zip. Then the three bundles are removed, with the
+      # command the script prints for undoing an install.
+      - name: AU validation (auval) of the installed copy
+        run: |
+          killall -9 AudioComponentRegistrar 2> /dev/null || true
+          status=0
+          perl -e 'alarm shift; exec @ARGV' 180 auval -v aumu Mpr1 Glpk || status=$?
+          rm -rf "$HOME/Library/Audio/Plug-Ins/VST3/MPE Roll.vst3" \
+            "$HOME/Library/Audio/Plug-Ins/Components/MPE Roll.component" \
+            "$HOME/Applications/MPE Roll.app"
+          if [ "$status" = 142 ]; then echo "auval didn't finish within 180 s."; fi
+          exit "$status"
+
+      # The same script the way the website's one line runs it ("curl ... | bash"): fed to bash,
+      # for the latest release, which it downloads from GitHub and checks against that release's
+      # SHA256SUMS.txt before installing; then the same check of the three bundles, and their
+      # removal. This can fail for reasons no change to the code can mend (GitHub's downloads out
+      # of reach, or something about a release that is already out), so it doesn't fail the job:
+      # the step is marked as failed, the job goes on, and a warning on the run's page says so.
+      # perl's alarm ends the script after 300 s (exit 142) should a download hang.
+      - name: The install script, fed to bash, installs the latest release
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          . ./installed.sh
+          finish() {
+            code=$?
+            rm -rf "$vst3" "$au" "$app"
+            if [ "$code" != 0 ]; then
+              title="The one-line install of the latest release didn't pass"
+              said="The step ended with exit code $code; its log says where. The build stands."
+              echo "::warning title=$title::$said"
+              echo "**$title.** $said" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            exit "$code"
+          }
+          trap finish EXIT
+          rm -rf "$vst3" "$au" "$app"
+          status=0
+          perl -e 'alarm shift; exec @ARGV' 300 /bin/bash -s < docs/install-macos.sh || status=$?
+          if [ "$status" = 142 ]; then echo "The script didn't finish within 300 s."; fi
+          if [ "$status" != 0 ]; then exit "$status"; fi
+          installed
+
   linux:
     name: Linux (tests and end-to-end harness)
     needs: changes
@@ -510,14 +674,27 @@ jobs:
 
       - name: Its pages are there, and load nothing from other sites
         run: |
-          ls _site/index.html _site/donate.html _site/share.html _site/FL_STUDIO.html _site/MPE_SYNTHS.html \
-            _site/UNSIGNED_BUILDS.html _site/KNOWN_ISSUES.html _site/PRIVACY.html _site/assets/css/style.css
+          ls _site/index.html _site/donate.html _site/share.html _site/MPE_IN_FL_STUDIO.html \
+            _site/FL_STUDIO.html _site/MPE_SYNTHS.html _site/UNSIGNED_BUILDS.html _site/KNOWN_ISSUES.html \
+            _site/PRIVACY.html _site/assets/css/style.css _site/sitemap.xml
           if grep -rlE 'fonts\.(googleapis|gstatic)\.com' _site; then
             echo "These load fonts from Google"
             exit 1
           fi
 
+      # The install script that the pages tell Mac users to feed to bash: it is bash that parses, and
+      # the site serves the file in docs/ byte for byte. The macOS job is what runs it.
+      - name: The macOS install script is served as it is in docs/
+        run: |
+          bash -n docs/install-macos.sh
+          cmp docs/install-macos.sh _site/install-macos.sh
+
       # Every picture, clip, script, stylesheet and icon the pages load is the site's own, and every
       # link into the site (pages, pictures, #places on a page) leads to something that's there.
+      # What the site tells search engines holds too: the front page's software data and every
+      # page's own are JSON that names nothing missing, sitemap.xml lists only pages that are
+      # there, at the site's address, and every page has a description of its own: not the site's
+      # tagline, which a new guide gets until docs/_config.yml has one for it, and not another
+      # page's.
       - name: Nothing loaded from elsewhere, no link into the site leading nowhere
         run: python3 tools/check_site.py _site

@@ -13,10 +13,14 @@ hero:
   lead: >-
     MPE Roll is a free, open-source instrument plugin for FL Studio with its own piano roll. Load
     your synth inside it, and every note gets its own pitch glide, vibrato, pressure and timbre,
-    which FL Studio's own piano roll can't send to plugins.
+    which FL Studio's own piano roll can't send to third-party synths.
   tested: >-
     Release 0.1.0 was tested in FL Studio 26.1.7 on Windows 11 with Analog Lab, Omnisphere 3 and
     Surge XT (CLAP), and release 0.2.0 in the same FL with Analog Lab.
+  # home.html adds a link to the README's "How MPE Roll is made" after it.
+  made: >-
+    Designed and tested in FL Studio by its maintainer, written with an AI coding assistant, and
+    checked by an automated test suite on every change.
   unsigned: >-
     The downloads aren't code-signed: [Unsigned builds](UNSIGNED_BUILDS.html) says what Windows and
     macOS show about them, and how to get past it.
@@ -55,8 +59,10 @@ why:
   cards:
     - title: What FL's piano roll can't do
       text: >-
-        FL Studio's own piano roll can't send per-note expression to plugins: a pitch glide,
-        pressure or timbre that belongs to one note, and not to the others sounding with it.
+        FL Studio's own piano roll can't send per-note expression to a third-party synth (VST, VST3
+        or CLAP): a pitch glide, pressure or timbre that belongs to one note, and not to the others
+        sounding with it. Its slide notes, per-note pitch and Mod X / Mod Y work with FL's own
+        synths only. [Does FL Studio support MPE?](MPE_IN_FL_STUDIO.html) has the details.
     - title: The instrument FL sees
       text: >-
         Add MPE Roll to the Channel Rack and load your synth inside it (VST3, VST2 or CLAP). MPE
@@ -279,6 +285,11 @@ glance:
 guides:
   title: Guides
   pages:
+    - title: MPE in FL Studio
+      url: /MPE_IN_FL_STUDIO.html
+      text: >-
+        does FL Studio support MPE? What its own piano roll does for one note and what it doesn't,
+        how MPE Roll adds the rest, and what has been tested.
     - title: Using MPE Roll in FL Studio
       url: /FL_STUDIO.html
       text: >-

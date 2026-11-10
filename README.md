@@ -8,7 +8,8 @@
 An MPE piano roll for FL Studio. MPE Roll is an instrument plugin (VST3, plus AU on macOS and a
 standalone app) with its own piano roll. You load your synth *inside* it (VST3, VST2 or CLAP), so
 every note gets its own pitch glide, pressure, timbre and controllers. FL Studio's own piano roll
-can't send per-note expression to plugins.
+can't send those to a third-party synth (VST, VST3 or CLAP): its slide notes, per-note pitch and
+Mod X / Mod Y work with FL's own synths only.
 
 For FL's native synths (FLEX, Sytrus, Harmor, 3xOsc...), which can't receive MPE at all, MPE Roll
 writes a piano roll script. The script rebuilds the clip in FL's own piano roll using slide notes,
@@ -146,9 +147,12 @@ Windows installer (`MPE-Roll-Setup-<version>.exe`), the Windows files (`MPE-Roll
 and the macOS bundles (`MPE-Roll-<version>-macOS.zip`) attached, with notes on what changed since the
 one before ([CHANGELOG.md](CHANGELOG.md) keeps them all). From 0.2.0 on, a release also carries an
 experimental Linux build (`MPE-Roll-<version>-Linux.tar.gz`) and `SHA256SUMS.txt`, the checksums of
-the files ([how to check a download](docs/UNSIGNED_BUILDS.md#verify-what-you-downloaded)).
+the files ([how to check a download](docs/UNSIGNED_BUILDS.md#verify-what-you-downloaded)). For the
+releases after 0.2.0, GitHub also keeps a signed record that the files were built by this
+repository's release workflow (an artifact attestation, signed by the workflow through Sigstore),
+which `gh attestation verify` checks a download against; the same page says how.
 
-To make a release (maintainers): set the version in `CMakeLists.txt` (`project(MPE_ROLL VERSION
+**Releasing (maintainers).** Set the version in `CMakeLists.txt` (`project(MPE_ROLL VERSION
 …)`, three numbers such as `0.3.0`), rename the *[Unreleased]* section of `CHANGELOG.md` to that
 version and the day, merge, then either tag that commit `v<version>` and push the tag, or open the
 *Release* workflow under *Actions* and *Run workflow* on `main`, which tags main's commit for you.
@@ -159,6 +163,33 @@ suffix typed into *Run workflow*) is marked a pre-release; it needs the section 
 (`## [0.3.0]` for `v0.3.0-beta1`). The suffix is letters and digits with dots between (`beta1`,
 `rc.1`), and the build runs as `0.3.0-beta1`, so its update check offers 0.3.0 once that's out.
 The update check reads versions only in these shapes, so the workflow refuses others.
+
+Before it publishes, the workflow signs the artifact attestation for the files (through Sigstore,
+with the identity GitHub gives the run) and GitHub stores it; that needs nothing set up. After a
+release that isn't a pre-release, its *Announce* job tells people, where the repository is set up
+for it. Both of these are optional, and a release goes out the same without them:
+
+- **Discord.** Add a repository secret named `DISCORD_RELEASE_WEBHOOK` (*Settings › Secrets and
+  variables › Actions › New repository secret*) holding the webhook address of the Discord
+  channel to post in (it starts `https://discord.com/api/webhooks/`; Discord's help article
+  *Intro to Webhooks* says how to make one). The job then posts the release's name, its link, the
+  start of its first changes from `CHANGELOG.md` and the website's address there. Without the
+  secret it posts nothing. Anyone who has the address can post in that channel, so keep it
+  nowhere but in the secret.
+- **GitHub Discussions.** Turn Discussions on (*Settings › General › Features*) and keep their
+  *Announcements* category: the job opens a discussion "MPE Roll \<version\>" there with the
+  version's `CHANGELOG.md` section. Without Discussions or that category it opens none and says
+  so. It needs no secret. This hasn't run yet: GitHub lets only maintainers post in
+  *Announcements*, and the first release will show whether it accepts the workflow's own token.
+
+An announcement that fails doesn't fail the release: the run stays green (the *Announce* job is
+allowed to fail, and shows as failed on the run's page if it does), and the run's summary page
+says what went wrong. To try again, re-run the *Announce* job alone from the run's page; a
+discussion isn't opened twice, but a Discord post that went through is posted again. A run that
+replaces the files of a release already out doesn't announce it again. The workflow uses no other
+secret: the rest is done with the token GitHub gives each run. No release has been made since the
+attestation and the announcements were added: their steps were tried with stand-ins for GitHub and
+Discord, and the first release will show how they do for real.
 
 **Builds between releases.** Every code change is built by GitHub Actions (a change to the
 documentation alone builds nothing).
@@ -210,6 +241,26 @@ build yet: CI builds it on every code change, but no person has opened it on a M
 wanted: please say how it went, working or not, in an
 [issue](https://github.com/freener0x/MPE-Roll/issues).
 
+Or let a script do it. In Terminal,
+
+```
+curl -fsSL https://freener0x.github.io/MPE-Roll/install-macos.sh | bash
+```
+
+downloads the latest release's zip (0.2.0 or later), checks it against the release's
+`SHA256SUMS.txt`, and copies the three bundles into your own Library folders
+(`~/Library/Audio/Plug-Ins/VST3`, `~/Library/Audio/Plug-Ins/Components` and `~/Applications`),
+with no password and nothing else changed; it prints what it did and the command that undoes it.
+A file fetched this way should get no quarantine flag, and the script takes the flag off its
+copies if they have one, so there should be none for you to remove. The script is
+[docs/install-macos.sh](docs/install-macos.sh); to read it before running it, to install another
+release or to install from a zip you already have, see
+[the install script](docs/UNSIGNED_BUILDS.md#macos-the-install-script). GitHub's macOS runner
+runs it, and looks for the flag on a file fetched this way, whenever the code changes; in the first
+such run (10 November 2026) the file carried no flag and the script installed both that build and
+release 0.2.0. That runner is the only Mac it has run on: no person has run it on a Mac of their
+own.
+
 **The Linux build** (experimental): `MPE-Roll-<version>-Linux.tar.gz` from 0.2.0 on, or
 **MPE-Roll-Linux-build-N** between releases (a zip with `MPE-Roll-Linux.tar.gz` inside). Unpacked
 with `tar -xzf`, it's a folder `MPE Roll` with `MPE Roll.vst3` (copy it to `~/.vst3`), the
@@ -221,7 +272,8 @@ GitHub: JUCE's networking on Linux has no HTTPS, so it says so when asked and se
 These builds aren't code signed. Windows may show a SmartScreen warning for the installer and the
 standalone app, and on macOS you need to remove the quarantine flag from the unzipped `MPE Roll`
 folder before a DAW will load the bundles (`xattr -dr com.apple.quarantine ~/Downloads/"MPE Roll"`
-for the folder unzipped in Downloads; it covers all three).
+for the folder unzipped in Downloads; it covers all three), unless the install script above put
+them in place.
 [docs/UNSIGNED_BUILDS.md](docs/UNSIGNED_BUILDS.md) says what each system shows, how to get past
 it, and how to check a download.
 
@@ -274,7 +326,9 @@ Options: `-DMPEROLL_HOST_VST2=OFF` and `-DMPEROLL_HOST_CLAP=OFF` leave out VST2 
 
 ## Using it in FL Studio
 
-The short version is below. [docs/FL_STUDIO.md](docs/FL_STUDIO.md) has the full walkthrough.
+The short version is below. [docs/FL_STUDIO.md](docs/FL_STUDIO.md) has the full walkthrough, and
+[docs/MPE_IN_FL_STUDIO.md](docs/MPE_IN_FL_STUDIO.md) answers "Does FL Studio support MPE?": what
+FL's own piano roll does for one note, what it doesn't, and what was and wasn't checked.
 
 1. **Add it:** *Options › Manage plugins › Find installed plugins*, then add **MPE Roll** to the
    Channel Rack like any instrument.
@@ -389,14 +443,25 @@ form on GitHub.
   (listed, loaded, and in the VST3's `moduleinfo.json`). Yet after the installer upgraded 0.1.0,
   FL Studio 26.1.7's *Manage plugins* list went on naming *Glowing Pancake* as the VST3's vendor
   (and no vendor for the VST2), even once FL's entry for it in the plugin database had been deleted
-  and the plugins scanned again with *Verify plugins*. The installed VST3's own `moduleinfo.json`
-  names *MPE Roll* there too, so FL keeps the old name in data of its own; where isn't known yet.
-  Only the name shown is wrong: MPE Roll loads and plays. Image-Line's manual says the vendor shown
-  can be changed in *Manage plugins*.
+  and the plugins scanned again with *Verify plugins*, while the installed VST3's own
+  `moduleinfo.json` named *MPE Roll*. FL's plugin wrapper had kept an empty registry entry under
+  the old name: removing it and scanning again made the list name *MPE Roll*. Only the name shown
+  is wrong: MPE Roll loads and plays. The FL Studio guide's
+  [Removing the old maker name from FL](docs/FL_STUDIO.md#removing-the-old-maker-name-from-fl)
+  has the steps.
 - If FL also sends your controller to the *selected* Channel Rack channel, notes can play twice.
   Keep another channel selected while recording.
 - FL's native synths only get what FL's piano roll can express: one colour per overlapping note, at
   most 16 at a time.
+
+## How MPE Roll is made
+
+MPE Roll is designed and tested in FL Studio by its maintainer, and written with an AI coding
+assistant (Claude, which is why most commits name it as their author). Every change is built and
+checked on Windows, macOS and Linux by an automated test suite: unit tests of the MPE engine, an
+end-to-end harness that plays clips through VST3, VST2 and CLAP test synths, and an install,
+upgrade and uninstall test of the Windows installer. Releases 0.1.0 and 0.2.0 were also tested by
+hand in FL Studio 26.1.7 on Windows 11 (see [Known limitations](#known-limitations)).
 
 ## How it's built
 
@@ -465,15 +530,22 @@ branch*, `main`, `/docs`). The front page is laid out by `docs/_layouts/home.htm
 the harness (`MpeRollHarness shoot` and `demo`), and the two from FL Studio are screenshots taken in
 FL Studio 26.1.7 on Windows 11. `tools/make_donate_page.py` makes the Support page, the share page
 (`docs/share.html`, posts ready for X, Instagram and Facebook) and the front page's front matter
-and donation paragraph; the FL Studio guide, the list of synths and the Known issues, Unsigned
-builds and Privacy pages become pages as they are. `docs/_config.yml` says how it's put together.
+and donation paragraph; the "Does FL Studio support MPE?" page, the FL Studio guide, the list of
+synths and the Known issues, Unsigned builds and Privacy pages become pages as they are, and
+`docs/install-macos.sh` is served as the file it is. `docs/_config.yml` says how it's put together,
+gives each guide its description for search engines, and holds the steps for Google Search Console.
 CI builds the site and runs `tools/check_site.py` on it: nothing may be loaded from another site,
-and no link into the site may lead nowhere. Its pages link to the repository and its licence;
+no link into the site may lead nowhere, `sitemap.xml` may list only pages that are there, the front
+page's software data must parse and name addresses that exist, and every page must have a
+description of its own, of 160 characters at most. Its pages link to the repository and its licence;
 should the repository ever be made private, set `"repoPublic": false` in `docs/donate.json` and run
 `tools/make_donate_page.py`, and the website then links to nothing in it, since visitors would get
 a 404 there.
 
 ## License
+
+MPE Roll is an independent project, not made by or affiliated with Image-Line. FL Studio is
+Image-Line's trademark, and the other product names here belong to their owners.
 
 Copyright 2026 The MPE Roll contributors. MPE Roll's own files are licensed under the
 AGPL-3.0-only, the open-source licence JUCE is available under: see [LICENSE](LICENSE). The files of

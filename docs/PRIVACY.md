@@ -162,4 +162,10 @@ the front page, the donation links, and the share page's X, Facebook and Instagr
 other sites with their own policies; the share buttons' links carry nothing but the post's words
 and the site's address.
 
+The site also offers `install-macos.sh` for Mac users
+([Unsigned builds](UNSIGNED_BUILDS.md#macos-the-install-script)). When someone runs it, it
+downloads a release's `SHA256SUMS.txt` and macOS zip from MPE Roll's releases on GitHub with `curl`
+(github.com, which passes the request on to GitHub's own download servers), and contacts nothing
+else. GitHub sees that request as it sees any download.
+
 Issues and pull requests on GitHub are public.
