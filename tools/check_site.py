@@ -27,7 +27,8 @@ on:
   - a page of the site (one with the site's header) whose description (<meta name="description">) is
     missing, or is only the site's tagline, the words under the name in that header: what a page
     without a description of its own gets. docs/_config.yml has each guide's.
-  - two pages with the same description.
+  - two pages with the same description, or a description longer than 160 characters, the length
+    the site keeps to so that a search result can show it whole.
 
 GitHub Pages serves the site from https://freener0x.github.io/MPE-Roll/, so its pages' paths from
 the root start with /MPE-Roll when Jekyll knew that (GitHub's build does; one at the root has no
@@ -93,6 +94,11 @@ TAGLINE_CLASS = "project-tagline"
 # What to do about a page whose description isn't its own.
 OWN_DESCRIPTION = ("give the page its own, in a sentence or two (a guide's goes under defaults in "
                    "docs/_config.yml, another page's in its front matter)")
+
+# The longest description a page may have. The site keeps to 160 characters, a common rule of thumb
+# for what a search engine shows under a result before cutting it short (no search engine's own
+# figure was looked up for it).
+DESCRIPTION_LIMIT = 160
 
 # Fragments every page has: the top of the page.
 ALWAYS_THERE = {"", "top"}
@@ -398,6 +404,10 @@ class Site:
                              f"({page.description!r}): {OWN_DESCRIPTION}")
             else:
                 by_description.setdefault(page.description, []).append(source)
+                if len(page.description) > DESCRIPTION_LIMIT:
+                    found.append(f"{source}: its description is {len(page.description)} characters, over "
+                                 f"the {DESCRIPTION_LIMIT} the site keeps to: shorten it (a guide's is in "
+                                 "docs/_config.yml, the front page's in tools/make_donate_page.py)")
         for description, sources in by_description.items():
             if len(sources) > 1:
                 found.append(f"{', '.join(sources)}: the same description ({description!r}): "

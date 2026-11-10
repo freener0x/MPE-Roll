@@ -76,10 +76,10 @@ LEAD = (f"{PROJECT} is free and open source, with no ads and no tracking. "
 COMING_SOON = "Donation links are coming soon."
 
 # The front page's description, for search engines and the card a link to the site gets (its
-# og:description); the page's own words are in docs/_data/features.yml.
-INDEX_DESCRIPTION = (f"{PROJECT} is a free, open-source instrument plugin for FL Studio with its own MPE piano "
-                     "roll. Load your synth inside it, and every note gets its own pitch glide, pressure, timbre "
-                     "and controllers.")
+# og:description); the page's own words are in docs/_data/features.yml. Keep it to 160 characters,
+# as every page's is: tools/check_site.py fails CI on a longer one.
+INDEX_DESCRIPTION = (f"{PROJECT} is a free, open-source MPE piano roll plugin for FL Studio. Load your synth "
+                     "inside it, and every note gets its own pitch glide, pressure and timbre.")
 
 # The share page. Every post links to the website's front page. The texts are the ones the maintainer
 # approved; plain ASCII, so they read the same everywhere they're pasted.

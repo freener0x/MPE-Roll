@@ -83,12 +83,12 @@ defaults:
 
   # Each guide's description, for search engines and for the card a link to the page gets (the
   # <meta name="description"> and og:description that jekyll-seo-tag writes): what the page answers,
-  # in a sentence or two, under about 160 characters. They are here, and not at the top of each .md
+  # in a sentence or two, of 160 characters at most. They are here, and not at the top of each .md
   # file, so that the guides stay plain Markdown on GitHub, and MPE_SYNTHS.md stays as
   # tools/make_synth_list.py writes it. A guide's title is its first heading. A new guide needs an
   # entry here: without one its description is only the tagline above, and tools/check_site.py
-  # fails CI's Website job on a page whose description is the tagline, is missing, or is the same
-  # as another page's. index.html, donate.html and share.html carry their own
+  # fails CI's Website job on a page whose description is the tagline, is missing, is the same as
+  # another page's, or is longer than that. index.html, donate.html and share.html carry their own
   # (tools/make_donate_page.py).
   - scope:
       path: "MPE_IN_FL_STUDIO.md"
