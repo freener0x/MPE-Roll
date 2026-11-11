@@ -158,8 +158,9 @@ GitHub logs visitors' IP addresses for security when a Pages site is visited (se
 and
 [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement));
 the project sees no visitor data. The *Download* and *View on GitHub* buttons, the issue forms on
-the front page, the donation links, and the share page's X, Facebook and Instagram buttons lead to
-other sites with their own policies; the share buttons' links carry nothing but the post's words
+the front page, the donation links, the front page's link to stonedmango.com (another project of
+the maintainer's), and the share page's X, Facebook and Instagram buttons lead to other sites with
+their own policies; the share buttons' links carry nothing but the post's words
 and the site's address.
 
 The site also offers `install-macos.sh` for Mac users

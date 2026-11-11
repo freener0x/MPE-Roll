@@ -679,7 +679,8 @@ $home-wide: "screen and (min-width: 52em)";
   list-style: none;
 }
 
-// Spread the word and Support MPE Roll, side by side where there's room.
+// Spread the word and Support MPE Roll, side by side where there's room, and More from the maker
+// under them, across the band.
 .home .pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -688,6 +689,10 @@ $home-wide: "screen and (min-width: 52em)";
   @media #{$home-wide} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4rem;
+
+    .more {
+      grid-column: 1 / -1;
+    }
   }
 
   p:last-child {

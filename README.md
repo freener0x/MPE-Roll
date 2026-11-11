@@ -542,6 +542,12 @@ should the repository ever be made private, set `"repoPublic": false` in `docs/d
 `tools/make_donate_page.py`, and the website then links to nothing in it, since visitors would get
 a 404 there.
 
+## More from the maker
+
+[stonedmango.com](https://stonedmango.com) is a free, open-source key and mode finder that runs in
+the browser; your music never leaves your device. The website's front page links to it too, in its
+last band (the `more` block of `docs/_data/features.yml`).
+
 ## License
 
 MPE Roll is an independent project, not made by or affiliated with Image-Line. FL Studio is

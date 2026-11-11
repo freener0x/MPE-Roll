@@ -350,3 +350,13 @@ share:
 
 support:
   title: Support MPE Roll
+
+# The one block that isn't about MPE Roll: a plain link, in the last band, to another project of the
+# maintainer's. Its sentence is the maintainer's own description of that site, and the README's
+# "More from the maker" says the same. Keep it a sentence with a text link, not a banner or a
+# picture: the site loads nothing from other sites. Take the block out and the section goes.
+more:
+  title: More from the maker
+  text: >-
+    [stonedmango.com](https://stonedmango.com) is a free, open-source key and mode finder that runs
+    in the browser; your music never leaves your device.
